@@ -1,11 +1,12 @@
-import { betterAuth } from "better-auth";
+import { betterAuth, type BetterAuthOptions } from "better-auth";
+import { getMigrations } from "better-auth/db/migration";
 import { Pool } from "pg";
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
-export const auth = betterAuth({
+const authConfig = {
   baseURL: process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
   secret: process.env.BETTER_AUTH_SECRET,
   database: pool,
@@ -18,23 +19,20 @@ export const auth = betterAuth({
     expiresIn: 60 * 60 * 24 * 30, // 30 days
     updateAge: 60 * 60 * 24, // 1 day
   },
+} satisfies BetterAuthOptions;
 
-  user: {
-    additionalFields: {
-      subscriptionStatus: {
-        type: "string",
-        defaultValue: "inactive",
-      },
-      paddleCustomerId: {
-        type: "string",
-        defaultValue: null,
-        nullable: true,
-      },
-      paddleSubscriptionId: {
-        type: "string",
-        defaultValue: null,
-        nullable: true,
-      },
-    },
-  },
-});
+export const auth = betterAuth(authConfig);
+
+// Auto-migrate on first load
+let migrated = false;
+export async function ensureMigrations() {
+  if (migrated) return;
+  migrated = true;
+  try {
+    const { runMigrations } = await getMigrations(authConfig);
+    await runMigrations();
+    console.log("Auth migrations applied");
+  } catch (e) {
+    console.error("Auth migration failed:", e);
+  }
+}

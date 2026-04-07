@@ -1,0 +1,77 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply bg-bg text-text;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply font-sans antialiased;
+  }
+
+  ::selection {
+    @apply bg-accent-green/20 text-accent-green;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    @apply w-1.5;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-bg;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border-light rounded-full;
+  }
+}
+
+@layer components {
+  .container-op {
+    @apply max-w-[1000px] mx-auto px-7;
+  }
+
+  .section-label {
+    @apply font-mono text-[10px] text-accent-green tracking-[3px] mb-3.5 uppercase;
+  }
+
+  .section-title {
+    @apply font-sans text-[28px] font-bold mb-3 tracking-tight;
+  }
+
+  .section-sub {
+    @apply font-sans text-[15px] text-text-muted mb-11 max-w-[520px] leading-relaxed;
+  }
+
+  .btn-primary {
+    @apply inline-block font-mono bg-accent-green text-black text-sm font-semibold 
+           px-10 py-4 tracking-wider cursor-pointer border-none 
+           transition-all duration-200 hover:bg-accent-green-hover hover:-translate-y-0.5;
+  }
+
+  .btn-outline {
+    @apply inline-block font-mono text-xs bg-transparent border border-accent-green 
+           text-accent-green px-7 py-2.5 cursor-pointer tracking-wider font-semibold
+           transition-all duration-200 hover:bg-accent-green hover:text-black;
+  }
+
+  .badge {
+    @apply font-mono text-[9px] tracking-[1.5px] font-bold px-2.5 py-1 inline-block;
+  }
+
+  .badge-buy {
+    @apply bg-accent-green-soft text-accent-green;
+  }
+
+  .badge-hold {
+    @apply bg-accent-purple-soft text-accent-purple;
+  }
+
+  .badge-sell {
+    @apply bg-accent-red-soft text-accent-red;
+  }
+}

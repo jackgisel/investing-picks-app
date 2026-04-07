@@ -1,0 +1,32 @@
+import { useQuery } from "@tanstack/react-query";
+
+export interface Trade {
+  ticker: string;
+  side: "buy" | "sell";
+  source: string;
+  date: string;
+  price: number;
+  shares: number;
+  reason: string | null;
+  portfolio_value: number | null;
+}
+
+export interface TradesResponse {
+  trades: Trade[];
+  count: number;
+  source: string;
+}
+
+export function useTrades(limit?: number) {
+  return useQuery<TradesResponse>({
+    queryKey: ["trades", limit],
+    queryFn: async () => {
+      const url = limit
+        ? `/api/data/trades?limit=${limit}`
+        : "/api/data/trades";
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to fetch trades");
+      return res.json();
+    },
+  });
+}

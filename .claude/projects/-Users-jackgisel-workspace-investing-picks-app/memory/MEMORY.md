@@ -1,0 +1,2 @@
+- [User profile](user_profile.md) — Jack, building "Outpick" stock picks SaaS, polished crypto-site design
+- [ETF backtest API](reference_etf_api.md) — External API at etf.jackgisel.com: strategy, chart, picks, trades, performance

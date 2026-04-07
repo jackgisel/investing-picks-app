@@ -3,22 +3,25 @@ import { useQuery } from "@tanstack/react-query";
 export interface ChartPoint {
   date: string;
   portfolio_value: number;
-  benchmark_value: number;
-  source: string;
+  benchmark_value?: number;
 }
 
 export interface ChartData {
   series: ChartPoint[];
-  data_points: number;
-  run_id: number;
-  backtest_end: string;
+  summary: {
+    position_count: number;
+    total_unrealized_pnl: number;
+    total_value: number;
+  };
+  thesis_id: number;
 }
 
+// Uses /performance which now returns the live series
 export function useChart() {
   return useQuery<ChartData>({
     queryKey: ["chart"],
     queryFn: async () => {
-      const res = await fetch("/api/data/chart");
+      const res = await fetch("/api/data/performance");
       if (!res.ok) throw new Error("Failed to fetch chart");
       return res.json();
     },

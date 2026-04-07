@@ -3,18 +3,16 @@ import { useQuery } from "@tanstack/react-query";
 export interface Trade {
   ticker: string;
   side: "buy" | "sell";
-  source: string;
   date: string;
   price: number;
   shares: number;
   reason: string | null;
-  portfolio_value: number | null;
 }
 
 export interface TradesResponse {
   trades: Trade[];
   count: number;
-  source: string;
+  thesis_id: number;
 }
 
 export function useTrades(limit?: number) {

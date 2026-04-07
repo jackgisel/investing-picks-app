@@ -7,7 +7,7 @@ const features = [
   "Performance tracking vs S&P 500",
   "Email and push alerts on new picks",
   "Complete research notes and investment thesis",
-  "Full 7-year backtest + live portfolio data",
+  "Full strategy backtest + live portfolio data",
   `${BACKTEST.winnersCircle} stocks that doubled in the backtest`,
 ];
 

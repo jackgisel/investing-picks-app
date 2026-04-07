@@ -16,7 +16,7 @@ export function DashboardPreview() {
         <p className="section-label">BACKTEST PORTFOLIO</p>
         <h2 className="section-title">Full transparency. Every position.</h2>
         <p className="section-sub">
-          The final portfolio from our 7-year backtest. Members get this level of
+          The final portfolio from our backtest. Members get this level of
           detail on every holding — past and present.
         </p>
 

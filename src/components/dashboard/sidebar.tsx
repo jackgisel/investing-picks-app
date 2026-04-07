@@ -8,9 +8,8 @@ import {
   History,
   ArrowLeftRight,
   BarChart3,
-  Newspaper,
+  BookOpen,
 } from "lucide-react";
-import { OutpickWordmark } from "@/components/ui/outpick-logo";
 
 const NAV_ITEMS = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -18,7 +17,7 @@ const NAV_ITEMS = [
   { label: "Pick History", href: "/dashboard/picks", icon: History },
   { label: "Trades", href: "/dashboard/trades", icon: ArrowLeftRight },
   { label: "Performance", href: "/dashboard/performance", icon: BarChart3 },
-  { label: "News", href: "/dashboard/news", icon: Newspaper },
+  { label: "Strategy", href: "/dashboard/strategy", icon: BookOpen },
 ] as const;
 
 export function Sidebar() {

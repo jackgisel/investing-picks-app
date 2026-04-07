@@ -1,38 +1,21 @@
 import { useQuery } from "@tanstack/react-query";
 
-export interface StrategyBacktest {
-  benchmark_return_pct: number;
-  cagr_pct: number;
-  label: string;
-  losers: number;
-  max_drawdown_pct: number;
-  period: string;
-  run_id: number;
-  sharpe_ratio: number;
-  total_return_pct: number;
-  total_trades: number;
-  win_rate_pct: number;
-  winners: number;
-}
-
-export interface StrategyHolding {
+export interface Holding {
   ticker: string;
-  source: "live" | "backtest";
   entry_date: string;
   entry_price: number;
   current_price: number;
-  pnl_pct: number | null;
-  backtest_entry_date: string;
-  backtest_pnl_pct: number;
+  pnl_pct: number;
   market_value: number;
+  shares: number;
 }
 
 export interface StrategyData {
-  backtest: StrategyBacktest;
-  holdings: StrategyHolding[];
-  live: {
+  holdings: Holding[];
+  portfolio: {
     position_count: number;
     tickers: string[];
+    total_unrealized_pnl: number;
     total_value: number;
   };
   strategy: {

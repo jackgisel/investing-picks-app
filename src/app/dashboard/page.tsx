@@ -2,13 +2,12 @@
 
 import { useStrategy } from "@/lib/hooks/use-strategy";
 import { usePicks } from "@/lib/hooks/use-picks";
-import { PerformanceChart } from "@/components/dashboard/performance-chart";
-import { LiveStatus, BacktestBadge, BacktestDisclaimer } from "@/components/dashboard/live-status";
+import { LiveStatus } from "@/components/dashboard/live-status";
 import {
   TrendingUp,
-  BarChart3,
+  Wallet,
   Activity,
-  Target,
+  Layers,
   ArrowUpRight,
 } from "lucide-react";
 import Link from "next/link";
@@ -18,214 +17,271 @@ function formatPct(n: number) {
   return `${sign}${n.toFixed(2)}%`;
 }
 
+function formatCurrency(n: number) {
+  return n.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+}
+
+function formatDollar(n: number) {
+  const sign = n >= 0 ? "+" : "";
+  return `${sign}$${Math.abs(n).toFixed(2)}`;
+}
+
 export default function DashboardPage() {
   const { data: strategy, isLoading } = useStrategy();
   const { data: picksData } = usePicks("active");
 
-  const stats = strategy?.backtest;
+  const portfolio = strategy?.portfolio;
   const holdings = strategy?.holdings;
+  const strategyMeta = strategy?.strategy;
 
-  // Top holdings by backtest P&L
+  // Total return % from current vs cost basis
+  const totalCost = holdings?.reduce(
+    (sum, h) => sum + h.entry_price * h.shares,
+    0
+  ) ?? 0;
+  const totalReturnPct = totalCost > 0 && portfolio
+    ? ((portfolio.total_value - totalCost) / totalCost) * 100
+    : 0;
+
+  // Top 5 holdings by P&L
   const topHoldings = holdings
-    ?.filter((h) => h.backtest_pnl_pct > 0)
-    .sort((a, b) => b.backtest_pnl_pct - a.backtest_pnl_pct)
-    .slice(0, 8);
+    ? [...holdings].sort((a, b) => b.pnl_pct - a.pnl_pct).slice(0, 5)
+    : undefined;
 
-  // Recent backtest picks
+  // Bottom 5 holdings by P&L
+  const bottomHoldings = holdings
+    ? [...holdings].sort((a, b) => a.pnl_pct - b.pnl_pct).slice(0, 5)
+    : undefined;
+
+  // Most recent picks (sorted by entry date desc)
   const recentPicks = picksData?.picks
-    .filter((p) => p.source === "backtest")
-    .sort((a, b) => b.entry_date.localeCompare(a.entry_date))
-    .slice(0, 3);
+    ? [...picksData.picks]
+        .sort((a, b) => b.entry_date.localeCompare(a.entry_date))
+        .slice(0, 4)
+    : undefined;
 
   return (
     <div className="max-w-[1100px] space-y-6">
       <div>
         <h1 className="font-sans text-xl font-bold">Dashboard</h1>
         <p className="font-sans text-[13px] text-text-dim mt-1">
-          Strategy overview &middot; {strategy?.strategy.evaluation_frequency || "biweekly"} evaluation
+          {strategyMeta
+            ? `${strategyMeta.name} · ${strategyMeta.evaluation_frequency} evaluation`
+            : "Loading..."}
         </p>
       </div>
 
       {/* Live status banner */}
       <LiveStatus />
 
-      {/* Backtest section header */}
-      <div className="pt-2">
-        <div className="flex items-center gap-3 mb-1">
-          <h2 className="font-sans text-[15px] font-bold">Strategy Performance</h2>
-          <BacktestBadge />
-        </div>
-        <BacktestDisclaimer />
-      </div>
-
-      {/* Stats cards */}
+      {/* Live stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
-          label="TOTAL RETURN"
-          value={stats ? formatPct(stats.total_return_pct) : "—"}
+          label="PORTFOLIO VALUE"
+          value={portfolio ? formatCurrency(portfolio.total_value) : "—"}
+          icon={Wallet}
+          loading={isLoading}
+        />
+        <StatCard
+          label="UNREALIZED P&L"
+          value={portfolio ? formatDollar(portfolio.total_unrealized_pnl) : "—"}
           icon={TrendingUp}
-          green
+          green={portfolio ? portfolio.total_unrealized_pnl >= 0 : false}
+          red={portfolio ? portfolio.total_unrealized_pnl < 0 : false}
           loading={isLoading}
         />
         <StatCard
-          label="VS S&P 500"
-          value={stats ? formatPct(stats.total_return_pct - stats.benchmark_return_pct) : "—"}
-          icon={BarChart3}
-          green
-          loading={isLoading}
-        />
-        <StatCard
-          label="CAGR"
-          value={stats ? formatPct(stats.cagr_pct) : "—"}
+          label="TOTAL RETURN"
+          value={isLoading ? "—" : formatPct(totalReturnPct)}
           icon={Activity}
-          green
+          green={totalReturnPct >= 0}
+          red={totalReturnPct < 0}
           loading={isLoading}
         />
         <StatCard
-          label="WIN RATE"
-          value={stats ? `${stats.win_rate_pct}%` : "—"}
-          icon={Target}
+          label="POSITIONS"
+          value={portfolio ? portfolio.position_count.toString() : "—"}
+          icon={Layers}
           loading={isLoading}
         />
       </div>
 
-      {/* Secondary metrics */}
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-        {[
-          { label: "SHARPE", value: stats?.sharpe_ratio.toFixed(2) },
-          { label: "MAX DD", value: stats ? `-${stats.max_drawdown_pct.toFixed(1)}%` : undefined },
-          { label: "TRADES", value: stats?.total_trades.toString() },
-          { label: "WINNERS", value: stats?.winners.toString() },
-          { label: "LOSERS", value: stats?.losers.toString() },
-          { label: "POSITIONS", value: strategy?.live.position_count.toString() },
-        ].map((m) => (
-          <div key={m.label} className="bg-bg-secondary border border-border p-4 text-center">
-            <span className="font-mono text-[9px] text-text-dim tracking-[1.5px] block mb-1">
-              {m.label}
-            </span>
-            <span className="font-mono text-[14px] font-semibold">
-              {isLoading ? "—" : m.value ?? "—"}
-            </span>
-          </div>
-        ))}
+      {/* Top + Bottom holdings */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <HoldingsCard
+          title="TOP PERFORMERS"
+          holdings={topHoldings}
+        />
+        <HoldingsCard
+          title="WORST PERFORMERS"
+          holdings={bottomHoldings}
+        />
       </div>
 
-      {/* Performance chart */}
-      <PerformanceChart compact />
-
-      {/* Holdings preview + Recent picks */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Top holdings */}
-        <div className="lg:col-span-2 bg-bg-secondary border border-border">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-[10px] text-text-dim tracking-[2px]">
-                TOP HOLDINGS
-              </span>
-              <span className="font-mono text-[9px] text-text-dim">
-                · BACKTEST P&L
-              </span>
-            </div>
-            <Link
-              href="/dashboard/portfolio"
-              className="font-mono text-[10px] text-accent-green hover:underline flex items-center gap-1"
-            >
-              VIEW ALL <ArrowUpRight size={10} />
-            </Link>
-          </div>
-          <div className="divide-y divide-border">
-            {!topHoldings ? (
-              <LoadingRow />
-            ) : topHoldings.length === 0 ? (
-              <EmptyRow text="NO HOLDINGS" />
-            ) : (
-              topHoldings.map((h) => (
-                <div
-                  key={`${h.ticker}-${h.source}`}
-                  className="flex items-center justify-between px-5 py-3 hover:bg-bg-tertiary/50 transition-colors"
+      {/* Recent picks */}
+      <div className="bg-bg-secondary border border-border">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <span className="font-mono text-[10px] text-text-dim tracking-[2px]">
+            RECENT PICKS
+          </span>
+          <Link
+            href="/dashboard/picks"
+            className="font-mono text-[10px] text-accent-green hover:underline flex items-center gap-1"
+          >
+            ALL PICKS <ArrowUpRight size={10} />
+          </Link>
+        </div>
+        <div className="divide-y divide-border">
+          {!recentPicks ? (
+            <LoadingRow />
+          ) : recentPicks.length === 0 ? (
+            <EmptyRow text="NO PICKS YET" />
+          ) : (
+            recentPicks.map((p, i) => (
+              <div key={`${p.ticker}-${i}`} className="grid grid-cols-2 sm:grid-cols-4 items-center px-5 py-4 hover:bg-bg-tertiary/50 transition-colors gap-2">
+                <span className="font-mono text-[14px] font-semibold">{p.ticker}</span>
+                <span className="font-mono text-[11px] text-text-dim">
+                  {p.entry_date}
+                </span>
+                <span className="font-mono text-[11px] text-text-dim hidden sm:block">
+                  Entry ${p.entry_price.toFixed(2)}
+                </span>
+                <span
+                  className={`font-mono text-[12px] font-semibold text-right ${
+                    p.pnl_pct >= 0 ? "text-accent-green" : "text-accent-red"
+                  }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-[14px] font-semibold w-12">
-                      {h.ticker}
-                    </span>
-                    <span className={`badge ${h.source === "live" ? "badge-buy" : "badge-hold"}`}>
-                      {h.source === "live" ? "LIVE" : "BACKTEST ONLY"}
-                    </span>
-                  </div>
-                  <span
-                    className={`font-mono text-[13px] font-semibold ${
-                      h.backtest_pnl_pct >= 0 ? "text-accent-green" : "text-accent-red"
-                    }`}
-                  >
-                    {formatPct(h.backtest_pnl_pct)}
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Recent picks */}
-        <div className="bg-bg-secondary border border-border">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-            <span className="font-mono text-[10px] text-text-dim tracking-[2px]">
-              RECENT PICKS
-            </span>
-            <Link
-              href="/dashboard/picks"
-              className="font-mono text-[10px] text-accent-green hover:underline flex items-center gap-1"
-            >
-              ALL PICKS <ArrowUpRight size={10} />
-            </Link>
-          </div>
-          <div className="divide-y divide-border">
-            {!recentPicks ? (
-              <LoadingRow />
-            ) : recentPicks.length === 0 ? (
-              <EmptyRow text="NO PICKS YET" />
-            ) : (
-              recentPicks.map((p, i) => (
-                <div key={`${p.ticker}-${i}`} className="px-5 py-4 hover:bg-bg-tertiary/50 transition-colors">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-mono text-[14px] font-semibold">{p.ticker}</span>
-                    <span
-                      className={`font-mono text-[12px] font-semibold ${
-                        p.pnl_pct >= 0 ? "text-accent-green" : "text-accent-red"
-                      }`}
-                    >
-                      {formatPct(p.pnl_pct)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-[11px] text-text-dim">
-                      Entry: ${p.entry_price.toFixed(2)}
-                    </span>
-                    <span className="font-mono text-[11px] text-text-dim">{p.entry_date}</span>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+                  {formatPct(p.pnl_pct)}
+                </span>
+              </div>
+            ))
+          )}
         </div>
       </div>
+
+      {/* Curiosity nudge to Strategy page */}
+      <Link
+        href="/dashboard/strategy"
+        className="block bg-bg-secondary border border-border p-5 hover:border-border-light transition-colors group"
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="font-mono text-[10px] text-text-dim tracking-[2px] block mb-1">
+              METHODOLOGY
+            </span>
+            <p className="font-sans text-[14px] font-semibold">
+              How the strategy works &middot; Full backtest methodology
+            </p>
+            <p className="font-sans text-[12px] text-text-muted mt-1">
+              Read the thesis, see the simulation results, understand the rules.
+            </p>
+          </div>
+          <ArrowUpRight
+            size={18}
+            className="text-text-dim group-hover:text-accent-green transition-colors"
+          />
+        </div>
+      </Link>
     </div>
   );
 }
 
 function StatCard({
-  label, value, icon: Icon, green = false, loading = false,
+  label,
+  value,
+  icon: Icon,
+  green = false,
+  red = false,
+  loading = false,
 }: {
-  label: string; value: string; icon: React.ElementType; green?: boolean; loading?: boolean;
+  label: string;
+  value: string;
+  icon: React.ElementType;
+  green?: boolean;
+  red?: boolean;
+  loading?: boolean;
 }) {
   return (
     <div className="bg-bg-secondary border border-border p-5">
       <div className="flex items-center gap-2 mb-2">
         <Icon size={14} className="text-text-dim" />
-        <span className="font-mono text-[10px] text-text-dim tracking-[1.5px]">{label}</span>
+        <span className="font-mono text-[10px] text-text-dim tracking-[1.5px]">
+          {label}
+        </span>
       </div>
-      <span className={`font-mono text-xl font-bold ${loading ? "text-text-dim animate-pulse" : green ? "text-accent-green" : "text-text"}`}>
+      <span
+        className={`font-mono text-xl font-bold ${
+          loading
+            ? "text-text-dim animate-pulse"
+            : red
+              ? "text-accent-red"
+              : green
+                ? "text-accent-green"
+                : "text-text"
+        }`}
+      >
         {value}
       </span>
+    </div>
+  );
+}
+
+function HoldingsCard({
+  title,
+  holdings,
+}: {
+  title: string;
+  holdings: { ticker: string; pnl_pct: number; entry_price: number; current_price: number }[] | undefined;
+}) {
+  return (
+    <div className="bg-bg-secondary border border-border">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+        <span className="font-mono text-[10px] text-text-dim tracking-[2px]">
+          {title}
+        </span>
+        <Link
+          href="/dashboard/portfolio"
+          className="font-mono text-[10px] text-accent-green hover:underline flex items-center gap-1"
+        >
+          VIEW ALL <ArrowUpRight size={10} />
+        </Link>
+      </div>
+      <div className="divide-y divide-border">
+        {!holdings ? (
+          <LoadingRow />
+        ) : holdings.length === 0 ? (
+          <EmptyRow text="NO HOLDINGS" />
+        ) : (
+          holdings.map((h) => (
+            <div
+              key={h.ticker}
+              className="flex items-center justify-between px-5 py-3 hover:bg-bg-tertiary/50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <span className="font-mono text-[14px] font-semibold w-14">
+                  {h.ticker}
+                </span>
+                <span className="font-mono text-[11px] text-text-dim">
+                  ${h.entry_price.toFixed(2)} → ${h.current_price.toFixed(2)}
+                </span>
+              </div>
+              <span
+                className={`font-mono text-[13px] font-semibold ${
+                  h.pnl_pct >= 0 ? "text-accent-green" : "text-accent-red"
+                }`}
+              >
+                {h.pnl_pct >= 0 ? "+" : ""}
+                {h.pnl_pct.toFixed(2)}%
+              </span>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }
@@ -233,7 +289,9 @@ function StatCard({
 function LoadingRow() {
   return (
     <div className="px-5 py-8 text-center">
-      <span className="font-mono text-[11px] text-text-dim animate-pulse">LOADING...</span>
+      <span className="font-mono text-[11px] text-text-dim animate-pulse">
+        LOADING...
+      </span>
     </div>
   );
 }

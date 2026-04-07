@@ -12,13 +12,30 @@ function daysSince(dateStr: string): number {
   return Math.max(0, Math.floor((now - start) / (1000 * 60 * 60 * 24)));
 }
 
+function formatCurrency(n: number) {
+  return n.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function formatCompact(n: number) {
+  if (Math.abs(n) >= 1000) return `$${(n / 1000).toFixed(1)}K`;
+  return `$${n.toFixed(0)}`;
+}
+
 export function LiveStatus() {
   const { data: strategy, isLoading } = useStrategy();
   const days = daysSince(LIVE_INCEPTION);
+  const portfolio = strategy?.portfolio;
+  const pnl = portfolio?.total_unrealized_pnl ?? 0;
+  const isPositive = pnl >= 0;
 
   return (
     <div className="bg-bg-secondary border border-accent-green-soft p-5">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
         <div className="flex items-center gap-4">
           <span className="relative flex h-2.5 w-2.5 shrink-0">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-green opacity-75" />
@@ -32,7 +49,12 @@ export function LiveStatus() {
               </span>
             </div>
             <p className="font-sans text-[12px] text-text-muted mt-1">
-              Real money, tracked since {new Date(LIVE_INCEPTION).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              Real money &middot; Tracked since{" "}
+              {new Date(LIVE_INCEPTION).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}
             </p>
           </div>
         </div>
@@ -49,27 +71,31 @@ export function LiveStatus() {
               POSITIONS
             </span>
             <span className="font-mono text-[18px] font-bold">
-              {isLoading ? "—" : strategy?.live.position_count ?? "—"}
+              {isLoading ? "—" : (portfolio?.position_count ?? "—")}
+            </span>
+          </div>
+          <div>
+            <span className="font-mono text-[9px] text-text-dim tracking-[1.5px] block">
+              VALUE
+            </span>
+            <span className="font-mono text-[18px] font-bold">
+              {isLoading ? "—" : portfolio ? formatCompact(portfolio.total_value) : "—"}
+            </span>
+          </div>
+          <div>
+            <span className="font-mono text-[9px] text-text-dim tracking-[1.5px] block">
+              UNREALIZED
+            </span>
+            <span
+              className={`font-mono text-[18px] font-bold ${
+                isLoading ? "text-text-dim" : isPositive ? "text-accent-green" : "text-accent-red"
+              }`}
+            >
+              {isLoading ? "—" : portfolio ? `${isPositive ? "+" : ""}${formatCurrency(pnl)}` : "—"}
             </span>
           </div>
         </div>
       </div>
     </div>
-  );
-}
-
-export function BacktestBadge() {
-  return (
-    <span className="font-mono text-[9px] tracking-[1.5px] font-bold bg-bg-tertiary text-text-muted px-2 py-1 inline-block border border-border">
-      7YR BACKTEST
-    </span>
-  );
-}
-
-export function BacktestDisclaimer() {
-  return (
-    <p className="font-sans text-[11px] text-text-dim mt-2 leading-relaxed">
-      All performance metrics below are from a walk-forward backtest using point-in-time fundamentals (Apr 2019 — Apr 2026). Past performance does not guarantee future results. Live tracking began Apr 1, 2026.
-    </p>
   );
 }

@@ -3,6 +3,7 @@
 import { useStrategy } from "@/lib/hooks/use-strategy";
 import { usePicks } from "@/lib/hooks/use-picks";
 import { PerformanceChart } from "@/components/dashboard/performance-chart";
+import { LiveStatus, BacktestBadge, BacktestDisclaimer } from "@/components/dashboard/live-status";
 import {
   TrendingUp,
   BarChart3,
@@ -43,6 +44,18 @@ export default function DashboardPage() {
         <p className="font-sans text-[13px] text-text-dim mt-1">
           Strategy overview &middot; {strategy?.strategy.evaluation_frequency || "biweekly"} evaluation
         </p>
+      </div>
+
+      {/* Live status banner */}
+      <LiveStatus />
+
+      {/* Backtest section header */}
+      <div className="pt-2">
+        <div className="flex items-center gap-3 mb-1">
+          <h2 className="font-sans text-[15px] font-bold">Strategy Performance</h2>
+          <BacktestBadge />
+        </div>
+        <BacktestDisclaimer />
       </div>
 
       {/* Stats cards */}
@@ -105,9 +118,14 @@ export default function DashboardPage() {
         {/* Top holdings */}
         <div className="lg:col-span-2 bg-bg-secondary border border-border">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-            <span className="font-mono text-[10px] text-text-dim tracking-[2px]">
-              TOP HOLDINGS
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[10px] text-text-dim tracking-[2px]">
+                TOP HOLDINGS
+              </span>
+              <span className="font-mono text-[9px] text-text-dim">
+                · BACKTEST P&L
+              </span>
+            </div>
             <Link
               href="/dashboard/portfolio"
               className="font-mono text-[10px] text-accent-green hover:underline flex items-center gap-1"
@@ -131,7 +149,7 @@ export default function DashboardPage() {
                       {h.ticker}
                     </span>
                     <span className={`badge ${h.source === "live" ? "badge-buy" : "badge-hold"}`}>
-                      {h.source === "live" ? "LIVE" : "BACKTEST"}
+                      {h.source === "live" ? "LIVE" : "BACKTEST ONLY"}
                     </span>
                   </div>
                   <span

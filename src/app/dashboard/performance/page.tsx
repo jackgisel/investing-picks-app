@@ -3,6 +3,7 @@
 import { useStrategy } from "@/lib/hooks/use-strategy";
 import { useChart } from "@/lib/hooks/use-chart";
 import { PerformanceChart } from "@/components/dashboard/performance-chart";
+import { BacktestBadge, BacktestDisclaimer } from "@/components/dashboard/live-status";
 import { TrendingUp, BarChart3, Activity, ArrowDown } from "lucide-react";
 
 function formatPct(n: number) {
@@ -45,10 +46,14 @@ export default function PerformancePage() {
   return (
     <div className="max-w-[1100px] space-y-6">
       <div>
-        <h1 className="font-sans text-xl font-bold">Performance</h1>
+        <div className="flex items-center gap-3 mb-1">
+          <h1 className="font-sans text-xl font-bold">Performance</h1>
+          <BacktestBadge />
+        </div>
         <p className="font-sans text-[13px] text-text-dim mt-1">
-          {stats ? `Backtest: ${stats.period} · ${chartStats?.dataPoints ?? 0} data points` : "Loading..."}
+          {stats ? `${stats.period} · ${chartStats?.dataPoints ?? 0} data points` : "Loading..."}
         </p>
+        <BacktestDisclaimer />
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

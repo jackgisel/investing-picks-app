@@ -60,14 +60,40 @@ export function PerformanceChart({ compact = false }: { compact?: boolean }) {
 
   return (
     <div className={`bg-bg-secondary border border-border p-4 ${compact ? "" : "p-6"}`}>
-      {!compact && (
-        <div className="flex items-center justify-between mb-4">
-          <div>
+      {compact ? (
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
             <span className="font-mono text-[10px] text-text-dim tracking-[2px]">
               PORTFOLIO VS S&P 500
             </span>
+            <span className="font-mono text-[9px] tracking-[1.5px] font-bold bg-bg-tertiary text-text-muted px-2 py-0.5 inline-block border border-border">
+              7YR BACKTEST
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-0.5 bg-accent-green inline-block" />
+              <span className="font-mono text-[9px] text-text-dim">PORTFOLIO</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-0.5 bg-text-dim inline-block" />
+              <span className="font-mono text-[9px] text-text-dim">S&P 500</span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[10px] text-text-dim tracking-[2px]">
+                PORTFOLIO VS S&P 500
+              </span>
+              <span className="font-mono text-[9px] tracking-[1.5px] font-bold bg-bg-tertiary text-text-muted px-2 py-0.5 inline-block border border-border">
+                7YR BACKTEST
+              </span>
+            </div>
             <p className="font-sans text-[12px] text-text-muted mt-1">
-              Backtest: $100K starting capital, Apr 2019 — Apr 2026
+              $100K starting capital, walk-forward simulation, Apr 2019 — Apr 2026
             </p>
           </div>
           <div className="flex items-center gap-4">

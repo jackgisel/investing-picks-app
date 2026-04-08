@@ -9,6 +9,7 @@ import {
   ArrowLeftRight,
   BarChart3,
   BookOpen,
+  Settings,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -18,6 +19,7 @@ const NAV_ITEMS = [
   { label: "Trades", href: "/dashboard/trades", icon: ArrowLeftRight },
   { label: "Performance", href: "/dashboard/performance", icon: BarChart3 },
   { label: "Strategy", href: "/dashboard/strategy", icon: BookOpen },
+  { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ] as const;
 
 export function Sidebar() {

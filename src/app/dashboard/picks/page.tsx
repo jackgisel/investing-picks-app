@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useMemo } from "react";
 import { usePicks } from "@/lib/hooks/use-picks";
 import { Filter, ArrowUpDown } from "lucide-react";
@@ -136,9 +137,18 @@ export default function PicksPage() {
                     className="border-b border-border last:border-b-0 hover:bg-bg-tertiary/50 transition-colors"
                   >
                     <td className="px-5 py-3.5">
-                      <span className="font-mono font-semibold text-[14px]">
-                        {p.ticker}
-                      </span>
+                      {p.blog_slug ? (
+                        <Link
+                          href={`/insights/${p.blog_slug}`}
+                          className="font-mono font-semibold text-[14px] text-accent-green hover:underline underline-offset-4"
+                        >
+                          {p.ticker}
+                        </Link>
+                      ) : (
+                        <span className="font-mono font-semibold text-[14px]">
+                          {p.ticker}
+                        </span>
+                      )}
                     </td>
                     <td className="px-5 py-3.5">
                       <span

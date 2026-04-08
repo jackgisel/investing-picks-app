@@ -81,6 +81,7 @@ export const NAV_LINKS = [
   { label: "Track record", href: "/#track-record" },
   { label: "How it works", href: "/#how-it-works" },
   { label: "Pricing", href: "/#pricing" },
+  { label: "Insights", href: "/insights" },
   { label: "Blog", href: "/blog" },
   { label: "FAQ", href: "/#faq" },
 ] as const;

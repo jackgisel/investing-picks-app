@@ -7,6 +7,8 @@ export interface Pick {
   pnl_pct: number | null;
   exit_date: string | null;
   exit_reason: string | null;
+  /** Slug of the linked /insights blog post, if one exists. */
+  blog_slug?: string | null;
 }
 
 export interface PicksResponse {

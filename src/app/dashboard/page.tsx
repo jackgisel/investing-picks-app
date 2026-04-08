@@ -3,33 +3,15 @@
 import { useStrategy } from "@/lib/hooks/use-strategy";
 import { usePicks } from "@/lib/hooks/use-picks";
 import { LiveStatus } from "@/components/dashboard/live-status";
+import { computePortfolioReturnPct, formatPct } from "@/lib/portfolio";
 import {
   TrendingUp,
-  Wallet,
   Activity,
   Layers,
   ArrowUpRight,
+  Trophy,
 } from "lucide-react";
 import Link from "next/link";
-
-function formatPct(n: number) {
-  const sign = n >= 0 ? "+" : "";
-  return `${sign}${n.toFixed(2)}%`;
-}
-
-function formatCurrency(n: number) {
-  return n.toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  });
-}
-
-function formatDollar(n: number) {
-  const sign = n >= 0 ? "+" : "";
-  return `${sign}$${Math.abs(n).toFixed(2)}`;
-}
 
 export default function DashboardPage() {
   const { data: strategy, isLoading } = useStrategy();
@@ -39,14 +21,14 @@ export default function DashboardPage() {
   const holdings = strategy?.holdings;
   const strategyMeta = strategy?.strategy;
 
-  // Total return % from current vs cost basis
-  const totalCost = holdings?.reduce(
-    (sum, h) => sum + h.entry_price * h.shares,
-    0
-  ) ?? 0;
-  const totalReturnPct = totalCost > 0 && portfolio
-    ? ((portfolio.total_value - totalCost) / totalCost) * 100
-    : 0;
+  // Portfolio total return % derived from holdings — UI never shows dollars.
+  const computedReturnPct = computePortfolioReturnPct(strategy);
+  const totalReturnPct = computedReturnPct ?? 0;
+  const hasReturn = computedReturnPct !== null;
+
+  // Winners count (positions in the green right now)
+  const winnersCount = holdings?.filter((h) => h.pnl_pct > 0).length ?? 0;
+  const positionsCount = holdings?.length ?? 0;
 
   // Top 5 holdings by P&L
   const topHoldings = holdings
@@ -82,31 +64,29 @@ export default function DashboardPage() {
       {/* Live stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
-          label="PORTFOLIO VALUE"
-          value={portfolio ? formatCurrency(portfolio.total_value) : "—"}
-          icon={Wallet}
-          loading={isLoading}
-        />
-        <StatCard
-          label="UNREALIZED P&L"
-          value={portfolio ? formatDollar(portfolio.total_unrealized_pnl) : "—"}
-          icon={TrendingUp}
-          green={portfolio ? portfolio.total_unrealized_pnl >= 0 : false}
-          red={portfolio ? portfolio.total_unrealized_pnl < 0 : false}
-          loading={isLoading}
-        />
-        <StatCard
           label="TOTAL RETURN"
-          value={isLoading ? "—" : formatPct(totalReturnPct)}
-          icon={Activity}
-          green={totalReturnPct >= 0}
-          red={totalReturnPct < 0}
+          value={hasReturn ? formatPct(totalReturnPct) : "—"}
+          icon={TrendingUp}
+          green={hasReturn && totalReturnPct >= 0}
+          red={hasReturn && totalReturnPct < 0}
           loading={isLoading}
         />
         <StatCard
           label="POSITIONS"
           value={portfolio ? portfolio.position_count.toString() : "—"}
           icon={Layers}
+          loading={isLoading}
+        />
+        <StatCard
+          label="WINNERS"
+          value={holdings ? `${winnersCount} / ${positionsCount}` : "—"}
+          icon={Trophy}
+          loading={isLoading}
+        />
+        <StatCard
+          label="EVALUATION"
+          value="Biweekly"
+          icon={Activity}
           loading={isLoading}
         />
       </div>
@@ -142,24 +122,24 @@ export default function DashboardPage() {
           ) : recentPicks.length === 0 ? (
             <EmptyRow text="NO PICKS YET" />
           ) : (
-            recentPicks.map((p, i) => (
-              <div key={`${p.ticker}-${i}`} className="grid grid-cols-2 sm:grid-cols-4 items-center px-5 py-4 hover:bg-bg-tertiary/50 transition-colors gap-2">
-                <span className="font-mono text-[14px] font-semibold">{p.ticker}</span>
-                <span className="font-mono text-[11px] text-text-dim">
-                  {p.entry_date}
-                </span>
-                <span className="font-mono text-[11px] text-text-dim hidden sm:block">
-                  Entry ${p.entry_price.toFixed(2)}
-                </span>
-                <span
-                  className={`font-mono text-[12px] font-semibold text-right ${
-                    p.pnl_pct >= 0 ? "text-accent-green" : "text-accent-red"
-                  }`}
-                >
-                  {formatPct(p.pnl_pct)}
-                </span>
-              </div>
-            ))
+            recentPicks.map((p, i) => {
+              const pct = p.pnl_pct ?? 0;
+              return (
+                <div key={`${p.ticker}-${i}`} className="grid grid-cols-2 sm:grid-cols-3 items-center px-5 py-4 hover:bg-bg-tertiary/50 transition-colors gap-2">
+                  <span className="font-mono text-[14px] font-semibold">{p.ticker}</span>
+                  <span className="font-mono text-[11px] text-text-dim">
+                    Entered {p.entry_date}
+                  </span>
+                  <span
+                    className={`font-mono text-[12px] font-semibold text-right ${
+                      pct >= 0 ? "text-accent-green" : "text-accent-red"
+                    }`}
+                  >
+                    {p.pnl_pct === null ? "—" : formatPct(pct)}
+                  </span>
+                </div>
+              );
+            })
           )}
         </div>
       </div>
@@ -236,7 +216,7 @@ function HoldingsCard({
   holdings,
 }: {
   title: string;
-  holdings: { ticker: string; pnl_pct: number; entry_price: number; current_price: number }[] | undefined;
+  holdings: { ticker: string; pnl_pct: number; entry_date: string }[] | undefined;
 }) {
   return (
     <div className="bg-bg-secondary border border-border">
@@ -267,7 +247,7 @@ function HoldingsCard({
                   {h.ticker}
                 </span>
                 <span className="font-mono text-[11px] text-text-dim">
-                  ${h.entry_price.toFixed(2)} → ${h.current_price.toFixed(2)}
+                  Entered {h.entry_date}
                 </span>
               </div>
               <span

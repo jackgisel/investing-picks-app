@@ -4,8 +4,6 @@ export interface Trade {
   ticker: string;
   side: "buy" | "sell";
   date: string;
-  price: number;
-  shares: number;
   reason: string | null;
 }
 

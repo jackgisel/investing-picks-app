@@ -145,12 +145,12 @@ const article: Article = {
         pricing power &mdash; even though the underlying commodity is completely different.
       </P>
       <P>
-        Entered at $68.49 on 2024-01-02, CRS now sits at $390.86, a return of{" "}
-        <Strong>+470.68%</Strong> and a profit of more than $22,000 on the position. It is one
-        of the eight stocks that more than doubled during our walk-forward backtest window.
-        We&apos;re mentioning it in the same article because investors interested in gold
-        miners are usually also thinking about real assets and supply-constrained industrials,
-        and CRS is the cleanest expression of that adjacent theme in our book.
+        Entered on 2024-01-02, CRS is up <Strong>+470.68%</Strong> and is one of
+        the eight stocks that more than doubled during our walk-forward backtest
+        window. We&apos;re mentioning it in the same article because investors
+        interested in gold miners are usually also thinking about real assets and
+        supply-constrained industrials, and CRS is the cleanest expression of
+        that adjacent theme in our book.
       </P>
 
       <H2>How to size a miner basket</H2>

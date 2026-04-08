@@ -2,6 +2,7 @@
 
 import { useStrategy } from "@/lib/hooks/use-strategy";
 import { BACKTEST } from "@/lib/constants";
+import { computePortfolioReturnPct, formatPct } from "@/lib/portfolio";
 
 const LIVE_INCEPTION = "2026-04-01";
 
@@ -9,15 +10,6 @@ function daysSince(dateStr: string): number {
   const start = new Date(dateStr).getTime();
   const now = Date.now();
   return Math.max(0, Math.floor((now - start) / (1000 * 60 * 60 * 24)));
-}
-
-function formatCurrency(n: number) {
-  return n.toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  });
 }
 
 const backtestMetrics = [
@@ -32,6 +24,8 @@ const backtestMetrics = [
 export function TrackRecord() {
   const { data: strategy } = useStrategy();
   const portfolio = strategy?.portfolio;
+  const totalReturnPct = computePortfolioReturnPct(strategy);
+  const hasReturn = totalReturnPct !== null;
   const days = daysSince(LIVE_INCEPTION);
 
   return (
@@ -63,15 +57,25 @@ export function TrackRecord() {
 
             <div className="px-7 py-6">
               <p className="font-mono text-[11px] text-text-dim mb-5">
-                Inception Apr 01, 2026 · Real money · Real trades
+                Inception Apr 01, 2026 · Real trades · No cherry-picking
               </p>
 
               <div className="mb-6">
-                <p className="font-mono text-[42px] font-bold text-text leading-none">
-                  Day {days}
+                <p
+                  className={`font-mono text-[42px] font-bold leading-none ${
+                    hasReturn
+                      ? totalReturnPct! >= 0
+                        ? "text-accent-green"
+                        : "text-accent-red"
+                      : "text-text"
+                  }`}
+                >
+                  {hasReturn ? formatPct(totalReturnPct!) : `Day ${days}`}
                 </p>
                 <p className="font-sans text-[13px] text-text-muted mt-1.5">
-                  Track record building in real time
+                  {hasReturn
+                    ? `Total return · Day ${days} of live tracking`
+                    : "Track record building in real time"}
                 </p>
               </div>
 
@@ -81,27 +85,21 @@ export function TrackRecord() {
                   value={portfolio?.position_count?.toString() ?? "—"}
                 />
                 <LivePanelMetric
-                  label="PORTFOLIO VALUE"
-                  value={portfolio ? formatCurrency(portfolio.total_value) : "—"}
-                />
-                <LivePanelMetric
-                  label="UNREALIZED P&L"
-                  value={
-                    portfolio
-                      ? `${portfolio.total_unrealized_pnl >= 0 ? "+" : ""}${formatCurrency(portfolio.total_unrealized_pnl)}`
-                      : "—"
-                  }
-                  green={portfolio ? portfolio.total_unrealized_pnl >= 0 : false}
-                  red={portfolio ? portfolio.total_unrealized_pnl < 0 : false}
+                  label="DAYS LIVE"
+                  value={days.toString()}
                 />
                 <LivePanelMetric
                   label="EVALUATION"
                   value="Biweekly"
                 />
+                <LivePanelMetric
+                  label="AGENTS"
+                  value="6"
+                />
               </div>
 
               <p className="font-sans text-[11px] text-text-dim mt-5 leading-relaxed">
-                Members see every entry, exit, and position size as it happens.
+                Members see every entry, exit, and reasoning as it happens.
                 Live performance will compound over time — we&apos;re showing it
                 from day one, with nothing hidden.
               </p>
@@ -122,7 +120,7 @@ export function TrackRecord() {
             <div className="px-7 py-6">
               <p className="font-mono text-[11px] text-text-dim mb-5">
                 {BACKTEST.startDate} — {BACKTEST.endDate} ·{" "}
-                {BACKTEST.startingCapital} starting capital
+                {BACKTEST.yearsCovered}-year walk-forward
               </p>
 
               <div className="mb-6">
@@ -130,7 +128,7 @@ export function TrackRecord() {
                   {BACKTEST.totalReturn}
                 </p>
                 <p className="font-sans text-[13px] text-text-muted mt-1.5">
-                  {BACKTEST.startingCapital} → {BACKTEST.finalValue} (simulation)
+                  Total return vs {BACKTEST.spyReturn} S&amp;P 500 (simulation)
                 </p>
               </div>
 

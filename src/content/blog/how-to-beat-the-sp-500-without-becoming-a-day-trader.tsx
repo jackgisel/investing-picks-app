@@ -208,10 +208,10 @@ const article: Article = {
       <P>
         Thirty-five trades a year. That is less than one a week, and most of them are simply the
         biweekly new pick or a rebalance on a winner. Over 3.8 years the framework produced 132
-        total trades, 35 wins large enough to be tracked as standout winners, 18 losses, and a
-        realized P&amp;L of <Strong>+$66,440</Strong> on the backtest capital. Max drawdown was
-        -27.38% in April 2025, which is roughly in line with the index itself during the same
-        window.
+        total trades, 35 standout winners, 18 losses, and a total return of{" "}
+        <Strong>+250.39%</Strong> versus +83.34% for the S&amp;P 500 over the same window. Max
+        drawdown was -27.38% in April 2025, which is roughly in line with the index itself during
+        the same period.
       </P>
       <P>
         Eight names doubled during the backtest. They were not day-traded. They were bought,

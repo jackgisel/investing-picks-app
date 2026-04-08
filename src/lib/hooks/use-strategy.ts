@@ -3,11 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 export interface Holding {
   ticker: string;
   entry_date: string;
-  entry_price: number;
-  current_price: number;
   pnl_pct: number;
-  market_value: number;
-  shares: number;
 }
 
 export interface StrategyData {
@@ -15,8 +11,7 @@ export interface StrategyData {
   portfolio: {
     position_count: number;
     tickers: string[];
-    total_unrealized_pnl: number;
-    total_value: number;
+    total_return_pct: number | null;
   };
   strategy: {
     name: string;

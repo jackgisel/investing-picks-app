@@ -12,10 +12,14 @@ import {
 } from "recharts";
 import { TrendingUp } from "lucide-react";
 
-function formatCurrency(value: number) {
-  if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-  if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
-  return `$${value.toFixed(0)}`;
+function formatPctTick(value: number) {
+  const sign = value >= 0 ? "+" : "";
+  return `${sign}${value.toFixed(1)}%`;
+}
+
+function formatPctTooltip(value: number) {
+  const sign = value >= 0 ? "+" : "";
+  return `${sign}${value.toFixed(2)}%`;
 }
 
 function EmptyChart({ compact }: { compact?: boolean }) {
@@ -56,15 +60,14 @@ export function PerformanceChart({ compact = false }: { compact?: boolean }) {
     return <EmptyChart compact={compact} />;
   }
 
-  // Normalize benchmark to portfolio start (if benchmark exists)
-  const firstBenchmark = series[0]?.benchmark_value;
-  const firstPortfolio = series[0]?.portfolio_value || 1;
+  // The backend already returns cumulative % return from inception for
+  // both lines. Both are 0% on day one. We just rename the fields here so
+  // recharts can pick them up.
+  const hasBenchmark = series.some((d) => d.benchmark_pct !== null);
   const data = series.map((d: ChartPoint) => ({
     date: d.date,
-    portfolio: d.portfolio_value,
-    benchmark: firstBenchmark
-      ? (d.benchmark_value! / firstBenchmark) * firstPortfolio
-      : null,
+    portfolio: d.portfolio_pct ?? 0,
+    benchmark: d.benchmark_pct,
   }));
 
   return (
@@ -72,15 +75,15 @@ export function PerformanceChart({ compact = false }: { compact?: boolean }) {
       <div className={`flex items-center justify-between ${compact ? "mb-3" : "mb-4"}`}>
         <div>
           <span className="font-mono text-[10px] text-text-dim tracking-[2px]">
-            LIVE PORTFOLIO VALUE
+            LIVE PORTFOLIO RETURN
           </span>
           {!compact && (
             <p className="font-sans text-[12px] text-text-muted mt-1">
-              Daily portfolio value since inception (Apr 1, 2026)
+              Cumulative % return since inception (Apr 1, 2026)
             </p>
           )}
         </div>
-        {firstBenchmark && (
+        {hasBenchmark && (
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-0.5 bg-accent-green inline-block" />
@@ -110,10 +113,10 @@ export function PerformanceChart({ compact = false }: { compact?: boolean }) {
           />
           <YAxis
             tick={{ fontSize: 10, fill: "#666", fontFamily: "IBM Plex Mono" }}
-            tickFormatter={formatCurrency}
+            tickFormatter={formatPctTick}
             stroke="#252525"
-            width={65}
-            domain={["dataMin - 500", "dataMax + 500"]}
+            width={55}
+            domain={["dataMin - 1", "dataMax + 1"]}
           />
           <Tooltip
             contentStyle={{
@@ -125,11 +128,11 @@ export function PerformanceChart({ compact = false }: { compact?: boolean }) {
             }}
             labelStyle={{ color: "#999", fontSize: 10 }}
             formatter={(value: unknown, name: unknown) => [
-              formatCurrency(Number(value)),
+              formatPctTooltip(Number(value)),
               name === "portfolio" ? "Portfolio" : "S&P 500",
             ]}
           />
-          {firstBenchmark && (
+          {hasBenchmark && (
             <Area
               type="monotone"
               dataKey="benchmark"

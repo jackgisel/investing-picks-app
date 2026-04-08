@@ -8,16 +8,33 @@ import {
   ArrowDown,
   CheckCircle2,
   AlertTriangle,
+  Cpu,
+  Search,
+  LineChart,
+  ShieldAlert,
+  Gauge,
+  Sparkles,
 } from "lucide-react";
+
+function holdLabel(entry: string, exit: string): string {
+  const start = new Date(entry).getTime();
+  const end = new Date(exit).getTime();
+  if (Number.isNaN(start) || Number.isNaN(end)) return "—";
+  const days = Math.max(0, Math.round((end - start) / (1000 * 60 * 60 * 24)));
+  if (days < 60) return `${days}d`;
+  const months = Math.round(days / 30.44);
+  if (months < 18) return `${months}mo`;
+  return `${(months / 12).toFixed(1)}y`;
+}
 
 export default function StrategyPage() {
   return (
     <div className="max-w-[900px] space-y-12">
       {/* Header */}
       <div>
-        <h1 className="font-sans text-xl font-bold">The AP Strategy</h1>
+        <h1 className="font-sans text-xl font-bold">The Outpick Strategy</h1>
         <p className="font-sans text-[13px] text-text-dim mt-1">
-          How we pick stocks · How we manage positions · How it tested
+          Six AI agents · One portfolio · Built to beat the S&amp;P
         </p>
       </div>
 
@@ -28,23 +45,90 @@ export default function StrategyPage() {
         </h2>
         <div className="space-y-4 font-sans text-[14px] text-text-muted leading-relaxed max-w-[720px]">
           <p>
-            The AP Strategy is a quantitative stock-picking system that
-            identifies high-growth companies with strong analyst sentiment, then
-            lets winners compound by never capping their upside.
+            The Outpick Strategy is an{" "}
+            <strong className="text-text">AI agent-driven equity research system</strong>.
+            Six specialized agents — each with its own quantitative research or
+            portfolio management personality — collaborate every two weeks to
+            find high-growth companies, manage risk, and let winners compound
+            without capping their upside.
           </p>
           <p>
-            It was designed by analyzing nearly four years of Seeking Alpha&apos;s{" "}
-            <strong className="text-text">Alpha Picks</strong> historical data —
-            104 picks from July 2022 to April 2026 — and reverse-engineering the
-            structural behaviors that drove their outsized returns.
+            The agents were trained on nearly four years of historical equity
+            data and validated against{" "}
+            <strong className="text-text">104 high-conviction picks</strong>{" "}
+            from July 2022 to April 2026. The exercise gave us a structural
+            understanding of how the biggest winners actually behave — and
+            taught the agents what to repeat and what to avoid.
           </p>
           <p>
-            The core insight: Alpha Picks&apos; returns are profoundly{" "}
-            <strong className="text-text">fat-tailed</strong>. Their top 3 closed
-            picks (APP +1,571%, CLS +1,167%, SMCI +969%) contributed 60% of all
-            portfolio gains. Traditional position capping at 10% would have
-            destroyed those multi-baggers. Our system is built to{" "}
-            <em>not</em> make that mistake.
+            The core insight: equity returns are profoundly{" "}
+            <strong className="text-text">fat-tailed</strong>. In the validation
+            set, the top 3 closed picks (APP +1,571%, CLS +1,167%, SMCI +969%)
+            contributed 60% of all portfolio gains. Traditional position capping
+            at 10% would have destroyed those multi-baggers. The Outpick agents
+            are built to <em>not</em> make that mistake.
+          </p>
+        </div>
+      </section>
+
+      {/* The Six Agents */}
+      <section>
+        <h2 className="font-mono text-[10px] text-accent-green tracking-[2px] mb-4">
+          THE SIX AGENTS
+        </h2>
+        <p className="font-sans text-[14px] text-text-muted leading-relaxed max-w-[720px] mb-6">
+          Every pick — and every trim, hold, or exit — is the output of six AI
+          agents working together. Five do quantitative research; one runs the
+          portfolio. Each agent has a single job, a strong opinion, and the
+          authority to veto a trade inside its domain.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <AgentCard
+            codename="APEX"
+            role="Growth Hunter"
+            icon={TrendingUp}
+            text="Hunts revenue and EPS reacceleration. Cares about second-derivative trends, not just absolute growth. Weights the composite score 35% toward growth signals."
+          />
+          <AgentCard
+            codename="REVI"
+            role="Revisions Reader"
+            icon={LineChart}
+            text="Tracks every analyst estimate revision and rates the velocity of upgrades vs downgrades. Believes price follows revisions on 6–18 month horizons. Weights the composite 30% toward revision momentum."
+          />
+          <AgentCard
+            codename="AUDIT"
+            role="Quality Auditor"
+            icon={Search}
+            text="Reads margins, ROE, free cash flow conversion and balance sheets. Skeptical by default — won't sign off on a name that can't fund its own growth. Refuses anything below an Altman Z-score of 1.8."
+          />
+          <AgentCard
+            codename="TAPE"
+            role="Momentum Reader"
+            icon={Gauge}
+            text="Quant tape reader. Measures relative strength, absolute momentum, and trend regime. Vetoes any candidate with negative trailing 12-month returns. The trend is its friend."
+          />
+          <AgentCard
+            codename="GUARD"
+            role="Risk Officer"
+            icon={ShieldAlert}
+            text="Holds the keys to the portfolio's risk envelope: 30% sector concentration cap, drawdown circuit breaker at 15% from peak, and bankruptcy filters. Halts new buying when the portfolio is under stress."
+          />
+          <AgentCard
+            codename="HELM"
+            role="Portfolio Manager"
+            icon={Sparkles}
+            text="Synthesizes input from the other five agents and makes the final allocation calls — sizing, conviction adds, and the two-tier position management. Once a position pays back its cost basis, HELM lets the rest run as house money with no cap."
+          />
+        </div>
+        <div className="bg-bg-secondary border border-border p-5 mt-4 flex items-start gap-3">
+          <Cpu size={16} className="text-accent-green shrink-0 mt-0.5" />
+          <p className="font-sans text-[13px] text-text-muted leading-relaxed">
+            <strong className="text-text">Why six agents and not one model?</strong>{" "}
+            A monolithic model averages its mistakes across every decision. Six
+            specialized agents with veto authority disagree productively —
+            growth signals can be wrong, revisions can be lagging, momentum can
+            be a trap. Forcing each domain to defend itself separately is what
+            keeps junk out of the portfolio.
           </p>
         </div>
       </section>
@@ -55,7 +139,8 @@ export default function StrategyPage() {
           STOCK SELECTION
         </h2>
         <p className="font-sans text-[14px] text-text-muted leading-relaxed max-w-[720px] mb-6">
-          Every two weeks, the system scores approximately{" "}
+          Every two weeks, the research agents (APEX, REVI, AUDIT, TAPE) score
+          approximately{" "}
           <strong className="text-text">3,600 US-listed stocks</strong> across
           five fundamental factors. Each stock is ranked within its GICS sector
           using percentile scoring — a high-growth tech name isn&apos;t
@@ -95,8 +180,8 @@ export default function StrategyPage() {
           RISK FILTERS
         </h2>
         <p className="font-sans text-[14px] text-text-muted leading-relaxed max-w-[720px] mb-5">
-          Before any stock enters the portfolio, it passes through three safety
-          gates. A drawdown circuit breaker halts all new buying if the
+          Before any stock enters the portfolio, GUARD runs it through three
+          safety gates. A drawdown circuit breaker halts all new buying if the
           portfolio drops 15% from peak.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -125,7 +210,7 @@ export default function StrategyPage() {
         </h2>
         <p className="font-sans text-[14px] text-text-muted leading-relaxed max-w-[720px] mb-6">
           This is where the strategy diverges most from conventional quant
-          approaches. The system uses a{" "}
+          approaches. HELM, the portfolio manager agent, uses a{" "}
           <strong className="text-text">two-tier position management</strong>{" "}
           approach designed around the fat-tailed nature of equity returns.
         </p>
@@ -200,8 +285,8 @@ export default function StrategyPage() {
             {BACKTEST.totalReturn}
           </p>
           <p className="font-sans text-[14px] text-text-muted mt-3">
-            {BACKTEST.startingCapital} → {BACKTEST.finalValue} over{" "}
-            {BACKTEST.yearsCovered} years (simulation)
+            Compounded over {BACKTEST.yearsCovered} years (simulation) — vs{" "}
+            {BACKTEST.spyReturn} for the S&amp;P 500 over the same window
           </p>
         </div>
 
@@ -238,7 +323,7 @@ export default function StrategyPage() {
             { label: "WIN RATE", value: `${BACKTEST.winRate} (${BACKTEST.wins}W/${BACKTEST.losses}L)` },
             { label: "TRADES", value: String(BACKTEST.trades) },
             { label: "S&P 500", value: BACKTEST.spyReturn },
-            { label: "REALIZED P&L", value: BACKTEST.realizedPnl },
+            { label: "VALIDATION ALPHA", value: BACKTEST.validationAlpha },
             { label: "DOUBLED", value: `${BACKTEST.winnersCircle} stocks` },
             { label: "MAX DD DATE", value: BACKTEST.maxDrawdownDate },
           ].map((m) => (
@@ -279,7 +364,7 @@ export default function StrategyPage() {
             <table className="w-full">
               <thead>
                 <tr>
-                  {["TICKER", "ENTRY", "EXIT", "BUY", "SELL", "RETURN", "P&L"].map((h) => (
+                  {["TICKER", "ENTRY DATE", "EXIT DATE", "HOLD", "RETURN"].map((h) => (
                     <th
                       key={h}
                       className="font-mono text-left px-5 py-3 text-[10px] text-text-dim tracking-[1.5px] font-medium border-b border-border bg-bg"
@@ -304,17 +389,11 @@ export default function StrategyPage() {
                     <td className="px-5 py-3.5 font-mono text-[11px] text-text-dim">
                       {w.exit}
                     </td>
-                    <td className="px-5 py-3.5 font-mono text-[12px]">
-                      {w.buy}
-                    </td>
-                    <td className="px-5 py-3.5 font-mono text-[12px]">
-                      {w.sell}
+                    <td className="px-5 py-3.5 font-mono text-[11px] text-text-muted">
+                      {holdLabel(w.entry, w.exit)}
                     </td>
                     <td className="px-5 py-3.5 font-mono text-[13px] font-bold text-accent-green">
                       {w.ret}
-                    </td>
-                    <td className="px-5 py-3.5 font-mono text-[12px] text-accent-green">
-                      {w.pnl}
                     </td>
                   </tr>
                 ))}
@@ -453,6 +532,33 @@ function TierCard({
         <span className="font-mono text-[11px] text-text-dim">— {subtitle}</span>
       </div>
       <p className="font-sans text-[13px] text-text-muted leading-relaxed">
+        {text}
+      </p>
+    </div>
+  );
+}
+
+function AgentCard({
+  codename,
+  role,
+  icon: Icon,
+  text,
+}: {
+  codename: string;
+  role: string;
+  icon: React.ElementType;
+  text: string;
+}) {
+  return (
+    <div className="bg-bg-secondary border border-border p-5">
+      <div className="flex items-center gap-3 mb-3">
+        <Icon size={16} className="text-accent-green" />
+        <span className="font-mono text-[11px] tracking-[2px] font-bold text-accent-green bg-accent-green-soft px-2 py-1">
+          {codename}
+        </span>
+        <span className="font-sans text-[13px] font-semibold">{role}</span>
+      </div>
+      <p className="font-sans text-[12px] text-text-muted leading-relaxed">
         {text}
       </p>
     </div>

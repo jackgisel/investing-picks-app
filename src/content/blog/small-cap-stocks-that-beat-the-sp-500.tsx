@@ -110,11 +110,11 @@ const article: Article = {
       </P>
 
       <CompareTable
-        headers={["Ticker", "Entry", "Last", "Return"]}
+        headers={["Ticker", "Entered", "Status", "Return"]}
         rows={[
-          ["CRS (Carpenter Technology)", "$68.49 (Jan 2024)", "$390.86", "+470.68%"],
-          ["IRS (IRSA Inversiones)", "$4.13 (Dec 2022)", "$16.77", "+306.42%"],
-          ["AGI (Alamos Gold)", "$16.84", "$46.24", "+174.58%"],
+          ["CRS (Carpenter Technology)", "Jan 2024", "Holding", "+470.68%"],
+          ["IRS (IRSA Inversiones)", "Dec 2022", "Holding", "+306.42%"],
+          ["AGI (Alamos Gold)", "Aug 2024", "Holding", "+174.58%"],
         ]}
       />
 
@@ -122,10 +122,9 @@ const article: Article = {
         <Strong>CRS</Strong> is the clearest example. Carpenter Technology makes
         specialty alloys for aerospace and defense — premium nickel, titanium, and
         stainless products with pricing power few metals companies have. When we
-        entered at $68.49 in January 2024, it was a ~$3.3B market cap with almost
-        no mainstream attention. Two years later, it&apos;s up nearly 5x on a
-        combination of expanding margins, booked aerospace demand, and multiple
-        re-rating.
+        entered in January 2024, it was a small-cap with almost no mainstream
+        attention. Two years later, it&apos;s up nearly 5x on a combination of
+        expanding margins, booked aerospace demand, and multiple re-rating.
       </P>
       <P>
         <Strong>IRS</Strong> is an Argentine real estate holding company —

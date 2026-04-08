@@ -1,6 +1,7 @@
 "use client";
 
 import { useStrategy } from "@/lib/hooks/use-strategy";
+import { computePortfolioReturnPct, formatPct } from "@/lib/portfolio";
 import { Radio } from "lucide-react";
 
 // Live portfolio inception
@@ -12,26 +13,13 @@ function daysSince(dateStr: string): number {
   return Math.max(0, Math.floor((now - start) / (1000 * 60 * 60 * 24)));
 }
 
-function formatCurrency(n: number) {
-  return n.toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
-function formatCompact(n: number) {
-  if (Math.abs(n) >= 1000) return `$${(n / 1000).toFixed(1)}K`;
-  return `$${n.toFixed(0)}`;
-}
-
 export function LiveStatus() {
   const { data: strategy, isLoading } = useStrategy();
   const days = daysSince(LIVE_INCEPTION);
   const portfolio = strategy?.portfolio;
-  const pnl = portfolio?.total_unrealized_pnl ?? 0;
-  const isPositive = pnl >= 0;
+  const totalReturnPct = computePortfolioReturnPct(strategy);
+  const hasReturn = totalReturnPct !== null;
+  const isPositive = hasReturn && totalReturnPct! >= 0;
 
   return (
     <div className="bg-bg-secondary border border-accent-green-soft p-5">
@@ -49,7 +37,7 @@ export function LiveStatus() {
               </span>
             </div>
             <p className="font-sans text-[12px] text-text-muted mt-1">
-              Real money &middot; Tracked since{" "}
+              Real trades &middot; Tracked since{" "}
               {new Date(LIVE_INCEPTION).toLocaleDateString("en-US", {
                 month: "short",
                 day: "numeric",
@@ -76,22 +64,18 @@ export function LiveStatus() {
           </div>
           <div>
             <span className="font-mono text-[9px] text-text-dim tracking-[1.5px] block">
-              VALUE
-            </span>
-            <span className="font-mono text-[18px] font-bold">
-              {isLoading ? "—" : portfolio ? formatCompact(portfolio.total_value) : "—"}
-            </span>
-          </div>
-          <div>
-            <span className="font-mono text-[9px] text-text-dim tracking-[1.5px] block">
-              UNREALIZED
+              TOTAL RETURN
             </span>
             <span
               className={`font-mono text-[18px] font-bold ${
-                isLoading ? "text-text-dim" : isPositive ? "text-accent-green" : "text-accent-red"
+                isLoading || !hasReturn
+                  ? "text-text-dim"
+                  : isPositive
+                    ? "text-accent-green"
+                    : "text-accent-red"
               }`}
             >
-              {isLoading ? "—" : portfolio ? `${isPositive ? "+" : ""}${formatCurrency(pnl)}` : "—"}
+              {isLoading || !hasReturn ? "—" : formatPct(totalReturnPct!)}
             </span>
           </div>
         </div>

@@ -40,16 +40,13 @@ export function DashboardPreview() {
                     TICKER
                   </th>
                   <th className="font-mono text-left px-6 py-3.5 text-[10px] text-text-dim tracking-[1.5px] font-medium border-b border-border bg-bg">
-                    AVG COST
-                  </th>
-                  <th className="font-mono text-left px-6 py-3.5 text-[10px] text-text-dim tracking-[1.5px] font-medium border-b border-border bg-bg">
-                    LAST
+                    ENTRY DATE
                   </th>
                   <th className="font-mono text-left px-6 py-3.5 text-[10px] text-text-dim tracking-[1.5px] font-medium border-b border-border bg-bg">
                     RETURN
                   </th>
                   <th className="font-mono text-left px-6 py-3.5 text-[10px] text-text-dim tracking-[1.5px] font-medium border-b border-border bg-bg">
-                    P&L
+                    FROM PEAK
                   </th>
                 </tr>
               </thead>
@@ -68,11 +65,8 @@ export function DashboardPreview() {
                       <td className="px-6 py-4 font-mono text-[14px] font-semibold">
                         {h.ticker}
                       </td>
-                      <td className="px-6 py-4 font-mono text-[13px] text-text-muted">
-                        {h.avgCost}
-                      </td>
-                      <td className="px-6 py-4 font-mono text-[13px]">
-                        {h.last}
+                      <td className="px-6 py-4 font-mono text-[12px] text-text-muted">
+                        {h.entry}
                       </td>
                       <td
                         className={`px-6 py-4 font-mono text-[13px] font-semibold ${
@@ -81,12 +75,8 @@ export function DashboardPreview() {
                       >
                         {h.ret}
                       </td>
-                      <td
-                        className={`px-6 py-4 font-mono text-[13px] ${
-                          isNegative ? "text-accent-red" : "text-accent-green"
-                        }`}
-                      >
-                        {h.pnl}
+                      <td className="px-6 py-4 font-mono text-[12px] text-text-dim">
+                        {h.fromPeak}
                       </td>
                     </tr>
                   );
@@ -108,7 +98,7 @@ export function DashboardPreview() {
             {displayWinners.map((w, i) => (
               <div
                 key={`${w.ticker}-${w.entry}-${i}`}
-                className={`grid grid-cols-4 px-6 py-4 border-b border-border last:border-b-0 items-center ${
+                className={`grid grid-cols-3 px-6 py-4 border-b border-border last:border-b-0 items-center gap-3 ${
                   i >= visibleWinners
                     ? "blur-[6px] select-none pointer-events-none"
                     : ""
@@ -122,9 +112,6 @@ export function DashboardPreview() {
                 </span>
                 <span className="font-mono text-[14px] font-bold text-accent-green text-right">
                   {w.ret}
-                </span>
-                <span className="font-mono text-[12px] text-text-muted text-right">
-                  {w.pnl}
                 </span>
               </div>
             ))}

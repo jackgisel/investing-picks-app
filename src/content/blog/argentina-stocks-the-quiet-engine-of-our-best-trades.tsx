@@ -80,12 +80,12 @@ const article: Article = {
       </P>
 
       <CompareTable
-        headers={["Ticker", "Name", "Entry", "Exit", "Return", "Outcome"]}
+        headers={["Ticker", "Name", "Entered", "Exited", "Return", "Outcome"]}
         rows={[
-          ["YPF", "YPF (oil & gas)", "$15.01 (2023-11-20)", "$45.01 (2025-01-06)", "+199.87%", "Closed"],
-          ["TGS", "Transportadora de Gas del Sur", "$10.62 (2023-02-21)", "$30.78 (2026-01-05)", "+189.83%", "Closed"],
-          ["BMA", "Banco Macro", "$22.96 (2023-12-04)", "$64.06 (2024-09-16)", "+179.01%", "Closed"],
-          ["IRS", "IRSA (real estate)", "$4.13 (2022-12-19)", "—", "+306.42%", "Holding"],
+          ["YPF", "YPF (oil & gas)", "2023-11-20", "2025-01-06", "+199.87%", "Closed"],
+          ["TGS", "Transportadora de Gas del Sur", "2023-02-21", "2026-01-05", "+189.83%", "Closed"],
+          ["BMA", "Banco Macro", "2023-12-04", "2024-09-16", "+179.01%", "Closed"],
+          ["IRS", "IRSA (real estate)", "2022-12-19", "—", "+306.42%", "Holding"],
         ]}
       />
 

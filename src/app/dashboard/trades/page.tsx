@@ -64,7 +64,7 @@ export default function TradesPage() {
           <table className="w-full">
             <thead>
               <tr>
-                {["DATE", "TICKER", "SIDE", "PRICE", "SHARES", "REASON"].map((h) => (
+                {["DATE", "TICKER", "SIDE", "REASON"].map((h) => (
                   <th
                     key={h}
                     className="font-mono text-left px-5 py-3 text-[10px] text-text-dim tracking-[1.5px] font-medium border-b border-border bg-bg"
@@ -77,7 +77,7 @@ export default function TradesPage() {
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-8 text-center">
+                  <td colSpan={4} className="px-5 py-8 text-center">
                     <span className="font-mono text-[11px] text-text-dim animate-pulse">
                       LOADING...
                     </span>
@@ -85,7 +85,7 @@ export default function TradesPage() {
                 </tr>
               ) : !paged?.length ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-8 text-center">
+                  <td colSpan={4} className="px-5 py-8 text-center">
                     <span className="font-mono text-[11px] text-text-dim">
                       NO TRADES MATCH FILTERS
                     </span>
@@ -114,13 +114,7 @@ export default function TradesPage() {
                         {t.side.toUpperCase()}
                       </span>
                     </td>
-                    <td className="px-5 py-3 font-mono text-[12px]">
-                      {t.price > 0 ? `$${t.price.toFixed(2)}` : "—"}
-                    </td>
-                    <td className="px-5 py-3 font-mono text-[12px] text-text-muted">
-                      {t.shares > 0 ? t.shares.toFixed(2) : "—"}
-                    </td>
-                    <td className="px-5 py-3 font-sans text-[12px] text-text-muted max-w-[300px] truncate">
+                    <td className="px-5 py-3 font-sans text-[12px] text-text-muted max-w-[420px] truncate">
                       {t.reason || "—"}
                     </td>
                   </tr>

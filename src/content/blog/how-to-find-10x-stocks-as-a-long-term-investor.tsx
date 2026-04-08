@@ -149,16 +149,15 @@ const article: Article = {
       <P>
         <Strong>CRS (Carpenter Technology)</Strong> is the closest thing in our
         live portfolio to a textbook case study. We bought it on January 2, 2024
-        at $68.49 — a roughly $3.3B market cap specialty-alloys business that
-        makes premium aerospace-grade materials with pricing power that most
-        metals companies can only dream about. Two years and three months later
-        it trades at $390.86.
+        — a small-cap specialty-alloys business that makes premium aerospace-grade
+        materials with pricing power that most metals companies can only dream
+        about. Two years and three months later, the position is up roughly 5x.
       </P>
 
       <StatGrid
         stats={[
-          { label: "CRS ENTRY", value: "$68.49" },
-          { label: "CRS LAST", value: "$390.86", green: true },
+          { label: "ENTERED", value: "JAN 2024" },
+          { label: "STATUS", value: "HOLDING", green: true },
           { label: "RETURN", value: "+470.68%", green: true },
           { label: "HOLDING PERIOD", value: "~2.3 YEARS" },
         ]}

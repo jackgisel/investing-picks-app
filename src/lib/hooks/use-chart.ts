@@ -2,21 +2,25 @@ import { useQuery } from "@tanstack/react-query";
 
 export interface ChartPoint {
   date: string;
-  portfolio_value: number;
-  benchmark_value?: number;
+  // Cumulative % return from inception. Both lines are 0% on day 1.
+  portfolio_pct: number | null;
+  benchmark_pct: number | null;
 }
 
 export interface ChartData {
   series: ChartPoint[];
   summary: {
     position_count: number;
-    total_unrealized_pnl: number;
-    total_value: number;
+    total_return_pct: number | null;
+    snapshot_return_pct?: number | null;
+    start_date?: string;
+    latest_date?: string;
+    snapshots?: number;
   };
   thesis_id: number;
 }
 
-// Uses /performance which now returns the live series
+// Uses /performance which now returns a percentage-only series.
 export function useChart() {
   return useQuery<ChartData>({
     queryKey: ["chart"],

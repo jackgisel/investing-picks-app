@@ -4,7 +4,8 @@ import { useStrategy } from "@/lib/hooks/use-strategy";
 import { useChart } from "@/lib/hooks/use-chart";
 import { PerformanceChart } from "@/components/dashboard/performance-chart";
 import { LiveStatus } from "@/components/dashboard/live-status";
-import { TrendingUp, BarChart3, Activity, Wallet } from "lucide-react";
+import { computePortfolioReturnPct, formatPct } from "@/lib/portfolio";
+import { TrendingUp, BarChart3, Activity, Trophy } from "lucide-react";
 
 const LIVE_INCEPTION = "2026-04-01";
 
@@ -14,20 +15,6 @@ function daysSince(dateStr: string): number {
   return Math.max(0, Math.floor((now - start) / (1000 * 60 * 60 * 24)));
 }
 
-function formatPct(n: number) {
-  const sign = n >= 0 ? "+" : "";
-  return `${sign}${n.toFixed(2)}%`;
-}
-
-function formatCurrency(n: number) {
-  return n.toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
 export default function PerformancePage() {
   const { data: strategy, isLoading } = useStrategy();
   const { data: chartData } = useChart();
@@ -35,15 +22,11 @@ export default function PerformancePage() {
   const portfolio = strategy?.portfolio;
   const holdings = strategy?.holdings;
 
-  // Calculate total return
-  const totalCost = holdings?.reduce(
-    (sum, h) => sum + h.entry_price * h.shares,
-    0
-  ) ?? 0;
-  const totalReturnPct =
-    totalCost > 0 && portfolio
-      ? ((portfolio.total_value - totalCost) / totalCost) * 100
-      : 0;
+  // Portfolio total return % derived from holdings — UI never shows dollars.
+  const computedReturnPct = computePortfolioReturnPct(strategy);
+  const totalReturnPct = computedReturnPct ?? 0;
+  const hasReturn = computedReturnPct !== null;
+  const winnersCount = holdings?.filter((h) => h.pnl_pct > 0).length ?? 0;
 
   // Best & worst current holdings
   const bestHolding = holdings
@@ -71,34 +54,30 @@ export default function PerformancePage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <MetricCard
           label="TOTAL RETURN"
-          value={isLoading ? "—" : formatPct(totalReturnPct)}
+          value={hasReturn ? formatPct(totalReturnPct) : "—"}
           icon={TrendingUp}
-          green={totalReturnPct >= 0}
-          red={totalReturnPct < 0}
-          loading={isLoading}
-        />
-        <MetricCard
-          label="UNREALIZED P&L"
-          value={
-            portfolio
-              ? `${portfolio.total_unrealized_pnl >= 0 ? "+" : ""}${formatCurrency(portfolio.total_unrealized_pnl)}`
-              : "—"
-          }
-          icon={Activity}
-          green={portfolio ? portfolio.total_unrealized_pnl >= 0 : false}
-          red={portfolio ? portfolio.total_unrealized_pnl < 0 : false}
-          loading={isLoading}
-        />
-        <MetricCard
-          label="PORTFOLIO VALUE"
-          value={portfolio ? formatCurrency(portfolio.total_value) : "—"}
-          icon={Wallet}
+          green={hasReturn && totalReturnPct >= 0}
+          red={hasReturn && totalReturnPct < 0}
           loading={isLoading}
         />
         <MetricCard
           label="POSITIONS"
           value={portfolio?.position_count.toString() ?? "—"}
           icon={BarChart3}
+          loading={isLoading}
+        />
+        <MetricCard
+          label="WINNERS"
+          value={
+            holdings ? `${winnersCount} / ${holdings.length}` : "—"
+          }
+          icon={Trophy}
+          loading={isLoading}
+        />
+        <MetricCard
+          label="DAYS LIVE"
+          value={days.toString()}
+          icon={Activity}
           loading={isLoading}
         />
       </div>
@@ -129,8 +108,7 @@ export default function PerformancePage() {
                 </span>
               </div>
               <span className="font-mono text-[11px] text-text-dim mt-1 block">
-                ${bestHolding.entry_price.toFixed(2)} → $
-                {bestHolding.current_price.toFixed(2)}
+                Entered {bestHolding.entry_date}
               </span>
             </div>
           )}
@@ -154,8 +132,7 @@ export default function PerformancePage() {
                 </span>
               </div>
               <span className="font-mono text-[11px] text-text-dim mt-1 block">
-                ${worstHolding.entry_price.toFixed(2)} → $
-                {worstHolding.current_price.toFixed(2)}
+                Entered {worstHolding.entry_date}
               </span>
             </div>
           )}

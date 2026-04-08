@@ -6,6 +6,14 @@ import { cn } from "@/lib/utils";
 
 const faqs = [
   {
+    q: "What does it mean that AI agents run the portfolio?",
+    a: "Outpick is built on six specialized AI agents — APEX (growth hunter), REVI (revisions reader), AUDIT (quality auditor), TAPE (momentum reader), GUARD (risk officer), and HELM (portfolio manager). Each agent owns a single piece of the research and management process and has the authority to veto a trade inside its domain. Picks are the output of all six agreeing, not a single black-box model. You can read the full breakdown on the Strategy page inside the dashboard.",
+  },
+  {
+    q: "Why six agents instead of one model?",
+    a: "A monolithic model averages its mistakes across every decision. Six specialized agents with veto authority disagree productively — growth signals can be wrong, revisions can be lagging, momentum can be a trap. Forcing each domain to defend itself separately is what keeps junk out of the portfolio. The backtest returned +250% vs +83% for the S&P 500 with this structure.",
+  },
+  {
     q: "Is this financial advice?",
     a: "No. Outpick is an educational publication. We share our own portfolio, research, and analysis. All investment decisions are entirely yours. We are not registered investment advisers, broker-dealers, or financial planners. Past performance does not guarantee future results. Always consult a qualified financial adviser before making investment decisions.",
   },

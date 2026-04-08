@@ -3,21 +3,11 @@
 import { useState, useMemo } from "react";
 import { usePicks } from "@/lib/hooks/use-picks";
 import { Filter, ArrowUpDown } from "lucide-react";
+import { formatPct } from "@/lib/portfolio";
 
-type SortKey = "pnl_pct" | "entry_date" | "dollar_pnl" | "ticker";
+type SortKey = "pnl_pct" | "entry_date" | "ticker";
 type SortDir = "asc" | "desc";
 type StatusFilter = "all" | "active" | "closed";
-
-function formatPct(n: number) {
-  const sign = n >= 0 ? "+" : "";
-  return `${sign}${n.toFixed(2)}%`;
-}
-
-function formatDollar(n: number) {
-  const sign = n >= 0 ? "+" : "";
-  if (Math.abs(n) >= 1000) return `${sign}$${(n / 1000).toFixed(2)}K`;
-  return `${sign}$${n.toFixed(2)}`;
-}
 
 export default function PicksPage() {
   const { data: activeData, isLoading: loadingActive } = usePicks("active");
@@ -48,7 +38,6 @@ export default function PicksPage() {
       let cmp = 0;
       if (sortKey === "ticker") cmp = a.ticker.localeCompare(b.ticker);
       else if (sortKey === "pnl_pct") cmp = (a.pnl_pct ?? 0) - (b.pnl_pct ?? 0);
-      else if (sortKey === "dollar_pnl") cmp = (a.dollar_pnl ?? 0) - (b.dollar_pnl ?? 0);
       else if (sortKey === "entry_date") cmp = a.entry_date.localeCompare(b.entry_date);
       return sortDir === "asc" ? cmp : -cmp;
     });
@@ -98,11 +87,9 @@ export default function PicksPage() {
                   [
                     { key: "ticker" as SortKey, label: "TICKER" },
                     { key: null, label: "STATUS" },
-                    { key: "entry_date" as SortKey, label: "ENTRY" },
-                    { key: null, label: "ENTRY $" },
-                    { key: null, label: "CURRENT $" },
+                    { key: "entry_date" as SortKey, label: "ENTRY DATE" },
+                    { key: null, label: "EXIT DATE" },
                     { key: "pnl_pct" as SortKey, label: "RETURN" },
-                    { key: "dollar_pnl" as SortKey, label: "P&L" },
                     { key: null, label: "EXIT REASON" },
                   ] as const
                 ).map((col) => (
@@ -128,7 +115,7 @@ export default function PicksPage() {
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="px-5 py-8 text-center">
+                  <td colSpan={6} className="px-5 py-8 text-center">
                     <span className="font-mono text-[11px] text-text-dim animate-pulse">
                       LOADING...
                     </span>
@@ -136,7 +123,7 @@ export default function PicksPage() {
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-5 py-8 text-center">
+                  <td colSpan={6} className="px-5 py-8 text-center">
                     <span className="font-mono text-[11px] text-text-dim">
                       NO PICKS MATCH FILTERS
                     </span>
@@ -165,13 +152,8 @@ export default function PicksPage() {
                     <td className="px-5 py-3.5 font-mono text-[12px] text-text-muted">
                       {p.entry_date}
                     </td>
-                    <td className="px-5 py-3.5 font-mono text-[12px]">
-                      ${p.entry_price.toFixed(2)}
-                    </td>
-                    <td className="px-5 py-3.5 font-mono text-[12px]">
-                      {p.exit_price
-                        ? `$${p.exit_price.toFixed(2)}`
-                        : `$${p.current_price.toFixed(2)}`}
+                    <td className="px-5 py-3.5 font-mono text-[12px] text-text-muted">
+                      {p.exit_date ?? "—"}
                     </td>
                     <td
                       className={`px-5 py-3.5 font-mono text-[13px] font-semibold ${
@@ -182,16 +164,7 @@ export default function PicksPage() {
                     >
                       {formatPct(p.pnl_pct ?? 0)}
                     </td>
-                    <td
-                      className={`px-5 py-3.5 font-mono text-[12px] font-semibold ${
-                        (p.dollar_pnl ?? 0) >= 0
-                          ? "text-accent-green"
-                          : "text-accent-red"
-                      }`}
-                    >
-                      {formatDollar(p.dollar_pnl ?? 0)}
-                    </td>
-                    <td className="px-5 py-3.5 font-sans text-[11px] text-text-dim max-w-[180px] truncate">
+                    <td className="px-5 py-3.5 font-sans text-[11px] text-text-dim max-w-[220px] truncate">
                       {p.exit_reason || "—"}
                     </td>
                   </tr>

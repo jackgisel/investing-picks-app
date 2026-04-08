@@ -1,27 +1,27 @@
 const steps = [
   {
     num: "01",
+    title: "Six AI agents do the research",
+    description:
+      "APEX, REVI, AUDIT, TAPE, GUARD, and HELM each own one piece of the process — from growth screening to risk control to portfolio management. Every pick is the output of all six agreeing.",
+  },
+  {
+    num: "02",
     title: "New pick every 2 weeks",
     description:
       "A high-conviction stock pick with full research notes, thesis, and entry reasoning. Small caps, high growth, opportunities the index won't surface.",
   },
   {
-    num: "02",
+    num: "03",
     title: "Live portfolio tracking",
     description:
       "See every position with real-time status. Full transparency on entries, exits, and conviction levels. No cherry-picked highlights.",
   },
   {
-    num: "03",
+    num: "04",
     title: "Performance vs. the S&P",
     description:
       "Track the full portfolio against the S&P 500 benchmark. Every gain and every loss, measured honestly.",
-  },
-  {
-    num: "04",
-    title: "Alerts when it matters",
-    description:
-      "Get notified on new picks and status changes. No daily market noise, no spam — just the updates that actually matter.",
   },
 ];
 

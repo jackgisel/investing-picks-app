@@ -4,14 +4,8 @@ export interface Pick {
   ticker: string;
   status: string;
   entry_date: string;
-  entry_price: number;
-  current_price: number;
-  pnl_pct: number;
-  dollar_pnl: number;
-  market_value: number;
-  shares: number;
+  pnl_pct: number | null;
   exit_date: string | null;
-  exit_price: number | null;
   exit_reason: string | null;
 }
 

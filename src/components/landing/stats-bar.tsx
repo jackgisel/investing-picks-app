@@ -2,6 +2,7 @@
 
 import { useStrategy } from "@/lib/hooks/use-strategy";
 import { BACKTEST } from "@/lib/constants";
+import { computePortfolioReturnPct, formatPct } from "@/lib/portfolio";
 
 const LIVE_INCEPTION = "2026-04-01";
 
@@ -11,15 +12,12 @@ function daysSince(dateStr: string): number {
   return Math.max(0, Math.floor((now - start) / (1000 * 60 * 60 * 24)));
 }
 
-function formatCurrency(n: number) {
-  if (Math.abs(n) >= 1000) return `$${(n / 1000).toFixed(1)}K`;
-  return `$${n.toFixed(0)}`;
-}
-
 export function StatsBar() {
   const { data: strategy } = useStrategy();
   const portfolio = strategy?.portfolio;
+  const totalReturnPct = computePortfolioReturnPct(strategy);
   const days = daysSince(LIVE_INCEPTION);
+  const hasReturn = totalReturnPct !== null;
 
   return (
     <section className="border-y border-border">
@@ -42,18 +40,10 @@ export function StatsBar() {
             <div className="flex items-center gap-6 sm:gap-10">
               <Stat label="POSITIONS" value={portfolio?.position_count?.toString() ?? "—"} />
               <Stat
-                label="VALUE"
-                value={portfolio ? formatCurrency(portfolio.total_value) : "—"}
-              />
-              <Stat
-                label="UNREALIZED"
-                value={
-                  portfolio
-                    ? `${portfolio.total_unrealized_pnl >= 0 ? "+" : ""}$${portfolio.total_unrealized_pnl.toFixed(0)}`
-                    : "—"
-                }
-                green={portfolio ? portfolio.total_unrealized_pnl >= 0 : false}
-                red={portfolio ? portfolio.total_unrealized_pnl < 0 : false}
+                label="TOTAL RETURN"
+                value={hasReturn ? formatPct(totalReturnPct!) : "—"}
+                green={hasReturn ? totalReturnPct! >= 0 : false}
+                red={hasReturn ? totalReturnPct! < 0 : false}
               />
             </div>
           </div>

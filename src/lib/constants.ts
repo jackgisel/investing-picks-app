@@ -80,8 +80,8 @@ export const FINAL_HOLDINGS = [
 export const NAV_LINKS = [
   { label: "Track record", href: "/#track-record" },
   { label: "How it works", href: "/#how-it-works" },
-  { label: "Performance", href: "/#performance" },
   { label: "Pricing", href: "/#pricing" },
+  { label: "Blog", href: "/blog" },
   { label: "FAQ", href: "/#faq" },
 ] as const;
 

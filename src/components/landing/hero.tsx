@@ -1,13 +1,20 @@
 import Link from "next/link";
 import { PRICING, BACKTEST } from "@/lib/constants";
-import { CubeGrid } from "./cube-grid";
+import { ShapeField } from "./cube-grid";
 
-const AGENT_CODES = ["APEX", "REVI", "AUDIT", "TAPE", "GUARD", "HELM"] as const;
+const AGENTS = [
+  { code: "APEX", role: "Growth Hunter" },
+  { code: "REVI", role: "Revisions Reader" },
+  { code: "AUDIT", role: "Quality Auditor" },
+  { code: "TAPE", role: "Momentum Reader" },
+  { code: "GUARD", role: "Risk Officer" },
+  { code: "HELM", role: "Portfolio Manager" },
+] as const;
 
 export function Hero() {
   return (
     <section className="relative py-24 sm:py-28 text-center overflow-hidden">
-      <CubeGrid />
+      <ShapeField />
       <div className="container-op relative z-10">
         <p className="font-mono text-[11px] text-accent-green tracking-[3px] mb-6">
           AI-DRIVEN EQUITY RESEARCH
@@ -25,14 +32,22 @@ export function Hero() {
           <strong className="text-text">{BACKTEST.spyReturn}</strong> for the
           S&amp;P 500. New picks every two weeks.
         </p>
-        <div className="flex flex-wrap items-center justify-center gap-2 mb-10 max-w-[540px] mx-auto">
-          {AGENT_CODES.map((code) => (
-            <span
-              key={code}
-              className="font-mono text-[10px] tracking-[2px] font-bold text-accent-green bg-accent-green-soft px-2.5 py-1 border border-accent-green/20"
+        <p className="font-mono text-[10px] text-text-dim tracking-[2px] mb-3">
+          MEET THE AGENTS
+        </p>
+        <div className="flex flex-wrap items-stretch justify-center gap-1.5 mb-10 max-w-[640px] mx-auto">
+          {AGENTS.map((a) => (
+            <div
+              key={a.code}
+              className="flex flex-col items-center gap-0.5 bg-accent-green-soft/40 border border-accent-green/25 px-3 py-2"
             >
-              {code}
-            </span>
+              <span className="font-mono text-[10px] tracking-[2px] font-bold text-accent-green leading-none">
+                {a.code}
+              </span>
+              <span className="font-sans text-[10px] text-text-muted leading-none">
+                {a.role}
+              </span>
+            </div>
           ))}
         </div>
         <Link href="/dashboard" className="btn-primary">

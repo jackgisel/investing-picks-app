@@ -2,7 +2,120 @@
 
 import { useEffect, useRef } from "react";
 
-interface Cube {
+type ShapeKind = "cube" | "tetra" | "octa" | "prism";
+
+interface Geometry {
+  vertices: [number, number, number][];
+  edges: [number, number][];
+  faces: number[][];
+}
+
+// Unit cube
+const CUBE: Geometry = {
+  vertices: [
+    [-0.5, -0.5, -0.5],
+    [0.5, -0.5, -0.5],
+    [0.5, 0.5, -0.5],
+    [-0.5, 0.5, -0.5],
+    [-0.5, -0.5, 0.5],
+    [0.5, -0.5, 0.5],
+    [0.5, 0.5, 0.5],
+    [-0.5, 0.5, 0.5],
+  ],
+  edges: [
+    [0, 1], [1, 2], [2, 3], [3, 0],
+    [4, 5], [5, 6], [6, 7], [7, 4],
+    [0, 4], [1, 5], [2, 6], [3, 7],
+  ],
+  faces: [
+    [0, 1, 2, 3],
+    [4, 5, 6, 7],
+    [0, 1, 5, 4],
+    [2, 3, 7, 6],
+    [0, 3, 7, 4],
+    [1, 2, 6, 5],
+  ],
+};
+
+// Tetrahedron — upward "growth arrow" feel
+const TETRA: Geometry = {
+  vertices: [
+    [0.5, 0.5, 0.5],
+    [0.5, -0.5, -0.5],
+    [-0.5, 0.5, -0.5],
+    [-0.5, -0.5, 0.5],
+  ],
+  edges: [
+    [0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3],
+  ],
+  faces: [
+    [0, 1, 2],
+    [0, 1, 3],
+    [0, 2, 3],
+    [1, 2, 3],
+  ],
+};
+
+// Octahedron — diamond / gem
+const OCTA: Geometry = {
+  vertices: [
+    [0.6, 0, 0],
+    [-0.6, 0, 0],
+    [0, 0.6, 0],
+    [0, -0.6, 0],
+    [0, 0, 0.6],
+    [0, 0, -0.6],
+  ],
+  edges: [
+    [0, 2], [0, 3], [0, 4], [0, 5],
+    [1, 2], [1, 3], [1, 4], [1, 5],
+    [2, 4], [4, 3], [3, 5], [5, 2],
+  ],
+  faces: [
+    [0, 2, 4],
+    [0, 4, 3],
+    [0, 3, 5],
+    [0, 5, 2],
+    [1, 2, 4],
+    [1, 4, 3],
+    [1, 3, 5],
+    [1, 5, 2],
+  ],
+};
+
+// Triangular prism — chart bar / growth wedge
+const PRISM: Geometry = {
+  vertices: [
+    [-0.5, -0.4, -0.5],
+    [0.5, -0.4, -0.5],
+    [0, 0.5, -0.5],
+    [-0.5, -0.4, 0.5],
+    [0.5, -0.4, 0.5],
+    [0, 0.5, 0.5],
+  ],
+  edges: [
+    [0, 1], [1, 2], [2, 0],
+    [3, 4], [4, 5], [5, 3],
+    [0, 3], [1, 4], [2, 5],
+  ],
+  faces: [
+    [0, 1, 2],
+    [3, 4, 5],
+    [0, 1, 4, 3],
+    [1, 2, 5, 4],
+    [2, 0, 3, 5],
+  ],
+};
+
+const GEOMETRIES: Record<ShapeKind, Geometry> = {
+  cube: CUBE,
+  tetra: TETRA,
+  octa: OCTA,
+  prism: PRISM,
+};
+
+interface Shape {
+  kind: ShapeKind;
   x: number;
   y: number;
   z: number;
@@ -18,11 +131,14 @@ interface Cube {
   opacity: number;
 }
 
-function createCubes(width: number, height: number): Cube[] {
-  const count = 18;
-  const cubes: Cube[] = [];
+const KINDS: ShapeKind[] = ["cube", "tetra", "octa", "prism"];
+
+function createShapes(width: number, height: number): Shape[] {
+  const count = 22;
+  const shapes: Shape[] = [];
   for (let i = 0; i < count; i++) {
-    cubes.push({
+    shapes.push({
+      kind: KINDS[i % KINDS.length],
       x: Math.random() * width,
       y: Math.random() * height,
       z: Math.random() * 400 - 200,
@@ -38,7 +154,7 @@ function createCubes(width: number, height: number): Cube[] {
       opacity: 0.08 + Math.random() * 0.14,
     });
   }
-  return cubes;
+  return shapes;
 }
 
 function project(
@@ -57,24 +173,6 @@ function project(
   };
 }
 
-// Unit cube vertices centered at origin
-const vertices: [number, number, number][] = [
-  [-0.5, -0.5, -0.5],
-  [0.5, -0.5, -0.5],
-  [0.5, 0.5, -0.5],
-  [-0.5, 0.5, -0.5],
-  [-0.5, -0.5, 0.5],
-  [0.5, -0.5, 0.5],
-  [0.5, 0.5, 0.5],
-  [-0.5, 0.5, 0.5],
-];
-
-const edges: [number, number][] = [
-  [0, 1], [1, 2], [2, 3], [3, 0], // back face
-  [4, 5], [5, 6], [6, 7], [7, 4], // front face
-  [0, 4], [1, 5], [2, 6], [3, 7], // connecting edges
-];
-
 function rotatePoint(
   x: number,
   y: number,
@@ -83,21 +181,18 @@ function rotatePoint(
   ry: number,
   rz: number
 ): [number, number, number] {
-  // Rotate X
-  let y1 = y * Math.cos(rx) - z * Math.sin(rx);
-  let z1 = y * Math.sin(rx) + z * Math.cos(rx);
-  // Rotate Y
-  let x2 = x * Math.cos(ry) + z1 * Math.sin(ry);
-  let z2 = -x * Math.sin(ry) + z1 * Math.cos(ry);
-  // Rotate Z
-  let x3 = x2 * Math.cos(rz) - y1 * Math.sin(rz);
-  let y3 = x2 * Math.sin(rz) + y1 * Math.cos(rz);
+  const y1 = y * Math.cos(rx) - z * Math.sin(rx);
+  const z1 = y * Math.sin(rx) + z * Math.cos(rx);
+  const x2 = x * Math.cos(ry) + z1 * Math.sin(ry);
+  const z2 = -x * Math.sin(ry) + z1 * Math.cos(ry);
+  const x3 = x2 * Math.cos(rz) - y1 * Math.sin(rz);
+  const y3 = x2 * Math.sin(rz) + y1 * Math.cos(rz);
   return [x3, y3, z2];
 }
 
-export function CubeGrid() {
+export function ShapeField() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const cubesRef = useRef<Cube[]>([]);
+  const shapesRef = useRef<Shape[]>([]);
   const animRef = useRef<number>(0);
 
   useEffect(() => {
@@ -114,7 +209,7 @@ export function CubeGrid() {
       canvas!.style.width = rect.width + "px";
       canvas!.style.height = rect.height + "px";
       ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
-      cubesRef.current = createCubes(rect.width, rect.height);
+      shapesRef.current = createShapes(rect.width, rect.height);
     }
 
     resize();
@@ -128,53 +223,43 @@ export function CubeGrid() {
 
       ctx!.clearRect(0, 0, w, h);
 
-      for (const cube of cubesRef.current) {
-        cube.rotX += cube.speedX;
-        cube.rotY += cube.speedY;
-        cube.rotZ += cube.speedZ;
-        cube.x += cube.driftX;
-        cube.y += cube.driftY;
+      for (const shape of shapesRef.current) {
+        shape.rotX += shape.speedX;
+        shape.rotY += shape.speedY;
+        shape.rotZ += shape.speedZ;
+        shape.x += shape.driftX;
+        shape.y += shape.driftY;
 
-        // Wrap around
-        if (cube.x < -cube.size) cube.x = w + cube.size;
-        if (cube.x > w + cube.size) cube.x = -cube.size;
-        if (cube.y < -cube.size) cube.y = h + cube.size;
-        if (cube.y > h + cube.size) cube.y = -cube.size;
+        if (shape.x < -shape.size) shape.x = w + shape.size;
+        if (shape.x > w + shape.size) shape.x = -shape.size;
+        if (shape.y < -shape.size) shape.y = h + shape.size;
+        if (shape.y > h + shape.size) shape.y = -shape.size;
 
-        // Transform vertices
-        const projected = vertices.map(([vx, vy, vz]) => {
+        const geo = GEOMETRIES[shape.kind];
+
+        const projected = geo.vertices.map(([vx, vy, vz]) => {
           const [rx, ry, rz] = rotatePoint(
-            vx * cube.size,
-            vy * cube.size,
-            vz * cube.size,
-            cube.rotX,
-            cube.rotY,
-            cube.rotZ
+            vx * shape.size,
+            vy * shape.size,
+            vz * shape.size,
+            shape.rotX,
+            shape.rotY,
+            shape.rotZ
           );
-          return project(cube.x + rx, cube.y + ry, cube.z + rz, cx, cy);
+          return project(shape.x + rx, shape.y + ry, shape.z + rz, cx, cy);
         });
 
-        // Draw edges
-        ctx!.strokeStyle = `rgba(34, 197, 94, ${cube.opacity})`;
+        ctx!.strokeStyle = `rgba(34, 197, 94, ${shape.opacity})`;
         ctx!.lineWidth = 1;
         ctx!.beginPath();
-        for (const [a, b] of edges) {
+        for (const [a, b] of geo.edges) {
           ctx!.moveTo(projected[a].sx, projected[a].sy);
           ctx!.lineTo(projected[b].sx, projected[b].sy);
         }
         ctx!.stroke();
 
-        // Faint face fills for depth
-        const faces = [
-          [0, 1, 2, 3],
-          [4, 5, 6, 7],
-          [0, 1, 5, 4],
-          [2, 3, 7, 6],
-          [0, 3, 7, 4],
-          [1, 2, 6, 5],
-        ];
-        ctx!.fillStyle = `rgba(34, 197, 94, ${cube.opacity * 0.08})`;
-        for (const face of faces) {
+        ctx!.fillStyle = `rgba(34, 197, 94, ${shape.opacity * 0.08})`;
+        for (const face of geo.faces) {
           ctx!.beginPath();
           ctx!.moveTo(projected[face[0]].sx, projected[face[0]].sy);
           for (let i = 1; i < face.length; i++) {

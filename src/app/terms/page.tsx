@@ -21,13 +21,12 @@ export default function TermsPage() {
             1. Agreement to Terms
           </h2>
           <p>
-            By accessing or using Outpick website at
-            outpick.com (&quot;Service&quot;), you agree to be bound by
-            these Terms of Service (&quot;Terms&quot;). If you do not agree to
-            these Terms, do not use the Service. The Service is owned and
-            operated by Outpick LLC, a Wyoming limited liability
-            company (&quot;Company,&quot; &quot;we,&quot; &quot;us,&quot; or
-            &quot;our&quot;).
+            By accessing or using the Outpick website at outpick.xyz
+            (&quot;Service&quot;), you agree to be bound by these Terms of
+            Service (&quot;Terms&quot;). If you do not agree to these Terms, do
+            not use the Service. The Service is published and operated by Outpick
+            (&quot;Publisher,&quot; &quot;we,&quot; &quot;us,&quot; or
+            &quot;our&quot;), an independent financial research publication.
           </p>
         </section>
 
@@ -36,34 +35,36 @@ export default function TermsPage() {
             2. Description of Service
           </h2>
           <p>
-            Outpick is an educational and informational publication
-            that provides stock market research, portfolio tracking, and
-            investment analysis. The Service includes access to a curated
-            portfolio of stock picks, performance data, research notes, and
-            email alerts delivered on a subscription basis. The Service is
-            published by Outpick LLC and reflects the portfolio
-            decisions and opinions of its authors.
+            Outpick is an educational and informational publication that provides
+            stock market research, portfolio tracking, and investment analysis.
+            The Service includes access to a curated portfolio of stock picks,
+            performance data, research notes, and email alerts delivered on a
+            subscription basis. Content reflects the portfolio decisions and
+            opinions of the Publisher and is provided for your general
+            information and education only.
           </p>
         </section>
 
         <section>
           <h2 className="font-sans text-lg font-semibold text-text mb-3">
-            3. Not Investment Advice
+            3. Not Investment Advice — No Fiduciary Relationship
           </h2>
           <p className="mb-3">
             <strong className="text-text">
-              The Service does not constitute investment advice, financial
-              advice, trading advice, or any other form of professional advice.
+              Nothing on the Service constitutes investment advice, financial
+              advice, trading advice, tax advice, legal advice, or any other form
+              of professional advice. Nothing on the Service is a recommendation
+              or solicitation to buy, sell, or hold any security.
             </strong>
           </p>
           <p className="mb-3">
-            Outpick LLC is not registered as an investment adviser,
+            The Publisher is not registered as an investment adviser,
             broker-dealer, financial planner, or fiduciary with the U.S.
-            Securities and Exchange Commission (SEC), the Wyoming Secretary of
-            State, any state securities regulatory authority, or any other
-            regulatory body. The content provided through the Service reflects
-            our own opinions and portfolio decisions and should not be construed
-            as recommendations to buy, sell, or hold any security.
+            Securities and Exchange Commission (SEC), any state securities
+            regulatory authority, or any other regulatory body. No advisory
+            relationship, fiduciary relationship, or special duty of care is
+            created between you and the Publisher by your use of the Service or
+            your subscription.
           </p>
           <p className="mb-3">
             The Service operates as a bona fide financial publication under the
@@ -71,32 +72,50 @@ export default function TermsPage() {
             Content is impersonal in nature, available to all subscribers on the
             same terms, and published on a regular schedule. No content is
             tailored to any individual subscriber&apos;s financial situation,
-            risk tolerance, or investment objectives.
+            risk tolerance, tax circumstances, or investment objectives.
           </p>
           <p className="mb-3">
-            All investment decisions carry risk, including the potential loss of
-            your entire investment. Past performance of our portfolio or any
-            individual stock pick is not indicative of future results. You are
-            solely responsible for your own investment decisions and should
-            consult with a qualified, licensed financial adviser before making
-            any investment.
+            You are solely responsible for evaluating any information on the
+            Service and for all investment decisions you make. You should consult
+            with qualified, licensed professionals (including financial, tax, and
+            legal advisers) before making any investment or financial decision.
           </p>
           <p>
-            By using this Service, you acknowledge that you understand these
-            risks and accept full responsibility for your own financial
-            decisions.
+            By using the Service, you acknowledge that you understand the risks
+            of investing — including the possible loss of your entire investment
+            — and that you accept full and exclusive responsibility for your own
+            financial decisions and outcomes.
           </p>
         </section>
 
         <section>
           <h2 className="font-sans text-lg font-semibold text-text mb-3">
-            4. Conflicts of Interest Disclosure
+            4. No Reliance; Your Own Due Diligence
           </h2>
           <p className="mb-3">
-            The authors and operators of Outpick LLC hold positions
-            in securities discussed through the Service. We may buy, sell, or
-            hold any security mentioned in our publications at any time, before
-            or after publication.
+            Any research, commentary, portfolio data, or stock picks published
+            through the Service describe what the Publisher owns, is considering,
+            or has owned — not what you should do. You agree not to treat any
+            content as a directive, instruction, or personalized recommendation.
+          </p>
+          <p>
+            You agree to conduct your own independent research and due diligence
+            before acting on any information from the Service. Past performance of
+            the Publisher&apos;s portfolio or any individual pick is not
+            indicative of future results and is no guarantee of your results if
+            you choose to invest similarly.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="font-sans text-lg font-semibold text-text mb-3">
+            5. Conflicts of Interest Disclosure
+          </h2>
+          <p className="mb-3">
+            The Publisher and its operators hold positions in securities
+            discussed through the Service. We may buy, sell, or hold any
+            security mentioned in our publications at any time, before or after
+            publication, without notice to subscribers.
           </p>
           <p>
             We do not receive compensation from any company whose securities are
@@ -109,15 +128,15 @@ export default function TermsPage() {
 
         <section>
           <h2 className="font-sans text-lg font-semibold text-text mb-3">
-            5. Subscription and Payment
+            6. Subscription and Payment
           </h2>
           <p className="mb-3">
-            Access to the Service requires a paid annual subscription. Payment
-            is processed through Paddle.com Market Limited (&quot;Paddle&quot;),
-            our merchant of record. Paddle handles all billing, sales tax, VAT,
+            Access to the Service requires a paid annual subscription. Payment is
+            processed through Paddle.com Market Limited (&quot;Paddle&quot;), our
+            merchant of record. Paddle handles billing, sales tax, VAT,
             invoicing, and payment processing on our behalf. Your contractual
-            relationship for payment purposes is with Paddle, and their terms
-            of service apply to all transactions.
+            relationship for payment purposes is with Paddle, and their terms of
+            service apply to all transactions.
           </p>
           <p className="mb-3">
             By subscribing, you authorize recurring annual charges to your
@@ -134,21 +153,21 @@ export default function TermsPage() {
 
         <section>
           <h2 className="font-sans text-lg font-semibold text-text mb-3">
-            6. Refund Policy
+            7. Refund Policy
           </h2>
           <p>
             Due to the nature of the Service (immediate access to proprietary
             research and portfolio data), all sales are final. We do not offer
             refunds except where required by applicable law or at our sole
             discretion in exceptional circumstances. Refund requests may be
-            directed to Paddle as our merchant of record, or to us at
-            hello@outpick.com.
+            directed to Paddle as our merchant of record, or to us at{" "}
+            hello@outpick.xyz.
           </p>
         </section>
 
         <section>
           <h2 className="font-sans text-lg font-semibold text-text mb-3">
-            7. Account Responsibilities
+            8. Account Responsibilities
           </h2>
           <p className="mb-3">
             You are responsible for maintaining the confidentiality of your
@@ -166,170 +185,171 @@ export default function TermsPage() {
 
         <section>
           <h2 className="font-sans text-lg font-semibold text-text mb-3">
-            8. Intellectual Property
+            9. Intellectual Property
           </h2>
           <p>
-            All content provided through the Service — including but not limited
-            to research notes, analysis, portfolio data, and website design — is
-            the intellectual property of Outpick LLC and is protected
-            by copyright and other intellectual property laws. You may not
-            reproduce, distribute, modify, or publicly display any content from
-            the Service without our prior written consent.
+            All content provided through the Service — including research notes,
+            analysis, portfolio data, and website design — is the intellectual
+            property of the Publisher and is protected by copyright and other
+            intellectual property laws. You may not reproduce, distribute,
+            modify, or publicly display any content from the Service without our
+            prior written consent.
           </p>
         </section>
 
         <section>
           <h2 className="font-sans text-lg font-semibold text-text mb-3">
-            9. Disclaimer of Warranties
+            10. Disclaimer of Warranties
           </h2>
           <p>
             The Service is provided &quot;as is&quot; and &quot;as
-            available&quot; without warranties of any kind, either express or
-            implied, including but not limited to implied warranties of
-            merchantability, fitness for a particular purpose, and
-            non-infringement. We do not warrant that the Service will be
-            uninterrupted, error-free, or free of harmful components. We make no
-            representations or warranties regarding the accuracy, reliability,
-            timeliness, or completeness of any content provided through the
-            Service, including any stock picks, analysis, or performance data.
+            available&quot; without warranties of any kind, whether express or
+            implied, including implied warranties of merchantability, fitness for
+            a particular purpose, accuracy, and non-infringement. We do not
+            warrant that the Service will be uninterrupted, error-free, or free of
+            harmful components. We make no representations or warranties
+            regarding the accuracy, reliability, timeliness, or completeness of
+            any content, including stock picks, analysis, or performance data.
           </p>
         </section>
 
         <section>
           <h2 className="font-sans text-lg font-semibold text-text mb-3">
-            10. Limitation of Liability
+            11. Limitation of Liability
           </h2>
           <p className="mb-3">
-            To the maximum extent permitted by applicable law, The Long
-            Investment LLC, its members, managers, operators, affiliates, and
-            contributors shall not be liable for any direct, indirect,
-            incidental, special, consequential, or punitive damages — including
-            but not limited to loss of profits, loss of data, loss of
-            investment, or financial losses of any kind — arising out of or
-            related to your use of or reliance on the Service.
+            <strong className="text-text">
+              To the maximum extent permitted by applicable law, the Publisher,
+              its operators, and contributors shall not be liable for any direct,
+              indirect, incidental, special, consequential, exemplary, or
+              punitive damages — including loss of profits, loss of data, loss of
+              investment, trading losses, or any other financial losses — arising
+              from or related to your use of, reliance on, or inability to use
+              the Service, whether or not we have been advised of the possibility
+              of such damages.
+            </strong>
+          </p>
+          <p className="mb-3">
+            Without limiting the foregoing, the Publisher is not responsible for
+            any investment losses you incur, whether or not those losses relate
+            to content published through the Service, securities mentioned in
+            the Service, or decisions you make based on the Service.
           </p>
           <p>
-            Our total aggregate liability to you for all claims arising out of
-            or related to the Service shall not exceed the amount you paid to us
-            in the twelve (12) months immediately preceding the event giving
-            rise to the claim. This limitation applies regardless of the form of
-            action, whether in contract, tort, strict liability, or otherwise.
+            Our total aggregate liability to you for all claims arising out of or
+            related to the Service shall not exceed the greater of (a) the amount
+            you paid to us in the twelve (12) months immediately preceding the
+            event giving rise to the claim, or (b) one hundred U.S. dollars
+            ($100). This limitation applies regardless of the form of action,
+            whether in contract, tort, strict liability, or otherwise.
           </p>
         </section>
 
         <section>
           <h2 className="font-sans text-lg font-semibold text-text mb-3">
-            11. Assumption of Risk
+            12. Assumption of Risk
           </h2>
           <p>
-            You expressly acknowledge and agree that investing in securities
-            involves substantial risk and that you may lose some or all of your
-            invested capital. You agree that Outpick LLC is not
-            responsible for any investment losses you may incur, regardless of
-            whether those losses are related to content published through the
-            Service. You assume all risk associated with any investment
-            decisions you make.
+            You expressly acknowledge that investing in securities involves
+            substantial risk and that you may lose some or all of your invested
+            capital. You assume all risk associated with any investment or
+            trading decisions you make, including decisions made after reading,
+            viewing, or relying on any content from the Service. You agree that
+            the Publisher bears no responsibility for your investment outcomes.
           </p>
         </section>
 
         <section>
           <h2 className="font-sans text-lg font-semibold text-text mb-3">
-            12. Indemnification
+            13. Indemnification
           </h2>
           <p>
-            You agree to indemnify, defend, and hold harmless The Long
-            Investment LLC, its members, managers, and operators from and
-            against any and all claims, damages, losses, liabilities, costs, and
-            expenses (including reasonable attorneys&apos; fees) arising from
-            your use of the Service, your violation of these Terms, or your
-            investment decisions.
+            You agree to indemnify, defend, and hold harmless the Publisher, its
+            operators, and contributors from and against any and all claims,
+            demands, damages, losses, liabilities, costs, and expenses (including
+            reasonable attorneys&apos; fees) arising out of or related to: (a)
+            your use of the Service; (b) your violation of these Terms; (c) your
+            investment, trading, or financial decisions; or (d) your violation
+            of any law or the rights of any third party.
           </p>
         </section>
 
         <section>
           <h2 className="font-sans text-lg font-semibold text-text mb-3">
-            13. Modifications
+            14. Modifications
           </h2>
           <p>
             We reserve the right to modify these Terms at any time. Material
             changes will be communicated via email or through the Service at
             least fourteen (14) days before they take effect. Your continued use
-            of the Service after the effective date of modifications constitutes
-            acceptance of the updated Terms. If you do not agree to the updated
-            Terms, you must cancel your subscription before the effective date.
+            of the Service after the effective date constitutes acceptance of the
+            updated Terms. If you do not agree to the updated Terms, you must
+            cancel your subscription before the effective date.
           </p>
         </section>
 
         <section>
           <h2 className="font-sans text-lg font-semibold text-text mb-3">
-            14. Governing Law and Dispute Resolution
+            15. Governing Law and Dispute Resolution
           </h2>
           <p className="mb-3">
-            These Terms are governed by and construed in accordance with the
-            laws of the State of Wyoming, without regard to its conflict of law
-            provisions.
+            These Terms are governed by the laws of the United States and the
+            state in which the Publisher is domiciled, without regard to
+            conflict-of-law principles.
           </p>
           <p className="mb-3">
-            Any dispute, controversy, or claim arising out of or relating to
-            these Terms or the Service shall be resolved by binding arbitration
-            administered by the American Arbitration Association (&quot;AAA&quot;)
-            in accordance with its Commercial Arbitration Rules. The
-            arbitration shall be conducted by a single arbitrator, and the seat
-            of arbitration shall be Cheyenne, Wyoming. The arbitrator&apos;s
-            decision shall be final and binding and may be entered as a judgment
-            in any court of competent jurisdiction.
+            Any dispute arising out of or relating to these Terms or the Service
+            shall be resolved by binding arbitration administered by the American
+            Arbitration Association (&quot;AAA&quot;) under its Consumer
+            Arbitration Rules, except that either party may seek injunctive relief
+            in court for intellectual property or unauthorized use of the
+            Service. The arbitrator&apos;s decision shall be final and binding.
           </p>
           <p>
-            You agree that any dispute resolution proceedings will be conducted
-            on an individual basis and not as a class action, class arbitration,
-            or other representative proceeding. You waive any right to
-            participate in a class action lawsuit or class arbitration against
-            Outpick LLC.
+            You agree that dispute resolution will be conducted only on an
+            individual basis and not as a class action, class arbitration, or
+            other representative proceeding. You waive any right to participate
+            in a class action lawsuit or class arbitration against the Publisher.
           </p>
         </section>
 
         <section>
           <h2 className="font-sans text-lg font-semibold text-text mb-3">
-            15. Severability
+            16. Severability
           </h2>
           <p>
-            If any provision of these Terms is found to be unenforceable or
-            invalid by a court of competent jurisdiction, that provision shall
-            be limited or eliminated to the minimum extent necessary, and the
-            remaining provisions shall remain in full force and effect.
+            If any provision of these Terms is found unenforceable or invalid, that
+            provision shall be limited or eliminated to the minimum extent
+            necessary, and the remaining provisions shall remain in full force and
+            effect.
           </p>
         </section>
 
         <section>
           <h2 className="font-sans text-lg font-semibold text-text mb-3">
-            16. Entire Agreement
+            17. Entire Agreement
           </h2>
           <p>
             These Terms, together with our Privacy Policy, constitute the entire
-            agreement between you and Outpick LLC with respect to
-            the Service and supersede all prior or contemporaneous
-            communications, whether electronic, oral, or written.
+            agreement between you and the Publisher with respect to the Service
+            and supersede all prior or contemporaneous communications, whether
+            electronic, oral, or written.
           </p>
         </section>
 
         <section>
           <h2 className="font-sans text-lg font-semibold text-text mb-3">
-            17. Contact
+            18. Contact
           </h2>
           <p>
-            For questions regarding these Terms, please contact us at{" "}
+            For questions regarding these Terms, contact us at{" "}
             <a
-              href="mailto:hello@outpick.com"
+              href="mailto:hello@outpick.xyz"
               className="text-accent-green hover:underline"
             >
-              hello@outpick.com
+              hello@outpick.xyz
             </a>
             .
-          </p>
-          <p className="mt-3">
-            Outpick LLC
-            <br />
-            A Wyoming limited liability company
           </p>
         </section>
       </div>

@@ -5,7 +5,7 @@ export function Footer() {
     <footer className="border-t border-border">
       <div className="container-op py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
         <span className="font-mono text-[11px] text-text-dim">
-          &copy; {new Date().getFullYear()} OUTPICK LLC
+          &copy; {new Date().getFullYear()} Outpick
         </span>
         <div className="flex gap-6">
           <Link
@@ -21,7 +21,7 @@ export function Footer() {
             Privacy Policy
           </Link>
           <a
-            href="mailto:hello@outpick.com"
+            href="mailto:hello@outpick.xyz"
             className="font-sans text-[12px] text-text-dim hover:text-text-muted transition-colors"
           >
             Contact

@@ -1,13 +1,19 @@
 export const SITE_NAME = "Outpick";
-export const SITE_URL = "https://outpick.com";
+export const SITE_URL = "https://outpick.xyz";
+export const SITE_TAGLINE = "Intentional investing beyond the index.";
 export const SITE_DESCRIPTION =
-  "High-growth stock picks researched and tracked for you. New analysis every two weeks. Build a portfolio that beats the S&P — without becoming a day trader.";
+  "Outpick is a stock research team for investors who outgrew index funds. Value-based picks grounded in business fundamentals and market cycles — researched, tracked, and published every two weeks.";
 
 export const PRICING = {
   annual: 1000,
+  foundersAnnual: 250,
   currency: "USD",
   label: "$1,000 / year",
+  foundersLabel: "$250 / year",
 };
+
+/** Founders pricing is available through this day of the live portfolio. */
+export const FOUNDERS_DEAL_MAX_DAY = 150;
 
 // Historical backtest: Jun 15, 2022 — Apr 06, 2026 (~3.8 years)
 // Walk-forward validation: parameters trained on Jun 2022 — Jul 2024,
@@ -20,7 +26,8 @@ export const BACKTEST = {
   label: "COMBINED: best weights + best Outpick-style",
   startDate: "Jun 15, 2022",
   endDate: "Apr 06, 2026",
-  yearsCovered: 3.8,
+  yearsCovered: 5,
+  yearsLabel: "5-year trailing history",
   totalReturn: "+250.39%",
   cagr: "+38.99%",
   spyReturn: "+83.34%",
@@ -33,6 +40,7 @@ export const BACKTEST = {
   losses: 18,
   trades: 132,
   winnersCircle: 8,
+  doubledMinReturnPct: 100,
   // Validation period (out-of-sample only)
   validationAlpha: "+67%",
   validationStart: "Jul 2024",
@@ -42,7 +50,9 @@ export const BACKTEST = {
 // Live portfolio — inception April 1, 2026
 export const LIVE_PORTFOLIO = {
   inceptionDate: "Apr 01, 2026",
+  inceptionISO: "2026-04-01",
   status: "LIVE" as const,
+  foundersDealMaxDay: FOUNDERS_DEAL_MAX_DAY,
 };
 
 // Stocks that doubled during the backtest (8 total)
@@ -79,6 +89,7 @@ export const FINAL_HOLDINGS = [
 
 export const NAV_LINKS = [
   { label: "Track record", href: "/#track-record" },
+  { label: "Our strategy", href: "/#strategy" },
   { label: "How it works", href: "/#how-it-works" },
   { label: "Pricing", href: "/#pricing" },
   { label: "Insights", href: "/insights" },
@@ -88,3 +99,7 @@ export const NAV_LINKS = [
 
 export const PADDLE_CLIENT_TOKEN = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || "";
 export const PADDLE_PRICE_ID = process.env.NEXT_PUBLIC_PADDLE_PRICE_ID || "";
+// Founders price ($250/yr) — used at checkout while the founders deal is active.
+// Falls back to the standard price ID if not configured.
+export const PADDLE_FOUNDERS_PRICE_ID =
+  process.env.NEXT_PUBLIC_PADDLE_FOUNDERS_PRICE_ID || "";

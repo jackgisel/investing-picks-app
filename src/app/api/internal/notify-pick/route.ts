@@ -18,7 +18,7 @@ import { sendNewPickEmail } from "@/lib/email";
  *   }
  *
  * Example:
- *   curl -X POST https://outpick.com/api/internal/notify-pick \
+ *   curl -X POST https://outpick.xyz/api/internal/notify-pick \
  *     -H "Authorization: Bearer $INTERNAL_API_SECRET" \
  *     -H "Content-Type: application/json" \
  *     -d '{"slug":"new-pick-abcd","ticker":"ABCD"}'

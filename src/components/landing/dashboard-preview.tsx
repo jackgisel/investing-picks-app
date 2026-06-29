@@ -13,11 +13,12 @@ export function DashboardPreview() {
   return (
     <section id="performance" className="border-b border-border">
       <div className="container-op py-20">
-        <p className="section-label">BACKTEST PORTFOLIO</p>
-        <h2 className="section-title">Full transparency. Every position.</h2>
+        <p className="section-label">BACKTEST WINNERS</p>
+        <h2 className="section-title">Eight picks doubled. That&apos;s the edge.</h2>
         <p className="section-sub">
-          The final portfolio from our backtest. Members get this level of
-          detail on every holding — past and present.
+          Total return tells part of the story. What matters is how many
+          high-conviction picks become multi-baggers — and how the model finds
+          them. Members see every holding, winner, and loser in full detail.
         </p>
 
         <div className="bg-bg-secondary border border-border overflow-hidden">

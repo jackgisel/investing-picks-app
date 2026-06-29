@@ -34,7 +34,7 @@ export default function StrategyPage() {
       <div>
         <h1 className="font-sans text-xl font-bold">The Outpick Strategy</h1>
         <p className="font-sans text-[13px] text-text-dim mt-1">
-          Six AI agents · One portfolio · Built to beat the S&amp;P
+          Value investing · Market cycles · Full transparency
         </p>
       </div>
 
@@ -45,42 +45,44 @@ export default function StrategyPage() {
         </h2>
         <div className="space-y-4 font-sans text-[14px] text-text-muted leading-relaxed max-w-[720px]">
           <p>
-            The Outpick Strategy is an{" "}
-            <strong className="text-text">AI agent-driven equity research system</strong>.
-            Six specialized agents — each with its own quantitative research or
-            portfolio management personality — collaborate every two weeks to
-            find high-growth companies, manage risk, and let winners compound
-            without capping their upside.
+            Outpick started the way many serious investors do: maxed out the
+            401(k), held the index fund, and wondered if there was a better way
+            to put capital to work. We wanted better returns, tax-aware
+            individual positions, and the confidence that comes from knowing why
+            we own what we own — without making stock research a second career.
           </p>
           <p>
-            The agents were trained on nearly four years of historical equity
-            data and validated against{" "}
+            Our approach is{" "}
+            <strong className="text-text">value-based investing through market cycles</strong>.
+            Inspired by the discipline of Warren Buffett, the rigor of
+            quantitative research firms, and the conviction sizing of top venture
+            investors, we evaluate business fundamentals first — then ask
+            whether the cycle and valuation make this the right moment to act.
+          </p>
+          <p>
+            The process was validated against{" "}
             <strong className="text-text">104 high-conviction picks</strong>{" "}
-            from July 2022 to April 2026. The exercise gave us a structural
-            understanding of how the biggest winners actually behave — and
-            taught the agents what to repeat and what to avoid.
-          </p>
-          <p>
-            The core insight: equity returns are profoundly{" "}
+            from July 2022 to April 2026. The core insight: equity returns are
+            profoundly{" "}
             <strong className="text-text">fat-tailed</strong>. In the validation
             set, the top 3 closed picks (APP +1,571%, CLS +1,167%, SMCI +969%)
             contributed 60% of all portfolio gains. Traditional position capping
-            at 10% would have destroyed those multi-baggers. The Outpick agents
-            are built to <em>not</em> make that mistake.
+            at 10% would have destroyed those multi-baggers. Our process is
+            built to <em>not</em> make that mistake.
           </p>
         </div>
       </section>
 
-      {/* The Six Agents */}
+      {/* Research framework */}
       <section>
         <h2 className="font-mono text-[10px] text-accent-green tracking-[2px] mb-4">
-          THE SIX AGENTS
+          RESEARCH FRAMEWORK
         </h2>
         <p className="font-sans text-[14px] text-text-muted leading-relaxed max-w-[720px] mb-6">
-          Every pick — and every trim, hold, or exit — is the output of six AI
-          agents working together. Five do quantitative research; one runs the
-          portfolio. Each agent has a single job, a strong opinion, and the
-          authority to veto a trade inside its domain.
+          Every pick — and every trim, hold, or exit — passes through six
+          specialized research layers. Each layer owns one part of the process,
+          has a strong opinion, and can veto a candidate inside its domain.
+          Nothing reaches the portfolio until the full framework agrees.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <AgentCard
@@ -117,15 +119,15 @@ export default function StrategyPage() {
             codename="HELM"
             role="Portfolio Manager"
             icon={Sparkles}
-            text="Synthesizes input from the other five agents and makes the final allocation calls — sizing, conviction adds, and the two-tier position management. Once a position pays back its cost basis, HELM lets the rest run as house money with no cap."
+            text="Synthesizes input from the other five layers and makes the final allocation calls — sizing, conviction adds, and the two-tier position management. Once a position pays back its cost basis, HELM lets the rest run as house money with no cap."
           />
         </div>
         <div className="bg-bg-secondary border border-border p-5 mt-4 flex items-start gap-3">
           <Cpu size={16} className="text-accent-green shrink-0 mt-0.5" />
           <p className="font-sans text-[13px] text-text-muted leading-relaxed">
-            <strong className="text-text">Why six agents and not one model?</strong>{" "}
-            A monolithic model averages its mistakes across every decision. Six
-            specialized agents with veto authority disagree productively —
+            <strong className="text-text">Why six layers instead of one score?</strong>{" "}
+            A single composite model averages its mistakes across every decision.
+            Six specialized checks with veto authority disagree productively —
             growth signals can be wrong, revisions can be lagging, momentum can
             be a trap. Forcing each domain to defend itself separately is what
             keeps junk out of the portfolio.
@@ -139,8 +141,7 @@ export default function StrategyPage() {
           STOCK SELECTION
         </h2>
         <p className="font-sans text-[14px] text-text-muted leading-relaxed max-w-[720px] mb-6">
-          Every two weeks, the research agents (APEX, REVI, AUDIT, TAPE) score
-          approximately{" "}
+          Every two weeks, our research process scores approximately{" "}
           <strong className="text-text">3,600 US-listed stocks</strong> across
           five fundamental factors. Each stock is ranked within its GICS sector
           using percentile scoring — a high-growth tech name isn&apos;t

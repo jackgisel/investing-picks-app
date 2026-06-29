@@ -165,7 +165,7 @@ const article: Article = {
             a: "Yes, but the variance is huge. Five-stock portfolios have wider distributions of outcomes in both directions. You can dramatically beat the market or dramatically lag it, often in the same year. Unless you have very high conviction and a very long time horizon, the risk-adjusted return suffers.",
           },
           {
-            q: "How does Outpick decide position sizes?",
+            q: "How does Outpick decides position sizes?",
             a: "New picks enter the book at roughly equal weight (4-6%). We do not actively trim winners until they exceed ~15% of the portfolio. We exit losers when the underlying thesis breaks rather than averaging down. The result is a book of ~16 names where the top performers are allowed to compound.",
           },
           {

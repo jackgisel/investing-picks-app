@@ -1,6 +1,23 @@
 "use client";
 
-import { PADDLE_CLIENT_TOKEN, PADDLE_PRICE_ID } from "@/lib/constants";
+import {
+  PADDLE_CLIENT_TOKEN,
+  PADDLE_FOUNDERS_PRICE_ID,
+  PADDLE_PRICE_ID,
+} from "@/lib/constants";
+import { isFoundersDealActive } from "@/lib/portfolio";
+
+/**
+ * Resolve the price ID to charge. While the founders deal is active and a
+ * founders price ID is configured, new members check out at the founders rate;
+ * otherwise everyone gets the standard annual price.
+ */
+export function resolveCheckoutPriceId(): string {
+  if (isFoundersDealActive() && PADDLE_FOUNDERS_PRICE_ID) {
+    return PADDLE_FOUNDERS_PRICE_ID;
+  }
+  return PADDLE_PRICE_ID;
+}
 
 let paddleInitialized = false;
 
@@ -20,14 +37,15 @@ export async function initPaddle() {
   }
 }
 
-export async function openCheckout(email?: string) {
+export async function openCheckout(email?: string, priceIdOverride?: string) {
   await initPaddle();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const paddle = (window as any).Paddle;
   if (paddle) {
+    const priceId = priceIdOverride ?? resolveCheckoutPriceId();
     paddle.Checkout.open({
-      items: [{ priceId: PADDLE_PRICE_ID, quantity: 1 }],
+      items: [{ priceId, quantity: 1 }],
       customer: email ? { email } : undefined,
       settings: {
         displayMode: "overlay",

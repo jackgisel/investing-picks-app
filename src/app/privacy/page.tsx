@@ -21,11 +21,11 @@ export default function PrivacyPage() {
             1. Introduction
           </h2>
           <p>
-            Outpick LLC, a Wyoming limited liability company
-            (&quot;Company,&quot; &quot;we,&quot; &quot;us,&quot; or
-            &quot;our&quot;), operates the website outpick.com. This
-            Privacy Policy explains how we collect, use, disclose, and protect
-            your personal information when you use our Service.
+            Outpick (&quot;we,&quot; &quot;us,&quot; or &quot;our&quot;) operates
+            the website outpick.xyz as an independent financial research
+            publication. This Privacy Policy explains how we collect, use,
+            disclose, and protect your personal information when you use our
+            Service.
           </p>
         </section>
 
@@ -142,7 +142,7 @@ export default function PrivacyPage() {
             inaccurate information, request deletion of your data, object to or
             restrict processing of your data, and request data portability. To
             exercise any of these rights, contact us at
-            hello@outpick.com.
+            hello@outpick.xyz.
           </p>
         </section>
 
@@ -188,10 +188,10 @@ export default function PrivacyPage() {
           <p>
             For privacy-related questions or requests, contact us at{" "}
             <a
-              href="mailto:hello@outpick.com"
+              href="mailto:hello@outpick.xyz"
               className="text-accent-green hover:underline"
             >
-              hello@outpick.com
+              hello@outpick.xyz
             </a>
             .
           </p>

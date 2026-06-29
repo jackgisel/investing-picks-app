@@ -6,12 +6,12 @@ import { cn } from "@/lib/utils";
 
 const faqs = [
   {
-    q: "What does it mean that AI agents run the portfolio?",
-    a: "Outpick is built on six specialized AI agents — APEX (growth hunter), REVI (revisions reader), AUDIT (quality auditor), TAPE (momentum reader), GUARD (risk officer), and HELM (portfolio manager). Each agent owns a single piece of the research and management process and has the authority to veto a trade inside its domain. Picks are the output of all six agreeing, not a single black-box model. You can read the full breakdown on the Strategy page inside the dashboard.",
+    q: "Who is Outpick?",
+    a: "Outpick is an independent stock research team. We publish a live portfolio, full research notes, and performance data for investors who want to move beyond index funds — with intention, transparency, and a value-based approach grounded in business fundamentals.",
   },
   {
-    q: "Why six agents instead of one model?",
-    a: "A monolithic model averages its mistakes across every decision. Six specialized agents with veto authority disagree productively — growth signals can be wrong, revisions can be lagging, momentum can be a trap. Forcing each domain to defend itself separately is what keeps junk out of the portfolio. The backtest returned +250% vs +83% for the S&P 500 with this structure.",
+    q: "What is your investment strategy?",
+    a: "We practice value-based investing informed by market cycles and financial fundamentals — inspired by the discipline of Warren Buffett, the rigor of firms like Jane Street, and the conviction sizing of top venture investors. We look for quality businesses at the right point in the cycle, hold with intention, and manage risk with clear guardrails.",
   },
   {
     q: "Is this financial advice?",
@@ -19,11 +19,15 @@ const faqs = [
   },
   {
     q: "What kind of stocks do you pick?",
-    a: "We focus on small-cap and mid-cap high-growth companies often overlooked by major indices. We look for strong fundamentals, clear competitive advantages, and long-term growth potential. These are not meme stocks or day trades — they're positions we plan to hold with conviction.",
+    a: "We focus on businesses with strong fundamentals, clear competitive advantages, and long-term growth potential — often in small-cap and mid-cap names the major indices overlook. These are not meme stocks or day trades. They're positions we research deeply and plan to hold with conviction.",
   },
   {
     q: "How is performance calculated?",
     a: "All performance data is calculated from actual entry and exit prices, tracked from the date each pick was published. We report total return, CAGR, Sharpe ratio, max drawdown, and win/loss rates. No cherry-picking — you see everything, including the losses.",
+  },
+  {
+    q: "What is the founders deal?",
+    a: "Through Day 150 of our live example portfolio, new members can join at $250/year instead of the standard $1,000/year. It's our way of rewarding early believers while the live track record is still building. After Day 150, standard pricing applies to new memberships.",
   },
   {
     q: "Can I cancel my subscription?",
@@ -31,7 +35,7 @@ const faqs = [
   },
   {
     q: "Who runs Outpick?",
-    a: "Outpick LLC is a Wyoming limited liability company and an independent research publication focused on long-term equity investing. We are not affiliated with any brokerage, fund, or financial institution. Our only revenue is membership fees — we don't accept advertising or sponsored content.",
+    a: "Outpick is an independent research publication operated by individuals — not a registered investment adviser, broker-dealer, or financial institution. We are not affiliated with any brokerage, fund, or bank. Our only revenue is membership fees; we don't accept advertising or sponsored content.",
   },
   {
     q: "Do you guarantee returns?",
@@ -46,7 +50,7 @@ export function FAQ() {
     <section id="faq" className="border-b border-border">
       <div className="container-op py-20">
         <p className="section-label">FAQ</p>
-        <h2 className="section-title">Common questions.</h2>
+        <h2 className="section-title">Straight answers.</h2>
 
         <div className="max-w-[680px]">
           {faqs.map((faq, i) => (

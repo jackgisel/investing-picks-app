@@ -165,7 +165,7 @@ const article: Article = {
             a: "Yes. You do not need short positions, leverage, or derivatives to generate alpha. You need a concentrated book, a real selection edge, and the discipline to let winners run while exiting broken theses. Outpick is long-only and generated +167% alpha across the backtest period.",
           },
           {
-            q: "How does Outpick's alpha compare to typical active funds?",
+            q: "How does Outpick' alpha compare to typical active funds?",
             a: <>The SPIVA scorecards show ~90% of US large-cap active funds underperform the S&amp;P 500 over 15 years. Outpick&apos;s walk-forward backtest produced +67% alpha in the out-of-sample window alone. See the full numbers on the <A href="/dashboard">dashboard</A>.</>,
           },
         ]}

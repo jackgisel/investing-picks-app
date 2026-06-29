@@ -1,23 +1,28 @@
 "use client";
 
 import { useStrategy } from "@/lib/hooks/use-strategy";
+import { useChart } from "@/lib/hooks/use-chart";
 import { BACKTEST } from "@/lib/constants";
-import { computePortfolioReturnPct, formatPct } from "@/lib/portfolio";
-
-const LIVE_INCEPTION = "2026-04-01";
-
-function daysSince(dateStr: string): number {
-  const start = new Date(dateStr).getTime();
-  const now = Date.now();
-  return Math.max(0, Math.floor((now - start) / (1000 * 60 * 60 * 24)));
-}
+import {
+  computeAnnualizedReturn,
+  computePortfolioReturnPct,
+  countDoubledWinners,
+  daysSinceInception,
+  liveAccrualDays,
+  formatPct,
+} from "@/lib/portfolio";
 
 export function StatsBar() {
   const { data: strategy } = useStrategy();
-  const portfolio = strategy?.portfolio;
+  const { data: chart } = useChart();
   const totalReturnPct = computePortfolioReturnPct(strategy);
-  const days = daysSince(LIVE_INCEPTION);
+  const days = daysSinceInception();
+  const accrualDays = liveAccrualDays(chart?.summary);
   const hasReturn = totalReturnPct !== null;
+  const liveCagr = hasReturn
+    ? computeAnnualizedReturn(totalReturnPct!, accrualDays)
+    : null;
+  const liveDoubled = countDoubledWinners(strategy?.holdings);
 
   return (
     <section className="border-y border-border">
@@ -31,14 +36,24 @@ export function StatsBar() {
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-accent-green" />
               </span>
               <span className="font-mono text-[10px] text-accent-green tracking-[2px] font-semibold">
-                LIVE PORTFOLIO
+                LIVE EXAMPLE PORTFOLIO
               </span>
               <span className="font-mono text-[10px] text-text-dim">
                 · Day {days}
               </span>
             </div>
             <div className="flex items-center gap-6 sm:gap-10">
-              <Stat label="POSITIONS" value={portfolio?.position_count?.toString() ?? "—"} />
+              <Stat
+                label="LIVE CAGR"
+                value={liveCagr !== null ? formatPct(liveCagr) : "—"}
+                green={liveCagr !== null && liveCagr >= 0}
+                red={liveCagr !== null && liveCagr < 0}
+              />
+              <Stat
+                label="2× WINNERS"
+                value={liveDoubled > 0 ? liveDoubled.toString() : "—"}
+                green={liveDoubled > 0}
+              />
               <Stat
                 label="TOTAL RETURN"
                 value={hasReturn ? formatPct(totalReturnPct!) : "—"}
@@ -55,17 +70,21 @@ export function StatsBar() {
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3">
             <span className="font-mono text-[10px] text-text-dim tracking-[2px] font-semibold">
-              STRATEGY BACKTEST
+              5-YR MODEL · WALK-FORWARD
             </span>
             <span className="font-mono text-[9px] tracking-[1.5px] font-bold bg-bg-tertiary text-text-muted px-2 py-0.5 inline-block border border-border">
               SIMULATED
             </span>
           </div>
           <div className="flex items-center gap-6 sm:gap-10">
-            <Stat label="RETURN" value={BACKTEST.totalReturn} green />
             <Stat label="CAGR" value={BACKTEST.cagr} green />
+            <Stat
+              label="2× WINNERS"
+              value={BACKTEST.winnersCircle.toString()}
+              green
+            />
+            <Stat label="WIN RATE" value={BACKTEST.winRate} green />
             <Stat label="VS S&P" value={BACKTEST.alpha} green />
-            <Stat label="SHARPE" value={BACKTEST.sharpe} />
           </div>
         </div>
       </div>

@@ -3,7 +3,7 @@ import { StatsBar } from "@/components/landing/stats-bar";
 import { TrackRecord } from "@/components/landing/track-record";
 import { Audience } from "@/components/landing/audience";
 import { HowItWorks } from "@/components/landing/how-it-works";
-import { Agents } from "@/components/landing/agents";
+import { Strategy } from "@/components/landing/strategy";
 import { DashboardPreview } from "@/components/landing/dashboard-preview";
 import { Pricing } from "@/components/landing/pricing";
 import { FAQ } from "@/components/landing/faq";
@@ -17,7 +17,7 @@ export default function HomePage() {
       <TrackRecord />
       <Audience />
       <HowItWorks />
-      <Agents />
+      <Strategy />
       <DashboardPreview />
       <Pricing />
       <FAQ />

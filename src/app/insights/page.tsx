@@ -22,16 +22,16 @@ interface BlogListResponse {
 }
 
 export const metadata: Metadata = {
-  title: "Insights — Why we bought every stock in the portfolio",
+  title: "Insights — Research behind every position in the portfolio",
   description:
-    "Live, post-by-post commentary on every Outpick pick. The reasoning behind each buy, the financials behind each name, and quarterly portfolio reviews.",
+    "Live commentary on every Outpick pick — the thesis, the fundamentals, and the market cycle context behind each buy, plus quarterly portfolio reviews.",
   alternates: {
     canonical: `${SITE_URL}/insights`,
   },
   openGraph: {
     title: `Insights — ${SITE_NAME}`,
     description:
-      "Live commentary on every pick in the Outpick portfolio plus quarterly portfolio reviews.",
+      "Live research notes on every pick in the Outpick portfolio, plus quarterly reviews.",
     url: `${SITE_URL}/insights`,
     siteName: SITE_NAME,
     type: "website",
@@ -125,13 +125,12 @@ export default async function InsightsIndexPage() {
             OUTPICK INSIGHTS
           </p>
           <h1 className="font-sans text-[40px] sm:text-[48px] font-bold leading-[1.1] tracking-tight mb-6 max-w-[780px]">
-            Every pick, explained. Every quarter, reviewed.
+            Every position, explained. Every quarter, reviewed.
           </h1>
           <p className="font-sans text-[17px] text-text-muted leading-relaxed max-w-[640px]">
-            Live commentary on every name in the portfolio — written when the
-            buy fires, with the company background and the financial picture
-            that earned it a slot. Plus a quarterly review of how the strategy
-            actually performed.
+            Live research on every name in the portfolio — the business thesis,
+            the financials, and where we think we are in the cycle. Plus
+            quarterly reviews of how the strategy actually performed.
           </p>
         </div>
       </section>

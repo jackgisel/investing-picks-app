@@ -1,15 +1,15 @@
 const steps = [
   {
     num: "01",
-    title: "Six AI agents do the research",
+    title: "We research every pick",
     description:
-      "APEX, REVI, AUDIT, TAPE, GUARD, and HELM each own one piece of the process — from growth screening to risk control to portfolio management. Every pick is the output of all six agreeing.",
+      "Our team evaluates business fundamentals, financial quality, and where we are in the market cycle before anything gets published. No hype, no momentum chasing for its own sake.",
   },
   {
     num: "02",
-    title: "New pick every 2 weeks",
+    title: "New research every 2 weeks",
     description:
-      "A high-conviction stock pick with full research notes, thesis, and entry reasoning. Small caps, high growth, opportunities the index won't surface.",
+      "A high-conviction stock pick with full notes — thesis, financials, cycle context, and why we believe it belongs in a long-term portfolio.",
   },
   {
     num: "03",
@@ -30,9 +30,10 @@ export function HowItWorks() {
     <section id="how-it-works" className="border-b border-border">
       <div className="container-op py-20">
         <p className="section-label">HOW IT WORKS</p>
-        <h2 className="section-title">Simple. Transparent. No noise.</h2>
+        <h2 className="section-title">Research you can trust. Results you can verify.</h2>
         <p className="section-sub">
-          Everything you need to make informed decisions, nothing you don&apos;t.
+          We publish what we buy, explain why we bought it, and track it in the
+          open — so you can invest with confidence, not guesswork.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-0.5 bg-border">
           {steps.map((step) => (

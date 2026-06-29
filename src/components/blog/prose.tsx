@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Prose primitives for blog articles. Each component renders styled output
- * matching Outpick's IBM Plex Sans/Mono dark aesthetic. Compose freely.
+ * matching Outpick' IBM Plex Sans/Mono dark aesthetic. Compose freely.
  */
 
 export function Prose({ children }: { children: ReactNode }) {
@@ -262,7 +262,7 @@ export function Quote({
 
 export function InlineCTA({
   heading = "Want to see the picks?",
-  body = "Outpick publishes a new high-conviction stock pick every two weeks, with the full thesis and live tracking. $1,000 / year — cancel anytime.",
+  body = "Outpick is a stock research team that publishes high-conviction picks every two weeks — full thesis, live tracking, and transparent performance. Founders: $250/year through Day 150 · then $1,000/year.",
   cta = "START YOUR MEMBERSHIP",
   href = "/dashboard",
 }: {

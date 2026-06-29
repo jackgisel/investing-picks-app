@@ -7,20 +7,18 @@ export function Disclaimer() {
             IMPORTANT DISCLAIMER
           </h4>
           <p className="font-sans text-[12px] text-text-dim leading-relaxed">
-            Outpick LLC is a Wyoming limited liability company and is
-            not a registered investment adviser, broker-dealer, or financial
-            institution. All content is provided for informational and
-            educational purposes only and does not constitute investment advice,
-            a recommendation, or an offer to buy or sell any securities. The
-            authors hold positions in securities discussed in this publication
-            and may buy or sell at any time. Past performance is not indicative
-            of future results. All investments carry risk, including the
-            potential loss of principal. You are solely responsible for your own
-            investment decisions. The information presented reflects the
-            portfolio and opinions of the authors and should not be relied upon
-            as the sole basis for any investment decision. Always conduct your
-            own research and consult with a qualified financial adviser before
-            investing. By using this service, you acknowledge and agree to our{" "}
+            Outpick is an independent educational publication — not a registered
+            investment adviser, broker-dealer, or financial institution. All
+            content is for informational and educational purposes only and does
+            not constitute investment advice, a recommendation, or an offer to
+            buy or sell any securities. The Publisher holds positions in
+            securities discussed and may buy or sell at any time without notice.
+            Past performance is not indicative of future results. All investments
+            carry risk, including the possible loss of principal. You are solely
+            responsible for your own investment decisions and outcomes. Do not
+            rely on this Service as the sole basis for any investment decision.
+            Always conduct your own research and consult qualified professionals
+            before investing. By using this Service, you agree to our{" "}
             <a href="/terms" className="text-accent-green hover:underline">
               Terms of Service
             </a>{" "}
@@ -28,7 +26,8 @@ export function Disclaimer() {
             <a href="/privacy" className="text-accent-green hover:underline">
               Privacy Policy
             </a>
-            .
+            , including limitations of liability and your assumption of all
+            investment risk.
           </p>
         </div>
       </div>

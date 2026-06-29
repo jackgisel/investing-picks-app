@@ -78,7 +78,7 @@ function shell(args: {
                     </a>
                   </td>
                   <td align="right" style="font-family:${FONT_MONO};font-size:10px;color:${COLOR_TEXT_DIM};letter-spacing:2px;text-transform:uppercase;">
-                    AI Equity Research
+                    Value Equity Research
                   </td>
                 </tr>
               </table>
@@ -154,7 +154,7 @@ export function renderNewPickEmail(args: {
       ${greeting}
     </p>
     <p style="margin:0 0 28px 0;font-family:${FONT_SANS};font-size:15px;color:${COLOR_TEXT_MUTED};line-height:1.65;">
-      A new high-conviction pick is live. ${description} The full research note covers the thesis, the entry reasoning, and which agents flagged it.
+      A new high-conviction pick is live. ${description} The full research note covers the thesis, the entry reasoning, and the fundamentals behind the decision.
     </p>
 
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 28px 0;">

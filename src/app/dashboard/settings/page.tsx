@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient, useSession, signOut } from "@/lib/auth-client";
 import { PRICING } from "@/lib/constants";
+import { isFoundersDealActive } from "@/lib/portfolio";
 import {
   User,
   Lock,
@@ -233,7 +234,7 @@ function ProfileForm({
         <p className="font-sans text-[11px] text-text-dim mt-1.5">
           Email changes are not supported yet —{" "}
           <a
-            href="mailto:hello@outpick.com"
+            href="mailto:hello@outpick.xyz"
             className="text-accent-green hover:underline"
           >
             contact support
@@ -536,6 +537,7 @@ function SubscriptionPanel() {
     : null;
   const canceledAt = sub?.canceledAt ? formatDate(sub.canceledAt) : null;
   const isActive = status === "active" || status === "trialing";
+  const foundersActive = isFoundersDealActive();
 
   return (
     <div className="space-y-5">
@@ -549,12 +551,20 @@ function SubscriptionPanel() {
           </p>
           <p className="font-sans text-[12px] text-text-muted mt-0.5">
             Billed annually · cancel any time
+            {foundersActive && !isActive && (
+              <> · Founders {PRICING.foundersLabel} available</>
+            )}
           </p>
         </div>
         <div className="text-right">
           <p className="font-mono text-[20px] font-bold text-accent-green">
-            {PRICING.label}
+            {foundersActive && !isActive ? PRICING.foundersLabel : PRICING.label}
           </p>
+          {foundersActive && !isActive && (
+            <p className="font-sans text-[11px] text-text-dim line-through mt-0.5">
+              {PRICING.label}
+            </p>
+          )}
         </div>
       </div>
 
@@ -615,7 +625,7 @@ function SubscriptionPanel() {
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <a
-            href="mailto:hello@outpick.com?subject=Subscription%20request"
+            href="mailto:hello@outpick.xyz?subject=Subscription%20request"
             className="font-mono text-[11px] bg-accent-green text-black px-5 py-2.5 font-semibold tracking-wider hover:bg-accent-green-hover transition-colors inline-flex items-center gap-2"
           >
             <Mail size={12} />
@@ -623,7 +633,7 @@ function SubscriptionPanel() {
           </a>
           {isActive && (
             <a
-              href="mailto:hello@outpick.com?subject=Cancel%20subscription"
+              href="mailto:hello@outpick.xyz?subject=Cancel%20subscription"
               className="font-mono text-[11px] text-text-dim hover:text-accent-red transition-colors tracking-wider"
             >
               CANCEL SUBSCRIPTION

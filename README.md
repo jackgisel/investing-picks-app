@@ -1,139 +1,64 @@
-# Outpick
+# Outpick monorepo
 
-> Intentional investing beyond the index.
+Virtual portfolio engine (Python) + member UI (Next.js). **No Alpaca** — the book of record is Postgres (or SQLite locally).
 
-A stock research team publishing a live portfolio, full research notes, and transparent performance for investors who outgrew index funds.
+## Layout
 
-## Tech Stack
+```
+apps/web      Next.js member + ops UI (BetterAuth, Paddle)
+apps/api      FastAPI — /api/v1 (public) + /api/ops (ledger)
+apps/worker   APScheduler jobs (FMP ingest, score, evaluate)
+packages/strategy  Pure Run 118 rules (shared live/backtest)
+```
 
-- **Framework**: Next.js 15 (App Router)
-- **Styling**: Tailwind CSS + IBM Plex Mono/Sans
-- **Auth**: BetterAuth (self-hosted)
-- **Database**: Convex (real-time, serverless)
-- **Payments**: Paddle (merchant of record — handles taxes/compliance)
-- **Deployment**: Vercel or Cloudflare Pages
+## Hard rule
 
-## Getting Started
+Live evaluation and backtest must call `outpick_strategy.evaluate(...)`. Params default to **Run 118** (1 buy/eval, active recycling, house money uncapped, 270d underwater).
 
-### 1. Clone and install
+## Quick start (local)
 
 ```bash
-git clone <your-repo-url>
-cd outpick
-npm install
+# Strategy tests
+python3 -m venv .venv && .venv/bin/pip install -e "packages/strategy[dev]"
+.venv/bin/pytest packages/strategy/tests -q
+
+# API (SQLite by default)
+.venv/bin/pip install -e packages/strategy fastapi "uvicorn[standard]" sqlalchemy pydantic-settings
+cd apps/api && PYTHONPATH=. ../../.venv/bin/uvicorn app.main:app --reload --port 8000
+
+# Web
+cd apps/web && pnpm install && OUTPICK_API_URL=http://localhost:8000 pnpm dev
 ```
 
-### 2. Set up Convex
+Docker (Postgres + all services):
 
 ```bash
-npx convex dev
+docker compose up --build
 ```
 
-This will create your Convex project and deploy the schema. Copy the deployment URL.
+## Ops visibility
 
-### 3. Configure environment variables
+- `GET /api/ops/dry-run` — what would we do next (structured rules)
+- `GET /api/ops/evaluations` — decision ledger
+- `GET /api/ops/portfolio` — full virtual book (dollars)
+- Header: `X-Ops-Key: $OPS_API_KEY`
 
-Copy `.env.example` to `.env.local` and fill in:
+Web: `/dashboard/ops` and `/dashboard/ops/book`
+
+## Import from jdpicks
+
+Export positions to JSON, then:
 
 ```bash
-cp .env.example .env.local
+PYTHONPATH=apps/api .venv/bin/python apps/worker/worker/import_positions.py path/to/snapshot.json
 ```
 
-Required variables:
-- `NEXT_PUBLIC_CONVEX_URL` — from Convex dashboard
-- `BETTER_AUTH_SECRET` — generate with `openssl rand -hex 32`
-- `BETTER_AUTH_URL` — your app URL
-- `NEXT_PUBLIC_PADDLE_CLIENT_TOKEN` — from Paddle dashboard
-- `NEXT_PUBLIC_PADDLE_PRICE_ID` — create a $1,000/yr product in Paddle
-- `NEXT_PUBLIC_PADDLE_FOUNDERS_PRICE_ID` — $250/yr founders price; charged at checkout while the founders deal is active (falls back to the standard price if unset)
-- `PADDLE_API_KEY` — from Paddle dashboard
-- `PADDLE_WEBHOOK_SECRET` — from Paddle webhook settings
+See `scripts/sample-portfolio.json`.
 
-### 4. Set up Paddle
+## Env
 
-1. Create a Paddle account at [paddle.com](https://paddle.com)
-2. Create a product: "Outpick — Annual Membership"
-3. Create a price: $1,000 USD / year, recurring
-4. Copy the Price ID to `NEXT_PUBLIC_PADDLE_PRICE_ID`
-5. (Optional) Create a second price: $250 USD / year, recurring, and copy its
-   Price ID to `NEXT_PUBLIC_PADDLE_FOUNDERS_PRICE_ID`. Checkout uses this while
-   the founders deal is active (through Day 150 of the live portfolio).
-6. Set up webhook endpoint: `https://yourdomain.com/api/webhooks/paddle`
-7. Subscribe to events: `subscription.created`, `subscription.activated`, `subscription.canceled`, `subscription.past_due`, `subscription.updated`
+Copy `.env.example`. Key vars: `DATABASE_URL`, `FMP_API_KEY`, `OPS_API_KEY`, `OUTPICK_API_URL`.
 
-### 5. Run development server
+## Deprecating jdpicks
 
-```bash
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000).
-
-## Project Structure
-
-```
-src/
-├── app/
-│   ├── page.tsx                    # Landing page
-│   ├── layout.tsx                  # Root layout
-│   ├── dashboard/
-│   │   └── page.tsx                # Authenticated dashboard
-│   ├── terms/
-│   │   └── page.tsx                # Terms of Service
-│   ├── privacy/
-│   │   └── page.tsx                # Privacy Policy
-│   └── api/
-│       ├── auth/[...all]/route.ts  # BetterAuth handler
-│       └── webhooks/paddle/route.ts # Paddle webhooks
-├── components/
-│   ├── landing/                    # Landing page sections
-│   ├── dashboard/                  # Dashboard components
-│   └── layout/                     # Navbar, Footer, Cookie Banner
-├── lib/
-│   ├── auth.ts                     # BetterAuth server config
-│   ├── auth-client.ts              # BetterAuth client
-│   ├── constants.ts                # Site config & stats
-│   ├── paddle.ts                   # Paddle checkout helper
-│   └── utils.ts                    # Utility functions
-└── styles/
-    └── globals.css                 # Tailwind + custom styles
-
-convex/
-├── schema.ts                       # Database schema
-├── queries.ts                      # Read functions
-└── mutations.ts                    # Write functions
-```
-
-## Deployment
-
-### Vercel (recommended)
-```bash
-npm i -g vercel
-vercel
-```
-
-### Cloudflare Pages
-```bash
-npm install @cloudflare/next-on-pages
-npx @cloudflare/next-on-pages
-```
-
-## Legal
-
-This project includes:
-- **Terms of Service** (`/terms`) — not-investment-advice disclaimer, publisher's exclusion language, no-reliance clause, conflicts of interest disclosure, assumption of risk, subscription terms, liability limitations, indemnification, class action waiver, arbitration
-- **Privacy Policy** (`/privacy`) — covers data collection, cookies, third-party services (Paddle, Convex), data retention, user rights
-- **Cookie consent banner** — GDPR-compliant with accept/decline
-- **Prominent disclaimer** on landing page with conflicts of interest disclosure
-
-### Before launching
-
-1. **Have a securities attorney review your Terms** — Confirm your setup qualifies for the publisher/newsletter exclusion under the Investment Advisers Act of 1940. Budget ~$300–500 for a focused review.
-2. **Set up Paddle** — Configure billing and tax handling as merchant of record.
-3. **Review all legal pages with counsel** — The included Terms and Privacy Policy are comprehensive starting points but should be reviewed for your specific situation.
-
-## Data Flow
-
-Your existing backend → Convex (via mutations API) → Dashboard (real-time via queries)
-
-The dashboard reads from Convex in real-time. Your backend pushes updates via Convex mutations (new picks, status changes, performance snapshots). Paddle handles all payment/tax operations.
+Keep `jdpicks` / `etf.jackgisel.com` read-only until this API is the source of truth. Point `OUTPICK_API_URL` at the new service, then shut down Alpaca paper execution.

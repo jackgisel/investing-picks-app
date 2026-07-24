@@ -1,7 +1,12 @@
-<!-- convex-ai-start -->
-This project uses [Convex](https://convex.dev) as its backend.
+# Monorepo notes for agents
 
-When working on Convex code, **always read `convex/_generated/ai/guidelines.md` first** for important guidelines on how to correctly use Convex APIs and patterns. The file contains rules that override what you may have learned about Convex from training data.
+## Architecture
+- `packages/strategy` — pure Run 118 `evaluate()`; no I/O
+- `apps/api` — FastAPI virtual book + decision ledger
+- `apps/worker` — FMP ingest, scoring, scheduled eval
+- `apps/web` — Next.js UI; proxies `/api/data/*` → `OUTPICK_API_URL`
 
-Convex agent skills for common tasks can be installed by running `npx convex ai-files install`.
-<!-- convex-ai-end -->
+## Do not
+- Reintroduce Alpaca execution
+- Duplicate strategy rules outside `packages/strategy`
+- Use adaptive max_buys (always `max_adds_per_evaluation=1`)

@@ -1,6 +1,10 @@
-This is a Next.js 15 app deployed on Railway.
+# Outpick
 
-- **Auth**: BetterAuth with Postgres (Railway-provided)
-- **Data**: Proxied from external API via Next.js API routes (`/api/data/*`)
+Monorepo: Next.js 15 web (`apps/web`) + FastAPI (`apps/api`) + worker (`apps/worker`).
+
+- **Auth**: BetterAuth + Postgres (web)
+- **Portfolio**: Virtual book in Postgres — no Alpaca
+- **Strategy**: Run 118 in `packages/strategy` (shared evaluate())
+- **Data**: FMP only (fundamentals + marks)
 - **Payments**: Paddle
-- **Styling**: Tailwind CSS with dark theme, IBM Plex fonts
+- **Styling**: Tailwind, IBM Plex, dark theme

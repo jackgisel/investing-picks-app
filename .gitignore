@@ -1,10 +1,18 @@
 # dependencies
 /node_modules
+apps/web/node_modules
+.venv/
+**/__pycache__/
+**/*.pyc
+*.db
+outpick.db
+
 /.pnp
 .pnp.*
 
 # next.js
 /.next/
+apps/web/.next/
 /out/
 
 # production
@@ -17,7 +25,6 @@
 # debug
 npm-debug.log*
 yarn-debug.log*
-yarn-error.log*
 .pnpm-debug.log*
 
 # env files

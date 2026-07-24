@@ -1,0 +1,23 @@
+{
+  "cash": 25000,
+  "positions": [
+    {
+      "ticker": "AAPL",
+      "shares": 10,
+      "avg_cost": 180,
+      "current_price": 190,
+      "entry_date": "2025-06-01",
+      "initial_investment": 1800,
+      "sector": "Technology"
+    },
+    {
+      "ticker": "MSFT",
+      "shares": 5,
+      "avg_cost": 400,
+      "current_price": 420,
+      "entry_date": "2025-07-01",
+      "initial_investment": 2000,
+      "sector": "Technology"
+    }
+  ]
+}

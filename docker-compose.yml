@@ -1,0 +1,56 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: outpick
+      POSTGRES_PASSWORD: outpick
+      POSTGRES_DB: outpick
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg://outpick:outpick@postgres:5432/outpick
+      OPS_API_KEY: ${OPS_API_KEY:-dev-ops-key}
+      FMP_API_KEY: ${FMP_API_KEY:-}
+      CORS_ORIGINS: http://localhost:3000
+      INITIAL_CASH: "100000"
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg://outpick:outpick@postgres:5432/outpick
+      FMP_API_KEY: ${FMP_API_KEY:-}
+      INITIAL_CASH: "100000"
+    depends_on:
+      - postgres
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    environment:
+      DATABASE_URL: ${WEB_DATABASE_URL:-postgresql://outpick:outpick@postgres:5432/outpick}
+      OUTPICK_API_URL: http://api:8000
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-dev-secret-change-me}
+      BETTER_AUTH_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+      - postgres
+
+volumes:
+  pgdata:

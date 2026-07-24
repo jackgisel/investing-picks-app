@@ -38,10 +38,19 @@ def _track(job_name: str, fn):
         return result
     except Exception as e:
         log.exception("%s failed", job_name)
-        run.status = "error"
-        run.detail = str(e)
-        run.finished_at = datetime.now(timezone.utc)
-        db.commit()
+        # The failure usually leaves the session's transaction in a failed
+        # state (e.g. an IntegrityError). Committing the error row on it would
+        # raise PendingRollbackError and mask the original exception, so the one
+        # failure you most need to see would leave no trace. Roll back first.
+        try:
+            db.rollback()
+            run.status = "error"
+            run.detail = str(e)
+            run.finished_at = datetime.now(timezone.utc)
+            db.add(run)
+            db.commit()
+        except Exception:
+            log.exception("Could not record failure for %s", job_name)
         raise
     finally:
         db.close()

@@ -10,7 +10,6 @@ from sqlalchemy.orm import Session
 
 from outpick_strategy import RUN118_PARAMS, StrategyParams
 from outpick_strategy.scoring import (
-    average_percentile,
     composite_from_factor_pcts,
     factor_percentile_score,
     quant_rating_from_composite,
@@ -41,9 +40,13 @@ PROFIT_KEYS = [
     ("returnOnAssetsTTM", True),
     ("returnOnCapitalEmployedTTM", True),
 ]
+# Period-over-period change in consensus estimates (see
+# worker.services.ingest.compute_estimate_revisions). These replace the old
+# `epsRevision` / `revenueRevision` keys, which held estimate *levels* and so
+# ranked companies by size rather than by revision direction.
 REVISION_KEYS = [
-    ("epsRevision", True),
-    ("revenueRevision", True),
+    ("epsRevisionPct", True),
+    ("revenueRevisionPct", True),
 ]
 
 
@@ -97,7 +100,16 @@ def score_universe(db: Session, params: StrategyParams | None = None) -> int:
         if s.ticker in funds and s.sector:
             by_sector[s.sector].append(s.ticker)
 
+    # (ticker, as_of) is unique, so a re-run on the same day must update in
+    # place. Blind inserts would either violate the constraint or, before it
+    # existed, create a duplicate "prior" row for the same day.
+    existing_today = {
+        row.ticker: row
+        for row in db.query(CompositeScore).filter(CompositeScore.as_of == as_of).all()
+    }
+
     written = 0
+    with_revisions = 0
     for sector, tickers in by_sector.items():
         # Build metric columns
         def col(keys: list[tuple[str, bool]]) -> dict[str, list[float | None]]:
@@ -117,16 +129,7 @@ def score_universe(db: Session, params: StrategyParams | None = None) -> int:
         pro_cols = col(PROFIT_KEYS)
         rev_cols = col(REVISION_KEYS)
 
-        val_pcts = [
-            average_percentile(
-                [
-                    factor_percentile_score(val_cols[k], hib)[i]
-                    for k, hib in VALUATION_KEYS
-                ]
-            )
-            for i in range(len(tickers))
-        ]
-        # Simpler: average of per-metric percentiles
+        # Average of per-metric percentiles.
         def avg_factor(cols, keys):
             pct_matrix = [factor_percentile_score(cols[k], hib) for k, hib in keys]
             result = []
@@ -157,23 +160,35 @@ def score_universe(db: Session, params: StrategyParams | None = None) -> int:
             )
             if composite is None:
                 continue
+            if rev_pcts[i] is not None:
+                with_revisions += 1
             qr = quant_rating_from_composite(composite)
-            db.add(
-                CompositeScore(
-                    ticker=ticker,
-                    as_of=as_of,
-                    quant_rating=round(qr, 3),
-                    composite=round(composite, 3),
-                    valuation_grade=grades.get("valuation", "F"),
-                    growth_grade=grades.get("growth", "F"),
-                    profitability_grade=grades.get("profitability", "F"),
-                    momentum_grade=grades.get("momentum", "F"),
-                    revisions_grade=grades.get("revisions", "F"),
-                    sector=sector,
-                )
-            )
+            row = existing_today.get(ticker)
+            if row is None:
+                row = CompositeScore(ticker=ticker, as_of=as_of)
+                db.add(row)
+                existing_today[ticker] = row
+            row.quant_rating = round(qr, 3)
+            row.composite = round(composite, 3)
+            row.valuation_grade = grades.get("valuation", "F")
+            row.growth_grade = grades.get("growth", "F")
+            row.profitability_grade = grades.get("profitability", "F")
+            row.momentum_grade = grades.get("momentum", "F")
+            row.revisions_grade = grades.get("revisions", "F")
+            row.sector = sector
             written += 1
 
     db.commit()
     log.info("Wrote %s composite scores", written)
+    if written and not with_revisions:
+        log.warning(
+            "0/%s scored tickers have an estimate-revisions value. Revisions "
+            "carries weight %.2f and gates every buy via min_revisions_grade=%s, "
+            "so no buys will pass until consensus history accumulates.",
+            written,
+            params.weight_revisions,
+            params.buy_criteria.min_revisions_grade,
+        )
+    else:
+        log.info("Revisions coverage: %s/%s scored tickers", with_revisions, written)
     return written

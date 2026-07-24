@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
@@ -14,6 +14,35 @@ from app.services.portfolio import ensure_default_portfolio
 from worker.services.fmp import FMPClient
 
 log = logging.getLogger(__name__)
+
+# How far back to look for the consensus estimate we compare against. Weekly
+# fundamentals refreshes mean roughly one snapshot per 7 days, so ~3 weeks
+# approximates the conventional 1-month revision window.
+REVISION_LOOKBACK_DAYS = 21
+
+
+def upsert_price_bar(db: Session, ticker: str, bar_date: date, close: float) -> PriceBar:
+    """Insert-or-update one daily bar.
+
+    `db.merge(PriceBar(...))` does NOT work here: with no primary key set, merge
+    treats the object as pending and emits an INSERT, which the
+    UniqueConstraint("ticker", "date") then rejects. That crashed any second
+    marks run in the same day — which is exactly what happens on evaluation
+    Fridays, when the biweekly job marks at 11:00 and the daily job marks again
+    at 18:30.
+    """
+    existing = (
+        db.query(PriceBar)
+        .filter(PriceBar.ticker == ticker, PriceBar.date == bar_date)
+        .one_or_none()
+    )
+    if existing:
+        existing.close = close
+        return existing
+    bar = PriceBar(ticker=ticker, date=bar_date, close=close)
+    db.add(bar)
+    db.flush()
+    return bar
 
 
 def refresh_universe(db: Session, fmp: FMPClient, limit: int = 800) -> int:
@@ -45,6 +74,112 @@ def refresh_universe(db: Session, fmp: FMPClient, limit: int = 800) -> int:
     return count
 
 
+def _forward_estimate(estimates: list[dict], as_of: date) -> dict | None:
+    """The consensus row for the nearest fiscal period ending on/after `as_of`.
+
+    FMP returns one row per fiscal year, past and future, unordered in practice.
+    Revisions must always be measured against the *same* fiscal period, so we
+    pin the period explicitly rather than trusting list position.
+    """
+    rows: list[tuple[date, dict]] = []
+    for e in estimates or []:
+        raw = e.get("date")
+        if not raw:
+            continue
+        try:
+            period = date.fromisoformat(str(raw)[:10])
+        except ValueError:
+            continue
+        rows.append((period, e))
+    if not rows:
+        return None
+    upcoming = sorted([r for r in rows if r[0] >= as_of], key=lambda r: r[0])
+    period, row = upcoming[0] if upcoming else max(rows, key=lambda r: r[0])
+    return {
+        "estimatePeriod": period.isoformat(),
+        "epsEstimateAvg": row.get("estimatedEpsAvg"),
+        "revenueEstimateAvg": row.get("estimatedRevenueAvg"),
+    }
+
+
+def _prior_estimate_snapshot(db: Session, ticker: str, as_of: date) -> Fundamentals | None:
+    """Most recent stored fundamentals at least REVISION_LOOKBACK_DAYS old.
+
+    Falls back to the oldest snapshot strictly before `as_of` so that a young
+    history still yields a (shorter-window) revision rather than nothing.
+    """
+    cutoff = as_of - timedelta(days=REVISION_LOOKBACK_DAYS)
+    row = (
+        db.query(Fundamentals)
+        .filter(Fundamentals.ticker == ticker, Fundamentals.as_of <= cutoff)
+        .order_by(Fundamentals.as_of.desc(), Fundamentals.id.desc())
+        .first()
+    )
+    if row:
+        return row
+    return (
+        db.query(Fundamentals)
+        .filter(Fundamentals.ticker == ticker, Fundamentals.as_of < as_of)
+        .order_by(Fundamentals.as_of.asc(), Fundamentals.id.asc())
+        .first()
+    )
+
+
+def _pct_change(current, prior) -> float | None:
+    try:
+        cur = float(current)
+        old = float(prior)
+    except (TypeError, ValueError):
+        return None
+    if old == 0:
+        return None
+    # abs() in the denominator keeps the sign meaningful when consensus is
+    # negative (a loss-making name whose estimated loss narrows is an upward
+    # revision).
+    return (cur - old) / abs(old)
+
+
+def compute_estimate_revisions(
+    db: Session, ticker: str, current: dict, as_of: date
+) -> dict:
+    """Period-over-period change in consensus estimates — a real revision.
+
+    The previous implementation stored `estimatedEpsAvg` / `estimatedRevenueAvg`
+    directly, i.e. estimate *levels*. Percentile-ranked within a sector that is
+    largely a company-size factor, not a revisions factor, and it carries weight
+    0.30 and gates every buy via `min_revisions_grade`.
+
+    KNOWN GAP: FMP's v3 `analyst-estimates` endpoint only exposes the *current*
+    consensus, not a consensus history, so a genuine revision cannot be computed
+    on the very first fundamentals refresh for a ticker. We derive it from our
+    own stored `Fundamentals` history instead, which means the factor is null
+    (grade "F") until a ticker has two snapshots spanning the lookback, and null
+    again for one cycle when the forward fiscal period rolls over. Null revisions
+    fail `min_revisions_grade: "B+"`, so buys are blocked rather than made on a
+    factor the backtest never used. `score_universe` logs coverage each run.
+    """
+    period = current.get("estimatePeriod")
+    if not period:
+        return {}
+    prior_row = _prior_estimate_snapshot(db, ticker, as_of)
+    prior = (prior_row.data or {}) if prior_row else {}
+    if not prior or prior.get("estimatePeriod") != period:
+        return {}
+    out: dict = {}
+    eps_rev = _pct_change(current.get("epsEstimateAvg"), prior.get("epsEstimateAvg"))
+    rev_rev = _pct_change(
+        current.get("revenueEstimateAvg"), prior.get("revenueEstimateAvg")
+    )
+    if eps_rev is not None:
+        out["epsRevisionPct"] = eps_rev
+    if rev_rev is not None:
+        out["revenueRevisionPct"] = rev_rev
+    if out:
+        out["revisionBasisDate"] = prior_row.as_of.isoformat()
+        out["revisionLookbackDays"] = (as_of - prior_row.as_of).days
+    return out
+
+
 def refresh_fundamentals(db: Session, fmp: FMPClient, max_tickers: int = 400) -> int:
     stocks = (
         db.query(Stock)
@@ -55,15 +190,18 @@ def refresh_fundamentals(db: Session, fmp: FMPClient, max_tickers: int = 400) ->
     )
     as_of = date.today()
     n = 0
+    revisions_available = 0
     for s in stocks:
         metrics = fmp.key_metrics_ttm(s.ticker) or {}
         ratios = fmp.ratios_ttm(s.ticker) or {}
         data = {**metrics, **ratios}
-        # crude revision proxy from estimates if present
-        estimates = fmp.analyst_estimates(s.ticker)
-        if estimates:
-            data["epsRevision"] = estimates[0].get("estimatedEpsAvg")
-            data["revenueRevision"] = estimates[0].get("estimatedRevenueAvg")
+        estimate = _forward_estimate(fmp.analyst_estimates(s.ticker), as_of)
+        if estimate:
+            data.update(estimate)
+            revision = compute_estimate_revisions(db, s.ticker, estimate, as_of)
+            if revision:
+                revisions_available += 1
+            data.update(revision)
         if not data:
             continue
         db.add(Fundamentals(ticker=s.ticker, as_of=as_of, data=data))
@@ -78,6 +216,16 @@ def refresh_fundamentals(db: Session, fmp: FMPClient, max_tickers: int = 400) ->
             db.commit()
             log.info("Fundamentals progress: %s", n)
     db.commit()
+    if n and not revisions_available:
+        log.warning(
+            "Fundamentals refresh stored %s tickers but computed 0 estimate "
+            "revisions — not enough consensus history yet. The revisions factor "
+            "(weight 0.30) will grade F and block all buys until a second "
+            "snapshot exists.",
+            n,
+        )
+    else:
+        log.info("Estimate revisions computed for %s/%s tickers", revisions_available, n)
     return n
 
 
@@ -113,7 +261,7 @@ def refresh_marks(db: Session, fmp: FMPClient) -> int:
         if stock:
             stock.last_price = float(price)
             stock.updated_at = datetime.now(timezone.utc)
-        db.merge(PriceBar(ticker=ticker, date=today, close=float(price)))
+        upsert_price_bar(db, ticker, today, float(price))
         n += 1
 
     # Update open position marks

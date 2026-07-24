@@ -1,16 +1,23 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { OPS_API_BASE } from "@/lib/api-config";
+import { opsHeaders, opsMisconfiguredResponse, requireAdmin } from "@/lib/admin";
 
-function opsHeaders() {
-  return {
-    "X-Ops-Key": process.env.OPS_API_KEY || "dev-ops-key",
-  };
-}
+export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard.response;
+
+  let headers: Record<string, string>;
+  try {
+    headers = opsHeaders();
+  } catch (e) {
+    return opsMisconfiguredResponse(e);
+  }
+
   const res = await fetch(`${OPS_API_BASE}/evaluations`, {
-    headers: opsHeaders(),
-    next: { revalidate: 30 },
+    headers,
+    cache: "no-store",
   });
   if (!res.ok) {
     return NextResponse.json({ error: "upstream" }, { status: res.status });

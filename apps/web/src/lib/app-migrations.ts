@@ -43,4 +43,11 @@ export async function runAppMigrations() {
     CREATE INDEX IF NOT EXISTS user_subscription_paddle_subscription_idx
       ON user_subscription(paddle_subscription_id)
   `);
+
+  // Admin flag on the BetterAuth user table. Gates /dashboard/ops and
+  // /api/ops/*. Seeded from the ADMIN_EMAILS env var (see lib/admin.ts).
+  await pool.query(`
+    ALTER TABLE "user"
+      ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE
+  `);
 }

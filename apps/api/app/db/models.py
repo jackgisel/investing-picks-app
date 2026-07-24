@@ -33,6 +33,9 @@ class Portfolio(Base):
     peak_equity: Mapped[float | None] = mapped_column(Float, nullable=True)
     is_drawdown_halted: Mapped[bool] = mapped_column(Boolean, default=False)
     params_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    # Day the live book started. Editable from the admin ops UI; the web app
+    # falls back to LIVE_PORTFOLIO.inceptionISO when this is null.
+    inception_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     positions: Mapped[list[Position]] = relationship(back_populates="portfolio")

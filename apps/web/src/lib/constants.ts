@@ -47,7 +47,12 @@ export const BACKTEST = {
   validationEnd: "Apr 2026",
 };
 
-// Live portfolio — inception April 1, 2026
+// Live portfolio.
+//
+// NOTE: `inceptionISO` is a FALLBACK ONLY. The source of truth is
+// `portfolios.inception_date` in the database, editable at
+// /dashboard/ops/positions and served by GET /api/portfolio-meta. Read it with
+// `useInceptionDate()` (@/lib/hooks/use-inception) rather than this constant.
 export const LIVE_PORTFOLIO = {
   inceptionDate: "Apr 01, 2026",
   inceptionISO: "2026-04-01",

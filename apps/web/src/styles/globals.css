@@ -1,0 +1,174 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply bg-bg text-text;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply font-sans antialiased;
+  }
+
+  ::selection {
+    @apply bg-accent-yellow/50 text-text;
+  }
+
+  ::-webkit-scrollbar {
+    @apply w-1.5;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-bg;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border-light rounded-full;
+  }
+}
+
+@layer components {
+  .container-op {
+    @apply max-w-op mx-auto px-6 sm:px-8;
+  }
+
+  .section-label {
+    @apply font-sans text-[11px] text-text font-bold tracking-[0.18em] mb-3.5 uppercase;
+  }
+
+  .section-title {
+    @apply font-sans text-[28px] sm:text-[32px] font-bold mb-3 tracking-tight;
+  }
+
+  .section-sub {
+    @apply font-sans text-[15px] text-text-muted mb-11 max-w-[520px] leading-relaxed;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 font-sans bg-text text-white text-sm font-semibold
+           px-7 py-3.5 rounded-pill tracking-[0.08em] uppercase cursor-pointer border-none
+           transition-all duration-200 hover:bg-text/90 hover:-translate-y-0.5;
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 font-sans text-xs bg-transparent border border-border-strong
+           text-text px-6 py-2.5 rounded-pill cursor-pointer tracking-[0.08em] uppercase font-semibold
+           transition-all duration-200 hover:bg-text hover:text-white;
+  }
+
+  .pill {
+    @apply inline-flex items-center justify-center gap-1.5 font-sans text-xs font-semibold
+           tracking-[0.08em] uppercase rounded-pill px-4 py-2 transition-colors;
+  }
+
+  .pill-solid {
+    @apply pill bg-text text-white;
+  }
+
+  .pill-outline {
+    @apply pill bg-bg text-text border border-border-strong;
+  }
+
+  .soft-card {
+    @apply bg-bg-secondary rounded-soft p-6 sm:p-8;
+  }
+
+  .category-tag {
+    @apply inline-flex items-center justify-center font-sans text-[11px] sm:text-xs font-bold
+           tracking-[0.12em] uppercase rounded-xl px-4 py-2.5 text-text;
+  }
+
+  .badge {
+    @apply font-sans text-[10px] tracking-[0.1em] font-bold px-3 py-1 inline-block rounded-pill uppercase;
+  }
+
+  .badge-buy {
+    @apply bg-accent-green-soft text-accent-green;
+  }
+
+  .badge-hold {
+    @apply bg-accent-purple-soft text-accent-purple;
+  }
+
+  .badge-sell {
+    @apply bg-accent-red-soft text-accent-red;
+  }
+
+  /* Landing motion — restrained editorial reveals */
+  .hero-reveal {
+    opacity: 0;
+    transform: translateY(14px);
+    animation: hero-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+  .hero-reveal-1 { animation-delay: 0.05s; }
+  .hero-reveal-2 { animation-delay: 0.14s; }
+  .hero-reveal-3 { animation-delay: 0.24s; }
+  .hero-reveal-4 { animation-delay: 0.34s; }
+  .hero-reveal-5 { animation-delay: 0.44s; }
+
+  .op-animate-rise {
+    animation: op-rise 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .op-animate-rise-delay-1 {
+    animation-delay: 0.12s;
+  }
+  .op-live-glow {
+    animation: op-live-glow 3s ease-in-out infinite;
+  }
+  .op-timeline-draw {
+    animation: op-timeline-draw 1.15s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
+  }
+}
+
+@keyframes hero-rise {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes op-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes op-live-glow {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes op-timeline-draw {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-reveal,
+  .op-animate-rise,
+  .op-timeline-draw {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+  .op-live-glow {
+    animation: none;
+    opacity: 1;
+  }
+}

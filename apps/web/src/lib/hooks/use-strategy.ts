@@ -1,0 +1,42 @@
+import { useQuery } from "@tanstack/react-query";
+
+export interface Holding {
+  ticker: string;
+  entry_date: string | null;
+  pnl_pct: number;
+  weight_pct?: number;
+  sector?: string | null;
+}
+
+export interface StrategyData {
+  holdings: Holding[];
+  portfolio: {
+    position_count: number;
+    tickers: string[];
+    total_return_pct: number | null;
+  };
+  strategy: {
+    name: string;
+    description: string;
+    evaluation_frequency: string;
+    max_positions: number;
+  };
+  // Extended
+  name?: string;
+  evaluation_frequency?: string;
+  max_positions?: number;
+  position_count?: number;
+  params_version?: string;
+  params?: Record<string, unknown>;
+}
+
+export function useStrategy() {
+  return useQuery<StrategyData>({
+    queryKey: ["strategy"],
+    queryFn: async () => {
+      const res = await fetch("/api/data/strategy");
+      if (!res.ok) throw new Error("Failed to fetch strategy");
+      return res.json();
+    },
+  });
+}

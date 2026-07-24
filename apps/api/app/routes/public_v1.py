@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Portfolio, PortfolioSnapshot, Position, Trade
 from app.db.session import get_db
-from app.services.portfolio import params_from_portfolio
+from app.services.portfolio import params_from_portfolio, portfolio_equity, total_return_pct
 
 router = APIRouter(prefix="/api/v1", tags=["public"])
 
@@ -40,17 +40,19 @@ def get_strategy(db: Session = Depends(get_db)):
         }
     params = params_from_portfolio(portfolio)
     positions = db.query(Position).filter(Position.portfolio_id == portfolio.id).all()
-    cost = sum((p.avg_cost or 0) * (p.shares or 0) for p in positions)
-    value = sum(p.market_value for p in positions)
-    total_return = round((value / cost - 1) * 100, 2) if cost > 0 else None
+    _cash, value, equity = portfolio_equity(db, portfolio)
+    # Equity-based: (cash + holdings) / initial capital - 1. Counts cash and all
+    # realized P&L, and is immune to house-money positions.
+    total_return = total_return_pct(db, portfolio)
     holdings = [
         {
             "ticker": p.ticker,
             "entry_date": p.entry_date.isoformat() if p.entry_date else None,
+            # avg_cost is preserved through Winners Circle partial sells now, so
+            # house-money holdings report their real gain instead of a flat 0%.
             "pnl_pct": _pnl_pct(p.avg_cost, p.current_price) or 0,
-            "weight_pct": round(p.market_value / (portfolio.cash + value) * 100, 2)
-            if (portfolio.cash + value)
-            else 0,
+            "is_house_money": bool(p.is_house_money),
+            "weight_pct": round(p.market_value / equity * 100, 2) if equity else 0,
             "sector": p.sector,
         }
         for p in positions
@@ -168,9 +170,10 @@ def get_performance(db: Session = Depends(get_db)):
         .all()
     )
     positions = db.query(Position).filter(Position.portfolio_id == 1).all()
-    cost = sum((p.avg_cost or 0) * (p.shares or 0) for p in positions)
-    value = sum(p.market_value for p in positions)
-    live_return = round((value / cost - 1) * 100, 2) if cost > 0 else None
+    portfolio = db.get(Portfolio, 1)
+    # Same equity-based number as /strategy, so the headline agrees with the
+    # last point of the chart below instead of contradicting it.
+    live_return = total_return_pct(db, portfolio) if portfolio else None
 
     if not snaps:
         return {

@@ -9,7 +9,19 @@ import {
  *
  * The backend computes this directly and exposes it on the response so the
  * frontend never needs to touch dollar fields. Returns null while loading
- * or if the backend can't compute it (e.g. empty portfolio).
+ * or if the backend can't compute it (e.g. no capital base yet).
+ *
+ * Definition (backend: `app.services.portfolio.total_return_pct`):
+ *
+ *     (cash + market value of holdings) / initial capital - 1
+ *
+ * i.e. a true equity return since inception. It includes cash and every
+ * realized gain or loss, and — because there are no deposits or withdrawals in
+ * this book — it is a time-weighted return. It matches the last point of the
+ * `/performance` chart, which is indexed off the same starting equity.
+ *
+ * It is NOT the cost-basis return of open positions. That earlier definition
+ * ignored cash and realized P&L and was unbounded for "house money" holdings.
  */
 export function computePortfolioReturnPct(
   strategy: StrategyData | undefined

@@ -3,8 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 export interface Holding {
   ticker: string;
   entry_date: string | null;
+  /** Gain vs. cost basis. Real for house-money holdings now, not a flat 0%. */
   pnl_pct: number;
   weight_pct?: number;
+  /** Original stake already recovered via a Winners Circle partial sell. */
+  is_house_money?: boolean;
   sector?: string | null;
 }
 

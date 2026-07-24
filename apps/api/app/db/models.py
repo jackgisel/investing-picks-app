@@ -14,6 +14,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    false,
     func,
 )
 from sqlalchemy import JSON
@@ -47,10 +48,21 @@ class Position(Base):
     portfolio_id: Mapped[int] = mapped_column(ForeignKey("portfolios.id"), index=True)
     ticker: Mapped[str] = mapped_column(String(16), index=True)
     shares: Mapped[float] = mapped_column(Float)
+    # True weighted-average cost of the shares still held. NEVER zeroed — see
+    # `is_house_money` below. Reporting (public return %, per-holding P&L) reads
+    # this, so destroying it silently corrupts the public performance claim.
     avg_cost: Mapped[float] = mapped_column(Float)
     current_price: Mapped[float] = mapped_column(Float, default=0.0)
     entry_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # Capital originally deployed into this position (also never zeroed).
     initial_investment: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # Winners Circle: the original stake has been sold, so what remains is
+    # "house money". This is its own flag rather than an `avg_cost == 0` /
+    # `initial_investment == 0` sentinel — overloading those fields is what
+    # made the headline return unbounded.
+    is_house_money: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False, server_default=false()
+    )
     sector: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     portfolio: Mapped[Portfolio] = relationship(back_populates="positions")
@@ -58,6 +70,10 @@ class Position(Base):
     @property
     def market_value(self) -> float:
         return self.shares * (self.current_price or 0.0)
+
+    @property
+    def cost_basis(self) -> float:
+        return (self.avg_cost or 0.0) * (self.shares or 0.0)
 
 
 class Trade(Base):
@@ -128,6 +144,10 @@ class PriceBar(Base):
 
 class CompositeScore(Base):
     __tablename__ = "composite_scores"
+    # One score per ticker per scoring date. Without this a second scoring run
+    # on the same day makes "prior period" resolve to today, which silently
+    # disables the rating-drop exit rules.
+    __table_args__ = (UniqueConstraint("ticker", "as_of"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     ticker: Mapped[str] = mapped_column(String(16), index=True)

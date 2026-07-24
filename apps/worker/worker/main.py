@@ -1,0 +1,62 @@
+"""Worker entrypoint — APScheduler in a dedicated process (not the API)."""
+
+from __future__ import annotations
+
+import logging
+import os
+import sys
+
+from apscheduler.schedulers.blocking import BlockingScheduler
+from apscheduler.triggers.cron import CronTrigger
+
+# Ensure apps/api is importable for shared models/services
+_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+_API = os.path.join(_ROOT, "apps", "api")
+if _API not in sys.path:
+    sys.path.insert(0, _API)
+
+from worker.jobs.runner import job_biweekly_evaluate, job_daily_marks, job_weekly_refresh
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+log = logging.getLogger("worker")
+
+
+def main():
+    scheduler = BlockingScheduler(timezone="America/New_York")
+
+    scheduler.add_job(
+        job_daily_marks,
+        CronTrigger(day_of_week="mon-fri", hour=18, minute=30),
+        id="daily_marks",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        job_weekly_refresh,
+        CronTrigger(day_of_week="sat", hour=10, minute=0),
+        id="weekly_refresh",
+        replace_existing=True,
+    )
+    # 1st and 3rd Friday 11:00 ET
+    scheduler.add_job(
+        job_biweekly_evaluate,
+        CronTrigger(day="1-7,15-21", day_of_week="fri", hour=11, minute=0),
+        id="biweekly_evaluate",
+        replace_existing=True,
+    )
+
+    log.info("Worker scheduler started")
+    if os.environ.get("RUN_JOB_ONCE"):
+        name = os.environ["RUN_JOB_ONCE"]
+        log.info("Running once: %s", name)
+        {
+            "daily_marks": job_daily_marks,
+            "weekly_refresh": job_weekly_refresh,
+            "biweekly_evaluate": job_biweekly_evaluate,
+        }[name]()
+        return
+
+    scheduler.start()
+
+
+if __name__ == "__main__":
+    main()

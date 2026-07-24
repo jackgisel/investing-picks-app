@@ -1,0 +1,23 @@
+[project]
+name = "outpick-worker"
+version = "0.1.0"
+description = "Scheduled jobs for scoring, marks, and evaluation"
+requires-python = ">=3.11"
+dependencies = [
+  "sqlalchemy>=2.0.36",
+  "psycopg[binary]>=3.2.0",
+  "pydantic-settings>=2.6.0",
+  "apscheduler>=3.10.4",
+  "httpx>=0.28.0",
+  "outpick-strategy",
+]
+
+[tool.uv.sources]
+outpick-strategy = { path = "../../packages/strategy", editable = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["worker"]

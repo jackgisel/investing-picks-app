@@ -25,6 +25,15 @@ import httpx
 
 log = logging.getLogger(__name__)
 
+# httpx logs every request's full URL at INFO, and FMP takes the credential as
+# an `apikey` QUERY parameter — so under the worker's INFO-level basicConfig
+# every single call wrote the live key in plaintext to the platform log, ~1700
+# times per refresh. This module's own messages are careful never to interpolate
+# a URL (see _get); silencing httpx closes the other half of the same hole.
+# Set at import so it holds for any entrypoint that touches FMP, not just the
+# worker's scheduler.
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
 DEFAULT_BASE_URL = "https://financialmodelingprep.com/stable"
 
 

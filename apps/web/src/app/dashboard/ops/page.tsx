@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import { RefreshCw } from "lucide-react";
 
 type EvaluationSummary = {
   id: number;
@@ -26,10 +27,14 @@ export default function OpsEvaluationsPage() {
   const dry = useQuery({
     queryKey: ["ops-dry-run"],
     queryFn: async () => {
-      const res = await fetch("/api/ops/dry-run");
+      const res = await fetch("/api/ops/dry-run", { cache: "no-store" });
       if (!res.ok) throw new Error("Failed to dry-run");
       return res.json();
     },
+    // Never serve this from cache. The point of the button is to see what the
+    // strategy decides against *current* marks and scores.
+    staleTime: 0,
+    gcTime: 0,
   });
 
   return (
@@ -43,11 +48,37 @@ export default function OpsEvaluationsPage() {
       </header>
 
       <section className="space-y-3">
-        <h2 className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">NEXT EVAL (DRY-RUN)</h2>
-        {dry.isLoading && <p className="text-text-muted text-sm">Computing…</p>}
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <h2 className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">NEXT EVAL (DRY-RUN)</h2>
+          <div className="flex items-center gap-3">
+            {dry.dataUpdatedAt > 0 && !dry.isFetching && (
+              <span className="font-mono text-xs text-text-dim">
+                ran {new Date(dry.dataUpdatedAt).toLocaleTimeString()}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => dry.refetch()}
+              disabled={dry.isFetching}
+              className="btn-outline !py-2 !px-4 !text-[11px] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RefreshCw size={13} className={dry.isFetching ? "animate-spin" : undefined} />
+              {dry.isFetching ? "Running…" : "Run dry-run"}
+            </button>
+          </div>
+        </div>
+        <p className="text-xs text-text-dim max-w-xl">
+          Read-only. Computes what the strategy would do against current marks and scores —
+          writes nothing to the book or the decision ledger.
+        </p>
+        {dry.isFetching && !dry.data && <p className="text-text-muted text-sm">Computing…</p>}
         {dry.error && <p className="text-accent-red text-sm">Dry-run unavailable (is the API up?)</p>}
         {dry.data && (
-          <div className="soft-card p-4 space-y-3">
+          <div
+            className={`soft-card p-4 space-y-3 transition-opacity ${
+              dry.isFetching ? "opacity-50" : "opacity-100"
+            }`}
+          >
             <p className="text-sm text-text-muted">
               Params <span className="font-mono text-text">{dry.data.params_version}</span>
               {" · "}

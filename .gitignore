@@ -42,5 +42,8 @@ next-env.d.ts
 .vscode/
 .idea/
 
+# agent scratch — worktrees are multi-GB and must never reach a build context
+.claude/worktrees/
+
 # auth database (dev)
 auth.db

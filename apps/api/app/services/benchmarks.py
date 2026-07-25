@@ -1,0 +1,228 @@
+"""Money-weighted benchmark comparison.
+
+Outpick sells research, so the honest question is not "did the book beat the
+index" — the book is mostly cash and a fully invested index beats a 92%-cash
+portfolio essentially always, however good the picks are. The question is:
+
+    Given the same dollars committed on the same dates, did the picks beat
+    simply buying the index?
+
+So each benchmark is simulated with the pick's own cash flows: SEZL's $1,000 on
+2026-04-10 becomes $1,000 of SPY bought at SPY's 2026-04-10 close. Both series
+are then a return on identically-timed deployed capital, both start at 0%, and
+the comparison is like-for-like.
+
+This also indexes every pick from its own entry date, so a position added last
+week is not penalised against an index measured from inception.
+"""
+
+from __future__ import annotations
+
+import logging
+from dataclasses import dataclass
+from datetime import date
+
+from sqlalchemy.orm import Session
+
+from app.db.models import PriceBar, Trade
+
+log = logging.getLogger(__name__)
+
+#: Ticker -> display label. MAGS is the Roundhill Magnificent Seven ETF, chosen
+#: over a hand-rolled basket so the comparison tracks a real, quotable
+#: instrument rather than a weighting we invented.
+BENCHMARKS: dict[str, str] = {
+    "SPY": "S&P 500",
+    "VTI": "Total Market",
+    "MAGS": "Mag 7",
+}
+
+
+@dataclass(frozen=True)
+class CashFlow:
+    """Capital committed to one pick."""
+
+    ticker: str
+    when: date
+    amount: float
+
+
+def deployment_schedule(db: Session, portfolio_id: int = 1) -> list[CashFlow]:
+    """When capital went into picks, and how much.
+
+    Derived from buy trades so it stays correct as the engine adds positions,
+    rather than reading only the currently-open book. `manual_remove` is an
+    admin correction, not an investment, so its ticker is dropped entirely —
+    the same treatment `picks_return` gives it.
+    """
+    trades = (
+        db.query(Trade)
+        .filter(Trade.portfolio_id == portfolio_id)
+        .order_by(Trade.timestamp.asc())
+        .all()
+    )
+    corrected = {t.ticker for t in trades if t.action == "manual_remove"}
+
+    flows: list[CashFlow] = []
+    for t in trades:
+        if t.side != "buy" or t.ticker in corrected:
+            continue
+        when = t.timestamp.date() if t.timestamp else None
+        if when is None or not t.notional:
+            continue
+        flows.append(CashFlow(ticker=t.ticker, when=when, amount=float(t.notional)))
+    return flows
+
+
+def _closes(db: Session, ticker: str) -> dict[date, float]:
+    rows = db.query(PriceBar).filter(PriceBar.ticker == ticker).all()
+    return {r.date: r.close for r in rows if r.close}
+
+
+def _price_on_or_before(closes: dict[date, float], sessions: list[date], when: date) -> float | None:
+    """The benchmark close on `when`, or the last session before it.
+
+    A pick entered on a day the benchmark has no bar (a data gap, or an entry
+    dated to a holiday before the calendar fix) must still be comparable.
+    """
+    if when in closes:
+        return closes[when]
+    prior = [s for s in sessions if s <= when]
+    return closes.get(prior[-1]) if prior else None
+
+
+def benchmark_series(
+    db: Session,
+    portfolio_id: int = 1,
+    tickers: dict[str, str] | None = None,
+) -> dict:
+    """Percent-return series per benchmark, on the picks' own cash flows.
+
+    Returns `{"labels": {...}, "series": {ticker: [{date, return_pct}, ...]}}`.
+    A benchmark with no usable price history is omitted rather than emitted
+    flat, since a zero-volatility line would read as a real comparison.
+    """
+    tickers = tickers or BENCHMARKS
+    flows = deployment_schedule(db, portfolio_id)
+    if not flows:
+        return {"labels": {}, "series": {}, "deployed": 0.0}
+
+    out_series: dict[str, list[dict]] = {}
+    labels: dict[str, str] = {}
+
+    for ticker, label in tickers.items():
+        closes = _closes(db, ticker)
+        if len(closes) < 2:
+            log.warning("No usable price history for benchmark %s; omitting", ticker)
+            continue
+        sessions = sorted(closes)
+
+        # Convert each cash flow into benchmark units bought at that date's close.
+        units = 0.0
+        committed = 0.0
+        lots: list[tuple[date, float]] = []  # (entry, units)
+        for f in flows:
+            entry_price = _price_on_or_before(closes, sessions, f.when)
+            if not entry_price or entry_price <= 0:
+                log.warning(
+                    "No %s price on or before %s; skipping %s cash flow",
+                    ticker,
+                    f.when,
+                    f.ticker,
+                )
+                continue
+            lots.append((f.when, f.amount / entry_price))
+            committed += f.amount
+
+        if not lots or committed <= 0:
+            continue
+
+        rows: list[dict] = []
+        first_flow = min(f.when for f in flows)
+        for session in sessions:
+            if session < first_flow:
+                continue
+            units = sum(u for when, u in lots if when <= session)
+            deployed = sum(
+                f.amount for f in flows if f.when <= session
+            )
+            if deployed <= 0:
+                continue
+            value = units * closes[session]
+            rows.append(
+                {
+                    "date": session.isoformat(),
+                    "return_pct": round((value / deployed - 1) * 100, 2),
+                }
+            )
+
+        if rows:
+            out_series[ticker] = rows
+            labels[ticker] = label
+
+    return {
+        "labels": labels,
+        "series": out_series,
+        "deployed": round(sum(f.amount for f in flows), 2),
+    }
+
+
+def picks_series(db: Session, portfolio_id: int = 1) -> list[dict]:
+    """The picks' own return on deployed capital, day by day.
+
+    Same denominator as the benchmarks — capital committed as of that date — so
+    the lines are directly comparable rather than measuring different things.
+    """
+    from app.db.models import Position
+
+    flows = deployment_schedule(db, portfolio_id)
+    if not flows:
+        return []
+
+    positions = {
+        p.ticker: p
+        for p in db.query(Position).filter(Position.portfolio_id == portfolio_id).all()
+    }
+
+    # Shares per ticker, from the cash flow and the pick's own entry price.
+    closes_by_ticker = {f.ticker: _closes(db, f.ticker) for f in flows}
+    sessions = sorted(
+        {d for closes in closes_by_ticker.values() for d in closes}
+    )
+
+    rows: list[dict] = []
+    for session in sessions:
+        deployed = 0.0
+        value = 0.0
+        for f in flows:
+            if f.when > session:
+                continue
+            deployed += f.amount
+            closes = closes_by_ticker.get(f.ticker) or {}
+            entry_price = _price_on_or_before(closes, sorted(closes), f.when)
+            mark = _price_on_or_before(closes, sorted(closes), session)
+            if not entry_price or not mark or entry_price <= 0:
+                # Without a price we cannot mark it; carry it at cost rather
+                # than dropping it, which would shrink the denominator and
+                # flatter the result.
+                value += f.amount
+                continue
+            value += (f.amount / entry_price) * mark
+        if deployed > 0:
+            rows.append(
+                {
+                    "date": session.isoformat(),
+                    "return_pct": round((value / deployed - 1) * 100, 2),
+                }
+            )
+
+    # Anchor the final point to the live book so the chart's last value agrees
+    # with the headline instead of drifting from it.
+    if rows and positions:
+        live_deployed = sum(f.amount for f in flows)
+        live_value = sum(p.market_value for p in positions.values())
+        if live_deployed > 0:
+            rows[-1]["return_pct"] = round(
+                (live_value / live_deployed - 1) * 100, 2
+            )
+    return rows

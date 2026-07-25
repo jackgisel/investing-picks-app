@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Portfolio, PortfolioSnapshot, Position, Trade
 from app.db.session import get_db
+from app.services.benchmarks import benchmark_series, picks_series
 from app.services.portfolio import (
     params_from_portfolio,
     picks_return,
@@ -318,8 +319,19 @@ def get_performance(db: Session = Depends(get_db)):
         )
     last = series[-1]["return_pct"] if series else 0
     headline = live_return if live_return is not None else last
+
+    # Money-weighted comparison: the same dollars, committed on the same dates,
+    # into each index. Plotting book equity against a fully invested index is
+    # not a like-for-like comparison — the book is mostly cash, so the index
+    # wins regardless of how the picks did, which contradicts the headline
+    # sitting directly above the chart.
+    bench = benchmark_series(db, portfolio_id=1)
+    picks_line = picks_series(db, portfolio_id=1)
+
     return {
         "series": series,
+        "picks_series": picks_line,
+        "benchmarks": bench,
         "summary": {
             "start_date": snaps[0].date.isoformat(),
             "latest_date": snaps[-1].date.isoformat(),

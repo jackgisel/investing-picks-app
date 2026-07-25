@@ -74,6 +74,12 @@ CORRECTION_ACTIONS = ("manual_remove",)
 #: The benchmark series drawn beside the book on the landing chart.
 BENCHMARK_TICKER = "SPY"
 
+#: Additional comparison instruments stored as price bars so the API can build
+#: the money-weighted benchmark comparison. SPY drives the trading calendar and
+#: is fetched regardless; these are best-effort — a missing one is logged and
+#: omitted from the chart rather than aborting the backfill.
+EXTRA_BENCHMARKS = ("VTI", "MAGS")
+
 
 @dataclass
 class Lot:
@@ -368,8 +374,18 @@ def build_plan(
         )
         inception = earliest_lot
 
-    tickers = sorted({lot.ticker for lot in lots} | {BENCHMARK_TICKER})
+    tickers = sorted(
+        {lot.ticker for lot in lots} | {BENCHMARK_TICKER} | set(EXTRA_BENCHMARKS)
+    )
     series = fetch_prices(fmp, tickers, inception)
+
+    for extra in EXTRA_BENCHMARKS:
+        if not series.get(extra):
+            log.warning(
+                "No history for benchmark %s; it will be omitted from the "
+                "comparison chart rather than drawn flat",
+                extra,
+            )
 
     benchmark = series.get(BENCHMARK_TICKER)
     if not benchmark:
@@ -378,7 +394,11 @@ def build_plan(
             f"derived from it, and without it every weekend would be a snapshot."
         )
 
-    missing = [t for t in tickers if t != BENCHMARK_TICKER and not series.get(t)]
+    # Only HELD names may abort the run. A missing comparison ETF costs us a
+    # line on a chart; a missing holding would silently be carried flat at cost
+    # and look like a real zero-volatility track record.
+    held = {lot.ticker for lot in lots}
+    missing = [t for t in sorted(held) if not series.get(t)]
     if missing:
         message = f"No price history for {', '.join(missing)}"
         if not allow_missing_prices:

@@ -17,6 +17,7 @@
   --color-inverse: 10 10 10;
   --color-inverse-fg: 255 255 255;
   --color-on-accent: 10 10 10;
+  --color-plate: 247 243 236;
   --color-accent-green: 22 163 74;
   --color-accent-green-soft: 220 252 231;
   --color-accent-green-hover: 21 128 61;
@@ -46,6 +47,9 @@
   --color-inverse-fg: 10 10 10;
   /* Deliberately identical to :root — the pastels it sits on don't change. */
   --color-on-accent: 10 10 10;
+  /* Also invariant: the illustrations are opaque PNGs with a baked-in white
+     ground, so their plate stays light and reads as paper on the dark page. */
+  --color-plate: 247 243 236;
   --color-accent-green: 34 197 94;
   --color-accent-green-soft: 15 46 27;
   --color-accent-green-hover: 22 163 74;
@@ -91,8 +95,33 @@
     @apply max-w-op mx-auto px-6 sm:px-8;
   }
 
+  /* Eyebrow. The leading rule is the smallest place a section can carry a
+     tone — the pastels sit at ~1.6:1 on white, so they mark the label rather
+     than tint the glyphs. Defaults to yellow; add a modifier to override. */
   .section-label {
-    @apply font-sans text-[11px] text-text font-bold tracking-[0.18em] mb-3.5 uppercase;
+    @apply font-sans text-[11px] text-text font-bold tracking-[0.18em] mb-3.5 uppercase
+           flex items-center gap-2.5;
+  }
+
+  .section-label::before {
+    content: "";
+    @apply h-1 w-5 rounded-full shrink-0 bg-accent-yellow;
+  }
+
+  .section-label-peach::before {
+    @apply bg-accent-peach;
+  }
+  .section-label-lilac::before {
+    @apply bg-accent-lilac;
+  }
+  .section-label-mint::before {
+    @apply bg-accent-mint;
+  }
+  .section-label-coral::before {
+    @apply bg-accent-coral;
+  }
+  .section-label-cyan::before {
+    @apply bg-accent-cyan;
   }
 
   .section-title {
@@ -130,6 +159,20 @@
 
   .soft-card {
     @apply bg-bg-secondary rounded-soft p-6 sm:p-8;
+  }
+
+  /* Warm paper for the illustrations. `isolate` keeps the multiply blend of
+     the artwork inside this box instead of letting it reach the page. */
+  .illustration-plate {
+    @apply bg-plate rounded-soft isolate overflow-hidden;
+  }
+
+  /* The PNGs are opaque with a white ground. Multiplying against the plate
+     drops that white to the plate color and leaves only the ink and the
+     pastel fills — no white square, and no filter hack that would muddy the
+     mint plant and peach mug. */
+  .illustration-art {
+    @apply mix-blend-multiply;
   }
 
   .category-tag {

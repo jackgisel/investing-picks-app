@@ -1,6 +1,7 @@
 import { PRICING, FOUNDERS_DEAL_MAX_DAY } from "@/lib/constants";
 import { FoundersPricingCallout } from "./founders-pricing-callout";
 import { PillButton } from "@/components/ui/pill-button";
+import { TONE_BG, toneByIndex } from "@/lib/tones";
 
 const features = [
   "New high-conviction research every 2 weeks",
@@ -17,7 +18,7 @@ export function Pricing() {
     <section id="pricing" className="border-b border-border">
       <div className="container-op py-20 sm:py-24">
         <div className="max-w-[520px] mb-12">
-          <p className="section-label">Membership</p>
+          <p className="section-label section-label-mint">Membership</p>
           <h2 className="section-title">One plan. Full access. No upsells.</h2>
           <p className="section-sub mb-0">
             Every member gets the full portfolio, every note, and every update —
@@ -58,7 +59,9 @@ export function Pricing() {
                 }`}
               >
                 <span
-                  className="mt-0.5 w-1.5 h-1.5 rounded-full bg-accent-mint shrink-0"
+                  className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${
+                    TONE_BG[toneByIndex(i)]
+                  }`}
                   aria-hidden
                 />
                 {feat}

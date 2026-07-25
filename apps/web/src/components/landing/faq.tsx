@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { TONE_BG, toneByIndex } from "@/lib/tones";
 
 const faqs = [
   {
@@ -50,7 +51,7 @@ export function FAQ() {
     <section id="faq" className="border-b border-border">
       <div className="container-op py-20 sm:py-24">
         <div className="max-w-[560px] mb-12">
-          <p className="section-label">FAQ</p>
+          <p className="section-label section-label-lilac">FAQ</p>
           <h2 className="section-title">Straight answers.</h2>
         </div>
 
@@ -70,8 +71,16 @@ export function FAQ() {
                     onClick={() => setOpen(isOpen ? null : i)}
                     className="w-full flex items-center justify-between py-5 text-left gap-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 rounded-sm"
                   >
-                    <span className="font-sans text-[15px] sm:text-[16px] font-semibold tracking-tight">
-                      {faq.q}
+                    <span className="flex items-center gap-3 min-w-0">
+                      <span
+                        aria-hidden
+                        className={`h-2 w-2 rounded-full shrink-0 ${
+                          TONE_BG[toneByIndex(i)]
+                        }`}
+                      />
+                      <span className="font-sans text-[15px] sm:text-[16px] font-semibold tracking-tight">
+                        {faq.q}
+                      </span>
                     </span>
                     <ChevronDown
                       size={18}

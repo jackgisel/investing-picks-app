@@ -8,6 +8,8 @@ const config: Config = {
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    // lib/tones.ts holds the per-tone class maps — without this they're purged.
+    "./src/lib/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
     extend: {
@@ -50,6 +52,10 @@ const config: Config = {
         // in both themes, so their foreground has to be too — `text` would flip
         // to near-white and leave light-on-light chips.
         "on-accent": withOpacity("--color-on-accent"),
+        // Warm paper the illustrations sit on. Invariant across themes — the
+        // PNGs are opaque with a white ground, so the plate frames them
+        // deliberately instead of letting them glow as stray white boxes.
+        plate: withOpacity("--color-plate"),
       },
       fontFamily: {
         mono: ["IBM Plex Mono", "monospace"],

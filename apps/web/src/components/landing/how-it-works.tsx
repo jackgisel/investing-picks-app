@@ -1,5 +1,6 @@
 import Image from "next/image";
-import { CategoryTag, type PastelTone } from "@/components/ui/category-tag";
+import { CategoryTag } from "@/components/ui/category-tag";
+import { TONE_BORDER, type PastelTone } from "@/lib/tones";
 import { PillButton } from "@/components/ui/pill-button";
 
 const steps: {
@@ -56,7 +57,7 @@ export function HowItWorks() {
 
       <div className="container-op relative py-20 sm:py-24">
         <div className="max-w-[560px] mb-14 sm:mb-16">
-          <p className="section-label">How it works</p>
+          <p className="section-label section-label-lilac">How it works</p>
           <h2 className="section-title">
             Research you can trust. Results you can verify.
           </h2>
@@ -84,7 +85,11 @@ export function HowItWorks() {
                   i === 1 ? "op-animate-rise-delay-1" : ""
                 }`}
               >
-                <span className="relative z-10 font-mono text-[13px] font-bold tracking-[0.14em] text-text-dim lg:flex lg:items-center lg:justify-center lg:h-12 lg:w-12 lg:rounded-full lg:border lg:border-border lg:bg-bg">
+                <span
+                  className={`relative z-10 font-mono text-[13px] font-bold tracking-[0.14em] text-text-dim lg:flex lg:items-center lg:justify-center lg:h-12 lg:w-12 lg:rounded-full lg:border-2 lg:bg-bg ${
+                    TONE_BORDER[step.tone]
+                  }`}
+                >
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 <div>
@@ -98,12 +103,12 @@ export function HowItWorks() {
                     {step.description}
                   </p>
                 </div>
-                <div className="relative aspect-[4/3] bg-bg border border-border/70 rounded-soft overflow-hidden">
+                <div className="illustration-plate relative aspect-[4/3]">
                   <Image
                     src={step.image}
                     alt=""
                     fill
-                    className="object-contain p-4 sm:p-5"
+                    className="illustration-art object-contain p-4 sm:p-5"
                     sizes="280px"
                   />
                 </div>

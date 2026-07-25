@@ -55,7 +55,7 @@ export function TrackRecord() {
 
       <div className="container-op relative py-20 sm:py-24">
         <div className="max-w-[680px] mb-12 sm:mb-14">
-          <p className="section-label">Track record</p>
+          <p className="section-label section-label-mint">Track record</p>
           <h2 className="section-title">Winners compound. We show both.</h2>
           <p className="section-sub mb-0">
             Our edge isn&apos;t one headline return — it&apos;s finding stocks

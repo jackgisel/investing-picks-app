@@ -17,7 +17,7 @@ export function DashboardPreview() {
       <div className="container-op relative py-20 sm:py-24">
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_auto] gap-8 lg:gap-12 items-end mb-10 sm:mb-12">
           <div>
-            <p className="section-label">Backtest winners</p>
+            <p className="section-label section-label-coral">Backtest winners</p>
             <h2 className="section-title max-w-[540px]">
               Eight picks doubled. That&apos;s the edge.
             </h2>

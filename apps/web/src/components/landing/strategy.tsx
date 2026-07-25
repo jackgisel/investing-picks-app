@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { BACKTEST } from "@/lib/constants";
-import { CategoryTag, type PastelTone } from "@/components/ui/category-tag";
+import { CategoryTag } from "@/components/ui/category-tag";
+import { TONE_BORDER, type PastelTone } from "@/lib/tones";
 
 const PILLARS: {
   num: string;
@@ -57,7 +58,7 @@ export function Strategy() {
       <div className="container-op relative py-20 sm:py-24">
         <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-14 lg:gap-20 items-end mb-14 sm:mb-16">
           <div>
-            <p className="section-label">Our strategy</p>
+            <p className="section-label section-label-cyan">Our strategy</p>
             <h2 className="section-title text-[32px] sm:text-[40px] leading-tight max-w-[520px]">
               Value investing for real market cycles.
             </h2>
@@ -72,12 +73,12 @@ export function Strategy() {
               aria-hidden
               className="absolute -inset-3 rounded-soft border border-dashed border-border/70"
             />
-            <div className="relative aspect-[5/4] overflow-hidden bg-bg border border-border rounded-soft">
+            <div className="illustration-plate relative aspect-[5/4]">
               <Image
                 src="/illustrations/strategy-value.png"
                 alt=""
                 fill
-                className="object-contain p-6"
+                className="illustration-art object-contain p-6"
                 sizes="(max-width: 1024px) 100vw, 40vw"
               />
             </div>
@@ -88,7 +89,9 @@ export function Strategy() {
           {PILLARS.map((pillar) => (
             <li
               key={pillar.title}
-              className="grid grid-cols-1 sm:grid-cols-[56px_minmax(0,200px)_minmax(0,1fr)] gap-4 sm:gap-8 py-7 sm:py-8 items-start"
+              className={`grid grid-cols-1 sm:grid-cols-[56px_minmax(0,200px)_minmax(0,1fr)] gap-4 sm:gap-8 py-7 sm:py-8 items-start border-l-2 pl-5 sm:pl-6 ${
+                TONE_BORDER[pillar.tone]
+              }`}
             >
               <span className="font-mono text-[12px] font-bold text-text-dim tracking-wider pt-1">
                 {pillar.num}

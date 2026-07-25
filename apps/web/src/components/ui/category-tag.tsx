@@ -1,16 +1,10 @@
 import { cn } from "@/lib/utils";
+import { TONE_BG, type PastelTone } from "@/lib/tones";
 import type { ReactNode } from "react";
 
-export const PASTEL = {
-  yellow: "bg-accent-yellow",
-  peach: "bg-accent-peach",
-  lilac: "bg-accent-lilac",
-  mint: "bg-accent-mint",
-  coral: "bg-accent-coral",
-  cyan: "bg-accent-cyan",
-} as const;
-
-export type PastelTone = keyof typeof PASTEL;
+// The palette moved to lib/tones so non-chip surfaces can share it.
+// Re-exported here because eight files already import these names.
+export { TONE_BG as PASTEL, type PastelTone };
 
 interface CategoryTagProps {
   children: ReactNode;
@@ -24,7 +18,7 @@ export function CategoryTag({
   className,
 }: CategoryTagProps) {
   return (
-    <span className={cn("category-tag", PASTEL[tone], className)}>
+    <span className={cn("category-tag", TONE_BG[tone], className)}>
       {children}
     </span>
   );

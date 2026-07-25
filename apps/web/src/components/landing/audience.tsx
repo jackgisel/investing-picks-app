@@ -1,5 +1,6 @@
 import { BACKTEST } from "@/lib/constants";
-import { CategoryTag, type PastelTone } from "@/components/ui/category-tag";
+import { CategoryTag } from "@/components/ui/category-tag";
+import { TONE_BORDER, type PastelTone } from "@/lib/tones";
 
 const personas: {
   title: string;
@@ -41,7 +42,7 @@ export function Audience() {
       <div className="container-op relative py-20 sm:py-24">
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,380px)] gap-10 lg:gap-16 items-start mb-14">
           <div>
-            <p className="section-label">Why we exist</p>
+            <p className="section-label section-label-peach">Why we exist</p>
             <h2 className="section-title max-w-[520px]">
               We outgrew passive. You probably have too.
             </h2>
@@ -75,11 +76,11 @@ export function Audience() {
           {personas.map((p, i) => (
             <div
               key={p.title}
-              className={`op-animate-rise py-10 lg:py-12 ${
-                i === 1 ? "op-animate-rise-delay-1" : ""
-              } ${
+              className={`op-animate-rise py-10 lg:py-12 border-t-2 -mt-px ${
+                TONE_BORDER[p.tone]
+              } ${i === 1 ? "op-animate-rise-delay-1" : ""} ${
                 i < personas.length - 1
-                  ? "border-b lg:border-b-0 lg:border-r border-border lg:pr-10 lg:mr-10"
+                  ? "border-b lg:border-b-0 lg:border-r border-b-border lg:border-r-border lg:pr-10 lg:mr-10"
                   : ""
               }`}
             >

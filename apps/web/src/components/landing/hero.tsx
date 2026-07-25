@@ -47,13 +47,13 @@ export function Hero() {
           </div>
 
           <div className="relative">
-            <div className="soft-card aspect-square flex items-center justify-center overflow-hidden">
+            <div className="illustration-plate aspect-square flex items-center justify-center p-6 sm:p-8">
               <Image
                 src="/illustrations/research.png"
                 alt="Research illustration"
                 width={560}
                 height={560}
-                className="w-full h-full object-contain p-4"
+                className="illustration-art w-full h-full object-contain p-4"
                 priority
               />
             </div>

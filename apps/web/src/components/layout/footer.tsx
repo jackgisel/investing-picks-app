@@ -15,7 +15,11 @@ export function Footer() {
 
           <div className="grid grid-cols-2 gap-10 sm:gap-16">
             <div>
-              <p className="font-sans text-[11px] font-bold tracking-[0.16em] uppercase mb-4">
+              <p className="font-sans text-[11px] font-bold tracking-[0.16em] uppercase mb-4 flex items-center gap-2.5">
+                <span
+                  aria-hidden
+                  className="h-1 w-5 rounded-full bg-accent-yellow shrink-0"
+                />
                 Links
               </p>
               <ul className="space-y-2.5">
@@ -54,7 +58,11 @@ export function Footer() {
               </ul>
             </div>
             <div>
-              <p className="font-sans text-[11px] font-bold tracking-[0.16em] uppercase mb-4">
+              <p className="font-sans text-[11px] font-bold tracking-[0.16em] uppercase mb-4 flex items-center gap-2.5">
+                <span
+                  aria-hidden
+                  className="h-1 w-5 rounded-full bg-accent-cyan shrink-0"
+                />
                 Legal
               </p>
               <ul className="space-y-2.5">

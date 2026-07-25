@@ -1,9 +1,23 @@
 "use client";
 
 import { useStrategy } from "@/lib/hooks/use-strategy";
+import {
+  DataStateCard,
+  hasDataState,
+  resolveDataState,
+} from "@/components/ui/data-state";
 
 export default function StrategyPage() {
-  const { data, isLoading } = useStrategy();
+  const { data, isPending, isError, error, refetch } = useStrategy();
+
+  // Previously this branched on isLoading alone, so a 402 rendered the header
+  // above an empty page with no explanation of why.
+  const state = resolveDataState({
+    isPending,
+    isError,
+    error,
+    isEmpty: !data,
+  });
 
   return (
     <div className="space-y-8 max-w-3xl">
@@ -14,7 +28,15 @@ export default function StrategyPage() {
         </p>
       </header>
 
-      {isLoading && <p className="text-text-muted text-sm">Loading…</p>}
+      {hasDataState(state) && (
+        <DataStateCard
+          state={state}
+          error={error}
+          onRetry={() => refetch()}
+          emptyTitle="No strategy published yet"
+          emptyMessage="Parameters appear once the engine has run an evaluation."
+        />
+      )}
       {data && (
         <>
           <div className="grid grid-cols-2 gap-4">

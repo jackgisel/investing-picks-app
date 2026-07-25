@@ -79,7 +79,7 @@ export default function ClaimAdminPage() {
               value={token}
               onChange={(e) => setToken(e.target.value)}
               autoComplete="off"
-              className="mt-2 w-full bg-transparent border border-white/15 px-3 py-2 font-mono text-sm text-text focus:outline-none focus:border-accent-green"
+              className="mt-2 w-full bg-transparent border border-white/15 dark:border-border-light px-3 py-2 font-mono text-sm text-text focus:outline-none focus:border-accent-green"
               placeholder="paste token"
             />
           </label>

@@ -11,10 +11,23 @@ import {
   CartesianGrid,
   ReferenceLine,
 } from "recharts";
+import { useTheme } from "@/components/providers/theme-provider";
 import type { BenchmarkMeta, PicksComparison } from "@/lib/hooks/use-chart";
 
-const PICKS_COLOR = "#16A34A";
+type ThemeName = "light" | "dark";
+
 const PICKS_LABEL = "Outpick picks";
+
+/**
+ * Recharts takes stroke/fill colors as element props, not classNames, so CSS
+ * variables driven by `.dark` on `<html>` never reach them. Every color used
+ * inside the chart is therefore a small per-theme map, keyed off
+ * `useTheme().resolved`, instead of a single hardcoded hex constant.
+ */
+const PICKS_COLOR: Record<ThemeName, string> = {
+  light: "#16A34A",
+  dark: "#22C55E",
+};
 
 /**
  * Benchmark line styling.
@@ -24,28 +37,80 @@ const PICKS_LABEL = "Outpick picks";
  * shades of the same hue. The dash is the primary distinguisher; the tone only
  * reinforces it. All of them are deliberately quieter than the picks line —
  * they are context, not competition.
+ *
+ * The light ramp (`#525252` → `#9E9E9E`) is tuned to sit *below* black text on
+ * a white page — SPY (most-referenced benchmark) gets the darkest, most
+ * "present" grey, MAGS the lightest/quietest. On `#0A0A0A` that relationship
+ * has to invert in luminance (greys now need to sit *above* the background to
+ * read at all) while preserving the same relative contrast separation, so the
+ * three lines stay just as distinguishable from each other — and from the
+ * near-white body text — as they are in light mode. Concretely: each dark
+ * grey targets roughly the same contrast ratio against `#0A0A0A` that its
+ * light counterpart has against `#FFFFFF` (SPY ~7.8:1, VTI ~4.2:1, MAGS
+ * ~2.7:1 — MAGS is intentionally the quietest line in both themes; its unique
+ * dash carries it).
  */
+const BENCHMARK_STYLES: Record<ThemeName, Record<string, LineStyle>> = {
+  light: {
+    SPY: { color: "#525252", dash: "7 4" },
+    VTI: { color: "#7C7C7C", dash: "1 5" },
+    MAGS: { color: "#9E9E9E", dash: "11 4 2 4" },
+  },
+  dark: {
+    SPY: { color: "#A3A3A3", dash: "7 4" },
+    VTI: { color: "#7A7A7A", dash: "1 5" },
+    MAGS: { color: "#595959", dash: "11 4 2 4" },
+  },
+};
+
 interface LineStyle {
   color: string;
   dash: string;
 }
 
-const BENCHMARK_STYLES: Record<string, LineStyle> = {
-  SPY: { color: "#525252", dash: "7 4" },
-  VTI: { color: "#7C7C7C", dash: "1 5" },
-  MAGS: { color: "#9E9E9E", dash: "11 4 2 4" },
+/** Used for any ticker the API starts returning that we have not styled. */
+const FALLBACK_STYLES: Record<ThemeName, LineStyle[]> = {
+  light: [
+    { color: "#666666", dash: "4 4" },
+    { color: "#8A8A8A", dash: "12 5" },
+    { color: "#A6A6A6", dash: "2 3" },
+  ],
+  dark: [
+    { color: "#8A8A8A", dash: "4 4" },
+    { color: "#666666", dash: "12 5" },
+    { color: "#505050", dash: "2 3" },
+  ],
 };
 
-/** Used for any ticker the API starts returning that we have not styled. */
-const FALLBACK_STYLES: LineStyle[] = [
-  { color: "#666666", dash: "4 4" },
-  { color: "#8A8A8A", dash: "12 5" },
-  { color: "#A6A6A6", dash: "2 3" },
-];
+/**
+ * Chrome: grid lines, axis lines/ticks, the zero reference line, and the
+ * tooltip's hover cursor. Grid/axis line map to the `border` token's values,
+ * the reference line and cursor map to `border-light` — `tick` mirrors
+ * `text-dim`, which the token spec deliberately keeps identical in both
+ * themes (`#737373` clears ~4.5:1 on white and ~4.7:1 on `#0A0A0A`).
+ */
+const CHART_CHROME: Record<
+  ThemeName,
+  { grid: string; tick: string; referenceLine: string; cursor: string }
+> = {
+  light: {
+    grid: "#E5E5E5",
+    tick: "#737373",
+    referenceLine: "#D4D4D4",
+    cursor: "#D4D4D4",
+  },
+  dark: {
+    grid: "#262626",
+    tick: "#737373",
+    referenceLine: "#333333",
+    cursor: "#333333",
+  },
+};
 
-function styleFor(key: string, index: number): LineStyle {
+function styleFor(theme: ThemeName, key: string, index: number): LineStyle {
   return (
-    BENCHMARK_STYLES[key] ?? FALLBACK_STYLES[index % FALLBACK_STYLES.length]
+    BENCHMARK_STYLES[theme][key] ??
+    FALLBACK_STYLES[theme][index % FALLBACK_STYLES[theme].length]
   );
 }
 
@@ -130,9 +195,13 @@ interface TooltipShape {
 function ChartTooltip({
   raw,
   benchmarks,
+  theme,
+  picksColor,
 }: {
   raw: unknown;
   benchmarks: BenchmarkMeta[];
+  theme: ThemeName;
+  picksColor: string;
 }) {
   const props = (raw ?? {}) as TooltipShape;
   if (!props.active || !props.payload?.length) return null;
@@ -151,14 +220,14 @@ function ChartTooltip({
     rows.push({
       label: PICKS_LABEL,
       value: picksValue,
-      style: { color: PICKS_COLOR, dash: "" },
+      style: { color: picksColor, dash: "" },
       hero: true,
     });
   }
   benchmarks.forEach((b, i) => {
     const value = byKey.get(b.key);
     if (typeof value === "number") {
-      rows.push({ label: b.label, value, style: styleFor(b.key, i), hero: false });
+      rows.push({ label: b.label, value, style: styleFor(theme, b.key, i), hero: false });
     }
   });
 
@@ -217,13 +286,14 @@ export function PicksBenchmarkLegend({
   showValues?: boolean;
   compact?: boolean;
 }) {
+  const { resolved } = useTheme();
   const { benchmarks, picksLatestPct } = comparison;
   return (
     <ul
       className={`flex flex-wrap items-center ${compact ? "gap-x-4 gap-y-2" : "gap-x-5 gap-y-2"}`}
     >
       <li className="flex items-center gap-2">
-        <LineSwatch color={PICKS_COLOR} strokeWidth={3} />
+        <LineSwatch color={PICKS_COLOR[resolved]} strokeWidth={3} />
         <span className="font-sans text-[11px] font-bold text-text">
           {PICKS_LABEL}
         </span>
@@ -238,7 +308,7 @@ export function PicksBenchmarkLegend({
         )}
       </li>
       {benchmarks.map((b, i) => {
-        const style = styleFor(b.key, i);
+        const style = styleFor(resolved, b.key, i);
         return (
           <li key={b.key} className="flex items-center gap-2">
             <LineSwatch
@@ -278,6 +348,9 @@ export function PicksBenchmarkChart({
   height?: number;
   compact?: boolean;
 }) {
+  const { resolved } = useTheme();
+  const picksColor = PICKS_COLOR[resolved];
+  const chrome = CHART_CHROME[resolved];
   const { rows, benchmarks, picksLatestPct, startDate } = comparison;
 
   const summary = [
@@ -302,49 +375,54 @@ export function PicksBenchmarkChart({
         >
           <defs>
             <linearGradient id="picksGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={PICKS_COLOR} stopOpacity={0.16} />
-              <stop offset="100%" stopColor={PICKS_COLOR} stopOpacity={0} />
+              <stop offset="0%" stopColor={picksColor} stopOpacity={0.16} />
+              <stop offset="100%" stopColor={picksColor} stopOpacity={0} />
             </linearGradient>
           </defs>
           <CartesianGrid
             strokeDasharray="3 3"
-            stroke="#E5E5E5"
+            stroke={chrome.grid}
             vertical={false}
           />
           <XAxis
             dataKey="date"
             tick={{
               fontSize: 10,
-              fill: "#737373",
+              fill: chrome.tick,
               fontFamily: "IBM Plex Mono",
             }}
             tickFormatter={(d: string) => formatShortDate(d)}
-            stroke="#E5E5E5"
+            stroke={chrome.grid}
             minTickGap={compact ? 40 : 28}
             interval="preserveStartEnd"
           />
           <YAxis
             tick={{
               fontSize: 10,
-              fill: "#737373",
+              fill: chrome.tick,
               fontFamily: "IBM Plex Mono",
             }}
             tickFormatter={formatPctTick}
-            stroke="#E5E5E5"
+            stroke={chrome.grid}
             width={44}
             domain={["dataMin - 2", "dataMax + 2"]}
           />
           {/* Benchmarks can sit below zero; without this the break-even line is
               invisible and a negative benchmark reads as merely "low". */}
-          <ReferenceLine y={0} stroke="#D4D4D4" strokeWidth={1} />
+          <ReferenceLine y={0} stroke={chrome.referenceLine} strokeWidth={1} />
           <Tooltip
-            cursor={{ stroke: "#D4D4D4", strokeWidth: 1 }}
+            cursor={{ stroke: chrome.cursor, strokeWidth: 1 }}
             content={(props: unknown) => (
-              <ChartTooltip raw={props} benchmarks={benchmarks} />
+              <ChartTooltip
+                raw={props}
+                benchmarks={benchmarks}
+                theme={resolved}
+                picksColor={picksColor}
+              />
             )}
           />
           {benchmarks.map((b, i) => {
-            const style = styleFor(b.key, i);
+            const style = styleFor(resolved, b.key, i);
             return (
               <Line
                 key={b.key}
@@ -369,7 +447,7 @@ export function PicksBenchmarkChart({
             type="monotone"
             dataKey="picks"
             name={PICKS_LABEL}
-            stroke={PICKS_COLOR}
+            stroke={picksColor}
             strokeWidth={compact ? 2.5 : 3}
             fill="url(#picksGrad)"
             dot={false}

@@ -6,6 +6,13 @@ import { Footer } from "@/components/layout/footer";
 import { CookieBanner } from "@/components/layout/cookie-banner";
 import { FoundersBanner } from "@/components/landing/founders-banner";
 import { QueryProvider } from "@/components/providers/query-provider";
+import { ThemeProvider } from "@/components/providers/theme-provider";
+
+// Stamps the resolved theme class onto <html> before first paint so there is
+// no light->dark flash. Reads the persisted choice (or falls back to the OS
+// preference) using the same "outpick-theme" key and resolution rules as
+// ThemeProvider.
+const THEME_INIT_SCRIPT = `(function(){try{var s=localStorage.getItem("outpick-theme");var t=s==="light"||s==="dark"||s==="system"?s:"system";var d=t==="dark"||(t==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches);var r=document.documentElement;if(d){r.classList.add("dark")}r.style.colorScheme=d?"dark":"light"}catch(e){}})();`;
 
 const TITLE = `${SITE_NAME} — ${SITE_TAGLINE}`;
 
@@ -78,15 +85,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="bg-bg">
+    <html lang="en" className="bg-bg" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="font-sans antialiased text-text bg-bg min-h-screen selection:bg-accent-yellow/50">
-        <QueryProvider>
-          <FoundersBanner />
-          <Navbar />
-          <main>{children}</main>
-          <Footer />
-          <CookieBanner />
-        </QueryProvider>
+        <ThemeProvider>
+          <QueryProvider>
+            <FoundersBanner />
+            <Navbar />
+            <main>{children}</main>
+            <Footer />
+            <CookieBanner />
+          </QueryProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

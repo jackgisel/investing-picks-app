@@ -66,7 +66,7 @@ export default function LoginPage() {
             }}
             className={`flex-1 font-sans text-[11px] py-2.5 tracking-[0.1em] uppercase font-bold rounded-pill transition-colors ${
               mode === "login"
-                ? "bg-text text-white"
+                ? "bg-inverse text-inverse-fg"
                 : "text-text-dim hover:text-text"
             }`}
           >
@@ -79,7 +79,7 @@ export default function LoginPage() {
             }}
             className={`flex-1 font-sans text-[11px] py-2.5 tracking-[0.1em] uppercase font-bold rounded-pill transition-colors ${
               mode === "signup"
-                ? "bg-text text-white"
+                ? "bg-inverse text-inverse-fg"
                 : "text-text-dim hover:text-text"
             }`}
           >

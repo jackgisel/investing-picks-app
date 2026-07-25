@@ -71,7 +71,7 @@ export default function TradesPage() {
                 }}
                 className={`font-sans text-[10px] font-bold tracking-[0.1em] uppercase px-3.5 py-1.5 rounded-pill transition-colors ${
                   sideFilter === f
-                    ? "bg-text text-white"
+                    ? "bg-inverse text-inverse-fg"
                     : "text-text-dim hover:text-text bg-bg border border-border"
                 }`}
               >

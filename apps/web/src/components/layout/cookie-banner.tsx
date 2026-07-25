@@ -23,7 +23,7 @@ export function CookieBanner() {
   if (!visible) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-bg border-t border-border px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 z-[100] shadow-[0_-8px_30px_rgba(0,0,0,0.06)]">
+    <div className="fixed bottom-0 left-0 right-0 bg-bg border-t border-border px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 z-[100] shadow-[0_-8px_30px_rgba(0,0,0,0.06)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.5)]">
       <p className="font-sans text-[13px] text-text-muted">
         We use cookies to improve your experience.{" "}
         <a

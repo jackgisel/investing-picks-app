@@ -51,7 +51,7 @@ export function HowItWorks() {
     >
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(244,244,244,0.45)_0%,transparent_42%)]"
+        className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgb(var(--color-bg-secondary)/0.45)_0%,transparent_42%)]"
       />
 
       <div className="container-op relative py-20 sm:py-24">

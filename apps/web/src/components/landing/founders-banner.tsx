@@ -21,7 +21,7 @@ export function FoundersBanner() {
   if (pathname.startsWith("/dashboard") || !active) return null;
 
   return (
-    <div className="bg-text text-white">
+    <div className="bg-inverse text-inverse-fg">
       <div className="container-op py-2.5 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-3 text-center">
         <span className="font-sans text-[11px] sm:text-[12px] font-medium">
           Founders deal — {PRICING.foundersLabel} through Day{" "}

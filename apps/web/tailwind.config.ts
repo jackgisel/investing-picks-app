@@ -1,6 +1,9 @@
 import type { Config } from "tailwindcss";
 
+const withOpacity = (variable: string) => `rgb(var(${variable}) / <alpha-value>)`;
+
 const config: Config = {
+  darkMode: "class",
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -10,35 +13,43 @@ const config: Config = {
     extend: {
       colors: {
         bg: {
-          DEFAULT: "#FFFFFF",
-          secondary: "#F4F4F4",
-          tertiary: "#EBEBEB",
+          DEFAULT: withOpacity("--color-bg"),
+          secondary: withOpacity("--color-bg-secondary"),
+          tertiary: withOpacity("--color-bg-tertiary"),
         },
         border: {
-          DEFAULT: "#E5E5E5",
-          light: "#D4D4D4",
-          strong: "#0A0A0A",
+          DEFAULT: withOpacity("--color-border"),
+          light: withOpacity("--color-border-light"),
+          strong: withOpacity("--color-border-strong"),
         },
         accent: {
-          green: "#16A34A",
-          "green-soft": "#DCFCE7",
-          "green-hover": "#15803D",
-          red: "#DC2626",
-          "red-soft": "#FEE2E2",
-          purple: "#7C3AED",
-          "purple-soft": "#EDE9FE",
-          yellow: "#F5D76E",
-          peach: "#F0A86C",
-          lilac: "#C4B0E0",
-          mint: "#A8D9A0",
-          coral: "#F07167",
-          cyan: "#7EC8D8",
+          green: withOpacity("--color-accent-green"),
+          "green-soft": withOpacity("--color-accent-green-soft"),
+          "green-hover": withOpacity("--color-accent-green-hover"),
+          red: withOpacity("--color-accent-red"),
+          "red-soft": withOpacity("--color-accent-red-soft"),
+          purple: withOpacity("--color-accent-purple"),
+          "purple-soft": withOpacity("--color-accent-purple-soft"),
+          yellow: withOpacity("--color-accent-yellow"),
+          peach: withOpacity("--color-accent-peach"),
+          lilac: withOpacity("--color-accent-lilac"),
+          mint: withOpacity("--color-accent-mint"),
+          coral: withOpacity("--color-accent-coral"),
+          cyan: withOpacity("--color-accent-cyan"),
         },
         text: {
-          DEFAULT: "#0A0A0A",
-          muted: "#525252",
-          dim: "#737373",
+          DEFAULT: withOpacity("--color-text"),
+          muted: withOpacity("--color-text-muted"),
+          dim: withOpacity("--color-text-dim"),
         },
+        inverse: {
+          DEFAULT: withOpacity("--color-inverse"),
+          fg: withOpacity("--color-inverse-fg"),
+        },
+        // Ink for text sitting on the pastel accents. Those pastels are the same
+        // in both themes, so their foreground has to be too — `text` would flip
+        // to near-white and leave light-on-light chips.
+        "on-accent": withOpacity("--color-on-accent"),
       },
       fontFamily: {
         mono: ["IBM Plex Mono", "monospace"],

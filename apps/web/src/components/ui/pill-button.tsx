@@ -5,9 +5,9 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 type Variant = "solid" | "outline";
 
 const variants: Record<Variant, string> = {
-  solid: "bg-text text-white hover:bg-text/90 border border-transparent",
+  solid: "bg-inverse text-inverse-fg hover:bg-inverse/90 border border-transparent",
   outline:
-    "bg-bg text-text border border-border-strong hover:bg-text hover:text-white",
+    "bg-bg text-text border border-border-strong hover:bg-inverse hover:text-inverse-fg",
 };
 
 const base =
@@ -38,7 +38,7 @@ export function PillButton({
         <span
           className={cn(
             "inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] transition-transform duration-200 group-hover:translate-x-0.5",
-            variant === "solid" ? "bg-white/20" : "bg-text/10",
+            variant === "solid" ? "bg-inverse-fg/20" : "bg-text/10",
           )}
           aria-hidden
         >

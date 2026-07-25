@@ -498,7 +498,7 @@ function Toggle({
       >
         <span
           className={`inline-block h-4 w-4 transform transition-transform ${
-            enabled ? "translate-x-6 bg-black" : "translate-x-1 bg-text-muted"
+            enabled ? "translate-x-6 bg-inverse" : "translate-x-1 bg-text-muted"
           }`}
         />
       </button>
@@ -753,7 +753,7 @@ function DeleteAccountPanel() {
               setConfirming(true);
               setStatus({ kind: "idle" });
             }}
-            className="pill-outline !text-accent-red !border-accent-red/40 hover:!bg-accent-red hover:!text-white inline-flex items-center gap-2"
+            className="pill-outline !text-accent-red !border-accent-red/40 hover:!bg-accent-red hover:!text-inverse-fg inline-flex items-center gap-2"
           >
             <Trash2 size={12} />
             DELETE ACCOUNT
@@ -792,7 +792,7 @@ function DeleteAccountPanel() {
           type="button"
           onClick={handleRequestDelete}
           disabled={!canConfirm || status.kind === "saving"}
-          className="font-mono text-[11px] bg-accent-red text-white px-5 py-2.5 font-semibold tracking-wider hover:opacity-90 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
+          className="font-mono text-[11px] bg-accent-red text-inverse-fg px-5 py-2.5 font-semibold tracking-wider hover:opacity-90 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
         >
           {status.kind === "saving" ? "SENDING..." : "SEND CONFIRMATION EMAIL"}
         </button>

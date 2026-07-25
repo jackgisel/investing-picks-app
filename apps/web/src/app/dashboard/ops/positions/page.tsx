@@ -386,7 +386,7 @@ export default function OpsPositionsPage() {
                         onClick={() => setForm({ ...form, quantityMode: mode })}
                         className={`px-4 py-2 font-sans text-xs font-semibold uppercase tracking-[0.08em] transition-colors ${
                           form.quantityMode === mode
-                            ? "bg-text text-white"
+                            ? "bg-inverse text-inverse-fg"
                             : "bg-bg text-text-muted hover:text-text"
                         }`}
                       >

@@ -34,7 +34,7 @@ export function StatsBar() {
           className="pointer-events-none absolute inset-0 opacity-[0.3]"
           style={{
             backgroundImage:
-              "radial-gradient(circle at 1px 1px, rgba(10,10,10,0.05) 1px, transparent 0)",
+              "radial-gradient(circle at 1px 1px, rgb(var(--color-text) / 0.05) 1px, transparent 0)",
             backgroundSize: "22px 22px",
           }}
         />

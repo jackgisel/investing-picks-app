@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Menu, X, LogOut } from "lucide-react";
 import { OutpickWordmark } from "@/components/ui/outpick-logo";
 import { PillButton } from "@/components/ui/pill-button";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useSession, signOut } from "@/lib/auth-client";
 
 const LEFT_LINKS = [
@@ -71,6 +72,8 @@ export function Navbar() {
               </Link>
             ))}
 
+          <ThemeToggle />
+
           {session ? (
             <div className="flex items-center gap-3">
               {!isDashboard && (
@@ -115,6 +118,13 @@ export function Navbar() {
                 {link.label}
               </Link>
             ))}
+
+          <div className="flex items-center justify-between pt-4 pb-1">
+            <span className="font-sans text-[11px] font-bold tracking-[0.1em] uppercase text-text-dim">
+              Theme
+            </span>
+            <ThemeToggle />
+          </div>
 
           {session ? (
             <div className="pt-3 space-y-3">

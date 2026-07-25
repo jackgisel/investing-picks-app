@@ -4,6 +4,7 @@ import {
   renderNewPickEmail,
   renderDeleteAccountEmail,
   renderVerifyEmail,
+  renderMarketNoteWelcomeEmail,
 } from "@/lib/email-templates";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
@@ -22,6 +23,12 @@ type SendArgs = {
   subject: string;
   html: string;
   text?: string;
+  /**
+   * Extra MIME headers. Bulk sends must set List-Unsubscribe and
+   * List-Unsubscribe-Post — since 2024 Gmail and Yahoo throttle or spam-folder
+   * bulk senders that omit them, regardless of what the message body says.
+   */
+  headers?: Record<string, string>;
 };
 
 async function send(args: SendArgs): Promise<{ ok: boolean; error?: string }> {
@@ -42,6 +49,7 @@ async function send(args: SendArgs): Promise<{ ok: boolean; error?: string }> {
       subject: args.subject,
       html: args.html,
       text: args.text,
+      headers: args.headers,
     });
     if (result.error) {
       console.error("[email] Resend error:", result.error);
@@ -125,5 +133,46 @@ export async function sendVerifyEmail(args: {
     subject: `Verify your ${SITE_NAME} email address`,
     html,
     text,
+  });
+}
+
+/* ---------------------------- Market note welcome ---------------------------- */
+
+/**
+ * Two opt-out URLs, deliberately different.
+ *
+ * The visible footer link points at a page with a confirm button, because
+ * anti-malware scanners and mail clients prefetch GET links — a link that
+ * unsubscribes on GET quietly drops people who never clicked anything.
+ *
+ * The List-Unsubscribe header points at the API route instead, which only
+ * mutates on POST. That is exactly what RFC 8058 one-click requires, and mail
+ * providers issue it as a POST, so scanners never trigger it.
+ */
+export function marketNoteUnsubscribeUrl(token: string): string {
+  return `${SITE_URL}/market-note/unsubscribe?token=${encodeURIComponent(token)}`;
+}
+
+export function marketNoteOneClickUrl(token: string): string {
+  return `${SITE_URL}/api/market-note/unsubscribe?token=${encodeURIComponent(token)}`;
+}
+
+export async function sendMarketNoteWelcomeEmail(args: {
+  to: string;
+  token: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const unsubscribeUrl = marketNoteUnsubscribeUrl(args.token);
+  const html = renderMarketNoteWelcomeEmail({ unsubscribeUrl, siteUrl: SITE_URL });
+  const text = `You're on the list.\n\nEvery week we send one short read: what the model is seeing across ~3,600 US-listed stocks, which sectors are scoring, and what we make of it.\n\nTo be clear about what this is: the note is market commentary, not our picks. Published picks, the live portfolio, and the full research archive are for members only.\n\nOur track record is published in full: ${SITE_URL}/#track-record\n\nUnsubscribe any time: ${unsubscribeUrl}`;
+
+  return send({
+    to: args.to,
+    subject: `Welcome to the ${SITE_NAME} Market Note`,
+    html,
+    text,
+    headers: {
+      "List-Unsubscribe": `<${marketNoteOneClickUrl(args.token)}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    },
   });
 }

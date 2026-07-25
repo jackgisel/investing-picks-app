@@ -11,7 +11,7 @@ const variants: Record<Variant, string> = {
 };
 
 const base =
-  "inline-flex items-center justify-center gap-2 font-sans text-xs sm:text-sm font-semibold tracking-[0.08em] uppercase rounded-pill px-5 py-2.5 transition-all duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 focus-visible:ring-offset-bg";
+  "inline-flex items-center justify-center gap-2 font-sans text-xs sm:text-sm font-semibold tracking-[0.08em] uppercase rounded-pill px-5 py-2.5 transition-all duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0";
 
 interface PillButtonProps {
   children: ReactNode;

@@ -3,62 +3,14 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
 
-import { MarkdownProse } from "@/components/blog/markdown-prose";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
-
-const API_BASE = process.env.OUTPICK_API_URL
-  ? `${process.env.OUTPICK_API_URL.replace(/\/$/, "")}/api/v1`
-  : (process.env.ETF_API_URL || "http://localhost:8000/api/v1");
-
-interface BlogPostDetail {
-  slug: string;
-  title: string;
-  post_type: "pick" | "quarterly_review";
-  ticker: string | null;
-  quarter: string | null;
-  published_at: string;
-  short_reason: string | null;
-  content_md: string;
-  trade: { date: string; side: "buy" | "sell"; ticker: string } | null;
-}
-
-interface BlogPostSummary {
-  slug: string;
-  post_type: "pick" | "quarterly_review";
-}
+import { getInsightBySlug, insights } from "@/lib/insights";
+import { CategoryTag } from "@/components/ui/category-tag";
 
 type Params = { slug: string };
 
-async function fetchPost(slug: string): Promise<BlogPostDetail | null> {
-  try {
-    const res = await fetch(`${API_BASE}/blog/${encodeURIComponent(slug)}`, {
-      next: { revalidate: 3600 },
-    });
-    if (!res.ok) return null;
-    const text = await res.text();
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
-}
-
-async function fetchAllSlugs(): Promise<BlogPostSummary[]> {
-  try {
-    const res = await fetch(`${API_BASE}/blog?type=all&limit=500`, {
-      next: { revalidate: 3600 },
-    });
-    if (!res.ok) return [];
-    const text = await res.text();
-    const data = JSON.parse(text);
-    return data.posts ?? [];
-  } catch {
-    return [];
-  }
-}
-
-export async function generateStaticParams(): Promise<Params[]> {
-  const posts = await fetchAllSlugs();
-  return posts.map((p) => ({ slug: p.slug }));
+export function generateStaticParams(): Params[] {
+  return insights.map((i) => ({ slug: i.meta.slug }));
 }
 
 export async function generateMetadata({
@@ -67,34 +19,42 @@ export async function generateMetadata({
   params: Promise<Params>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const post = await fetchPost(slug);
-  if (!post) return {};
-  const url = `${SITE_URL}/insights/${post.slug}`;
-  const description =
-    post.short_reason || post.content_md.slice(0, 200).replace(/\n+/g, " ");
+  const insight = getInsightBySlug(slug);
+  if (!insight) return {};
+
+  const { meta } = insight;
+  const url = `${SITE_URL}/insights/${meta.slug}`;
+
   return {
-    title: post.title,
-    description,
+    title: meta.title,
+    description: meta.description,
     alternates: { canonical: url },
     openGraph: {
-      title: post.title,
-      description,
+      title: meta.title,
+      description: meta.description,
       url,
       siteName: SITE_NAME,
       type: "article",
-      publishedTime: post.published_at,
+      publishedTime: meta.publishedAt,
+      authors: meta.author ? [meta.author] : undefined,
+      tags: meta.tags,
     },
     twitter: {
       card: "summary_large_image",
-      title: post.title,
-      description,
+      title: meta.title,
+      description: meta.description,
     },
   };
 }
 
 function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  const d = new Date(iso + "T12:00:00Z");
+  return d.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 export default async function InsightDetailPage({
@@ -103,27 +63,35 @@ export default async function InsightDetailPage({
   params: Promise<Params>;
 }) {
   const { slug } = await params;
-  const post = await fetchPost(slug);
-  if (!post) notFound();
+  const insight = getInsightBySlug(slug);
+  if (!insight) notFound();
+
+  const { meta, Content } = insight;
 
   const categoryLabel =
-    post.post_type === "quarterly_review"
+    meta.postType === "quarterly_review"
       ? "QUARTERLY REVIEW"
-      : post.ticker
-        ? `PICK · ${post.ticker}`
+      : meta.ticker
+        ? `PICK · ${meta.ticker}`
         : "PICK";
+
+  const tone = meta.postType === "quarterly_review" ? "lilac" : "yellow";
 
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Article",
-    headline: post.title,
-    description: post.short_reason ?? "",
-    datePublished: post.published_at,
-    author: { "@type": "Organization", name: "Outpick Research", url: SITE_URL },
+    headline: meta.title,
+    description: meta.description,
+    datePublished: meta.publishedAt,
+    author: {
+      "@type": "Organization",
+      name: meta.author ?? "Outpick Research",
+      url: SITE_URL,
+    },
     publisher: { "@type": "Organization", name: SITE_NAME, url: SITE_URL },
     mainEntityOfPage: {
       "@type": "WebPage",
-      "@id": `${SITE_URL}/insights/${post.slug}`,
+      "@id": `${SITE_URL}/insights/${meta.slug}`,
     },
   };
 
@@ -145,29 +113,28 @@ export default async function InsightDetailPage({
             </Link>
 
             <div className="flex flex-wrap items-center gap-3 mb-6">
-              <span className="category-tag bg-accent-yellow">
-                {categoryLabel}
-              </span>
+              <CategoryTag tone={tone}>{categoryLabel}</CategoryTag>
               <span className="font-sans text-[13px] text-text-dim">
-                {formatDate(post.published_at)}
-                {post.quarter ? ` · ${post.quarter}` : ""}
+                {formatDate(meta.publishedAt)}
+                {meta.quarter ? ` · ${meta.quarter}` : ""}
+                {meta.readingTime ? ` · ${meta.readingTime} min read` : ""}
               </span>
             </div>
 
             <h1 className="font-sans text-[34px] sm:text-[42px] font-extrabold leading-[1.15] tracking-tight text-text max-w-[760px] mb-6">
-              {post.title}
+              {meta.title}
             </h1>
 
-            {post.short_reason && (
+            {meta.description && (
               <p className="font-sans text-[17px] text-text-muted leading-[1.6] max-w-[680px]">
-                {post.short_reason}
+                {meta.description}
               </p>
             )}
           </div>
         </header>
 
         <div className="container-op py-16">
-          <MarkdownProse markdown={post.content_md} />
+          <Content />
         </div>
       </article>
     </>

@@ -36,7 +36,15 @@ const faqs = [
   },
   {
     q: "Who runs Outpick?",
-    a: "An independent research publication operated by individuals — not a registered adviser, broker-dealer, or bank. Our only revenue is membership fees; we don't accept advertising or sponsored content.",
+    a: "Outpick is an independent equity research firm. We publish under the firm's name rather than a founder's, because we'd rather be judged on the record than on a biography — the model, the picks, the live portfolio, and every closed trade are on this site for exactly that reason. We are not a registered adviser, broker-dealer, or bank, and membership fees are our only revenue: no advertising, no sponsored content, no affiliate links.",
+  },
+  {
+    q: "Why should I trust research from a firm that doesn't name its analysts?",
+    a: "You shouldn't trust it — you should check it. That's the point of publishing the methodology, the walk-forward validation windows, the full backtest including drawdown and win rate, and every live entry and exit as it happens. A name and a headshot are not evidence. A verifiable record is. If the record stops holding up, you'll see it here before you hear it from us.",
+  },
+  {
+    q: "What is the Market Note?",
+    a: "A free weekly email: what the model is scoring across ~3,600 US-listed stocks, which sectors are moving, and how we read the current cycle. It's market commentary, not our picks — published picks and the live portfolio are members-only. One click unsubscribes, and we never share your address.",
   },
   {
     q: "Do you guarantee returns?",

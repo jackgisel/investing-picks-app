@@ -35,6 +35,12 @@ function shell(args: {
   preview: string;
   bodyHtml: string;
   siteUrl: string;
+  /**
+   * Footer opt-out link. Defaults to the account settings page, which is right
+   * for transactional mail to members — but market-note subscribers have no
+   * account, so those sends pass a tokenised one-click unsubscribe instead.
+   */
+  unsubscribe?: { url: string; label: string };
 }): string {
   const preview = escapeHtml(args.preview);
   return `<!doctype html>
@@ -97,7 +103,7 @@ function shell(args: {
                 ${escapeHtml(SITE_NAME)} is an independent equity research publication. Not investment advice. Past performance does not guarantee future results.
               </p>
               <p style="margin:0 0 4px 0;font-family:${FONT_MONO};font-size:10px;color:${COLOR_TEXT_DIM};letter-spacing:1.5px;text-transform:uppercase;">
-                <a href="${args.siteUrl}/dashboard/settings" style="color:${COLOR_TEXT_DIM};text-decoration:underline;">Manage email preferences</a>
+                <a href="${args.unsubscribe?.url ?? `${args.siteUrl}/dashboard/settings`}" style="color:${COLOR_TEXT_DIM};text-decoration:underline;">${escapeHtml(args.unsubscribe?.label ?? "Manage email preferences")}</a>
                 &nbsp;·&nbsp;
                 <a href="${args.siteUrl}" style="color:${COLOR_TEXT_DIM};text-decoration:underline;">${escapeHtml(args.siteUrl.replace(/^https?:\/\//, ""))}</a>
               </p>
@@ -281,5 +287,67 @@ export function renderVerifyEmail(args: {
     preview: `Verify your ${SITE_NAME} email address`,
     bodyHtml: body,
     siteUrl: args.siteUrl,
+  });
+}
+
+/* ----------------------- Market note welcome email ----------------------- */
+
+export function renderMarketNoteWelcomeEmail(args: {
+  unsubscribeUrl: string;
+  siteUrl: string;
+}): string {
+  const body = `
+    <p style="margin:0 0 8px 0;font-family:${FONT_MONO};font-size:10px;color:${COLOR_GREEN};letter-spacing:3px;text-transform:uppercase;">
+      You're on the list
+    </p>
+    <h1 class="h1" style="margin:0 0 22px 0;font-family:${FONT_SANS};font-size:26px;line-height:1.2;font-weight:700;color:${COLOR_TEXT};letter-spacing:-0.3px;">
+      The Market Note lands every week
+    </h1>
+
+    <p style="margin:0 0 20px 0;font-family:${FONT_SANS};font-size:15px;color:${COLOR_TEXT_MUTED};line-height:1.65;">
+      Every week we send one short read: what the model is seeing across ~3,600
+      US-listed stocks, which sectors are scoring, and what we make of it. No
+      hype, no urgency, no forwarding your address to anyone.
+    </p>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px 0;background:${COLOR_BG_SECONDARY};border:1px solid ${COLOR_BORDER};">
+      <tr>
+        <td style="padding:18px 20px;">
+          <p style="margin:0 0 10px 0;font-family:${FONT_MONO};font-size:10px;color:${COLOR_TEXT_DIM};letter-spacing:2px;text-transform:uppercase;">
+            To be clear about what this is
+          </p>
+          <p style="margin:0;font-family:${FONT_SANS};font-size:14px;color:${COLOR_TEXT_MUTED};line-height:1.6;">
+            The note is market commentary, not our picks. Published picks, the
+            live portfolio, and the full research archive are for members only.
+          </p>
+        </td>
+      </tr>
+    </table>
+
+    <p style="margin:0 0 28px 0;font-family:${FONT_SANS};font-size:15px;color:${COLOR_TEXT_MUTED};line-height:1.65;">
+      While you wait for the first one, our track record — backtest, live book,
+      wins and losses — is published in full on the site.
+    </p>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 28px 0;">
+      <tr>
+        <td style="background:${COLOR_GREEN};">
+          <a class="btn" href="${args.siteUrl}/#track-record" style="display:inline-block;padding:14px 32px;font-family:${FONT_MONO};font-size:12px;font-weight:600;color:#000;letter-spacing:2px;text-transform:uppercase;text-decoration:none;background:${COLOR_GREEN};">
+            See the track record →
+          </a>
+        </td>
+      </tr>
+    </table>
+
+    <p style="margin:0;font-family:${FONT_SANS};font-size:12px;color:${COLOR_TEXT_DIM};line-height:1.6;">
+      Didn't sign up? <a href="${args.unsubscribeUrl}" style="color:${COLOR_GREEN};text-decoration:underline;">Remove yourself here</a> — one click, no questions.
+    </p>
+  `;
+
+  return shell({
+    preview: `Welcome to the ${SITE_NAME} Market Note — one short read every week.`,
+    bodyHtml: body,
+    siteUrl: args.siteUrl,
+    unsubscribe: { url: args.unsubscribeUrl, label: "Unsubscribe" },
   });
 }

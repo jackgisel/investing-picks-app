@@ -6,7 +6,6 @@ import { BACKTEST } from "@/lib/constants";
 import {
   computePortfolioReturnPct,
   countDoubledWinners,
-  describeLiveCagr,
   resolveLiveCagr,
   formatPct,
 } from "@/lib/portfolio";
@@ -16,11 +15,9 @@ export function StatsBar() {
   const { data: chart } = useChart();
   const totalReturnPct = computePortfolioReturnPct(strategy);
   const hasReturn = totalReturnPct !== null;
-  // Same resolver the track-record card uses, so "Day N" and the CAGR window
-  // are one number rather than two that can disagree by two orders of magnitude.
+  // Same resolver the track-record card uses, so the two sections can never
+  // disagree about whether the live window is long enough to annualize.
   const cagr = resolveLiveCagr(totalReturnPct, chart?.summary);
-  const days = cagr.daysLive;
-  const cagrNote = describeLiveCagr(cagr);
   const liveDoubled = countDoubledWinners(strategy?.holdings);
 
   return (
@@ -48,34 +45,26 @@ export function StatsBar() {
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-accent-green" />
                 </span>
                 <p className="font-sans text-[10px] font-bold tracking-[0.16em] uppercase text-text-dim op-live-glow">
-                  Live example portfolio · Day {days}
+                  Live portfolio · trading now
                 </p>
               </div>
-              {/* When the window is too short to annualize, the realized total
-                  return leads instead. Showing a real number beats an
-                  unexplained em-dash, and beats a projection dressed up as a
-                  result. */}
+              {/* Realized total return leads, always. An annualized figure
+                  extrapolated from a few months is a projection wearing a
+                  result's clothes, so it only ever appears as the secondary
+                  number — and the "Day N" badge stays in the track-record
+                  section, where there is room to explain what it means. */}
               <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
-                {cagr.value !== null ? (
-                  <>
-                    <p className="font-mono text-[26px] sm:text-[30px] font-bold tracking-tight text-accent-green">
-                      {formatPct(cagr.value)}
-                      <span className="font-sans text-[11px] font-bold tracking-[0.14em] uppercase text-text-dim ml-2 align-middle">
-                        CAGR
-                      </span>
-                    </p>
-                    <p className="font-mono text-[17px] font-bold text-text">
-                      {hasReturn ? formatPct(totalReturnPct!) : "—"}
-                      <span className="font-sans text-[10px] font-bold tracking-[0.12em] uppercase text-text-dim ml-2">
-                        total
-                      </span>
-                    </p>
-                  </>
-                ) : (
-                  <p className="font-mono text-[26px] sm:text-[30px] font-bold tracking-tight text-accent-green">
-                    {hasReturn ? formatPct(totalReturnPct!) : "—"}
-                    <span className="font-sans text-[11px] font-bold tracking-[0.14em] uppercase text-text-dim ml-2 align-middle">
-                      total return
+                <p className="font-mono text-[26px] sm:text-[30px] font-bold tracking-tight text-accent-green">
+                  {hasReturn ? formatPct(totalReturnPct!) : "—"}
+                  <span className="font-sans text-[11px] font-bold tracking-[0.14em] uppercase text-text-dim ml-2 align-middle">
+                    total return
+                  </span>
+                </p>
+                {cagr.value !== null && (
+                  <p className="font-mono text-[15px] font-bold text-text-muted">
+                    {formatPct(cagr.value)}
+                    <span className="font-sans text-[10px] font-bold tracking-[0.12em] uppercase text-text-dim ml-2">
+                      annualized
                     </span>
                   </p>
                 )}
@@ -85,11 +74,9 @@ export function StatsBar() {
                   </p>
                 )}
               </div>
-              {cagrNote && (
-                <p className="font-sans text-[10px] text-text-dim mt-2 leading-snug max-w-[46ch]">
-                  {cagrNote}
-                </p>
-              )}
+              <p className="font-sans text-[10px] text-text-dim mt-2 leading-snug max-w-[46ch]">
+                Every entry, exit, and thesis published as it happens.
+              </p>
             </div>
 
             <div className="op-animate-rise op-animate-rise-delay-1 xl:flex-1 xl:pl-10">

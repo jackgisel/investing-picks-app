@@ -50,4 +50,30 @@ export async function runAppMigrations() {
     ALTER TABLE "user"
       ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE
   `);
+
+  // Weekly market note list. Deliberately NOT keyed to "user" — the whole point
+  // is capturing people who have not signed up for an account, so this table
+  // stands alone and an address may exist here, in "user", or in both.
+  //
+  // `token` is the unsubscribe capability: it is the only thing the one-click
+  // unsubscribe link carries, so it must be unguessable. Unsubscribing sets
+  // unsubscribed_at rather than deleting the row, so a resubscribe does not
+  // silently reset a prior opt-out and we keep an auditable record of consent.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS market_note_subscriber (
+      id BIGSERIAL PRIMARY KEY,
+      email TEXT NOT NULL UNIQUE,
+      token TEXT NOT NULL UNIQUE,
+      source TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      unsubscribed_at TIMESTAMPTZ
+    )
+  `);
+
+  // Partial index: every send scans for active subscribers only.
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS market_note_subscriber_active_idx
+      ON market_note_subscriber(created_at)
+      WHERE unsubscribed_at IS NULL
+  `);
 }

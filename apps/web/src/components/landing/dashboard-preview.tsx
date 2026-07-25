@@ -1,12 +1,27 @@
+"use client";
+
 import { BACKTEST, FINAL_HOLDINGS, WINNERS_CIRCLE } from "@/lib/constants";
 import { PillButton } from "@/components/ui/pill-button";
+import { useSession } from "@/lib/auth-client";
 
 const visibleHoldings = 3;
-const displayHoldings = FINAL_HOLDINGS.slice(0, 8);
 const visibleWinners = 3;
-const displayWinners = WINNERS_CIRCLE.slice(0, 6);
 
+/**
+ * A free account unlocks the full *backtest* record — never the live picks.
+ *
+ * This is a presentation gate, not a paywall: FINAL_HOLDINGS and WINNERS_CIRCLE
+ * are compile-time constants that ship in the client bundle either way, and the
+ * backtest is history we are happy to publish. The live portfolio and current
+ * picks are enforced server-side in lib/api-gate.ts, which is the real boundary.
+ */
 export function DashboardPreview() {
+  const { data: session } = useSession();
+  const unlocked = Boolean(session?.user);
+
+  const displayHoldings = unlocked ? FINAL_HOLDINGS : FINAL_HOLDINGS.slice(0, 8);
+  const displayWinners = unlocked ? WINNERS_CIRCLE : WINNERS_CIRCLE.slice(0, 6);
+
   return (
     <section id="performance" className="relative border-b border-border overflow-hidden">
       <div
@@ -24,8 +39,8 @@ export function DashboardPreview() {
             <p className="section-sub mb-0 max-w-[500px]">
               Total return tells part of the story. What matters is how many
               high-conviction picks become multi-baggers — and how the model
-              finds them. Members see every holding, winner, and loser in full
-              detail.
+              finds them. A free account opens the whole backtest record, losses
+              and all; no card, no trial clock.
             </p>
           </div>
 
@@ -75,7 +90,7 @@ export function DashboardPreview() {
                 <tbody>
                   {displayHoldings.map((h, i) => {
                     const isNegative = h.ret.startsWith("-");
-                    const blurred = i >= visibleHoldings;
+                    const blurred = !unlocked && i >= visibleHoldings;
                     return (
                       <tr
                         key={`${h.ticker}-${i}`}
@@ -124,7 +139,7 @@ export function DashboardPreview() {
               </div>
               <div className="flex flex-wrap gap-2">
                 {displayWinners.map((w, i) => {
-                  const blurred = i >= visibleWinners;
+                  const blurred = !unlocked && i >= visibleWinners;
                   return (
                     <span
                       key={`${w.ticker}-${w.entry}-${i}`}
@@ -153,17 +168,41 @@ export function DashboardPreview() {
                 className="pointer-events-none absolute inset-x-0 -top-16 h-16 bg-gradient-to-b from-transparent to-bg"
               />
               <div className="text-center py-8 sm:py-10 px-6">
-                <p className="font-sans text-[14px] text-text-muted mb-1">
-                  {FINAL_HOLDINGS.length - visibleHoldings} more holdings +{" "}
-                  {BACKTEST.winnersCircle - visibleWinners} more winners in the
-                  full portfolio
-                </p>
-                <p className="font-sans text-[12px] text-text-dim mb-5">
-                  Sharpe {BACKTEST.sharpe} · max drawdown {BACKTEST.maxDrawdown}
-                </p>
-                <PillButton href="/dashboard" variant="outline" arrow>
-                  Unlock full access
-                </PillButton>
+                {unlocked ? (
+                  <>
+                    <p className="font-sans text-[14px] text-text-muted mb-1">
+                      That&apos;s the complete backtest record — all{" "}
+                      {FINAL_HOLDINGS.length} closing positions and all{" "}
+                      {BACKTEST.winnersCircle} doubles, losses included.
+                    </p>
+                    <p className="font-sans text-[12px] text-text-dim mb-5">
+                      The live portfolio and current picks are members-only.
+                    </p>
+                    <PillButton href="/#pricing" arrow>
+                      See membership
+                    </PillButton>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-sans text-[14px] text-text-muted mb-1">
+                      {FINAL_HOLDINGS.length - visibleHoldings} more holdings +{" "}
+                      {BACKTEST.winnersCircle - visibleWinners} more winners in
+                      the full backtest record
+                    </p>
+                    <p className="font-sans text-[12px] text-text-dim mb-5">
+                      Sharpe {BACKTEST.sharpe} · max drawdown{" "}
+                      {BACKTEST.maxDrawdown} — free account, no card
+                    </p>
+                    <div className="flex flex-wrap gap-3 justify-center">
+                      <PillButton href="/login" arrow>
+                        Unlock the full record — free
+                      </PillButton>
+                      <PillButton href="/#pricing" variant="outline">
+                        See membership
+                      </PillButton>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>

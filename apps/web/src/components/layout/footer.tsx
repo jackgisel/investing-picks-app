@@ -49,6 +49,14 @@ export function Footer() {
                 </li>
                 <li>
                   <Link
+                    href="/#market-note"
+                    className="font-sans text-[13px] font-semibold tracking-[0.08em] uppercase text-text-muted hover:text-text transition-colors"
+                  >
+                    Market Note
+                  </Link>
+                </li>
+                <li>
+                  <Link
                     href="/#pricing"
                     className="font-sans text-[13px] font-semibold tracking-[0.08em] uppercase text-text-muted hover:text-text transition-colors"
                   >

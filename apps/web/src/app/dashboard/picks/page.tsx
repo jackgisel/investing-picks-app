@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/data-state";
 import { Filter, ArrowUpDown } from "lucide-react";
 import { formatPct } from "@/lib/portfolio";
+import { getInsightSlugByTicker } from "@/lib/insight-links";
 
 type SortKey = "pnl_pct" | "entry_date" | "ticker";
 type SortDir = "asc" | "desc";
@@ -160,54 +161,58 @@ export default function PicksPage() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((p, i) => (
-                  <tr
-                    key={`${p.ticker}-${p.entry_date}-${i}`}
-                    className="border-b border-border last:border-b-0 hover:bg-bg-tertiary/50 transition-colors"
-                  >
-                    <td className="px-5 py-3.5">
-                      {p.blog_slug ? (
-                        <Link
-                          href={`/insights/${p.blog_slug}`}
-                          className="font-mono font-semibold text-[14px] text-text font-semibold underline underline-offset-2 hover:opacity-70 underline-offset-4"
+                filtered.map((p, i) => {
+                  const insightSlug =
+                    p.blog_slug ?? getInsightSlugByTicker(p.ticker);
+                  return (
+                    <tr
+                      key={`${p.ticker}-${p.entry_date}-${i}`}
+                      className="border-b border-border last:border-b-0 hover:bg-bg-tertiary/50 transition-colors"
+                    >
+                      <td className="px-5 py-3.5">
+                        {insightSlug ? (
+                          <Link
+                            href={`/insights/${insightSlug}`}
+                            className="font-mono font-semibold text-[14px] text-text underline underline-offset-2 hover:opacity-70 underline-offset-4"
+                          >
+                            {p.ticker}
+                          </Link>
+                        ) : (
+                          <span className="font-mono font-semibold text-[14px]">
+                            {p.ticker}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span
+                          className={`badge ${
+                            p.status === "active" ? "badge-buy" : "badge-sell"
+                          }`}
                         >
-                          {p.ticker}
-                        </Link>
-                      ) : (
-                        <span className="font-mono font-semibold text-[14px]">
-                          {p.ticker}
+                          {p.status.toUpperCase()}
                         </span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span
-                        className={`badge ${
-                          p.status === "active" ? "badge-buy" : "badge-sell"
+                      </td>
+                      <td className="px-5 py-3.5 font-mono text-[12px] text-text-muted">
+                        {p.entry_date}
+                      </td>
+                      <td className="px-5 py-3.5 font-mono text-[12px] text-text-muted">
+                        {p.exit_date ?? "—"}
+                      </td>
+                      <td
+                        className={`px-5 py-3.5 font-mono text-[13px] font-semibold ${
+                          (p.pnl_pct ?? 0) >= 0
+                            ? "text-accent-green"
+                            : "text-accent-red"
                         }`}
                       >
-                        {p.status.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5 font-mono text-[12px] text-text-muted">
-                      {p.entry_date}
-                    </td>
-                    <td className="px-5 py-3.5 font-mono text-[12px] text-text-muted">
-                      {p.exit_date ?? "—"}
-                    </td>
-                    <td
-                      className={`px-5 py-3.5 font-mono text-[13px] font-semibold ${
-                        (p.pnl_pct ?? 0) >= 0
-                          ? "text-accent-green"
-                          : "text-accent-red"
-                      }`}
-                    >
-                      {formatPct(p.pnl_pct ?? 0)}
-                    </td>
-                    <td className="px-5 py-3.5 font-sans text-[11px] text-text-dim max-w-[220px] truncate">
-                      {p.exit_reason || "—"}
-                    </td>
-                  </tr>
-                ))
+                        {formatPct(p.pnl_pct ?? 0)}
+                      </td>
+                      <td className="px-5 py-3.5 font-sans text-[11px] text-text-dim max-w-[220px] truncate">
+                        {p.exit_reason || "—"}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

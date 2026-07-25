@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/lib/constants";
 import { articles } from "@/lib/blog";
+import { insights } from "@/lib/insights";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
@@ -14,6 +15,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
     {
       url: `${SITE_URL}/blog`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.9,
+    },
+    {
+      url: `${SITE_URL}/insights`,
       lastModified: now,
       changeFrequency: "weekly",
       priority: 0.9,
@@ -51,5 +58,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.7,
   }));
 
-  return [...staticRoutes, ...blogRoutes];
+  const insightRoutes: MetadataRoute.Sitemap = insights.map((i) => ({
+    url: `${SITE_URL}/insights/${i.meta.slug}`,
+    lastModified: new Date(i.meta.publishedAt + "T12:00:00Z"),
+    changeFrequency: "monthly" as const,
+    priority: 0.7,
+  }));
+
+  return [...staticRoutes, ...blogRoutes, ...insightRoutes];
 }

@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import type { ArticleMeta, Article } from "@/lib/blog";
 import { ArticleCard } from "./article-card";
 import { CategoryTag, type PastelTone } from "@/components/ui/category-tag";
+import { MarketNoteSignup } from "@/components/marketing/market-note-signup";
 
 function formatDate(iso: string): string {
   const d = new Date(iso + "T12:00:00Z");
@@ -76,6 +77,19 @@ export function PostLayout({
       </header>
 
       <div className="container-op py-16">{children}</div>
+
+      {/* The end of an article is the highest-intent moment on the marketing
+          site: they just read 1,500 words voluntarily. Ask for the email here,
+          not for the sale. */}
+      <section className="border-t border-border">
+        <div className="container-op py-14">
+          <MarketNoteSignup
+            source={`blog:${meta.slug}`}
+            variant="panel"
+            className="max-w-[620px]"
+          />
+        </div>
+      </section>
 
       {related.length > 0 && (
         <section className="border-t border-border bg-bg-secondary/40">

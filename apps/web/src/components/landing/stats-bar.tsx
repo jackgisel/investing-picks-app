@@ -4,11 +4,10 @@ import { useStrategy } from "@/lib/hooks/use-strategy";
 import { useChart } from "@/lib/hooks/use-chart";
 import { BACKTEST } from "@/lib/constants";
 import {
-  computeAnnualizedReturn,
   computePortfolioReturnPct,
   countDoubledWinners,
-  daysSinceInception,
-  liveAccrualDays,
+  describeLiveCagr,
+  resolveLiveCagr,
   formatPct,
 } from "@/lib/portfolio";
 
@@ -16,12 +15,12 @@ export function StatsBar() {
   const { data: strategy } = useStrategy();
   const { data: chart } = useChart();
   const totalReturnPct = computePortfolioReturnPct(strategy);
-  const days = daysSinceInception();
-  const accrualDays = liveAccrualDays(chart?.summary);
   const hasReturn = totalReturnPct !== null;
-  const liveCagr = hasReturn
-    ? computeAnnualizedReturn(totalReturnPct!, accrualDays)
-    : null;
+  // Same resolver the track-record card uses, so "Day N" and the CAGR window
+  // are one number rather than two that can disagree by two orders of magnitude.
+  const cagr = resolveLiveCagr(totalReturnPct, chart?.summary);
+  const days = cagr.daysLive;
+  const cagrNote = describeLiveCagr(cagr);
   const liveDoubled = countDoubledWinners(strategy?.holdings);
 
   return (
@@ -52,25 +51,45 @@ export function StatsBar() {
                   Live example portfolio · Day {days}
                 </p>
               </div>
+              {/* When the window is too short to annualize, the realized total
+                  return leads instead. Showing a real number beats an
+                  unexplained em-dash, and beats a projection dressed up as a
+                  result. */}
               <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
-                <p className="font-mono text-[26px] sm:text-[30px] font-bold tracking-tight text-accent-green">
-                  {liveCagr !== null ? formatPct(liveCagr) : "—"}
-                  <span className="font-sans text-[11px] font-bold tracking-[0.14em] uppercase text-text-dim ml-2 align-middle">
-                    CAGR
-                  </span>
-                </p>
-                <p className="font-mono text-[17px] font-bold text-text">
-                  {hasReturn ? formatPct(totalReturnPct!) : "—"}
-                  <span className="font-sans text-[10px] font-bold tracking-[0.12em] uppercase text-text-dim ml-2">
-                    total
-                  </span>
-                </p>
+                {cagr.value !== null ? (
+                  <>
+                    <p className="font-mono text-[26px] sm:text-[30px] font-bold tracking-tight text-accent-green">
+                      {formatPct(cagr.value)}
+                      <span className="font-sans text-[11px] font-bold tracking-[0.14em] uppercase text-text-dim ml-2 align-middle">
+                        CAGR
+                      </span>
+                    </p>
+                    <p className="font-mono text-[17px] font-bold text-text">
+                      {hasReturn ? formatPct(totalReturnPct!) : "—"}
+                      <span className="font-sans text-[10px] font-bold tracking-[0.12em] uppercase text-text-dim ml-2">
+                        total
+                      </span>
+                    </p>
+                  </>
+                ) : (
+                  <p className="font-mono text-[26px] sm:text-[30px] font-bold tracking-tight text-accent-green">
+                    {hasReturn ? formatPct(totalReturnPct!) : "—"}
+                    <span className="font-sans text-[11px] font-bold tracking-[0.14em] uppercase text-text-dim ml-2 align-middle">
+                      total return
+                    </span>
+                  </p>
+                )}
                 {liveDoubled > 0 && (
                   <p className="font-mono text-[15px] font-bold text-accent-green">
                     {liveDoubled}× doubled
                   </p>
                 )}
               </div>
+              {cagrNote && (
+                <p className="font-sans text-[10px] text-text-dim mt-2 leading-snug max-w-[46ch]">
+                  {cagrNote}
+                </p>
+              )}
             </div>
 
             <div className="op-animate-rise op-animate-rise-delay-1 xl:flex-1 xl:pl-10">

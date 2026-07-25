@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getAdminUser } from "@/lib/admin";
 import { getServerUser } from "@/lib/server-session";
 import { getSubscription } from "@/lib/subscription";
 
@@ -12,6 +13,11 @@ import { getSubscription } from "@/lib/subscription";
  *  - PUBLIC:     aggregate numbers the marketing site needs to render.
  *  - SUBSCRIBER: anything that identifies a position (tickers, entry dates,
  *                trade history).
+ *
+ * Entitlement has two independent grants: a live Paddle subscription, or being
+ * an admin. Admins own the product and must see exactly what a subscriber sees
+ * — without a grant they were served the anonymised payload and their own
+ * dashboard rendered blank tickers and "Entered —" for every row.
  */
 
 /** Statuses that still grant access. */
@@ -21,21 +27,71 @@ const ENTITLED = new Set(["active", "trialing", "past_due"]);
 // churn than the few days of access costs. `paused` and `canceled` do not.
 
 export type Access =
-  | { entitled: true; userId: string }
+  | { entitled: true; userId: string; via: "subscription" | "admin" }
   | { entitled: false; reason: "anonymous" | "unsubscribed" };
 
-export async function getAccess(): Promise<Access> {
-  const user = await getServerUser();
+/**
+ * The entitlement decision table, with every lookup injected so it can be
+ * exercised without a database. `scripts/test-api-gate.mjs` mirrors this
+ * function — if you change the decision logic, change it there too.
+ *
+ *   anonymous          -> not entitled, "anonymous"   (401)
+ *   signed in, no sub   -> not entitled, "unsubscribed" (402)
+ *   entitled sub        -> entitled via "subscription"
+ *   admin, no sub       -> entitled via "admin"
+ *   admin + sub         -> entitled via "subscription" (no admin lookup)
+ *
+ * Order matters for cost as well as correctness: `getAccess()` runs on every
+ * gated request, so the subscription is resolved first and `isAdmin` is only
+ * awaited for callers the subscription did not already entitle. Ordinary
+ * subscribers therefore pay exactly the same one round-trip they did before.
+ */
+export async function decideAccess(deps: {
+  getUser: () => Promise<{ id: string } | null>;
+  /** Resolves the Paddle status. Throwing is treated as "not entitled". */
+  getSubscriptionStatus: (userId: string) => Promise<string>;
+  /** Resolves admin-ness for the current session. Throwing is "not admin". */
+  isAdmin: () => Promise<boolean>;
+}): Promise<Access> {
+  const user = await deps.getUser();
   if (!user) return { entitled: false, reason: "anonymous" };
+
+  let subscribed = false;
   try {
-    const sub = await getSubscription(user.id);
-    if (ENTITLED.has(sub.status)) return { entitled: true, userId: user.id };
-    return { entitled: false, reason: "unsubscribed" };
+    subscribed = ENTITLED.has(await deps.getSubscriptionStatus(user.id));
   } catch (e) {
     // Fail closed — a DB error must not hand out the paid product.
     console.error("Subscription lookup failed:", e);
-    return { entitled: false, reason: "unsubscribed" };
   }
+  if (subscribed) {
+    return { entitled: true, userId: user.id, via: "subscription" };
+  }
+
+  // Second grant, only reached by non-subscribers. A failed subscription
+  // lookup lands here too, but that does not weaken anything: this path grants
+  // access on a positive admin determination, never on an error.
+  try {
+    if (await deps.isAdmin()) {
+      return { entitled: true, userId: user.id, via: "admin" };
+    }
+  } catch (e) {
+    // Fail closed — same rule as above. getAdminUser() already swallows its own
+    // query errors, but ensureMigrations()/session resolution can still throw.
+    console.error("Admin lookup failed:", e);
+  }
+
+  return { entitled: false, reason: "unsubscribed" };
+}
+
+export async function getAccess(): Promise<Access> {
+  return decideAccess({
+    getUser: getServerUser,
+    getSubscriptionStatus: async (userId) => (await getSubscription(userId)).status,
+    // Reuse the single admin resolution in lib/admin.ts (ADMIN_EMAILS on a
+    // verified address, plus the persisted `user.is_admin` column). A second,
+    // parallel notion of admin here is how the two drift apart.
+    isAdmin: async () => (await getAdminUser()) !== null,
+  });
 }
 
 /** 402 for a signed-in non-subscriber, 401 for anonymous. */

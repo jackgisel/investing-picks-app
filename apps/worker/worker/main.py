@@ -15,7 +15,12 @@ _API = os.path.join(_ROOT, "apps", "api")
 if _API not in sys.path:
     sys.path.insert(0, _API)
 
-from worker.jobs.runner import job_biweekly_evaluate, job_daily_marks, job_weekly_refresh
+from worker.jobs.runner import (
+    job_backfill_snapshots,
+    job_biweekly_evaluate,
+    job_daily_marks,
+    job_weekly_refresh,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 log = logging.getLogger("worker")
@@ -52,6 +57,9 @@ def main():
             "daily_marks": job_daily_marks,
             "weekly_refresh": job_weekly_refresh,
             "biweekly_evaluate": job_biweekly_evaluate,
+            # Not on any schedule — a one-shot repair, dry run unless
+            # BACKFILL_COMMIT is set.
+            "backfill_snapshots": job_backfill_snapshots,
         }[name]()
         return
 

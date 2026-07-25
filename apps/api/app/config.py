@@ -4,6 +4,12 @@ from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# The historical default. Treated as "unset" everywhere outside local dev so a
+# missing OPS_API_KEY can never leave the ops surface wide open in production.
+DEV_OPS_KEY = "dev-ops-key"
+
+LOCAL_ENVS = {"local", "dev", "development", "test", "testing"}
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -13,10 +19,50 @@ class Settings(BaseSettings):
     fmp_api_key: str = ""
     fmp_base_url: str = "https://financialmodelingprep.com/api/v3"
     initial_cash: float = 100_000.0
-    ops_api_key: str = "dev-ops-key"
+    # No fail-open default. Local dev falls back to DEV_OPS_KEY via
+    # `effective_ops_key`; anywhere else an unset key disables ops entirely.
+    ops_api_key: str = ""
     cors_origins: str = "http://localhost:3000"
+    # Set APP_ENV=production (or ENVIRONMENT=production) on real deployments.
+    app_env: str = "development"
+
+    @property
+    def is_local_dev(self) -> bool:
+        return self.app_env.strip().lower() in LOCAL_ENVS
+
+    @property
+    def ops_key_config_error(self) -> str | None:
+        """Human-readable reason the ops key is unusable, or None if it's fine."""
+        key = (self.ops_api_key or "").strip()
+        if key and key != DEV_OPS_KEY:
+            return None
+        if self.is_local_dev:
+            return None
+        reason = "unset" if not key else "still the shared dev default"
+        return (
+            f"OPS_API_KEY is {reason} while APP_ENV={self.app_env!r}. "
+            "Set OPS_API_KEY to a strong random secret (and the same value on "
+            "the web app) or set APP_ENV to a local value."
+        )
+
+    @property
+    def effective_ops_key(self) -> str:
+        """The key ops requests must present. Empty string means ops is disabled."""
+        key = (self.ops_api_key or "").strip()
+        if key and (key != DEV_OPS_KEY or self.is_local_dev):
+            return key
+        if self.is_local_dev:
+            return DEV_OPS_KEY
+        return ""
 
 
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def assert_ops_key_configured() -> None:
+    """Raise at import/startup time when the ops key would fail open."""
+    problem = get_settings().ops_key_config_error
+    if problem:
+        raise RuntimeError(problem)

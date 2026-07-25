@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 
 export default function OpsBookPage() {
@@ -17,13 +18,18 @@ export default function OpsBookPage() {
 
   return (
     <div className="space-y-8 max-w-5xl">
-      <header>
-        <p className="font-sans text-[11px] font-bold tracking-[0.14em] uppercase text-text-dim mb-2">OPS</p>
-        <h1 className="font-sans text-3xl font-bold text-text">Virtual book</h1>
-        <p className="text-sm text-text-muted mt-2">
-          Source of truth — no Alpaca. Params {data.params_version}
-          {data.params_version === data.run118_hash ? " (= Run 118)" : " (drifted from Run 118)"}
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="font-sans text-[11px] font-bold tracking-[0.14em] uppercase text-text-dim mb-2">OPS</p>
+          <h1 className="font-sans text-3xl font-bold text-text">Virtual book</h1>
+          <p className="text-sm text-text-muted mt-2">
+            Source of truth — no Alpaca. Params {data.params_version}
+            {data.params_version === data.run118_hash ? " (= Run 118)" : " (drifted from Run 118)"}
+          </p>
+        </div>
+        <Link href="/dashboard/ops/positions" className="btn-outline">
+          Edit positions
+        </Link>
       </header>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

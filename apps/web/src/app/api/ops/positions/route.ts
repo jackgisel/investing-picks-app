@@ -4,29 +4,8 @@ import { opsHeaders, opsMisconfiguredResponse, requireAdmin } from "@/lib/admin"
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  const guard = await requireAdmin();
-  if (!guard.ok) return guard.response;
-
-  let headers: Record<string, string>;
-  try {
-    headers = opsHeaders();
-  } catch (e) {
-    return opsMisconfiguredResponse(e);
-  }
-
-  const res = await fetch(`${OPS_API_BASE}/portfolio`, {
-    headers,
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    return NextResponse.json({ error: "upstream" }, { status: res.status });
-  }
-  return NextResponse.json(await res.json());
-}
-
-/** Edit book-level settings (currently the inception date). */
-export async function PATCH(req: NextRequest) {
+/** Add a position by hand. Upstream spends cash and rejects overdrafts. */
+export async function POST(req: NextRequest) {
   const guard = await requireAdmin();
   if (!guard.ok) return guard.response;
 
@@ -42,8 +21,8 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const res = await fetch(`${OPS_API_BASE}/portfolio`, {
-    method: "PATCH",
+  const res = await fetch(`${OPS_API_BASE}/positions`, {
+    method: "POST",
     headers,
     body: JSON.stringify(body),
     cache: "no-store",

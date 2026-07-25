@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import hmac
-from datetime import date, datetime, time, timezone
+import logging
+from datetime import date, datetime, time, timedelta, timezone
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.orm import Session, joinedload
@@ -27,7 +28,14 @@ from outpick_strategy import evaluate, RUN118_PARAMS
 # app.main, so a misconfigured deployment never comes up at all.
 assert_ops_key_configured()
 
+log = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/ops", tags=["ops"])
+
+# A weekly_refresh that died mid-flight leaves its JobRun on "running" forever.
+# Without an expiry that row would block every future manual refresh, so treat
+# anything older than this as dead rather than in progress.
+STALE_JOB_AFTER = timedelta(hours=2)
 
 # Rounding tolerance for cash comparisons (floats).
 CASH_EPSILON = 1e-6
@@ -488,6 +496,52 @@ def ops_trades(db: Session = Depends(get_db), limit: int = 100):
             for t in rows
         ]
     }
+
+
+def _run_weekly_refresh_task() -> None:
+    """Run the worker's weekly_refresh in a background thread.
+
+    The worker package is imported lazily and inside the task: it is only on the
+    API image's PYTHONPATH for this endpoint's sake, and an import error at
+    module scope would take down the whole ops API rather than this one route.
+    """
+    try:
+        from worker.jobs.runner import job_weekly_refresh
+
+        job_weekly_refresh()
+    except Exception:
+        # job_weekly_refresh records its own failure through _track; this is the
+        # last resort for an import error or a failure to even open a session.
+        log.exception("Manual weekly_refresh failed")
+
+
+@router.post("/refresh", dependencies=[Depends(require_ops_key)])
+def trigger_refresh(background: BackgroundTasks, db: Session = Depends(get_db)):
+    """Kick off universe → fundamentals → score → marks out of band.
+
+    The full pass takes many minutes (FMP is throttled per request), far longer
+    than a request should live, so this returns 202 immediately and the caller
+    watches /jobs for the outcome.
+    """
+    cutoff = datetime.now(timezone.utc) - STALE_JOB_AFTER
+    running = (
+        db.query(JobRun)
+        .filter(JobRun.job_name == "weekly_refresh", JobRun.status == "running")
+        .order_by(JobRun.started_at.desc())
+        .first()
+    )
+    if running is not None:
+        started = running.started_at
+        if started is not None and started.tzinfo is None:
+            started = started.replace(tzinfo=timezone.utc)
+        if started is None or started > cutoff:
+            raise HTTPException(
+                status_code=409,
+                detail="A refresh is already running; watch /api/ops/jobs.",
+            )
+
+    background.add_task(_run_weekly_refresh_task)
+    return {"started": True, "job_name": "weekly_refresh"}
 
 
 @router.get("/jobs", dependencies=[Depends(require_ops_key)])

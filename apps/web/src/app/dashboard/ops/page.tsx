@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
-import { RefreshCw } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Database, RefreshCw } from "lucide-react";
 
 type JobRun = {
   id: number;
@@ -55,6 +55,26 @@ export default function OpsEvaluationsPage() {
     },
     staleTime: 0,
     gcTime: 0,
+    // A refresh takes minutes, so poll while one is in flight and stop as soon
+    // as it settles rather than making the operator reload to find out.
+    refetchInterval: (query) =>
+      query.state.data?.jobs?.some((j) => j.status === "running") ? 5000 : false,
+  });
+
+  const running = (jobs.data?.jobs || []).some((j) => j.status === "running");
+
+  const refresh = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/ops/refresh", { method: "POST" });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(body.detail || body.error || "Could not start refresh");
+      }
+      return body;
+    },
+    onSuccess: () => {
+      jobs.refetch();
+    },
   });
 
   return (
@@ -145,7 +165,26 @@ export default function OpsEvaluationsPage() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">WORKER JOBS</h2>
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <h2 className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">WORKER JOBS</h2>
+          <button
+            type="button"
+            onClick={() => refresh.mutate()}
+            disabled={refresh.isPending || running}
+            className="btn-outline !py-2 !px-4 !text-[11px] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Database size={13} className={running ? "animate-pulse" : undefined} />
+            {running ? "Refreshing…" : refresh.isPending ? "Starting…" : "Refresh universe"}
+          </button>
+        </div>
+        <p className="text-xs text-text-dim max-w-xl">
+          Runs universe → fundamentals → score → marks against FMP. Takes several
+          minutes and writes reference data only — it never touches the book,
+          trades, or the decision ledger. Status updates below automatically.
+        </p>
+        {refresh.error && (
+          <p className="text-accent-red text-sm">{(refresh.error as Error).message}</p>
+        )}
         {jobs.error && <p className="text-accent-red text-sm">Could not load job history</p>}
         {jobs.data && jobs.data.jobs.length === 0 && (
           <p className="text-sm text-accent-red">

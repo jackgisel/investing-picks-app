@@ -5,6 +5,8 @@ export type ServerSessionUser = {
   id: string;
   email: string;
   name: string | null;
+  /** Whether the address has actually been proven. Gates admin promotion. */
+  emailVerified: boolean;
 };
 
 /**
@@ -20,5 +22,6 @@ export async function getServerUser(): Promise<ServerSessionUser | null> {
     id: session.user.id,
     email: session.user.email,
     name: session.user.name ?? null,
+    emailVerified: session.user.emailVerified === true,
   };
 }

@@ -32,7 +32,11 @@ export function notFoundResponse(): NextResponse {
 async function isAdminUser(user: ServerSessionUser): Promise<boolean> {
   const email = user.email.toLowerCase();
 
-  if (adminEmails().includes(email)) {
+  // The allowlist matches on an email STRING. On a fresh, empty database the
+  // admin address is an unclaimed username until someone registers it, so
+  // promoting an unverified account would let whoever signs up with it first
+  // take the ops surface. Require a proven address before promoting.
+  if (adminEmails().includes(email) && user.emailVerified) {
     // Bootstrap: persist the flag so the allowlist can be removed later.
     try {
       await pool.query(`UPDATE "user" SET is_admin = TRUE WHERE id = $1`, [

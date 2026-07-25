@@ -1,32 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "crypto";
 import { ensureMigrations } from "@/lib/auth";
+import { verifyPaddleWebhook } from "@/lib/paddle-webhook";
 import {
   upsertSubscriptionFromWebhook,
   type SubscriptionStatus,
 } from "@/lib/subscription";
-
-// Paddle webhook verification
-function verifyPaddleWebhook(
-  rawBody: string,
-  signature: string,
-  secret: string
-): boolean {
-  const hmac = crypto.createHmac("sha256", secret);
-  hmac.update(rawBody);
-  const expectedSignature = hmac.digest("hex");
-
-  // Paddle sends: ts=TIMESTAMP;h1=HASH
-  const parts = signature.split(";");
-  const hashPart = parts.find((p) => p.startsWith("h1="));
-  if (!hashPart) return false;
-
-  const hash = hashPart.replace("h1=", "");
-  return crypto.timingSafeEqual(
-    Buffer.from(hash),
-    Buffer.from(expectedSignature)
-  );
-}
 
 // Paddle's status strings → our internal status enum
 function normalizeStatus(raw: unknown): SubscriptionStatus {
@@ -61,19 +39,17 @@ export async function POST(req: NextRequest) {
     const rawBody = await req.text();
     const signature = req.headers.get("paddle-signature");
 
-    // Verify webhook signature in production
-    if (process.env.PADDLE_WEBHOOK_SECRET && signature) {
-      const isValid = verifyPaddleWebhook(
-        rawBody,
-        signature,
-        process.env.PADDLE_WEBHOOK_SECRET
-      );
-      if (!isValid) {
-        return NextResponse.json(
-          { error: "Invalid signature" },
-          { status: 401 }
-        );
-      }
+    // Fail closed. An unset secret or a missing signature is a rejection, not
+    // a bypass — otherwise anyone could POST a fake subscription.activated for
+    // an arbitrary email and grant themselves a paid account.
+    const verified = verifyPaddleWebhook({
+      rawBody,
+      signatureHeader: signature,
+      secret: process.env.PADDLE_WEBHOOK_SECRET,
+    });
+    if (!verified.ok) {
+      console.warn(`[Paddle] Rejected webhook: ${verified.reason}`);
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
     await ensureMigrations();

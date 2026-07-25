@@ -1,15 +1,22 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { PUBLIC_API_BASE } from "@/lib/api-config";
+import { NO_STORE_HEADERS, requireSubscriber } from "@/lib/api-gate";
 
-const API_BASE = process.env.OUTPICK_API_URL
-  ? `${process.env.OUTPICK_API_URL.replace(/\/$/, "")}/api/v1`
-  : (process.env.ETF_API_URL || "http://localhost:8000/api/v1");
+// Per-user gated: never prerender, never share a cached response.
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  const gate = await requireSubscriber();
+  if (!gate.ok) return gate.response;
+
   const status = request.nextUrl.searchParams.get("status") || "active";
-  const res = await fetch(`${API_BASE}/picks?status=${status}`, {
-    next: { revalidate: 3600 },
-  });
-  const data = await res.json();
-  return NextResponse.json(data);
+  const res = await fetch(
+    `${PUBLIC_API_BASE}/picks?status=${encodeURIComponent(status)}`,
+    { cache: "no-store" }
+  );
+  if (!res.ok) {
+    return NextResponse.json({ error: "upstream" }, { status: res.status });
+  }
+  return NextResponse.json(await res.json(), { headers: NO_STORE_HEADERS });
 }

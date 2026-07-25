@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
+import { PUBLIC_API_BASE } from "@/lib/api-config";
 
-const API_BASE = process.env.OUTPICK_API_URL
-  ? `${process.env.OUTPICK_API_URL.replace(/\/$/, "")}/api/v1`
-  : (process.env.ETF_API_URL || "http://localhost:8000/api/v1");
-
+// Public: percentage series and aggregate counts only, no identifying data.
 export async function GET() {
-  const res = await fetch(`${API_BASE}/performance`, {
+  const res = await fetch(`${PUBLIC_API_BASE}/performance`, {
     next: { revalidate: 3600 },
   });
-  const data = await res.json();
-  return NextResponse.json(data);
+  if (!res.ok) {
+    return NextResponse.json({ error: "upstream" }, { status: res.status });
+  }
+  return NextResponse.json(await res.json());
 }

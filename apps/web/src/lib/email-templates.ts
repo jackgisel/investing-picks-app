@@ -232,3 +232,54 @@ export function renderDeleteAccountEmail(args: {
     siteUrl: args.siteUrl,
   });
 }
+
+export function renderVerifyEmail(args: {
+  name: string | null;
+  verifyUrl: string;
+  siteUrl: string;
+}): string {
+  const greeting = args.name
+    ? `Hi ${escapeHtml(args.name.split(" ")[0])},`
+    : "Hi there,";
+
+  const body = `
+    <p style="margin:0 0 8px 0;font-family:${FONT_MONO};font-size:10px;color:${COLOR_GREEN};letter-spacing:3px;text-transform:uppercase;">
+      Verify Your Email
+    </p>
+    <h1 class="h1" style="margin:0 0 22px 0;font-family:${FONT_SANS};font-size:26px;line-height:1.2;font-weight:700;color:${COLOR_TEXT};letter-spacing:-0.3px;">
+      Confirm your email address
+    </h1>
+
+    <p style="margin:0 0 14px 0;font-family:${FONT_SANS};font-size:15px;color:${COLOR_TEXT_MUTED};line-height:1.65;">
+      ${greeting}
+    </p>
+    <p style="margin:0 0 28px 0;font-family:${FONT_SANS};font-size:15px;color:${COLOR_TEXT_MUTED};line-height:1.65;">
+      Confirm this address to finish setting up your ${escapeHtml(SITE_NAME)} account.
+    </p>
+
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 28px 0;">
+      <tr>
+        <td style="background:${COLOR_GREEN};">
+          <a class="btn" href="${args.verifyUrl}" style="display:inline-block;padding:14px 32px;font-family:${FONT_MONO};font-size:12px;font-weight:600;color:#000;letter-spacing:2px;text-transform:uppercase;text-decoration:none;background:${COLOR_GREEN};">
+            Verify email
+          </a>
+        </td>
+      </tr>
+    </table>
+
+    <p style="margin:0 0 14px 0;font-family:${FONT_SANS};font-size:13px;color:${COLOR_TEXT_DIM};line-height:1.6;">
+      Or copy this link into your browser:<br>
+      <a href="${args.verifyUrl}" style="color:${COLOR_GREEN};text-decoration:underline;word-break:break-all;">${escapeHtml(args.verifyUrl)}</a>
+    </p>
+
+    <p style="margin:0;font-family:${FONT_SANS};font-size:12px;color:${COLOR_TEXT_DIM};line-height:1.6;">
+      Didn't sign up? You can safely ignore this email.
+    </p>
+  `;
+
+  return shell({
+    preview: `Verify your ${SITE_NAME} email address`,
+    bodyHtml: body,
+    siteUrl: args.siteUrl,
+  });
+}

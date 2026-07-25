@@ -26,10 +26,14 @@ export async function initPaddle() {
 
   try {
     const { initializePaddle } = await import("@paddle/paddle-js");
+    // NEXT_PUBLIC_PADDLE_ENV=sandbox lets us verify the full checkout →
+    // webhook → subscription-active loop before switching to live billing,
+    // without a code change.
+    const environment =
+      process.env.NEXT_PUBLIC_PADDLE_ENV === "sandbox" ? "sandbox" : undefined;
     await initializePaddle({
       token: PADDLE_CLIENT_TOKEN,
-      // Use sandbox for development:
-      // environment: "sandbox",
+      ...(environment ? { environment } : {}),
     });
     paddleInitialized = true;
   } catch (error) {

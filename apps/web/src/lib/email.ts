@@ -3,6 +3,7 @@ import { SITE_NAME, SITE_URL } from "@/lib/constants";
 import {
   renderNewPickEmail,
   renderDeleteAccountEmail,
+  renderVerifyEmail,
 } from "@/lib/email-templates";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
@@ -100,6 +101,28 @@ export async function sendDeleteAccountEmail(args: {
   return send({
     to: args.to,
     subject: `Confirm your ${SITE_NAME} account deletion`,
+    html,
+    text,
+  });
+}
+
+/* ------------------------------ Email verification ------------------------------ */
+
+export async function sendVerifyEmail(args: {
+  to: string;
+  name: string | null;
+  verifyUrl: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const html = renderVerifyEmail({
+    name: args.name,
+    verifyUrl: args.verifyUrl,
+    siteUrl: SITE_URL,
+  });
+  const text = `Verify your email\n\nConfirm this address to finish setting up your ${SITE_NAME} account:\n\n${args.verifyUrl}\n\nIf you didn't sign up, you can ignore this email.`;
+
+  return send({
+    to: args.to,
+    subject: `Verify your ${SITE_NAME} email address`,
     html,
     text,
   });

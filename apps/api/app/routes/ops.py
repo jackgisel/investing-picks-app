@@ -79,7 +79,7 @@ def _position_dict(p: Position) -> dict:
         else None,
         "entry_date": p.entry_date.isoformat() if p.entry_date else None,
         "initial_investment": p.initial_investment,
-        "is_house_money": p.initial_investment is not None and p.initial_investment <= 0,
+        "is_house_money": p.is_house_money,
         "sector": p.sector,
     }
 

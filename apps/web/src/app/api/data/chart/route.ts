@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
+import { PUBLIC_API_BASE } from "@/lib/api-config";
 
-const API_BASE = process.env.OUTPICK_API_URL
-  ? `${process.env.OUTPICK_API_URL.replace(/\/$/, "")}/api/v1`
-  : (process.env.ETF_API_URL || "http://localhost:8000/api/v1");
-
+// Public: a percentage-only equity curve vs SPY. No holdings, no tickers —
+// this is the marketing track record, so logged-out visitors must see it.
 export async function GET() {
-  const res = await fetch(`${API_BASE}/chart`, {
+  const res = await fetch(`${PUBLIC_API_BASE}/chart`, {
     next: { revalidate: 3600 },
   });
-  const data = await res.json();
-  return NextResponse.json(data);
+  if (!res.ok) {
+    return NextResponse.json({ error: "upstream" }, { status: res.status });
+  }
+  return NextResponse.json(await res.json());
 }

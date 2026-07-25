@@ -2,7 +2,7 @@ import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { getMigrations } from "better-auth/db/migration";
 import { pool } from "@/lib/db";
 import { runAppMigrations } from "@/lib/app-migrations";
-import { sendDeleteAccountEmail } from "@/lib/email";
+import { sendDeleteAccountEmail, sendVerifyEmail } from "@/lib/email";
 
 const authConfig = {
   baseURL: process.env.BETTER_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
@@ -11,6 +11,22 @@ const authConfig = {
 
   emailAndPassword: {
     enabled: true,
+    // Required: admin promotion matches on an email string (lib/admin.ts), so
+    // an unverified address would let anyone claim the admin account on a
+    // fresh database by registering it first.
+    requireEmailVerification: true,
+  },
+
+  emailVerification: {
+    sendOnSignUp: true,
+    autoSignInAfterVerification: true,
+    sendVerificationEmail: async ({ user, url }) => {
+      await sendVerifyEmail({
+        to: user.email,
+        name: user.name ?? null,
+        verifyUrl: url,
+      });
+    },
   },
 
   user: {

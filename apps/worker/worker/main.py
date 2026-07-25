@@ -41,10 +41,15 @@ def main():
         id="weekly_refresh",
         replace_existing=True,
     )
-    # 1st and 3rd Friday 11:00 ET
+    # 1st and 3rd Friday 11:00 ET — but the market is shut on some Fridays
+    # (Good Friday, Juneteenth, an observed 4th of July), and an evaluation
+    # cycle that silently vanishes is worse than one that runs a day early.
+    # So the trigger fires every weekday of an evaluation week and the job
+    # itself decides which day is the real one: the last session on or before
+    # the target Friday. Every other firing logs and returns immediately.
     scheduler.add_job(
         job_biweekly_evaluate,
-        CronTrigger(day="1-7,15-21", day_of_week="fri", hour=11, minute=0),
+        CronTrigger(day="1-7,15-21", day_of_week="mon-fri", hour=11, minute=0),
         id="biweekly_evaluate",
         replace_existing=True,
     )

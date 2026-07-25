@@ -266,9 +266,21 @@ def get_performance(db: Session = Depends(get_db)):
     )
     positions = db.query(Position).filter(Position.portfolio_id == 1).all()
     portfolio = db.get(Portfolio, 1)
-    # Same equity-based number as /strategy, so the headline agrees with the
-    # last point of the chart below instead of contradicting it.
+    # Same equity-based number as /strategy, so the chart's own series agrees
+    # with it instead of contradicting it.
     live_return = total_return_pct(db, portfolio) if portfolio else None
+
+    # The CAGR must annualize whatever the site actually headlines, which is the
+    # return on capital deployed into picks — not the equity return. Annualizing
+    # a different base than the one displayed put "+26.81% total return" beside
+    # a CAGR derived from 2.14%, two numbers that cannot both describe the same
+    # book. Outpick sells research, so the picks return is the headline and the
+    # CAGR follows it.
+    annualized_base = (
+        picks_return(db, portfolio).get("return_pct") if portfolio else None
+    )
+    if annualized_base is None:
+        annualized_base = live_return
 
     today = date.today()
     inception = _inception_date(portfolio, snaps)
@@ -283,7 +295,7 @@ def get_performance(db: Session = Depends(get_db)):
                 "total_return_pct": live_return,
                 "inception_date": inception.isoformat() if inception else None,
                 "snapshots": 0,
-                **annualize_return(live_return, days_live, 0),
+                **annualize_return(annualized_base, days_live, 0),
             },
         }
 
@@ -319,7 +331,7 @@ def get_performance(db: Session = Depends(get_db)):
             "snapshot_return_pct": last,
             "position_count": snaps[-1].position_count if snaps else len(positions),
             "snapshots": len(snaps),
-            **annualize_return(headline, days_live, days_recorded),
+            **annualize_return(annualized_base, days_live, days_recorded),
         },
     }
 

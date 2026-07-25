@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     fmp_api_key: str = ""
     # `/api/v3` is retired and 403s for non-legacy keys; `/stable` is current.
     fmp_base_url: str = "https://financialmodelingprep.com/stable"
+    # Requests per minute. The plan allows 280; the client's own default of 60
+    # made a full refresh take ~29 minutes instead of ~7, and every extra minute
+    # is another minute a redeploy can kill the run mid-flight.
+    fmp_rate_limit: int = 280
     initial_cash: float = 100_000.0
     # No fail-open default. Local dev falls back to DEV_OPS_KEY via
     # `effective_ops_key`; anywhere else an unset key disables ops entirely.

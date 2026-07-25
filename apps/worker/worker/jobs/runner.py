@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
 
 def _fmp() -> FMPClient:
     s = get_settings()
-    return FMPClient(s.fmp_api_key, s.fmp_base_url)
+    return FMPClient(s.fmp_api_key, s.fmp_base_url, rate_limit=s.fmp_rate_limit)
 
 
 def _track(job_name: str, fn):

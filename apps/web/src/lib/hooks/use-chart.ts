@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { dataQueryOptions, fetchJson } from "./api-error";
 
 export interface ChartPoint {
   date: string;
@@ -24,10 +25,7 @@ export interface ChartData {
 export function useChart() {
   return useQuery<ChartData>({
     queryKey: ["chart"],
-    queryFn: async () => {
-      const res = await fetch("/api/data/performance");
-      if (!res.ok) throw new Error("Failed to fetch chart");
-      return res.json();
-    },
+    queryFn: () => fetchJson<ChartData>("/api/data/performance"),
+    ...dataQueryOptions,
   });
 }

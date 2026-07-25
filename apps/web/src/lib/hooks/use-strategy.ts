@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { dataQueryOptions, fetchJson } from "./api-error";
 
 export interface Holding {
   ticker: string;
@@ -50,10 +51,7 @@ export interface StrategyData {
 export function useStrategy() {
   return useQuery<StrategyData>({
     queryKey: ["strategy"],
-    queryFn: async () => {
-      const res = await fetch("/api/data/strategy");
-      if (!res.ok) throw new Error("Failed to fetch strategy");
-      return res.json();
-    },
+    queryFn: () => fetchJson<StrategyData>("/api/data/strategy"),
+    ...dataQueryOptions,
   });
 }

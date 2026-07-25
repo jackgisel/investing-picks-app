@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { dataQueryOptions, fetchJson } from "./api-error";
 
 export interface Pick {
   ticker: string;
@@ -21,10 +22,7 @@ export interface PicksResponse {
 export function usePicks(status: "active" | "closed" = "active") {
   return useQuery<PicksResponse>({
     queryKey: ["picks", status],
-    queryFn: async () => {
-      const res = await fetch(`/api/data/picks?status=${status}`);
-      if (!res.ok) throw new Error("Failed to fetch picks");
-      return res.json();
-    },
+    queryFn: () => fetchJson<PicksResponse>(`/api/data/picks?status=${status}`),
+    ...dataQueryOptions,
   });
 }

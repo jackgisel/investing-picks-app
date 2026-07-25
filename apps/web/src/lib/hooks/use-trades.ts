@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { dataQueryOptions, fetchJson } from "./api-error";
 
 export interface Trade {
   ticker: string;
@@ -16,13 +17,10 @@ export interface TradesResponse {
 export function useTrades(limit?: number) {
   return useQuery<TradesResponse>({
     queryKey: ["trades", limit],
-    queryFn: async () => {
-      const url = limit
-        ? `/api/data/trades?limit=${limit}`
-        : "/api/data/trades";
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Failed to fetch trades");
-      return res.json();
-    },
+    queryFn: () =>
+      fetchJson<TradesResponse>(
+        limit ? `/api/data/trades?limit=${limit}` : "/api/data/trades"
+      ),
+    ...dataQueryOptions,
   });
 }

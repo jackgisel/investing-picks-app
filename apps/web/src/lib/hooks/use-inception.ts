@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { LIVE_PORTFOLIO } from "@/lib/constants";
+import { dataQueryOptions, fetchJson } from "./api-error";
 
 export type PortfolioMeta = {
   inception_date: string;
@@ -23,11 +24,12 @@ export function useInceptionDate(): {
   const { data, isLoading } = useQuery({
     queryKey: ["portfolio-meta"],
     staleTime: 5 * 60 * 1000,
-    queryFn: async () => {
-      const res = await fetch("/api/portfolio-meta");
-      if (!res.ok) throw new Error("Failed to load portfolio meta");
-      return (await res.json()) as PortfolioMeta;
-    },
+    queryFn: () => fetchJson<PortfolioMeta>("/api/portfolio-meta"),
+    // This hook has a real fallback (the constant), so a failure is not
+    // user-visible — but it must still fail fast rather than retrying a 4xx,
+    // otherwise `isLoading` sticks and callers render a placeholder for
+    // seconds longer than necessary.
+    ...dataQueryOptions,
   });
 
   return {

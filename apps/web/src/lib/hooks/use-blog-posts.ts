@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { dataQueryOptions, fetchJson } from "./api-error";
 
 export type BlogPostType = "pick" | "quarterly_review";
 
@@ -33,22 +34,16 @@ export interface BlogPostDetail {
 export function useBlogPosts(type: "all" | BlogPostType = "all") {
   return useQuery<BlogPostsResponse>({
     queryKey: ["blog-posts", type],
-    queryFn: async () => {
-      const res = await fetch(`/api/data/blog?type=${type}`);
-      if (!res.ok) throw new Error("Failed to fetch blog posts");
-      return res.json();
-    },
+    queryFn: () => fetchJson<BlogPostsResponse>(`/api/data/blog?type=${type}`),
+    ...dataQueryOptions,
   });
 }
 
 export function useBlogPost(slug: string | undefined) {
   return useQuery<BlogPostDetail>({
     queryKey: ["blog-post", slug],
-    queryFn: async () => {
-      const res = await fetch(`/api/data/blog/${slug}`);
-      if (!res.ok) throw new Error("Failed to fetch blog post");
-      return res.json();
-    },
+    queryFn: () => fetchJson<BlogPostDetail>(`/api/data/blog/${slug}`),
     enabled: !!slug,
+    ...dataQueryOptions,
   });
 }

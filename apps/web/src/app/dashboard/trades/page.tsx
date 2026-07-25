@@ -2,12 +2,23 @@
 
 import { useState } from "react";
 import { useTrades } from "@/lib/hooks/use-trades";
+import {
+  DataStateRow,
+  hasDataState,
+  resolveDataState,
+} from "@/components/ui/data-state";
 import { Filter } from "lucide-react";
 
 type SideFilter = "all" | "buy" | "sell";
 
 export default function TradesPage() {
-  const { data: tradesData, isLoading } = useTrades();
+  const {
+    data: tradesData,
+    isPending,
+    isError,
+    error,
+    refetch,
+  } = useTrades();
   const trades = tradesData?.trades;
   const [sideFilter, setSideFilter] = useState<SideFilter>("all");
   const [page, setPage] = useState(0);
@@ -23,14 +34,27 @@ export default function TradesPage() {
   const buyCount = trades?.filter((t) => t.side === "buy").length ?? 0;
   const sellCount = trades?.filter((t) => t.side === "sell").length ?? 0;
 
+  // `isEmpty` is about the query returning zero rows, not about the client-side
+  // filter — a filter that matches nothing gets its own message below, because
+  // "you filtered everything out" is not the same as "there are no trades".
+  const state = resolveDataState({
+    isPending,
+    isError,
+    error,
+    isEmpty: (trades?.length ?? 0) === 0,
+  });
+  const filteredOut = !state && !paged?.length;
+
   return (
     <div className="max-w-[1100px] space-y-6">
       <div>
         <h1 className="font-sans text-xl font-bold">Trades</h1>
         <p className="font-sans text-[13px] text-text-dim mt-1">
-          {isLoading
+          {isPending
             ? "Loading..."
-            : `${trades?.length ?? 0} trades · ${buyCount} buys · ${sellCount} sells`}
+            : isError
+              ? "Trade history unavailable"
+              : `${trades?.length ?? 0} trades · ${buyCount} buys · ${sellCount} sells`}
         </p>
       </div>
 
@@ -56,7 +80,7 @@ export default function TradesPage() {
             ))}
           </div>
           <span className="font-mono text-[10px] text-text-dim">
-            {filtered?.length ?? 0} RESULTS
+            {isPending || isError ? "—" : `${filtered?.length ?? 0} RESULTS`}
           </span>
         </div>
 
@@ -75,15 +99,16 @@ export default function TradesPage() {
               </tr>
             </thead>
             <tbody>
-              {isLoading ? (
-                <tr>
-                  <td colSpan={4} className="px-5 py-8 text-center">
-                    <span className="font-mono text-[11px] text-text-dim animate-pulse">
-                      LOADING...
-                    </span>
-                  </td>
-                </tr>
-              ) : !paged?.length ? (
+              {hasDataState(state) ? (
+                <DataStateRow
+                  colSpan={4}
+                  state={state}
+                  error={error}
+                  onRetry={() => void refetch()}
+                  emptyTitle="No trades yet"
+                  emptyMessage="The live book was entered by hand, so there is no trade history behind it. Every buy and sell from here on will be logged on this page."
+                />
+              ) : filteredOut ? (
                 <tr>
                   <td colSpan={4} className="px-5 py-8 text-center">
                     <span className="font-mono text-[11px] text-text-dim">
@@ -92,7 +117,7 @@ export default function TradesPage() {
                   </td>
                 </tr>
               ) : (
-                paged.map((t, i) => (
+                paged?.map((t, i) => (
                   <tr
                     key={`${t.ticker}-${t.date}-${i}`}
                     className="border-b border-border last:border-b-0 hover:bg-bg-tertiary/50 transition-colors"

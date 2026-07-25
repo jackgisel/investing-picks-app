@@ -3,6 +3,11 @@
 import Link from "next/link";
 import { useState, useMemo } from "react";
 import { usePicks } from "@/lib/hooks/use-picks";
+import {
+  DataStateRow,
+  hasDataState,
+  resolveDataState,
+} from "@/components/ui/data-state";
 import { Filter, ArrowUpDown } from "lucide-react";
 import { formatPct } from "@/lib/portfolio";
 
@@ -11,13 +16,24 @@ type SortDir = "asc" | "desc";
 type StatusFilter = "all" | "active" | "closed";
 
 export default function PicksPage() {
-  const { data: activeData, isLoading: loadingActive } = usePicks("active");
-  const { data: closedData, isLoading: loadingClosed } = usePicks("closed");
+  const active = usePicks("active");
+  const closed = usePicks("closed");
+  const { data: activeData } = active;
+  const { data: closedData } = closed;
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("entry_date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
-  const isLoading = loadingActive || loadingClosed;
+  // Two queries, one table. The page is only usable when both have landed, and
+  // either failing is a failure of the whole table — they hit the same gated
+  // endpoint, so they fail the same way in practice.
+  const isPending = active.isPending || closed.isPending;
+  const isError = active.isError || closed.isError;
+  const error = active.error ?? closed.error;
+  const retry = () => {
+    void active.refetch();
+    void closed.refetch();
+  };
 
   const allPicks = useMemo(() => {
     const active = (activeData?.picks ?? []).map((p) => ({ ...p, status: "active" }));
@@ -46,14 +62,26 @@ export default function PicksPage() {
   const activeCount = activeData?.count ?? 0;
   const closedCount = closedData?.count ?? 0;
 
+  const state = resolveDataState({
+    isPending,
+    isError,
+    error,
+    isEmpty: allPicks.length === 0,
+  });
+  // Distinct from `state === "empty"`: the query succeeded and returned picks,
+  // the user just narrowed them all away with the status filter.
+  const filteredOut = !state && filtered.length === 0;
+
   return (
     <div className="max-w-[1100px] space-y-6">
       <div>
         <h1 className="font-sans text-xl font-bold">Pick History</h1>
         <p className="font-sans text-[13px] text-text-dim mt-1">
-          {isLoading
+          {isPending
             ? "Loading..."
-            : `${activeCount} active · ${closedCount} closed`}
+            : isError
+              ? "Pick history unavailable"
+              : `${activeCount} active · ${closedCount} closed`}
         </p>
       </div>
 
@@ -76,7 +104,7 @@ export default function PicksPage() {
             ))}
           </div>
           <span className="font-mono text-[10px] text-text-dim">
-            {filtered.length} RESULTS
+            {isPending || isError ? "—" : `${filtered.length} RESULTS`}
           </span>
         </div>
 
@@ -114,15 +142,16 @@ export default function PicksPage() {
               </tr>
             </thead>
             <tbody>
-              {isLoading ? (
-                <tr>
-                  <td colSpan={6} className="px-5 py-8 text-center">
-                    <span className="font-mono text-[11px] text-text-dim animate-pulse">
-                      LOADING...
-                    </span>
-                  </td>
-                </tr>
-              ) : filtered.length === 0 ? (
+              {hasDataState(state) ? (
+                <DataStateRow
+                  colSpan={6}
+                  state={state}
+                  error={error}
+                  onRetry={retry}
+                  emptyTitle="No picks published yet"
+                  emptyMessage="Picks appear here the moment the first one is published. Nothing has been closed out yet either."
+                />
+              ) : filteredOut ? (
                 <tr>
                   <td colSpan={6} className="px-5 py-8 text-center">
                     <span className="font-mono text-[11px] text-text-dim">

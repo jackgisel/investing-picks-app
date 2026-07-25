@@ -62,7 +62,9 @@ export default function PerformancePage() {
     : null;
 
   const days = daysSince(LIVE_INCEPTION);
-  const seriesPoints = chartData?.series?.length ?? 0;
+  // Count the picks curve, not the legacy book-equity series — that is what the
+  // chart below actually plots, so the two must agree.
+  const seriesPoints = chartData?.picks_series?.length ?? 0;
 
   return (
     <div className="max-w-[1100px] space-y-6">
@@ -88,7 +90,7 @@ export default function PerformancePage() {
         {/* Live metrics */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <MetricCard
-            label="TOTAL RETURN"
+            label="PICKS RETURN"
             value={hasReturn ? formatPct(totalReturnPct) : "—"}
             icon={TrendingUp}
             green={hasReturn && totalReturnPct >= 0}

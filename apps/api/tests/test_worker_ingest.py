@@ -255,3 +255,40 @@ def test_revision_falls_back_to_oldest_snapshot_when_history_is_young(db):
     out = compute_estimate_revisions(db, "AAA", current, today)
     assert out["epsRevisionPct"] == pytest.approx(0.05)
     assert out["revisionLookbackDays"] == 7
+
+
+# ---------------------------------------------------------------------------
+# Manually entered positions have no Stock row
+# ---------------------------------------------------------------------------
+
+
+def test_refresh_marks_prices_a_position_with_no_stock_row(db, portfolio):
+    """Hand-entered positions never pass through refresh_universe.
+
+    refresh_marks used to write the price only when a Stock row already
+    existed, so a manually entered book stayed marked at its entry price
+    forever — every holding showed 0.00% P&L and the equity curve was flat,
+    while the job still reported a successful run.
+    """
+    from app.db.models import Position
+
+    db.add(
+        Position(
+            portfolio_id=portfolio.id,
+            ticker="ZZZ",
+            shares=10.0,
+            avg_cost=100.0,
+            current_price=100.0,
+            initial_investment=1000.0,
+        )
+    )
+    db.commit()
+    assert db.get(Stock, "ZZZ") is None
+
+    refresh_marks(db, FakeFMP({"ZZZ": 150.0, "SPY": 500.0}))
+
+    pos = db.query(Position).filter(Position.ticker == "ZZZ").one()
+    assert pos.current_price == 150.0
+    assert pos.market_value == 1500.0
+    # And the Stock row is created so later runs have somewhere to write.
+    assert db.get(Stock, "ZZZ").last_price == 150.0

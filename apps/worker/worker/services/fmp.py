@@ -1,47 +1,132 @@
-"""FMP HTTP client — fundamentals + prices only (no Alpaca)."""
+"""FMP HTTP client — fundamentals + prices only (no Alpaca).
+
+Targets FMP's `/stable` API. The legacy `/api/v3` endpoints this client
+originally used have been retired and now return:
+
+    403 {"Error Message": "Legacy Endpoint : Due to Legacy endpoints being no
+    longer supported - This endpoint is only available to legacy users"}
+
+The two API generations differ in shape, not just in path:
+  - v3 passed the symbol as a PATH segment (`/quote/AAPL`); stable passes it as
+    a QUERY parameter (`/quote?symbol=AAPL`).
+  - v3's historical endpoint returned `{"historical": [...]}`; stable returns a
+    bare list.
+  - Analyst estimate fields lost their `estimated` prefix
+    (`estimatedEpsAvg` -> `epsAvg`).
+"""
 
 from __future__ import annotations
 
 import logging
 import time
-from datetime import date, datetime, timezone
+from datetime import date
 
 import httpx
 
 log = logging.getLogger(__name__)
 
+DEFAULT_BASE_URL = "https://financialmodelingprep.com/stable"
+
+
+class FMPAccessError(RuntimeError):
+    """The key is rejected or the endpoint is not on the current plan.
+
+    Distinct from "no data": a 401/402/403 means every subsequent call will
+    fail the same way, so jobs must surface it instead of silently recording a
+    successful run that fetched nothing. An entire deployment's worth of
+    scheduled jobs previously "succeeded" with zero rows because the legacy
+    endpoints 403'd and the error was swallowed.
+    """
+
 
 class FMPClient:
-    def __init__(self, api_key: str, base_url: str, rate_limit: int = 280):
+    def __init__(
+        self,
+        api_key: str,
+        base_url: str = DEFAULT_BASE_URL,
+        rate_limit: int = 60,
+        max_retries: int = 4,
+    ):
         self.api_key = api_key
-        self.base_url = base_url.rstrip("/")
+        base = (base_url or DEFAULT_BASE_URL).rstrip("/")
+        # Tolerate a stored legacy base URL rather than 403 on every call.
+        if base.endswith("/api/v3"):
+            log.warning(
+                "FMP base URL %s is the retired legacy API; using %s instead",
+                base,
+                DEFAULT_BASE_URL,
+            )
+            base = DEFAULT_BASE_URL
+        self.base_url = base
         self._min_interval = 60.0 / max(rate_limit, 1)
         self._last_call = 0.0
+        self._max_retries = max(max_retries, 0)
         self._client = httpx.Client(timeout=30.0)
+
+    def _throttle(self) -> None:
+        wait = self._min_interval - (time.monotonic() - self._last_call)
+        if wait > 0:
+            time.sleep(wait)
 
     def _get(self, path: str, params: dict | None = None) -> list | dict | None:
         if not self.api_key:
             log.warning("FMP_API_KEY not set — skipping %s", path)
             return None
-        now = time.monotonic()
-        wait = self._min_interval - (now - self._last_call)
-        if wait > 0:
-            time.sleep(wait)
-        params = dict(params or {})
+
+        params = {k: v for k, v in (params or {}).items() if v is not None}
         params["apikey"] = self.api_key
         url = f"{self.base_url}/{path.lstrip('/')}"
-        self._last_call = time.monotonic()
-        try:
-            r = self._client.get(url, params=params)
-            r.raise_for_status()
-            return r.json()
-        except Exception as e:
-            log.error("FMP %s failed: %s", path, e)
-            return None
 
-    def stock_screener(self, min_market_cap: float = 300_000_000, limit: int = 1000) -> list[dict]:
+        for attempt in range(self._max_retries + 1):
+            self._throttle()
+            self._last_call = time.monotonic()
+            try:
+                r = self._client.get(url, params=params)
+            except Exception as e:
+                # Never interpolate the response/URL directly — it carries the
+                # api key as a query parameter and would land in the logs.
+                log.error("FMP %s failed: %s", path, type(e).__name__)
+                return None
+
+            if r.status_code in (401, 402, 403):
+                raise FMPAccessError(f"FMP {path} returned {r.status_code}")
+
+            if r.status_code == 429:
+                if attempt < self._max_retries:
+                    backoff = 2.0 * (2**attempt)
+                    log.warning(
+                        "FMP %s rate limited; retrying in %.0fs (%s/%s)",
+                        path,
+                        backoff,
+                        attempt + 1,
+                        self._max_retries,
+                    )
+                    time.sleep(backoff)
+                    continue
+                log.error("FMP %s rate limited; giving up", path)
+                return None
+
+            if r.status_code >= 400:
+                log.error("FMP %s returned %s", path, r.status_code)
+                return None
+            try:
+                return r.json()
+            except Exception:
+                log.error("FMP %s returned malformed JSON", path)
+                return None
+        return None
+
+    @staticmethod
+    def _first(data: list | dict | None) -> dict | None:
+        if isinstance(data, list) and data:
+            return data[0]
+        return None
+
+    def stock_screener(
+        self, min_market_cap: float = 300_000_000, limit: int = 1000
+    ) -> list[dict]:
         data = self._get(
-            "stock-screener",
+            "company-screener",
             {
                 "marketCapMoreThan": int(min_market_cap),
                 "volumeMoreThan": 50_000,
@@ -54,52 +139,52 @@ class FMPClient:
         return data if isinstance(data, list) else []
 
     def profile(self, ticker: str) -> dict | None:
-        data = self._get(f"profile/{ticker}")
-        if isinstance(data, list) and data:
-            return data[0]
-        return None
+        return self._first(self._get("profile", {"symbol": ticker}))
 
     def quote(self, ticker: str) -> dict | None:
-        data = self._get(f"quote/{ticker}")
-        if isinstance(data, list) and data:
-            return data[0]
-        return None
+        return self._first(self._get("quote", {"symbol": ticker}))
 
     def batch_quotes(self, tickers: list[str]) -> list[dict]:
-        if not tickers:
-            return []
-        # FMP allows comma-separated quotes
+        """One request per symbol.
+
+        `/stable/batch-quote` exists but is 402 Restricted on the current plan,
+        so batching is not available to us. At the default 280 req/min this is
+        ~4.6 symbols/second, which is fine for a book plus a candidate list.
+        """
         out: list[dict] = []
-        for i in range(0, len(tickers), 50):
-            chunk = ",".join(tickers[i : i + 50])
-            data = self._get(f"quote/{chunk}")
-            if isinstance(data, list):
-                out.extend(data)
+        for ticker in tickers:
+            q = self.quote(ticker)
+            if q:
+                out.append(q)
         return out
 
-    def historical_prices(self, ticker: str, from_date: date | None = None) -> list[dict]:
-        params = {}
-        if from_date:
-            params["from"] = from_date.isoformat()
-        data = self._get(f"historical-price-full/{ticker}", params)
+    def historical_prices(
+        self, ticker: str, from_date: date | None = None
+    ) -> list[dict]:
+        data = self._get(
+            "historical-price-eod/full",
+            {
+                "symbol": ticker,
+                "from": from_date.isoformat() if from_date else None,
+            },
+        )
+        if isinstance(data, list):
+            return data
+        # Defensive: older shape nested the rows under "historical".
         if isinstance(data, dict):
             return data.get("historical") or []
         return []
 
     def key_metrics_ttm(self, ticker: str) -> dict | None:
-        data = self._get(f"key-metrics-ttm/{ticker}")
-        if isinstance(data, list) and data:
-            return data[0]
-        return None
+        return self._first(self._get("key-metrics-ttm", {"symbol": ticker}))
 
     def ratios_ttm(self, ticker: str) -> dict | None:
-        data = self._get(f"ratios-ttm/{ticker}")
-        if isinstance(data, list) and data:
-            return data[0]
-        return None
+        return self._first(self._get("ratios-ttm", {"symbol": ticker}))
 
     def analyst_estimates(self, ticker: str) -> list[dict]:
-        data = self._get(f"analyst-estimates/{ticker}")
+        data = self._get(
+            "analyst-estimates", {"symbol": ticker, "period": "annual"}
+        )
         return data if isinstance(data, list) else []
 
     def close(self):

@@ -97,8 +97,12 @@ def _forward_estimate(estimates: list[dict], as_of: date) -> dict | None:
     period, row = upcoming[0] if upcoming else max(rows, key=lambda r: r[0])
     return {
         "estimatePeriod": period.isoformat(),
-        "epsEstimateAvg": row.get("estimatedEpsAvg"),
-        "revenueEstimateAvg": row.get("estimatedRevenueAvg"),
+        # `/stable` dropped the `estimated` prefix the legacy API used; accept
+        # both so stored snapshots taken under either shape stay comparable.
+        "epsEstimateAvg": row.get("epsAvg", row.get("estimatedEpsAvg")),
+        "revenueEstimateAvg": row.get(
+            "revenueAvg", row.get("estimatedRevenueAvg")
+        ),
     }
 
 
@@ -258,17 +262,30 @@ def refresh_marks(db: Session, fmp: FMPClient) -> int:
         if not price:
             continue
         stock = db.get(Stock, ticker)
-        if stock:
-            stock.last_price = float(price)
-            stock.updated_at = datetime.now(timezone.utc)
+        if not stock:
+            # A ticker can be held without ever having come through
+            # refresh_universe — manually entered positions are the common
+            # case. Skipping them here silently left every hand-entered
+            # position marked at its entry price forever.
+            stock = Stock(ticker=ticker, name=q.get("name"), is_active=True)
+            db.add(stock)
+        stock.last_price = float(price)
+        stock.updated_at = datetime.now(timezone.utc)
         upsert_price_bar(db, ticker, today, float(price))
         n += 1
 
+    db.flush()
+
     # Update open position marks
+    marked = 0
     for p in db.query(Position).filter(Position.portfolio_id == portfolio.id).all():
         stock = db.get(Stock, p.ticker)
         if stock and stock.last_price:
             p.current_price = stock.last_price
+            marked += 1
+        else:
+            log.warning("No mark available for held position %s", p.ticker)
+    log.info("Marked %s/%s open positions", marked, len(pos_tickers))
 
     # Snapshot
     positions = db.query(Position).filter(Position.portfolio_id == portfolio.id).all()

@@ -17,7 +17,8 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./outpick.db"
     # Also accept DATABASE_URL without driver prefix
     fmp_api_key: str = ""
-    fmp_base_url: str = "https://financialmodelingprep.com/api/v3"
+    # `/api/v3` is retired and 403s for non-legacy keys; `/stable` is current.
+    fmp_base_url: str = "https://financialmodelingprep.com/stable"
     initial_cash: float = 100_000.0
     # No fail-open default. Local dev falls back to DEV_OPS_KEY via
     # `effective_ops_key`; anywhere else an unset key disables ops entirely.

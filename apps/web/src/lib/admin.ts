@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { pool } from "@/lib/db";
 import { ensureMigrations } from "@/lib/auth";
@@ -29,22 +30,59 @@ export function notFoundResponse(): NextResponse {
   return NextResponse.json({ error: "Not found" }, { status: 404 });
 }
 
+/** Persist the admin flag so the allowlist/token can be removed later. */
+async function promote(userId: string): Promise<void> {
+  try {
+    await pool.query(`UPDATE "user" SET is_admin = TRUE WHERE id = $1`, [
+      userId,
+    ]);
+  } catch (e) {
+    console.error("Failed to persist admin flag:", e);
+  }
+}
+
+/**
+ * Claim admin with the one-time bootstrap token.
+ *
+ * The ADMIN_EMAILS allowlist matches on an email STRING, so on a fresh
+ * database the admin address is an unclaimed username — whoever registers it
+ * first would otherwise take the ops surface. Proving control of the address
+ * closes that, but email is not always available (no provider configured yet),
+ * so ADMIN_BOOTSTRAP_TOKEN is the alternative proof: it is known only to
+ * whoever can read the deployment's environment.
+ *
+ * Requires BOTH the token and an allowlisted email, so a leaked token alone
+ * grants nothing.
+ */
+export async function claimAdminWithToken(
+  user: ServerSessionUser,
+  suppliedToken: string
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const expected = process.env.ADMIN_BOOTSTRAP_TOKEN;
+  if (!expected || !expected.trim()) {
+    return { ok: false, reason: "Bootstrap token is not configured" };
+  }
+  if (!adminEmails().includes(user.email.toLowerCase())) {
+    return { ok: false, reason: "This account is not on the admin allowlist" };
+  }
+
+  const a = Buffer.from(suppliedToken);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    return { ok: false, reason: "Invalid token" };
+  }
+
+  await promote(user.id);
+  return { ok: true };
+}
+
 async function isAdminUser(user: ServerSessionUser): Promise<boolean> {
   const email = user.email.toLowerCase();
 
-  // The allowlist matches on an email STRING. On a fresh, empty database the
-  // admin address is an unclaimed username until someone registers it, so
-  // promoting an unverified account would let whoever signs up with it first
-  // take the ops surface. Require a proven address before promoting.
+  // Auto-promote on an allowlisted AND verified address. Verification is the
+  // proof of control; without it, see claimAdminWithToken above.
   if (adminEmails().includes(email) && user.emailVerified) {
-    // Bootstrap: persist the flag so the allowlist can be removed later.
-    try {
-      await pool.query(`UPDATE "user" SET is_admin = TRUE WHERE id = $1`, [
-        user.id,
-      ]);
-    } catch (e) {
-      console.error("Failed to persist admin flag:", e);
-    }
+    await promote(user.id);
     return true;
   }
 

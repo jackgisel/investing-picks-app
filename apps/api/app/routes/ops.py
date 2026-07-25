@@ -440,12 +440,23 @@ def dry_run_preview(db: Session = Depends(get_db)):
     scores = load_latest_scores(db)
     ranked = ranked_candidates(scores)
     signals = evaluate(state, scores, ranked, params)
+    # Without these counts an empty `signals` list is ambiguous: it reads as
+    # "the strategy considered the universe and chose to do nothing" when it can
+    # equally mean "there was no universe to consider". `_removal_signals` skips
+    # any holding with no score and `_buy_signals` iterates the ranked list, so
+    # an unscored universe yields zero signals and zero explanation.
+    scored_held = sum(1 for t in state.positions if t in scores)
     return {
         "params_version": params.version_hash(),
         "portfolio": {
             "cash": state.cash,
             "equity": state.equity,
             "position_count": state.position_count(),
+        },
+        "universe": {
+            "scored_tickers": len(scores),
+            "ranked_candidates": len(ranked),
+            "held_with_scores": scored_held,
         },
         "signals": [s.to_dict() for s in signals],
     }

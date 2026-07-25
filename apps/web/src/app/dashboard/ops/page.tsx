@@ -4,6 +4,15 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 
+type JobRun = {
+  id: number;
+  job_name: string;
+  status: string;
+  detail: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+};
+
 type EvaluationSummary = {
   id: number;
   mode: string;
@@ -33,6 +42,17 @@ export default function OpsEvaluationsPage() {
     },
     // Never serve this from cache. The point of the button is to see what the
     // strategy decides against *current* marks and scores.
+    staleTime: 0,
+    gcTime: 0,
+  });
+
+  const jobs = useQuery({
+    queryKey: ["ops-jobs"],
+    queryFn: async () => {
+      const res = await fetch("/api/ops/jobs", { cache: "no-store" });
+      if (!res.ok) throw new Error("Failed to load jobs");
+      return res.json() as Promise<{ jobs: JobRun[] }>;
+    },
     staleTime: 0,
     gcTime: 0,
   });
@@ -87,6 +107,11 @@ export default function OpsEvaluationsPage() {
                 ${Number(dry.data.portfolio?.equity ?? 0).toLocaleString()}
               </span>
               {" · "}
+              <span className="font-mono text-text">
+                {dry.data.portfolio?.position_count ?? 0}
+              </span>{" "}
+              positions
+              {" · "}
               {dry.data.signals?.length ?? 0} signals
             </p>
             <ul className="space-y-2">
@@ -97,12 +122,63 @@ export default function OpsEvaluationsPage() {
                   <span className="text-text-muted">{s.reason}</span>
                 </li>
               ))}
-              {(dry.data.signals || []).length === 0 && (
-                <li className="text-sm text-text-muted">No signals — book is quiet.</li>
-              )}
+              {(dry.data.signals || []).length === 0 &&
+                (dry.data.universe?.ranked_candidates > 0 ? (
+                  <li className="text-sm text-text-muted">
+                    No signals — book is quiet.{" "}
+                    <span className="font-mono text-text-dim">
+                      {dry.data.universe.ranked_candidates} candidates scored,{" "}
+                      {dry.data.universe.held_with_scores}/
+                      {dry.data.portfolio?.position_count ?? 0} holdings have scores
+                    </span>
+                  </li>
+                ) : (
+                  <li className="text-sm text-accent-red">
+                    No signals because the universe is unscored — 0 candidates. The
+                    strategy could not evaluate a single buy or sell. Check that
+                    weekly_refresh (universe → fundamentals → score) has run.
+                  </li>
+                ))}
             </ul>
           </div>
         )}
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">WORKER JOBS</h2>
+        {jobs.error && <p className="text-accent-red text-sm">Could not load job history</p>}
+        {jobs.data && jobs.data.jobs.length === 0 && (
+          <p className="text-sm text-accent-red">
+            No job has ever run. The worker is not reaching this database — that
+            alone explains an unscored universe.
+          </p>
+        )}
+        <div className="divide-y divide-border soft-card !p-0 overflow-hidden">
+          {(jobs.data?.jobs || []).map((j) => (
+            <div key={j.id} className="px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="font-mono text-sm text-text">{j.job_name}</p>
+                <span
+                  className={`font-mono text-xs ${
+                    j.status === "ok"
+                      ? "text-accent-green"
+                      : j.status === "running"
+                        ? "text-text-dim"
+                        : "text-accent-red"
+                  }`}
+                >
+                  {j.status}
+                </span>
+              </div>
+              <p className="text-xs text-text-muted mt-0.5">
+                {j.started_at ? new Date(j.started_at).toLocaleString() : "—"}
+              </p>
+              {j.detail && (
+                <p className="font-mono text-xs text-text-dim mt-1 break-all">{j.detail}</p>
+              )}
+            </div>
+          ))}
+        </div>
       </section>
 
       <section className="space-y-3">

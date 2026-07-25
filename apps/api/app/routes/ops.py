@@ -22,7 +22,7 @@ from app.services.portfolio import (
     ranked_candidates,
     run_evaluation,
 )
-from outpick_strategy import evaluate, RUN118_PARAMS
+from outpick_strategy import evaluate, grade_meets_minimum, RUN118_PARAMS
 
 # Refuse to start when the ops key would fail open. This module is imported by
 # app.main, so a misconfigured deployment never comes up at all.
@@ -465,6 +465,18 @@ def dry_run_preview(db: Session = Depends(get_db)):
             "scored_tickers": len(scores),
             "ranked_candidates": len(ranked),
             "held_with_scores": scored_held,
+            # Estimate revisions need two fundamentals snapshots spanning the
+            # lookback, so on a fresh database this factor is null for the whole
+            # universe, grades "F", and fails min_revisions_grade — blocking
+            # every buy. That is deliberate (see compute_estimate_revisions),
+            # but without a number here it is indistinguishable from a strategy
+            # that simply found nothing worth buying.
+            "revisions_gate": params.min_revisions_grade,
+            "passing_revisions_gate": sum(
+                1
+                for s in scores.values()
+                if grade_meets_minimum(s.revisions_grade, params.min_revisions_grade)
+            ),
         },
         "signals": [s.to_dict() for s in signals],
     }

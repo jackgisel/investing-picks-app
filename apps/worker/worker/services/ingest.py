@@ -185,13 +185,29 @@ def compute_estimate_revisions(
 
 
 def refresh_fundamentals(db: Session, fmp: FMPClient, max_tickers: int = 400) -> int:
-    stocks = (
+    # Held positions are ALWAYS refreshed, whatever their size. Ranking by market
+    # cap alone dropped 7 of 8 real holdings outside the cut, and an unscored
+    # holding is invisible to `_removal_signals` (it skips any position with no
+    # score) — the book would silently stop being evaluated for sells.
+    held = {
+        row[0]
+        for row in db.query(Position.ticker).filter(Position.portfolio_id == 1).all()
+    }
+    # NULLS LAST matters: Postgres sorts NULL first on DESC, so unpriced shells
+    # would otherwise consume the budget ahead of the largest real companies.
+    ranked = (
         db.query(Stock)
         .filter(Stock.is_active == True)  # noqa: E712
-        .order_by(Stock.market_cap.desc())
+        .order_by(Stock.market_cap.desc().nullslast())
         .limit(max_tickers)
         .all()
     )
+    stocks = list(ranked)
+    seen = {s.ticker for s in stocks}
+    for ticker in sorted(held - seen):
+        stock = db.get(Stock, ticker)
+        if stock is not None:
+            stocks.append(stock)
     as_of = date.today()
     n = 0
     revisions_available = 0
@@ -213,7 +229,14 @@ def refresh_fundamentals(db: Session, fmp: FMPClient, max_tickers: int = 400) ->
         if profile:
             s.sector = profile.get("sector") or s.sector
             s.industry = profile.get("industry") or s.industry
-            s.market_cap = profile.get("mktCap") or s.market_cap
+            # `/stable` renamed this from the legacy `mktCap`. Reading only the
+            # old name left market_cap NULL for every stock not in the screener
+            # (i.e. the hand-seeded holdings), and score_universe filters on
+            # `market_cap >= min_universe_market_cap` — so those names were
+            # dropped from scoring entirely. Accept both, newest name first.
+            s.market_cap = (
+                profile.get("marketCap") or profile.get("mktCap") or s.market_cap
+            )
             s.name = profile.get("companyName") or s.name
         n += 1
         if n % 25 == 0:

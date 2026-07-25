@@ -144,13 +144,24 @@ export default function OpsEvaluationsPage() {
               ))}
               {(dry.data.signals || []).length === 0 &&
                 (dry.data.universe?.ranked_candidates > 0 ? (
-                  <li className="text-sm text-text-muted">
-                    No signals — book is quiet.{" "}
-                    <span className="font-mono text-text-dim">
-                      {dry.data.universe.ranked_candidates} candidates scored,{" "}
-                      {dry.data.universe.held_with_scores}/
-                      {dry.data.portfolio?.position_count ?? 0} holdings have scores
+                  <li className="text-sm text-text-muted space-y-1">
+                    <span className="block">
+                      No signals — book is quiet.{" "}
+                      <span className="font-mono text-text-dim">
+                        {dry.data.universe.ranked_candidates} candidates scored,{" "}
+                        {dry.data.universe.held_with_scores}/
+                        {dry.data.portfolio?.position_count ?? 0} holdings have scores
+                      </span>
                     </span>
+                    {dry.data.universe.passing_revisions_gate === 0 && (
+                      <span className="block text-accent-red">
+                        0 of {dry.data.universe.ranked_candidates} candidates pass the{" "}
+                        {dry.data.universe.revisions_gate} revisions gate — every buy is
+                        blocked. Estimate revisions need two fundamentals snapshots
+                        spanning the lookback, so this clears once a second snapshot
+                        exists.
+                      </span>
+                    )}
                   </li>
                 ) : (
                   <li className="text-sm text-accent-red">

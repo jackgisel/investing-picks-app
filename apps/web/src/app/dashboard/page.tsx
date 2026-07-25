@@ -3,6 +3,13 @@
 import { useStrategy } from "@/lib/hooks/use-strategy";
 import { usePicks } from "@/lib/hooks/use-picks";
 import { LiveStatus } from "@/components/dashboard/live-status";
+import {
+  DataState,
+  DataStateCard,
+  hasDataState,
+  resolveDataState,
+  type DataStateKind,
+} from "@/components/ui/data-state";
 import { computePortfolioReturnPct, formatPct } from "@/lib/portfolio";
 import {
   TrendingUp,
@@ -13,13 +20,47 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+/**
+ * States where showing the dashboard chrome at all is a lie — the user is not
+ * allowed to see any of it, so a single prompt beats four stat cards of dashes
+ * and three copies of the same message.
+ */
+function isGate(state: DataStateKind | null): state is "unauthenticated" | "subscription" {
+  return state === "unauthenticated" || state === "subscription";
+}
+
 export default function DashboardPage() {
-  const { data: strategy, isLoading } = useStrategy();
-  const { data: picksData } = usePicks("active");
+  const strategyQuery = useStrategy();
+  const picksQuery = usePicks("active");
+  const { data: strategy } = strategyQuery;
+  const { data: picksData } = picksQuery;
 
   const portfolio = strategy?.portfolio;
   const holdings = strategy?.holdings;
   const strategyMeta = strategy?.strategy;
+
+  const strategyState = resolveDataState({
+    isPending: strategyQuery.isPending,
+    isError: strategyQuery.isError,
+    error: strategyQuery.error,
+    isEmpty: (holdings?.length ?? 0) === 0,
+  });
+  const picksState = resolveDataState({
+    isPending: picksQuery.isPending,
+    isError: picksQuery.isError,
+    error: picksQuery.error,
+    isEmpty: (picksData?.picks?.length ?? 0) === 0,
+  });
+
+  // Both surfaces sit behind the same paywall, so either one reporting a gate
+  // means the whole page is gated.
+  const gate = isGate(strategyState)
+    ? strategyState
+    : isGate(picksState)
+      ? picksState
+      : null;
+
+  const strategyFailed = strategyState === "error";
 
   // Portfolio total return % derived from holdings — UI never shows dollars.
   const computedReturnPct = computePortfolioReturnPct(strategy);
@@ -47,102 +88,137 @@ export default function DashboardPage() {
         .slice(0, 4)
     : undefined;
 
+  const subtitle = gate
+    ? gate === "subscription"
+      ? "Subscription required"
+      : "Sign in to continue"
+    : strategyFailed
+      ? "Live data unavailable"
+      : strategyMeta
+        ? `${strategyMeta.name} · ${strategyMeta.evaluation_frequency} evaluation`
+        : "Loading...";
+
   return (
     <div className="max-w-[1100px] space-y-6">
       <div>
         <h1 className="font-sans text-xl font-bold">Dashboard</h1>
-        <p className="font-sans text-[13px] text-text-dim mt-1">
-          {strategyMeta
-            ? `${strategyMeta.name} · ${strategyMeta.evaluation_frequency} evaluation`
-            : "Loading..."}
-        </p>
+        <p className="font-sans text-[13px] text-text-dim mt-1">{subtitle}</p>
       </div>
 
-      {/* Live status banner */}
-      <LiveStatus />
+      {gate ? (
+        <DataStateCard
+          state={gate}
+          error={strategyQuery.error ?? picksQuery.error}
+        />
+      ) : (
+        <>
+          {/* Live status banner */}
+          <LiveStatus />
 
-      {/* Live stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard
-          label="TOTAL RETURN"
-          value={hasReturn ? formatPct(totalReturnPct) : "—"}
-          icon={TrendingUp}
-          green={hasReturn && totalReturnPct >= 0}
-          red={hasReturn && totalReturnPct < 0}
-          loading={isLoading}
-        />
-        <StatCard
-          label="POSITIONS"
-          value={portfolio ? portfolio.position_count.toString() : "—"}
-          icon={Layers}
-          loading={isLoading}
-        />
-        <StatCard
-          label="WINNERS"
-          value={holdings ? `${winnersCount} / ${positionsCount}` : "—"}
-          icon={Trophy}
-          loading={isLoading}
-        />
-        <StatCard
-          label="EVALUATION"
-          value="Biweekly"
-          icon={Activity}
-          loading={isLoading}
-        />
-      </div>
+          {/* Live stats */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <StatCard
+              label="TOTAL RETURN"
+              value={hasReturn ? formatPct(totalReturnPct) : "—"}
+              icon={TrendingUp}
+              green={hasReturn && totalReturnPct >= 0}
+              red={hasReturn && totalReturnPct < 0}
+              loading={strategyQuery.isPending}
+            />
+            <StatCard
+              label="POSITIONS"
+              value={portfolio ? portfolio.position_count.toString() : "—"}
+              icon={Layers}
+              loading={strategyQuery.isPending}
+            />
+            <StatCard
+              label="WINNERS"
+              value={holdings ? `${winnersCount} / ${positionsCount}` : "—"}
+              icon={Trophy}
+              loading={strategyQuery.isPending}
+            />
+            <StatCard
+              label="EVALUATION"
+              value="Biweekly"
+              icon={Activity}
+              loading={strategyQuery.isPending}
+            />
+          </div>
 
-      {/* Top + Bottom holdings */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <HoldingsCard
-          title="TOP PERFORMERS"
-          holdings={topHoldings}
-        />
-        <HoldingsCard
-          title="WORST PERFORMERS"
-          holdings={bottomHoldings}
-        />
-      </div>
-
-      {/* Recent picks */}
-      <div className="soft-card !p-0 overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">
-            RECENT PICKS
-          </span>
-          <Link
-            href="/dashboard/picks"
-            className="font-mono text-[10px] text-text font-semibold underline underline-offset-2 hover:opacity-70 flex items-center gap-1"
-          >
-            ALL PICKS <ArrowUpRight size={10} />
-          </Link>
-        </div>
-        <div className="divide-y divide-border">
-          {!recentPicks ? (
-            <LoadingRow />
-          ) : recentPicks.length === 0 ? (
-            <EmptyRow text="NO PICKS YET" />
+          {strategyFailed ? (
+            <DataStateCard
+              state="error"
+              error={strategyQuery.error}
+              onRetry={() => void strategyQuery.refetch()}
+            />
           ) : (
-            recentPicks.map((p, i) => {
-              const pct = p.pnl_pct ?? 0;
-              return (
-                <div key={`${p.ticker}-${i}`} className="grid grid-cols-2 sm:grid-cols-3 items-center px-5 py-4 hover:bg-bg-tertiary/50 transition-colors gap-2">
-                  <span className="font-mono text-[14px] font-semibold">{p.ticker}</span>
-                  <span className="font-mono text-[11px] text-text-dim">
-                    Entered {p.entry_date}
-                  </span>
-                  <span
-                    className={`font-mono text-[12px] font-semibold text-right ${
-                      pct >= 0 ? "text-accent-green" : "text-accent-red"
-                    }`}
-                  >
-                    {p.pnl_pct === null ? "—" : formatPct(pct)}
-                  </span>
-                </div>
-              );
-            })
+            /* Top + Bottom holdings */
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <HoldingsCard
+                title="TOP PERFORMERS"
+                holdings={topHoldings}
+                state={strategyState}
+              />
+              <HoldingsCard
+                title="WORST PERFORMERS"
+                holdings={bottomHoldings}
+                state={strategyState}
+              />
+            </div>
           )}
-        </div>
-      </div>
+
+          {/* Recent picks */}
+          <div className="soft-card !p-0 overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">
+                RECENT PICKS
+              </span>
+              <Link
+                href="/dashboard/picks"
+                className="font-mono text-[10px] text-text font-semibold underline underline-offset-2 hover:opacity-70 flex items-center gap-1"
+              >
+                ALL PICKS <ArrowUpRight size={10} />
+              </Link>
+            </div>
+            <div className="divide-y divide-border">
+              {hasDataState(picksState) ? (
+                <DataState
+                  compact
+                  state={picksState}
+                  error={picksQuery.error}
+                  onRetry={() => void picksQuery.refetch()}
+                  emptyTitle="No picks yet"
+                  emptyMessage="The next pick lands on the biweekly evaluation. It will show up here first."
+                />
+              ) : (
+                recentPicks?.map((p, i) => {
+                  const pct = p.pnl_pct ?? 0;
+                  return (
+                    <div
+                      key={`${p.ticker}-${i}`}
+                      className="grid grid-cols-2 sm:grid-cols-3 items-center px-5 py-4 hover:bg-bg-tertiary/50 transition-colors gap-2"
+                    >
+                      <span className="font-mono text-[14px] font-semibold">
+                        {p.ticker}
+                      </span>
+                      <span className="font-mono text-[11px] text-text-dim">
+                        Entered {p.entry_date}
+                      </span>
+                      <span
+                        className={`font-mono text-[12px] font-semibold text-right ${
+                          pct >= 0 ? "text-accent-green" : "text-accent-red"
+                        }`}
+                      >
+                        {p.pnl_pct === null ? "—" : formatPct(pct)}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Curiosity nudge to Strategy page */}
       <Link
@@ -214,9 +290,13 @@ function StatCard({
 function HoldingsCard({
   title,
   holdings,
+  state,
 }: {
   title: string;
-  holdings: { ticker: string; pnl_pct: number; entry_date: string | null }[] | undefined;
+  holdings:
+    | { ticker: string; pnl_pct: number; entry_date: string | null }[]
+    | undefined;
+  state: DataStateKind | null;
 }) {
   return (
     <div className="soft-card !p-0 overflow-hidden">
@@ -232,12 +312,15 @@ function HoldingsCard({
         </Link>
       </div>
       <div className="divide-y divide-border">
-        {!holdings ? (
-          <LoadingRow />
-        ) : holdings.length === 0 ? (
-          <EmptyRow text="NO HOLDINGS" />
+        {hasDataState(state) ? (
+          <DataState
+            compact
+            state={state}
+            emptyTitle="No holdings"
+            emptyMessage="The book is empty right now."
+          />
         ) : (
-          holdings.map((h) => (
+          holdings?.map((h) => (
             <div
               key={h.ticker}
               className="flex items-center justify-between px-5 py-3 hover:bg-bg-tertiary/50 transition-colors"
@@ -262,24 +345,6 @@ function HoldingsCard({
           ))
         )}
       </div>
-    </div>
-  );
-}
-
-function LoadingRow() {
-  return (
-    <div className="px-5 py-8 text-center">
-      <span className="font-mono text-[11px] text-text-dim animate-pulse">
-        LOADING...
-      </span>
-    </div>
-  );
-}
-
-function EmptyRow({ text }: { text: string }) {
-  return (
-    <div className="px-5 py-8 text-center">
-      <span className="font-mono text-[11px] text-text-dim">{text}</span>
     </div>
   );
 }

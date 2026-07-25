@@ -13,12 +13,18 @@ function daysSince(dateStr: string): number {
 }
 
 export function LiveStatus() {
-  const { data: strategy, isLoading } = useStrategy();
+  const { data: strategy, isPending, isError } = useStrategy();
+  const isLoading = isPending;
   const days = daysSince(LIVE_INCEPTION);
   const portfolio = strategy?.portfolio;
   const totalReturnPct = computePortfolioReturnPct(strategy);
   const hasReturn = totalReturnPct !== null;
   const isPositive = hasReturn && totalReturnPct! >= 0;
+
+  // A pulsing green "Live portfolio" banner full of em-dashes is worse than no
+  // banner: it asserts everything is fine while the numbers are unavailable.
+  // The page that owns this slot renders the real explanation instead.
+  if (isError) return null;
 
   return (
     <div className="soft-card">

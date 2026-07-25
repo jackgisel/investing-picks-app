@@ -1,6 +1,7 @@
 "use client";
 
 import { useChart, type ChartPoint } from "@/lib/hooks/use-chart";
+import { DataState, resolveDataState } from "@/components/ui/data-state";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -40,10 +41,10 @@ function EmptyChart({ compact }: { compact?: boolean }) {
 }
 
 export function PerformanceChart({ compact = false }: { compact?: boolean }) {
-  const { data: chartData, isLoading } = useChart();
+  const { data: chartData, isPending, isError, error, refetch } = useChart();
   const series = chartData?.series ?? [];
 
-  if (isLoading) {
+  if (isPending) {
     return (
       <div
         className={`soft-card ${compact ? "h-56" : "h-80"} flex items-center justify-center`}
@@ -51,6 +52,24 @@ export function PerformanceChart({ compact = false }: { compact?: boolean }) {
         <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim animate-pulse">
           Loading chart data...
         </span>
+      </div>
+    );
+  }
+
+  // A failed fetch used to fall through to "Building track record", which
+  // claims the series is merely short when in fact we never got one.
+  if (isError) {
+    const state = resolveDataState({
+      isPending: false,
+      isError: true,
+      error,
+      isEmpty: false,
+    })!;
+    return (
+      <div
+        className={`soft-card !p-0 ${compact ? "h-56" : "h-80"} flex items-center justify-center`}
+      >
+        <DataState state={state} error={error} onRetry={() => void refetch()} />
       </div>
     );
   }

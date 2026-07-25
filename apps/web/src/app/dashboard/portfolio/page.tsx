@@ -2,6 +2,12 @@
 
 import { useState } from "react";
 import { useStrategy } from "@/lib/hooks/use-strategy";
+import {
+  DataStateCard,
+  DataStateRow,
+  hasDataState,
+  resolveDataState,
+} from "@/components/ui/data-state";
 import { ArrowUpDown } from "lucide-react";
 import { computePortfolioReturnPct, formatPct } from "@/lib/portfolio";
 
@@ -17,7 +23,8 @@ function daysHeld(entryDate: string | null): string {
 }
 
 export default function PortfolioPage() {
-  const { data: strategy, isLoading } = useStrategy();
+  const strategyQuery = useStrategy();
+  const { data: strategy, isPending, isError, error } = strategyQuery;
   const holdings = strategy?.holdings;
   const portfolio = strategy?.portfolio;
   const totalReturnPct = computePortfolioReturnPct(strategy);
@@ -47,132 +54,148 @@ export default function PortfolioPage() {
       })
     : undefined;
 
+  const state = resolveDataState({
+    isPending,
+    isError,
+    error,
+    isEmpty: (holdings?.length ?? 0) === 0,
+  });
+  // Nothing on this page is readable without the holdings, so a paywall or a
+  // missing session replaces the whole body rather than decorating an empty
+  // table with an upgrade prompt.
+  const gate = state === "unauthenticated" || state === "subscription";
+
   return (
     <div className="max-w-[1100px] space-y-6">
       <div>
         <h1 className="font-sans text-xl font-bold">Portfolio</h1>
         <p className="font-sans text-[13px] text-text-dim mt-1">
-          {portfolio
-            ? `${portfolio.position_count} live positions`
-            : "Loading..."}
+          {gate
+            ? state === "subscription"
+              ? "Subscription required"
+              : "Sign in to continue"
+            : isError
+              ? "Holdings unavailable"
+              : portfolio
+                ? `${portfolio.position_count} live positions`
+                : "Loading..."}
         </p>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <SummaryCard
-          label="TOTAL RETURN"
-          value={hasReturn ? formatPct(totalReturnPct!) : "—"}
-          loading={isLoading}
-          green={hasReturn && totalReturnPct! >= 0}
-          red={hasReturn && totalReturnPct! < 0}
-        />
-        <SummaryCard
-          label="POSITIONS"
-          value={portfolio?.position_count.toString() ?? "—"}
-          loading={isLoading}
-        />
-        <SummaryCard
-          label="WINNERS"
-          value={holdings ? `${winnersCount}` : "—"}
-          loading={isLoading}
-          green={winnersCount > 0}
-        />
-        <SummaryCard
-          label="LOSERS"
-          value={holdings ? `${losersCount}` : "—"}
-          loading={isLoading}
-          red={losersCount > 0}
-        />
-      </div>
-
-      {/* Holdings table */}
-      <div className="soft-card !p-0 overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">
-            ALL HOLDINGS ({sorted?.length ?? 0})
-          </span>
+      {gate ? (
+        <DataStateCard state={state} error={error} />
+      ) : (
+        <>
+        {/* Summary cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <SummaryCard
+            label="TOTAL RETURN"
+            value={hasReturn ? formatPct(totalReturnPct!) : "—"}
+            loading={isPending}
+            green={hasReturn && totalReturnPct! >= 0}
+            red={hasReturn && totalReturnPct! < 0}
+          />
+          <SummaryCard
+            label="POSITIONS"
+            value={portfolio?.position_count.toString() ?? "—"}
+            loading={isPending}
+          />
+          <SummaryCard
+            label="WINNERS"
+            value={holdings ? `${winnersCount}` : "—"}
+            loading={isPending}
+            green={winnersCount > 0}
+          />
+          <SummaryCard
+            label="LOSERS"
+            value={holdings ? `${losersCount}` : "—"}
+            loading={isPending}
+            red={losersCount > 0}
+          />
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr>
-                {(
-                  [
-                    { key: "ticker" as SortKey, label: "TICKER" },
-                    { key: "entry_date" as SortKey, label: "ENTRY DATE" },
-                    { key: null, label: "DAYS HELD" },
-                    { key: "pnl_pct" as SortKey, label: "RETURN" },
-                  ] as const
-                ).map((col) => (
-                  <th
-                    key={col.label}
-                    onClick={col.key ? () => toggleSort(col.key) : undefined}
-                    className={`font-mono text-left px-5 py-3 text-[10px] text-text-dim tracking-[1.5px] font-medium border-b border-border bg-bg ${
-                      col.key
-                        ? "cursor-pointer hover:text-text-muted select-none"
-                        : ""
-                    }`}
-                  >
-                    <span className="flex items-center gap-1">
-                      {col.label}
-                      {col.key && sortKey === col.key && (
-                        <ArrowUpDown size={10} className="text-accent-green" />
-                      )}
-                    </span>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
+        {/* Holdings table */}
+        <div className="soft-card !p-0 overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+            <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">
+              ALL HOLDINGS {isPending || isError ? "" : `(${sorted?.length ?? 0})`}
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
                 <tr>
-                  <td colSpan={4} className="px-5 py-8 text-center">
-                    <span className="font-mono text-[11px] text-text-dim animate-pulse">
-                      LOADING...
-                    </span>
-                  </td>
-                </tr>
-              ) : !sorted?.length ? (
-                <tr>
-                  <td colSpan={4} className="px-5 py-8 text-center">
-                    <span className="font-mono text-[11px] text-text-dim">
-                      NO HOLDINGS
-                    </span>
-                  </td>
-                </tr>
-              ) : (
-                sorted.map((h) => (
-                  <tr
-                    key={h.ticker}
-                    className="border-b border-border last:border-b-0 hover:bg-bg-tertiary/50 transition-colors"
-                  >
-                    <td className="px-5 py-3.5">
-                      <span className="font-mono font-semibold text-[14px]">
-                        {h.ticker}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5 font-mono text-[12px] text-text-muted">
-                      {h.entry_date}
-                    </td>
-                    <td className="px-5 py-3.5 font-mono text-[12px] text-text-muted">
-                      {daysHeld(h.entry_date)}
-                    </td>
-                    <td
-                      className={`px-5 py-3.5 font-mono text-[13px] font-semibold ${
-                        h.pnl_pct >= 0 ? "text-accent-green" : "text-accent-red"
+                  {(
+                    [
+                      { key: "ticker" as SortKey, label: "TICKER" },
+                      { key: "entry_date" as SortKey, label: "ENTRY DATE" },
+                      { key: null, label: "DAYS HELD" },
+                      { key: "pnl_pct" as SortKey, label: "RETURN" },
+                    ] as const
+                  ).map((col) => (
+                    <th
+                      key={col.label}
+                      onClick={col.key ? () => toggleSort(col.key) : undefined}
+                      className={`font-mono text-left px-5 py-3 text-[10px] text-text-dim tracking-[1.5px] font-medium border-b border-border bg-bg ${
+                        col.key
+                          ? "cursor-pointer hover:text-text-muted select-none"
+                          : ""
                       }`}
                     >
-                      {formatPct(h.pnl_pct)}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                      <span className="flex items-center gap-1">
+                        {col.label}
+                        {col.key && sortKey === col.key && (
+                          <ArrowUpDown size={10} className="text-accent-green" />
+                        )}
+                      </span>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {hasDataState(state) ? (
+                  <DataStateRow
+                    colSpan={4}
+                    state={state}
+                    error={error}
+                    onRetry={() => void strategyQuery.refetch()}
+                    emptyTitle="No holdings"
+                    emptyMessage="The book has no open positions right now. New positions appear here as soon as they are opened."
+                  />
+                ) : (
+                  sorted?.map((h) => (
+                    <tr
+                      key={h.ticker}
+                      className="border-b border-border last:border-b-0 hover:bg-bg-tertiary/50 transition-colors"
+                    >
+                      <td className="px-5 py-3.5">
+                        <span className="font-mono font-semibold text-[14px]">
+                          {h.ticker}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 font-mono text-[12px] text-text-muted">
+                        {h.entry_date}
+                      </td>
+                      <td className="px-5 py-3.5 font-mono text-[12px] text-text-muted">
+                        {daysHeld(h.entry_date)}
+                      </td>
+                      <td
+                        className={`px-5 py-3.5 font-mono text-[13px] font-semibold ${
+                          h.pnl_pct >= 0 ? "text-accent-green" : "text-accent-red"
+                        }`}
+                      >
+                        {formatPct(h.pnl_pct)}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }

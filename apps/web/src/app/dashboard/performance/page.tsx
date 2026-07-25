@@ -4,6 +4,7 @@ import { useStrategy } from "@/lib/hooks/use-strategy";
 import { useChart } from "@/lib/hooks/use-chart";
 import { PerformanceChart } from "@/components/dashboard/performance-chart";
 import { LiveStatus } from "@/components/dashboard/live-status";
+import { DataStateCard, resolveDataState } from "@/components/ui/data-state";
 import { computePortfolioReturnPct, formatPct } from "@/lib/portfolio";
 import { TrendingUp, BarChart3, Activity, Trophy } from "lucide-react";
 
@@ -16,11 +17,35 @@ function daysSince(dateStr: string): number {
 }
 
 export default function PerformancePage() {
-  const { data: strategy, isLoading } = useStrategy();
-  const { data: chartData } = useChart();
+  const strategyQuery = useStrategy();
+  const chartQuery = useChart();
+  const { data: strategy, isPending, isError, error } = strategyQuery;
+  const { data: chartData } = chartQuery;
 
   const portfolio = strategy?.portfolio;
   const holdings = strategy?.holdings;
+
+  const strategyState = resolveDataState({
+    isPending,
+    isError,
+    error,
+    isEmpty: false, // an empty book is still a valid page here — metrics render as 0
+  });
+  const chartState = resolveDataState({
+    isPending: chartQuery.isPending,
+    isError: chartQuery.isError,
+    error: chartQuery.error,
+    isEmpty: false,
+  });
+  // Both endpoints sit behind the same gate; either reporting one means the
+  // whole page is unavailable, so show a single prompt instead of a grid of
+  // dashes above an empty chart.
+  const gate =
+    strategyState === "unauthenticated" || strategyState === "subscription"
+      ? strategyState
+      : chartState === "unauthenticated" || chartState === "subscription"
+        ? chartState
+        : null;
 
   // Portfolio total return % derived from holdings — UI never shows dollars.
   const computedReturnPct = computePortfolioReturnPct(strategy);
@@ -44,99 +69,119 @@ export default function PerformancePage() {
       <div>
         <h1 className="font-sans text-xl font-bold">Performance</h1>
         <p className="font-sans text-[13px] text-text-dim mt-1">
-          Live portfolio tracking · Day {days} · {seriesPoints} data points
+          {gate
+            ? gate === "subscription"
+              ? "Subscription required"
+              : "Sign in to continue"
+            : `Live portfolio tracking · Day ${days}${
+                chartQuery.isSuccess ? ` · ${seriesPoints} data points` : ""
+              }`}
         </p>
       </div>
 
-      <LiveStatus />
+      {gate ? (
+        <DataStateCard state={gate} error={error ?? chartQuery.error} />
+      ) : (
+        <>
+        <LiveStatus />
 
-      {/* Live metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <MetricCard
-          label="TOTAL RETURN"
-          value={hasReturn ? formatPct(totalReturnPct) : "—"}
-          icon={TrendingUp}
-          green={hasReturn && totalReturnPct >= 0}
-          red={hasReturn && totalReturnPct < 0}
-          loading={isLoading}
-        />
-        <MetricCard
-          label="POSITIONS"
-          value={portfolio?.position_count.toString() ?? "—"}
-          icon={BarChart3}
-          loading={isLoading}
-        />
-        <MetricCard
-          label="WINNERS"
-          value={
-            holdings ? `${winnersCount} / ${holdings.length}` : "—"
-          }
-          icon={Trophy}
-          loading={isLoading}
-        />
-        <MetricCard
-          label="DAYS LIVE"
-          value={days.toString()}
-          icon={Activity}
-          loading={isLoading}
-        />
-      </div>
-
-      {/* Live chart (will show empty state until enough data) */}
-      <PerformanceChart />
-
-      {/* Best & worst */}
-      {(bestHolding || worstHolding) && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {bestHolding && (
-            <div className="soft-card">
-              <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim block mb-2">
-                BEST HOLDING
-              </span>
-              <div className="flex items-baseline justify-between">
-                <span className="font-mono text-lg font-bold">
-                  {bestHolding.ticker}
-                </span>
-                <span
-                  className={`font-mono text-[18px] font-bold ${
-                    bestHolding.pnl_pct >= 0
-                      ? "text-accent-green"
-                      : "text-accent-red"
-                  }`}
-                >
-                  {formatPct(bestHolding.pnl_pct)}
-                </span>
-              </div>
-              <span className="font-mono text-[11px] text-text-dim mt-1 block">
-                Entered {bestHolding.entry_date}
-              </span>
-            </div>
-          )}
-          {worstHolding && (
-            <div className="soft-card">
-              <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim block mb-2">
-                WORST HOLDING
-              </span>
-              <div className="flex items-baseline justify-between">
-                <span className="font-mono text-lg font-bold">
-                  {worstHolding.ticker}
-                </span>
-                <span
-                  className={`font-mono text-[18px] font-bold ${
-                    worstHolding.pnl_pct >= 0
-                      ? "text-accent-green"
-                      : "text-accent-red"
-                  }`}
-                >
-                  {formatPct(worstHolding.pnl_pct)}
-                </span>
-              </div>
-              <span className="font-mono text-[11px] text-text-dim mt-1 block">
-                Entered {worstHolding.entry_date}
-              </span>
-            </div>
-          )}
+        {/* Live metrics */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <MetricCard
+            label="TOTAL RETURN"
+            value={hasReturn ? formatPct(totalReturnPct) : "—"}
+            icon={TrendingUp}
+            green={hasReturn && totalReturnPct >= 0}
+            red={hasReturn && totalReturnPct < 0}
+            loading={isPending}
+          />
+          <MetricCard
+            label="POSITIONS"
+            value={portfolio?.position_count.toString() ?? "—"}
+            icon={BarChart3}
+            loading={isPending}
+          />
+          <MetricCard
+            label="WINNERS"
+            value={
+              holdings ? `${winnersCount} / ${holdings.length}` : "—"
+            }
+            icon={Trophy}
+            loading={isPending}
+          />
+          <MetricCard
+            label="DAYS LIVE"
+            value={days.toString()}
+            icon={Activity}
+            loading={isPending}
+          />
         </div>
+
+        {strategyState === "error" && (
+          <DataStateCard
+            state="error"
+            error={error}
+            onRetry={() => void strategyQuery.refetch()}
+          />
+        )}
+
+        {/* Live chart (will show empty state until enough data) */}
+        <PerformanceChart />
+
+        {/* Best & worst */}
+        {(bestHolding || worstHolding) && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {bestHolding && (
+              <div className="soft-card">
+                <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim block mb-2">
+                  BEST HOLDING
+                </span>
+                <div className="flex items-baseline justify-between">
+                  <span className="font-mono text-lg font-bold">
+                    {bestHolding.ticker}
+                  </span>
+                  <span
+                    className={`font-mono text-[18px] font-bold ${
+                      bestHolding.pnl_pct >= 0
+                        ? "text-accent-green"
+                        : "text-accent-red"
+                    }`}
+                  >
+                    {formatPct(bestHolding.pnl_pct)}
+                  </span>
+                </div>
+                <span className="font-mono text-[11px] text-text-dim mt-1 block">
+                  Entered {bestHolding.entry_date}
+                </span>
+              </div>
+            )}
+            {worstHolding && (
+              <div className="soft-card">
+                <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim block mb-2">
+                  WORST HOLDING
+                </span>
+                <div className="flex items-baseline justify-between">
+                  <span className="font-mono text-lg font-bold">
+                    {worstHolding.ticker}
+                  </span>
+                  <span
+                    className={`font-mono text-[18px] font-bold ${
+                      worstHolding.pnl_pct >= 0
+                        ? "text-accent-green"
+                        : "text-accent-red"
+                    }`}
+                  >
+                    {formatPct(worstHolding.pnl_pct)}
+                  </span>
+                </div>
+                <span className="font-mono text-[11px] text-text-dim mt-1 block">
+                  Entered {worstHolding.entry_date}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+        </>
       )}
 
       <div className="soft-card">

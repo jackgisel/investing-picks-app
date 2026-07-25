@@ -149,3 +149,66 @@ def test_empty_book_returns_no_series(db, portfolio):
     out = benchmark_series(db, portfolio.id, {"SPY": "S&P 500"})
     assert out["series"] == {}
     assert picks_series(db, portfolio.id) == []
+
+
+def test_entry_date_beats_trade_timestamp(db, portfolio):
+    """The bug that collapsed the chart to a single point.
+
+    Manual entry writes its audit Trade with the server default now(), so a
+    hand-entered historical book had every buy stamped with the day it was
+    typed in. Reading that would date all capital to today.
+    """
+    from app.db.models import Position
+
+    entered = date(2026, 4, 10)
+    typed_in = datetime(2026, 7, 25, tzinfo=timezone.utc)
+
+    db.add(
+        Position(
+            portfolio_id=portfolio.id,
+            ticker="AAA",
+            shares=10.0,
+            avg_cost=100.0,
+            current_price=200.0,
+            entry_date=entered,
+            initial_investment=1000.0,
+        )
+    )
+    db.add(
+        Trade(
+            portfolio_id=portfolio.id,
+            ticker="AAA",
+            side="buy",
+            shares=10.0,
+            price=100.0,
+            notional=1000.0,
+            action="manual_buy",
+            timestamp=typed_in,
+        )
+    )
+    db.commit()
+
+    flows = deployment_schedule(db, portfolio.id)
+    assert len(flows) == 1
+    assert flows[0].when == entered, "must use the position's entry date"
+
+
+def test_closed_picks_still_come_from_trades(db, portfolio):
+    """A sold pick has no position row, so its buy trade supplies the date."""
+    _buy(db, portfolio, "GONE", date(2026, 5, 1), 1000.0, 10.0)
+    db.add(
+        Trade(
+            portfolio_id=portfolio.id,
+            ticker="GONE",
+            side="sell",
+            shares=100.0,
+            price=15.0,
+            notional=1500.0,
+            action="full_sell",
+            timestamp=datetime(2026, 6, 1, tzinfo=timezone.utc),
+        )
+    )
+    db.commit()
+
+    flows = deployment_schedule(db, portfolio.id)
+    assert [(f.ticker, f.when) for f in flows] == [("GONE", date(2026, 5, 1))]

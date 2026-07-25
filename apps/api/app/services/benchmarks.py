@@ -50,11 +50,22 @@ class CashFlow:
 def deployment_schedule(db: Session, portfolio_id: int = 1) -> list[CashFlow]:
     """When capital went into picks, and how much.
 
-    Derived from buy trades so it stays correct as the engine adds positions,
-    rather than reading only the currently-open book. `manual_remove` is an
-    admin correction, not an investment, so its ticker is dropped entirely —
+    An open position's `entry_date` is authoritative. A trade's `timestamp` is
+    when the ROW WAS WRITTEN, which for a hand-entered book is the day the
+    admin typed it in, not the day the position was opened — so reading it
+    would date every historical pick to today and collapse the comparison to a
+    single point.
+
+    Buy trades still supply the schedule for tickers no longer held (closed
+    picks), which have no position row to read. `manual_remove` is an admin
+    correction rather than an investment, so its ticker is dropped entirely —
     the same treatment `picks_return` gives it.
     """
+    from app.db.models import Position
+
+    positions = (
+        db.query(Position).filter(Position.portfolio_id == portfolio_id).all()
+    )
     trades = (
         db.query(Trade)
         .filter(Trade.portfolio_id == portfolio_id)
@@ -64,14 +75,31 @@ def deployment_schedule(db: Session, portfolio_id: int = 1) -> list[CashFlow]:
     corrected = {t.ticker for t in trades if t.action == "manual_remove"}
 
     flows: list[CashFlow] = []
+    open_tickers: set[str] = set()
+    for p in positions:
+        if p.ticker in corrected or not p.entry_date:
+            continue
+        amount = p.initial_investment
+        if amount is None or amount <= 0:
+            # House money: the original stake was recovered, but the capital
+            # was still committed on the entry date. Fall back to cost basis.
+            amount = (p.avg_cost or 0.0) * (p.shares or 0.0)
+        if amount <= 0:
+            continue
+        open_tickers.add(p.ticker)
+        flows.append(
+            CashFlow(ticker=p.ticker, when=p.entry_date, amount=float(amount))
+        )
+
     for t in trades:
-        if t.side != "buy" or t.ticker in corrected:
+        if t.side != "buy" or t.ticker in corrected or t.ticker in open_tickers:
             continue
         when = t.timestamp.date() if t.timestamp else None
         if when is None or not t.notional:
             continue
         flows.append(CashFlow(ticker=t.ticker, when=when, amount=float(t.notional)))
-    return flows
+
+    return sorted(flows, key=lambda f: (f.when, f.ticker))
 
 
 def _closes(db: Session, ticker: str) -> dict[date, float]:

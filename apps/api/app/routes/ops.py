@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import hmac
-from datetime import date
+from datetime import date, datetime, time, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
@@ -257,6 +257,13 @@ def create_position(payload: PositionCreate, db: Session = Depends(get_db)):
             notional=cost,
             reason="Manual entry (admin)",
             action="manual_buy",
+            # Stamp the trade with when the position was OPENED, not when the
+            # row was written. The server default is now(), which dated every
+            # hand-entered historical pick to the day it was typed in and
+            # collapsed the benchmark comparison to a single point.
+            timestamp=datetime.combine(
+                pos.entry_date, time.min, tzinfo=timezone.utc
+            ),
         )
     )
     db.flush()

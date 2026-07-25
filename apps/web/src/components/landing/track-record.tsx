@@ -4,12 +4,11 @@ import { useStrategy } from "@/lib/hooks/use-strategy";
 import { useChart } from "@/lib/hooks/use-chart";
 import { BACKTEST, LIVE_PORTFOLIO, WINNERS_CIRCLE } from "@/lib/constants";
 import {
-  computeAnnualizedReturn,
   computePortfolioReturnPct,
   countDoubledWinners,
   countWinningPositions,
-  daysSinceInception,
-  liveAccrualDays,
+  describeLiveCagr,
+  resolveLiveCagr,
   formatPct,
 } from "@/lib/portfolio";
 
@@ -28,11 +27,11 @@ export function TrackRecord() {
   const portfolio = strategy?.portfolio;
   const totalReturnPct = computePortfolioReturnPct(strategy);
   const hasReturn = totalReturnPct !== null;
-  const days = daysSinceInception();
-  const accrualDays = liveAccrualDays(chart?.summary);
-  const liveCagr = hasReturn
-    ? computeAnnualizedReturn(totalReturnPct!, accrualDays)
-    : null;
+  // One elapsed-time notion for both the "Day N" badge and the CAGR window, so
+  // the card cannot claim a long track record beside a one-day annualization.
+  const cagr = resolveLiveCagr(totalReturnPct, chart?.summary);
+  const days = cagr.daysLive;
+  const cagrNote = describeLiveCagr(cagr);
   const liveDoubled = countDoubledWinners(strategy?.holdings);
   const liveWinners = countWinningPositions(strategy?.holdings);
 
@@ -127,17 +126,30 @@ export function TrackRecord() {
                     <p className="font-sans text-[10px] font-bold text-text-dim tracking-[0.12em] uppercase mb-1.5">
                       Live CAGR
                     </p>
-                    <p
-                      className={`font-mono text-[32px] sm:text-[36px] font-bold leading-none tracking-tight ${
-                        liveCagr !== null
-                          ? liveCagr >= 0
-                            ? "text-accent-green"
-                            : "text-accent-red"
-                          : "text-text"
-                      }`}
-                    >
-                      {liveCagr !== null ? formatPct(liveCagr) : "—"}
-                    </p>
+                    {cagr.value !== null ? (
+                      <>
+                        <p
+                          className={`font-mono text-[32px] sm:text-[36px] font-bold leading-none tracking-tight ${
+                            cagr.value >= 0 ? "text-accent-green" : "text-accent-red"
+                          }`}
+                        >
+                          {formatPct(cagr.value)}
+                        </p>
+                        <p className="font-sans text-[10px] text-text-dim mt-2 leading-snug">
+                          Annualized from {cagr.daysLive} days live — an
+                          extrapolation, not a realized annual return.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-mono text-[32px] sm:text-[36px] font-bold text-text-dim leading-none tracking-tight">
+                          Not yet
+                        </p>
+                        <p className="font-sans text-[10px] text-text-dim mt-2 leading-snug">
+                          {cagrNote}
+                        </p>
+                      </>
+                    )}
                   </div>
                   <div>
                     <p className="font-sans text-[10px] font-bold text-text-dim tracking-[0.12em] uppercase mb-1.5">

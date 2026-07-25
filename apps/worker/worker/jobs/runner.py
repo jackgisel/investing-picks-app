@@ -86,6 +86,16 @@ def job_weekly_refresh():
     return _track("weekly_refresh", _run)
 
 
+def job_backfill_snapshots():
+    """One-shot equity-curve reconstruction. Not scheduled — run it deliberately.
+
+    Dry run unless BACKFILL_COMMIT is set; see worker.backfill_snapshots.
+    """
+    from worker.backfill_snapshots import run_from_env
+
+    return _track("backfill_snapshots", lambda _db: run_from_env())
+
+
 def job_biweekly_evaluate():
     def _run(db: Session):
         fmp = _fmp()

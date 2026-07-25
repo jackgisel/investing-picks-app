@@ -557,6 +557,17 @@ def ensure_schema(db: Session, force: bool = False) -> None:
                     if recovered:
                         log.info("Rebuilt avg_cost for %s positions", recovered)
 
+            if "portfolios" in tables:
+                cols = {c["name"] for c in inspector.get_columns("portfolios")}
+                if "inception_date" not in cols:
+                    # Must be added here rather than lazily on first ops request:
+                    # startup calls ensure_default_portfolio, which SELECTs every
+                    # mapped Portfolio column, so a missing column crashes the
+                    # app before any request is served.
+                    conn.execute(
+                        text("ALTER TABLE portfolios ADD COLUMN inception_date DATE")
+                    )
+
             if "composite_scores" in tables:
                 covered = [
                     list(c.get("column_names") or [])

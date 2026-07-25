@@ -86,7 +86,21 @@ export function anonymiseStrategy<T extends Record<string, unknown>>(payload: T)
 
   const portfolio = out.portfolio;
   if (portfolio && typeof portfolio === "object") {
-    const { tickers: _tickers, ...rest } = portfolio as Record<string, unknown>;
+    const { tickers: _tickers, picks, ...rest } = portfolio as Record<
+      string,
+      unknown
+    >;
+    // Percentages and counts are marketing surface; dollar figures are not.
+    // The site states everywhere that it publishes percentages, never book
+    // values, so strip deployed/open_value/realized for non-subscribers.
+    if (picks && typeof picks === "object") {
+      const p = picks as Record<string, unknown>;
+      rest.picks = {
+        return_pct: p.return_pct ?? null,
+        open_count: p.open_count ?? 0,
+        closed_count: p.closed_count ?? 0,
+      };
+    }
     out.portfolio = rest;
   }
 

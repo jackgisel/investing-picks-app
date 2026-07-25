@@ -5,25 +5,41 @@ import {
 } from "@/lib/constants";
 
 /**
- * Read the live portfolio's total return % from the strategy response.
+ * Cumulative return on the stocks we picked — the headline number.
  *
- * The backend computes this directly and exposes it on the response so the
- * frontend never needs to touch dollar fields. Returns null while loading
- * or if the backend can't compute it (e.g. no capital base yet).
+ * Definition (backend: `app.services.portfolio.picks_return`):
  *
- * Definition (backend: `app.services.portfolio.total_return_pct`):
+ *     (proceeds from closed picks + market value of open picks)
+ *     / capital deployed - 1
  *
- *     (cash + market value of holdings) / initial capital - 1
+ * Outpick sells stock research, not a managed portfolio, so the number that
+ * describes the product is what the picks did with the money actually put into
+ * them. Idle cash neither helps nor hurts it.
  *
- * i.e. a true equity return since inception. It includes cash and every
- * realized gain or loss, and — because there are no deposits or withdrawals in
- * this book — it is a time-weighted return. It matches the last point of the
- * `/performance` chart, which is indexed off the same starting equity.
+ * Closed picks are included on purpose. Counting only open positions would be
+ * survivorship bias — sold losers would drop out of the record while winners
+ * stayed.
  *
- * It is NOT the cost-basis return of open positions. That earlier definition
- * ignored cash and realized P&L and was unbounded for "house money" holdings.
+ * This is deliberately NOT the same as the whole-book equity return, which is
+ * dragged down by uninvested cash; see `computeBookReturnPct` for that.
  */
 export function computePortfolioReturnPct(
+  strategy: StrategyData | undefined
+): number | null {
+  if (!strategy?.portfolio) return null;
+  const picks = strategy.portfolio.picks_return_pct;
+  if (typeof picks === "number") return picks;
+  // Older API responses only carried the equity return.
+  return strategy.portfolio.total_return_pct ?? null;
+}
+
+/**
+ * Whole-book equity return: (cash + holdings) / initial capital - 1.
+ *
+ * The honest portfolio-level number, cash drag included. Diverges sharply from
+ * the picks return whenever the book is only partly invested.
+ */
+export function computeBookReturnPct(
   strategy: StrategyData | undefined
 ): number | null {
   if (!strategy?.portfolio) return null;

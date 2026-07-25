@@ -144,6 +144,74 @@ def initial_capital(db: Session, portfolio: Portfolio) -> float | None:
     return float(seed) if seed and seed > 0 else None
 
 
+#: Admin corrections, not investment outcomes. A manual removal refunds the
+#: position's cost basis, so it is backed out of deployed capital rather than
+#: counted as a sale — otherwise deleting a mistyped entry would land in the
+#: track record as a flat trade and drag the average toward zero.
+CORRECTION_ACTIONS = ("manual_remove",)
+
+
+def picks_return(db: Session, portfolio: Portfolio) -> dict[str, float | int | None]:
+    """Cumulative return on capital actually deployed into picks.
+
+        (proceeds from closed picks + market value of open picks)
+        / capital deployed - 1
+
+    This is the research product's number: it measures the picks, not the book,
+    so idle cash neither helps nor hurts it. `total_return_pct` answers a
+    different question — what the whole portfolio did, cash drag included — and
+    with a partly-invested book the two differ a lot.
+
+    Closed picks are included deliberately. Counting only open positions would
+    be survivorship bias: every sold loser would silently vanish from the track
+    record while the winners stayed, which is exactly the distortion that makes
+    a published record meaningless.
+    """
+    trades = db.query(Trade).filter(Trade.portfolio_id == portfolio.id).all()
+
+    deployed = 0.0
+    realized = 0.0
+    for t in trades:
+        notional = t.notional or 0.0
+        if t.action in CORRECTION_ACTIONS:
+            deployed -= notional
+        elif t.side == "buy":
+            deployed += notional
+        elif t.side == "sell":
+            realized += notional
+
+    positions = db.query(Position).filter(Position.portfolio_id == portfolio.id).all()
+    open_value = sum(p.market_value for p in positions)
+
+    closed_tickers = {t.ticker for t in trades if t.side == "sell"} - {
+        p.ticker for p in positions
+    }
+
+    if deployed <= 0:
+        return {
+            "return_pct": None,
+            "deployed": 0.0,
+            "open_value": round(open_value, 2),
+            "realized": round(realized, 2),
+            "open_count": len(positions),
+            "closed_count": len(closed_tickers),
+        }
+
+    return {
+        "return_pct": round(((realized + open_value) / deployed - 1) * 100, 2),
+        "deployed": round(deployed, 2),
+        "open_value": round(open_value, 2),
+        "realized": round(realized, 2),
+        "open_count": len(positions),
+        "closed_count": len(closed_tickers),
+    }
+
+
+def picks_return_pct(db: Session, portfolio: Portfolio) -> float | None:
+    value = picks_return(db, portfolio)["return_pct"]
+    return value if isinstance(value, (int, float)) else None
+
+
 def total_return_pct(db: Session, portfolio: Portfolio) -> float | None:
     """Percent return of the whole book since inception.
 

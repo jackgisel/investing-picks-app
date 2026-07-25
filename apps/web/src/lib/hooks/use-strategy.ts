@@ -16,6 +16,20 @@ export interface StrategyData {
   portfolio: {
     position_count: number;
     tickers: string[];
+    /**
+     * Cumulative return on capital deployed into picks — the headline for a
+     * research product. Excludes idle cash, includes closed picks.
+     */
+    picks_return_pct?: number | null;
+    picks?: {
+      return_pct: number | null;
+      deployed: number;
+      open_value: number;
+      realized: number;
+      open_count: number;
+      closed_count: number;
+    };
+    /** Whole-book equity return including cash drag. */
     total_return_pct: number | null;
   };
   strategy: {

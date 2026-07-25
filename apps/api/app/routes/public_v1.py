@@ -7,7 +7,12 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Portfolio, PortfolioSnapshot, Position, Trade
 from app.db.session import get_db
-from app.services.portfolio import params_from_portfolio, portfolio_equity, total_return_pct
+from app.services.portfolio import (
+    params_from_portfolio,
+    picks_return,
+    portfolio_equity,
+    total_return_pct,
+)
 
 router = APIRouter(prefix="/api/v1", tags=["public"])
 
@@ -29,7 +34,12 @@ def get_strategy(db: Session = Depends(get_db)):
                 "evaluation_frequency": "biweekly",
                 "max_positions": 50,
             },
-            "portfolio": {"position_count": 0, "total_return_pct": None, "tickers": []},
+            "portfolio": {
+                "position_count": 0,
+                "picks_return_pct": None,
+                "total_return_pct": None,
+                "tickers": [],
+            },
             "holdings": [],
             "params_version": None,
             "params": None,
@@ -44,6 +54,7 @@ def get_strategy(db: Session = Depends(get_db)):
     # Equity-based: (cash + holdings) / initial capital - 1. Counts cash and all
     # realized P&L, and is immune to house-money positions.
     total_return = total_return_pct(db, portfolio)
+    picks = picks_return(db, portfolio)
     holdings = [
         {
             "ticker": p.ticker,
@@ -67,6 +78,12 @@ def get_strategy(db: Session = Depends(get_db)):
         },
         "portfolio": {
             "position_count": len(positions),
+            # Return on capital deployed into picks — the research product's
+            # headline. Excludes idle cash; includes closed picks.
+            "picks_return_pct": picks.get("return_pct"),
+            "picks": picks,
+            # Whole-book equity return, cash drag included. Kept because it is
+            # the honest portfolio-level number and the chart indexes off it.
             "total_return_pct": total_return,
             "tickers": sorted(p.ticker for p in positions),
         },

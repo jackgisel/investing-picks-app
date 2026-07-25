@@ -245,3 +245,95 @@ def test_ensure_schema_is_idempotent(db, portfolio):
     ensure_schema(db, force=True)
     ensure_schema(db, force=True)
     ensure_schema(db, force=True)
+
+
+# ---------------------------------------------------------------------------
+# Picks return: the research product's headline number
+# ---------------------------------------------------------------------------
+
+
+def _buy(db, portfolio, ticker, shares, price, action="manual_buy"):
+    from app.db.models import Trade
+
+    db.add(
+        Trade(
+            portfolio_id=portfolio.id,
+            ticker=ticker,
+            side="buy",
+            shares=shares,
+            price=price,
+            notional=shares * price,
+            action=action,
+        )
+    )
+    db.commit()
+
+
+def _sell(db, portfolio, ticker, shares, price, action="full_sell"):
+    from app.db.models import Trade
+
+    db.add(
+        Trade(
+            portfolio_id=portfolio.id,
+            ticker=ticker,
+            side="sell",
+            shares=shares,
+            price=price,
+            notional=shares * price,
+            action=action,
+        )
+    )
+    db.commit()
+
+
+def test_picks_return_ignores_idle_cash(db, portfolio):
+    """The whole point: cash drag must not touch the picks number."""
+    from app.services.portfolio import picks_return_pct, total_return_pct
+
+    portfolio.cash = 92_000.0
+    _buy(db, portfolio, "AAA", 10.0, 100.0)  # $1,000 deployed
+    make_position(db, portfolio, "AAA", 10.0, 100.0, 150.0)  # now worth $1,500
+
+    # Picks: 1500/1000 - 1 = +50%
+    assert picks_return_pct(db, portfolio) == 50.0
+    # Book: (92,000 + 1,500) / 100,000 - 1 = -6.5% — a very different claim.
+    assert total_return_pct(db, portfolio) == -6.5
+
+
+def test_picks_return_includes_closed_losers(db, portfolio):
+    """Survivorship bias check: a sold loser must stay in the record."""
+    from app.services.portfolio import picks_return
+
+    _buy(db, portfolio, "WIN", 10.0, 100.0)
+    make_position(db, portfolio, "WIN", 10.0, 100.0, 200.0)  # +$1,000 open
+
+    _buy(db, portfolio, "LOSS", 10.0, 100.0)
+    _sell(db, portfolio, "LOSS", 10.0, 50.0)  # closed at -50%
+
+    r = picks_return(db, portfolio)
+    # deployed 2,000; open 2,000 + realized 500 = 2,500 -> +25%
+    assert r["return_pct"] == 25.0
+    assert r["closed_count"] == 1
+    assert r["open_count"] == 1
+
+
+def test_manual_removal_is_backed_out_not_counted_as_a_trade(db, portfolio):
+    """Admin corrections aren't investment outcomes."""
+    from app.services.portfolio import picks_return_pct
+
+    _buy(db, portfolio, "GOOD", 10.0, 100.0)
+    make_position(db, portfolio, "GOOD", 10.0, 100.0, 200.0)
+
+    # A mistyped entry, added then removed at cost.
+    _buy(db, portfolio, "OOPS", 10.0, 100.0)
+    _sell(db, portfolio, "OOPS", 10.0, 100.0, action="manual_remove")
+
+    # Only GOOD counts: 2,000/1,000 - 1 = +100%. Were the correction treated
+    # as a flat trade it would halve to +50%.
+    assert picks_return_pct(db, portfolio) == 100.0
+
+
+def test_picks_return_is_none_before_any_capital_is_deployed(db, portfolio):
+    from app.services.portfolio import picks_return
+
+    assert picks_return(db, portfolio)["return_pct"] is None

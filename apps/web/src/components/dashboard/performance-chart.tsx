@@ -1,27 +1,16 @@
 "use client";
 
-import { useChart, type ChartPoint } from "@/lib/hooks/use-chart";
+import { useMemo } from "react";
+import { buildPicksComparison, useChart } from "@/lib/hooks/use-chart";
 import { DataState, resolveDataState } from "@/components/ui/data-state";
 import {
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-} from "recharts";
+  BenchmarkBasisNote,
+  PicksBenchmarkChart,
+  PicksBenchmarkLegend,
+  formatChartPct,
+  formatChartDate,
+} from "@/components/ui/picks-benchmark-chart";
 import { TrendingUp } from "lucide-react";
-
-function formatPctTick(value: number) {
-  const sign = value >= 0 ? "+" : "";
-  return `${sign}${value.toFixed(1)}%`;
-}
-
-function formatPctTooltip(value: number) {
-  const sign = value >= 0 ? "+" : "";
-  return `${sign}${value.toFixed(2)}%`;
-}
 
 function EmptyChart({ compact }: { compact?: boolean }) {
   return (
@@ -33,8 +22,8 @@ function EmptyChart({ compact }: { compact?: boolean }) {
         Building track record
       </span>
       <p className="font-sans text-[13px] text-text-muted mt-2 max-w-sm text-center">
-        Live performance chart will populate as the portfolio accrues daily
-        history. Started Apr 1, 2026.
+        The picks curve populates once there are at least two days of marks on
+        the capital deployed into picks.
       </p>
     </div>
   );
@@ -42,7 +31,10 @@ function EmptyChart({ compact }: { compact?: boolean }) {
 
 export function PerformanceChart({ compact = false }: { compact?: boolean }) {
   const { data: chartData, isPending, isError, error, refetch } = useChart();
-  const series = chartData?.series ?? [];
+  const comparison = useMemo(
+    () => buildPicksComparison(chartData),
+    [chartData]
+  );
 
   if (isPending) {
     return (
@@ -74,104 +66,109 @@ export function PerformanceChart({ compact = false }: { compact?: boolean }) {
     );
   }
 
-  if (series.length < 2) {
+  // Two points is the minimum that draws a line. Note this counts the PICKS
+  // curve, not the legacy book-equity series — an API that only returns the old
+  // shape gets the empty state rather than a book-equity line mislabelled as
+  // picks.
+  const picksPoints = comparison.rows.filter((r) => r.picks !== null).length;
+  if (picksPoints < 2) {
     return <EmptyChart compact={compact} />;
   }
 
-  const hasBenchmark = series.some((d) => d.benchmark_pct !== null);
-  const data = series.map((d: ChartPoint) => ({
-    date: d.date,
-    portfolio: d.portfolio_pct ?? 0,
-    benchmark: d.benchmark_pct,
-  }));
+  const { benchmarks, picksLatestPct, startDate, latestDate } = comparison;
 
   return (
     <div className={`soft-card ${compact ? "!p-4" : ""}`}>
-      <div className={`flex items-center justify-between ${compact ? "mb-3" : "mb-4"}`}>
+      <div
+        className={`flex flex-wrap items-start justify-between gap-x-6 gap-y-3 ${
+          compact ? "mb-3" : "mb-5"
+        }`}
+      >
         <div>
           <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">
-            Live portfolio return
+            Return on capital deployed into picks
           </span>
           {!compact && (
             <p className="font-sans text-[13px] text-text-muted mt-1">
-              Cumulative % return since inception (Apr 1, 2026)
+              Cumulative return since the first pick — idle cash excluded,
+              closed picks included.
             </p>
           )}
         </div>
-        {hasBenchmark && (
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-0.5 bg-accent-green inline-block" />
-              <span className="font-sans text-[10px] font-semibold uppercase text-text-dim">
-                Portfolio
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-0.5 bg-text-dim inline-block" />
-              <span className="font-sans text-[10px] font-semibold uppercase text-text-dim">
-                S&P 500
-              </span>
-            </div>
+        {picksLatestPct !== null && (
+          <div className="text-right">
+            <span
+              className={`font-mono text-[26px] font-bold leading-none ${
+                picksLatestPct >= 0 ? "text-accent-green" : "text-accent-red"
+              }`}
+            >
+              {formatChartPct(picksLatestPct)}
+            </span>
+            {latestDate && (
+              <p className="font-mono text-[10px] text-text-dim mt-1.5">
+                as of {formatChartDate(latestDate)}
+              </p>
+            )}
           </div>
         )}
       </div>
-      <ResponsiveContainer width="100%" height={compact ? 220 : 350}>
-        <AreaChart data={data} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
-          <defs>
-            <linearGradient id="portfolioGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#16A34A" stopOpacity={0.18} />
-              <stop offset="100%" stopColor="#16A34A" stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" vertical={false} />
-          <XAxis
-            dataKey="date"
-            tick={{ fontSize: 10, fill: "#737373", fontFamily: "IBM Plex Mono" }}
-            tickFormatter={(d: string) => d.slice(5)}
-            stroke="#E5E5E5"
-          />
-          <YAxis
-            tick={{ fontSize: 10, fill: "#737373", fontFamily: "IBM Plex Mono" }}
-            tickFormatter={formatPctTick}
-            stroke="#E5E5E5"
-            width={55}
-            domain={["dataMin - 1", "dataMax + 1"]}
-          />
-          <Tooltip
-            contentStyle={{
-              background: "#FFFFFF",
-              border: "1px solid #E5E5E5",
-              borderRadius: 16,
-              fontFamily: "IBM Plex Mono",
-              fontSize: 11,
-              boxShadow: "0 8px 24px rgba(0,0,0,0.06)",
-            }}
-            labelStyle={{ color: "#737373", fontSize: 10 }}
-            formatter={(value: unknown, name: unknown) => [
-              formatPctTooltip(Number(value)),
-              name === "portfolio" ? "Portfolio" : "S&P 500",
-            ]}
-          />
-          {hasBenchmark && (
-            <Area
-              type="monotone"
-              dataKey="benchmark"
-              stroke="#A3A3A3"
-              strokeWidth={1.5}
-              fill="none"
-              dot={false}
-            />
+
+      <div className={compact ? "mb-3" : "mb-4"}>
+        <PicksBenchmarkLegend comparison={comparison} compact={compact} />
+      </div>
+
+      <PicksBenchmarkChart
+        comparison={comparison}
+        height={compact ? 220 : 340}
+        compact={compact}
+      />
+
+      {benchmarks.length > 0 && (
+        <div className={compact ? "mt-3" : "mt-5"}>
+          {!compact && picksLatestPct !== null && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+              {benchmarks.map((b) => {
+                const gap =
+                  b.latestPct === null ? null : picksLatestPct - b.latestPct;
+                return (
+                  <div
+                    key={b.key}
+                    className="rounded-soft border border-border px-4 py-3"
+                  >
+                    <p className="font-sans text-[10px] font-bold tracking-[0.12em] uppercase text-text-dim">
+                      vs {b.label}
+                    </p>
+                    <p
+                      className={`font-mono text-[18px] font-bold mt-1.5 leading-none ${
+                        gap === null
+                          ? "text-text-dim"
+                          : gap >= 0
+                            ? "text-accent-green"
+                            : "text-accent-red"
+                      }`}
+                    >
+                      {gap === null
+                        ? "—"
+                        : `${gap >= 0 ? "+" : ""}${gap.toFixed(2)} pts`}
+                    </p>
+                    <p className="font-mono text-[10px] text-text-dim mt-1.5">
+                      {b.key} {b.latestPct === null ? "—" : formatChartPct(b.latestPct)}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
           )}
-          <Area
-            type="monotone"
-            dataKey="portfolio"
-            stroke="#16A34A"
-            strokeWidth={2}
-            fill="url(#portfolioGrad)"
-            dot={false}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
+          <BenchmarkBasisNote startDate={startDate} />
+        </div>
+      )}
+
+      {benchmarks.length === 0 && !compact && (
+        <p className="font-sans text-[11px] text-text-dim leading-relaxed mt-5">
+          Benchmark comparisons are unavailable right now — index price history
+          did not load, and we would rather show nothing than a flat line.
+        </p>
+      )}
     </div>
   );
 }

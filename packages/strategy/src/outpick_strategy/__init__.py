@@ -10,7 +10,12 @@ from outpick_strategy.types import (
     RuleCheck,
 )
 from outpick_strategy.signals import evaluate, evaluate_sells_only
-from outpick_strategy.grades import grade_meets_minimum, percentile_to_grade, GRADE_ORDER
+from outpick_strategy.grades import (
+    grade_meets_minimum,
+    percentile_to_grade,
+    quant_to_signal,
+    GRADE_ORDER,
+)
 
 __all__ = [
     "StrategyParams",
@@ -25,5 +30,6 @@ __all__ = [
     "evaluate_sells_only",
     "grade_meets_minimum",
     "percentile_to_grade",
+    "quant_to_signal",
     "GRADE_ORDER",
 ]

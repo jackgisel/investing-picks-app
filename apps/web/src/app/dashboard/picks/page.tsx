@@ -12,6 +12,13 @@ import { Filter, ArrowUpDown } from "lucide-react";
 import { formatPct } from "@/lib/portfolio";
 import { getInsightSlugByTicker } from "@/lib/insight-links";
 
+/** Buy-ish ratings read green, sell-ish red, hold neutral. */
+function signalBadgeClass(signal: string): string {
+  if (signal === "strong_buy" || signal === "buy") return "badge-buy";
+  if (signal === "hold") return "badge-hold";
+  return "badge-sell";
+}
+
 type SortKey = "pnl_pct" | "entry_date" | "ticker";
 type SortDir = "asc" | "desc";
 type StatusFilter = "all" | "active" | "closed";
@@ -117,6 +124,7 @@ export default function PicksPage() {
                   [
                     { key: "ticker" as SortKey, label: "TICKER" },
                     { key: null, label: "STATUS" },
+                    { key: null, label: "RATING" },
                     { key: "entry_date" as SortKey, label: "ENTRY DATE" },
                     { key: null, label: "EXIT DATE" },
                     { key: "pnl_pct" as SortKey, label: "RETURN" },
@@ -145,7 +153,7 @@ export default function PicksPage() {
             <tbody>
               {hasDataState(state) ? (
                 <DataStateRow
-                  colSpan={6}
+                  colSpan={7}
                   state={state}
                   error={error}
                   onRetry={retry}
@@ -154,7 +162,7 @@ export default function PicksPage() {
                 />
               ) : filteredOut ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-8 text-center">
+                  <td colSpan={7} className="px-5 py-8 text-center">
                     <span className="font-mono text-[11px] text-text-dim">
                       NO PICKS MATCH FILTERS
                     </span>
@@ -191,6 +199,20 @@ export default function PicksPage() {
                         >
                           {p.status.toUpperCase()}
                         </span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        {p.signal ? (
+                          <span className={`badge ${signalBadgeClass(p.signal)}`}>
+                            {p.signal.replace("_", " ").toUpperCase()}
+                          </span>
+                        ) : (
+                          <span
+                            className="font-mono text-[11px] text-text-dim"
+                            title="The universe is currently unscored, so the strategy has no rating for this name."
+                          >
+                            unrated
+                          </span>
+                        )}
                       </td>
                       <td className="px-5 py-3.5 font-mono text-[12px] text-text-muted">
                         {p.entry_date}

@@ -5,9 +5,18 @@ from __future__ import annotations
 from datetime import date
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.db.models import Portfolio, PortfolioSnapshot, Position, Trade
+from outpick_strategy import quant_to_signal
+
+from app.db.models import (
+    CompositeScore,
+    Portfolio,
+    PortfolioSnapshot,
+    Position,
+    Trade,
+)
 from app.db.session import get_db
 from app.services.benchmarks import benchmark_series, picks_series
 from app.services.portfolio import (
@@ -177,6 +186,22 @@ def get_strategy(db: Session = Depends(get_db)):
     }
 
 
+def _latest_ratings(db: Session) -> dict[str, float]:
+    """Quant rating per ticker from the most recent scoring date.
+
+    Scoped to a single `as_of` so a name that dropped out of the latest run
+    cannot be shown with a rating from an earlier one — an unscored holding must
+    read as unrated, not as stale-but-confident.
+    """
+    latest = db.query(func.max(CompositeScore.as_of)).scalar()
+    if latest is None:
+        return {}
+    return {
+        row.ticker: row.quant_rating
+        for row in db.query(CompositeScore).filter(CompositeScore.as_of == latest).all()
+    }
+
+
 @router.get("/picks")
 def get_picks(
     status: str = Query("all"),
@@ -187,7 +212,9 @@ def get_picks(
         return {"count": 0, "picks": []}
     picks = []
     if status in ("all", "active"):
+        ratings = _latest_ratings(db)
         for p in db.query(Position).filter(Position.portfolio_id == portfolio.id).all():
+            rating = ratings.get(p.ticker)
             picks.append(
                 {
                     "ticker": p.ticker,
@@ -197,6 +224,11 @@ def get_picks(
                     "exit_date": None,
                     "exit_reason": None,
                     "blog_slug": None,
+                    # The strategy's current read on a name we already hold.
+                    # None when the universe is unscored — better to show
+                    # nothing than to imply a rating we do not stand behind.
+                    "quant_rating": round(rating, 3) if rating is not None else None,
+                    "signal": quant_to_signal(rating) if rating is not None else None,
                 }
             )
     if status in ("all", "closed"):

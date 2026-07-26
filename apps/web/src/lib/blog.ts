@@ -55,6 +55,7 @@ import argentinaStocks from "@/content/blog/argentina-stocks-the-quiet-engine-of
 import walkForwardBacktesting from "@/content/blog/walk-forward-backtesting-explained";
 import onePickEveryTwoWeeks from "@/content/blog/why-we-publish-one-stock-pick-every-two-weeks";
 import firstHundredDays from "@/content/blog/first-100-days-of-a-live-stock-portfolio";
+import inflationNotMiddleEast from "@/content/blog/inflation-is-not-a-five-month-middle-east-story";
 
 export const articles: Article[] = [
   howToOutperformSp500,
@@ -71,6 +72,7 @@ export const articles: Article[] = [
   walkForwardBacktesting,
   onePickEveryTwoWeeks,
   firstHundredDays,
+  inflationNotMiddleEast,
 ].sort((a, b) => b.meta.publishedAt.localeCompare(a.meta.publishedAt));
 
 export function getArticleBySlug(slug: string): Article | undefined {

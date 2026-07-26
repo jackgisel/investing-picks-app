@@ -20,9 +20,9 @@ export default function StrategyPage() {
   });
 
   return (
-    <div className="space-y-8 max-w-3xl">
+    <div className="page-measure space-y-6">
       <header>
-        <h1 className="font-sans text-3xl font-bold text-text">Strategy</h1>
+        <h1 className="page-title">Strategy</h1>
         <p className="text-text-muted mt-2 text-sm">
           Live Run 118 parameters from the engine — not marketing copy.
         </p>
@@ -40,22 +40,22 @@ export default function StrategyPage() {
       {data && (
         <>
           <div className="grid grid-cols-2 gap-4">
-            <div className="soft-card !p-4">
-              <p className="font-sans text-[10px] font-bold tracking-[0.1em] uppercase text-text-dim">NAME</p>
+            <div className="data-card">
+              <p className="field-label">NAME</p>
               <p className="text-text mt-1">{data.name || data.strategy?.name}</p>
             </div>
-            <div className="soft-card !p-4">
-              <p className="font-sans text-[10px] font-bold tracking-[0.1em] uppercase text-text-dim">PARAMS VERSION</p>
+            <div className="data-card">
+              <p className="field-label">PARAMS VERSION</p>
               <p className="font-mono text-text mt-1">{data.params_version || "—"}</p>
             </div>
-            <div className="soft-card !p-4">
-              <p className="font-sans text-[10px] font-bold tracking-[0.1em] uppercase text-text-dim">CADENCE</p>
+            <div className="data-card">
+              <p className="field-label">CADENCE</p>
               <p className="text-text mt-1">
                 {data.evaluation_frequency || data.strategy?.evaluation_frequency}
               </p>
             </div>
-            <div className="soft-card !p-4">
-              <p className="font-sans text-[10px] font-bold tracking-[0.1em] uppercase text-text-dim">POSITIONS</p>
+            <div className="data-card">
+              <p className="field-label">POSITIONS</p>
               <p className="text-text mt-1">
                 {data.position_count ?? data.portfolio?.position_count} /{" "}
                 {data.max_positions ?? data.strategy?.max_positions}
@@ -64,7 +64,7 @@ export default function StrategyPage() {
           </div>
 
           <section>
-            <h2 className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim mb-3">
+            <h2 className="panel-label panel-label-yellow mb-3">
               KEY RULES (RUN 118)
             </h2>
             <ul className="space-y-2 text-sm text-text-muted">
@@ -79,10 +79,10 @@ export default function StrategyPage() {
 
           {data.params && (
             <section>
-              <h2 className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim mb-3">
+              <h2 className="panel-label panel-label-yellow mb-3">
                 LIVE PARAMS JSON
               </h2>
-              <pre className="text-xs font-mono text-text-muted overflow-x-auto soft-card !p-4">
+              <pre className="text-xs font-mono text-text-muted overflow-x-auto data-card">
                 {JSON.stringify(data.params, null, 2)}
               </pre>
             </section>

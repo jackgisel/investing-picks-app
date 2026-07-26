@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { useTheme } from "@/components/providers/theme-provider";
 import type { BenchmarkMeta, PicksComparison } from "@/lib/hooks/use-chart";
+import { pnlClass } from "@/lib/portfolio";
 
 type ThemeName = "light" | "dark";
 
@@ -38,28 +39,40 @@ const PICKS_COLOR: Record<ThemeName, string> = {
  * reinforces it. All of them are deliberately quieter than the picks line —
  * they are context, not competition.
  *
- * The light ramp (`#525252` → `#9E9E9E`) is tuned to sit *below* black text on
- * a white page — SPY (most-referenced benchmark) gets the darkest, most
- * "present" grey, MAGS the lightest/quietest. On `#0A0A0A` that relationship
- * has to invert in luminance (greys now need to sit *above* the background to
- * read at all) while preserving the same relative contrast separation, so the
- * three lines stay just as distinguishable from each other — and from the
- * near-white body text — as they are in light mode. Concretely: each dark
- * grey targets roughly the same contrast ratio against `#0A0A0A` that its
- * light counterpart has against `#FFFFFF` (SPY ~7.8:1, VTI ~4.2:1, MAGS
- * ~2.7:1 — MAGS is intentionally the quietest line in both themes; its unique
- * dash carries it).
+ * These were three greys, which meant the only chart in the product had
+ * exactly one coloured line and looked like it belonged to no particular
+ * brand. They are now desaturated house tones — cyan, lilac, peach — chosen
+ * to land on the *same contrast ratios the greys had*, so the ordering and
+ * subordination the original ramp encoded is unchanged and only the hue is
+ * new.
+ *
+ * The ramp is tuned to sit *below* black text on a white page — SPY (the
+ * most-referenced benchmark) is the most "present", MAGS the quietest. On
+ * `#0A0A0A` that relationship has to invert in luminance (the lines now need
+ * to sit *above* the background to read at all) while preserving the same
+ * relative separation, so the three stay just as distinguishable from each
+ * other — and from the near-white body text — as they are in light mode.
+ * Concretely, each line targets roughly the same ratio against `#0A0A0A` that
+ * its light counterpart has against `#FFFFFF`:
+ *
+ *   SPY  ~7.8:1   light #1F5A66 7.74  ·  dark #6EACBA 7.80
+ *   VTI  ~4.2:1   light #8577A0 4.08  ·  dark #827499 4.63
+ *   MAGS ~2.8:1   light #C4915E 2.78  ·  dark #775133 2.84
+ *
+ * MAGS is intentionally the quietest line in both themes; its unique dash
+ * carries it. The dash patterns remain the primary distinguisher — the page
+ * prints, and colour-blind readers get no help from three hues either.
  */
 const BENCHMARK_STYLES: Record<ThemeName, Record<string, LineStyle>> = {
   light: {
-    SPY: { color: "#525252", dash: "7 4" },
-    VTI: { color: "#7C7C7C", dash: "1 5" },
-    MAGS: { color: "#9E9E9E", dash: "11 4 2 4" },
+    SPY: { color: "#1F5A66", dash: "7 4" },
+    VTI: { color: "#8577A0", dash: "1 5" },
+    MAGS: { color: "#C4915E", dash: "11 4 2 4" },
   },
   dark: {
-    SPY: { color: "#A3A3A3", dash: "7 4" },
-    VTI: { color: "#7A7A7A", dash: "1 5" },
-    MAGS: { color: "#595959", dash: "11 4 2 4" },
+    SPY: { color: "#6EACBA", dash: "7 4" },
+    VTI: { color: "#827499", dash: "1 5" },
+    MAGS: { color: "#775133", dash: "11 4 2 4" },
   },
 };
 
@@ -299,9 +312,9 @@ export function PicksBenchmarkLegend({
         </span>
         {showValues && picksLatestPct !== null && (
           <span
-            className={`font-mono text-[11px] font-bold ${
-              picksLatestPct >= 0 ? "text-accent-green" : "text-accent-red"
-            }`}
+            className={`font-mono text-[11px] font-bold ${pnlClass(
+              picksLatestPct,
+            )}`}
           >
             {formatPctValue(picksLatestPct)}
           </span>

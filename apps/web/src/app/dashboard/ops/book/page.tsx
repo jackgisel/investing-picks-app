@@ -17,11 +17,11 @@ export default function OpsBookPage() {
   if (error || !data) return <p className="text-accent-red text-sm">Ops portfolio unavailable</p>;
 
   return (
-    <div className="space-y-8 max-w-5xl">
+    <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="font-sans text-[11px] font-bold tracking-[0.14em] uppercase text-text-dim mb-2">OPS</p>
-          <h1 className="font-sans text-3xl font-bold text-text">Virtual book</h1>
+          <p className="panel-label panel-label-coral mb-2">OPS</p>
+          <h1 className="page-title">Virtual book</h1>
           <p className="text-sm text-text-muted mt-2">
             Source of truth — no Alpaca. Params {data.params_version}
             {data.params_version === data.run118_hash ? " (= Run 118)" : " (drifted from Run 118)"}
@@ -39,17 +39,17 @@ export default function OpsBookPage() {
           ["Equity", `$${Number(data.equity).toLocaleString()}`],
           ["Positions", String(data.positions?.length ?? 0)],
         ].map(([label, value]) => (
-          <div key={label} className="soft-card !p-4">
-            <p className="font-sans text-[10px] font-bold tracking-[0.1em] uppercase text-text-dim tracking-[1px]">{label}</p>
+          <div key={label} className="data-card">
+            <p className="field-label tracking-[1px]">{label}</p>
             <p className="font-mono text-xl text-text mt-1">{value}</p>
           </div>
         ))}
       </div>
 
-      <div className="overflow-x-auto soft-card !p-0">
+      <div className="data-panel overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left font-sans text-[10px] font-bold tracking-[0.1em] uppercase text-text-dim tracking-[1px] border-b border-border">
+            <tr className="text-left field-label tracking-[1px] border-b border-border">
               <th className="p-3">Ticker</th>
               <th className="p-3">Shares</th>
               <th className="p-3">Avg cost</th>

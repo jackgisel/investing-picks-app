@@ -8,9 +8,9 @@ import {
   hasDataState,
   resolveDataState,
 } from "@/components/ui/data-state";
-import { Filter, ArrowUpDown } from "lucide-react";
-import { formatPct } from "@/lib/portfolio";
-import { getInsightSlugByTicker } from "@/lib/insight-links";
+import { Filter, ArrowUpDown, FileText } from "lucide-react";
+import { formatPctOrDash, pnlClass } from "@/lib/portfolio";
+import { getInsightByTicker } from "@/lib/insight-index";
 
 /** Buy-ish ratings read green, sell-ish red, hold neutral. */
 function signalBadgeClass(signal: string): string {
@@ -81,9 +81,9 @@ export default function PicksPage() {
   const filteredOut = !state && filtered.length === 0;
 
   return (
-    <div className="max-w-[1100px] space-y-6">
+    <div className="space-y-5">
       <div>
-        <h1 className="font-sans text-xl font-bold">Pick History</h1>
+        <h1 className="page-title">Pick history</h1>
         <p className="font-sans text-[13px] text-text-dim mt-1">
           {isPending
             ? "Loading..."
@@ -93,7 +93,7 @@ export default function PicksPage() {
         </p>
       </div>
 
-      <div className="soft-card !p-0 overflow-hidden">
+      <div className="data-panel">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-5 py-4 border-b border-border gap-3">
           <div className="flex items-center gap-2">
             <Filter size={12} className="text-text-dim" />
@@ -171,7 +171,7 @@ export default function PicksPage() {
               ) : (
                 filtered.map((p, i) => {
                   const insightSlug =
-                    p.blog_slug ?? getInsightSlugByTicker(p.ticker);
+                    p.blog_slug ?? getInsightByTicker(p.ticker)?.slug;
                   return (
                     <tr
                       key={`${p.ticker}-${p.entry_date}-${i}`}
@@ -181,9 +181,13 @@ export default function PicksPage() {
                         {insightSlug ? (
                           <Link
                             href={`/insights/${insightSlug}`}
-                            className="font-mono font-semibold text-[14px] text-text underline underline-offset-2 hover:opacity-70 underline-offset-4"
+                            title="Read the research note"
+                            className="inline-flex items-center gap-1.5 font-mono font-semibold text-[14px] text-text underline underline-offset-4 hover:opacity-70"
                           >
                             {p.ticker}
+                            {/* The underline alone made the archive something
+                                you found by accident. */}
+                            <FileText size={11} className="text-accent-lilac" />
                           </Link>
                         ) : (
                           <span className="font-mono font-semibold text-[14px]">
@@ -221,13 +225,11 @@ export default function PicksPage() {
                         {p.exit_date ?? "—"}
                       </td>
                       <td
-                        className={`px-5 py-3.5 font-mono text-[13px] font-semibold ${
-                          (p.pnl_pct ?? 0) >= 0
-                            ? "text-accent-green"
-                            : "text-accent-red"
-                        }`}
+                        className={`px-5 py-3.5 font-mono text-[13px] font-semibold ${pnlClass(
+                          p.pnl_pct,
+                        )}`}
                       >
-                        {formatPct(p.pnl_pct ?? 0)}
+                        {formatPctOrDash(p.pnl_pct)}
                       </td>
                       <td className="px-5 py-3.5 font-sans text-[11px] text-text-dim max-w-[220px] truncate">
                         {p.exit_reason || "—"}

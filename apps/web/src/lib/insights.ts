@@ -59,12 +59,6 @@ export function getInsightBySlug(slug: string): Insight | undefined {
   return insights.find((i) => i.meta.slug === slug);
 }
 
-export function getInsightByTicker(ticker: string): Insight | undefined {
-  const upper = ticker.toUpperCase();
-  return insights.find(
-    (i) => i.meta.postType === "pick" && i.meta.ticker?.toUpperCase() === upper,
-  );
-}
 
 export function getAllInsightSlugs(): string[] {
   return insights.map((i) => i.meta.slug);

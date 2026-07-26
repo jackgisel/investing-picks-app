@@ -43,12 +43,12 @@ export default function ClaimAdminPage() {
   }
 
   return (
-    <div className="max-w-lg space-y-6">
+    <div className="page-measure space-y-6">
       <header>
-        <p className="font-sans text-[11px] font-bold tracking-[0.14em] uppercase text-text-dim mb-2">
+        <p className="panel-label panel-label-coral mb-2">
           Bootstrap
         </p>
-        <h1 className="font-sans text-3xl font-bold text-text">Claim admin</h1>
+        <h1 className="page-title">Claim admin</h1>
         <p className="text-text-muted mt-2 text-sm">
           Enter the <code className="font-mono text-xs">ADMIN_BOOTSTRAP_TOKEN</code>{" "}
           from the deployment environment. Your account must also be on the{" "}
@@ -57,7 +57,7 @@ export default function ClaimAdminPage() {
       </header>
 
       {status === "done" ? (
-        <div className="soft-card p-6 space-y-4">
+        <div className="data-card space-y-4">
           <p className="text-accent-green font-sans font-bold">
             Admin granted.
           </p>
@@ -69,9 +69,9 @@ export default function ClaimAdminPage() {
           </a>
         </div>
       ) : (
-        <form onSubmit={submit} className="soft-card p-6 space-y-4">
+        <form onSubmit={submit} className="data-card space-y-4">
           <label className="block">
-            <span className="font-sans text-[11px] font-bold tracking-[0.14em] uppercase text-text-dim">
+            <span className="panel-label panel-label-coral">
               Bootstrap token
             </span>
             <input

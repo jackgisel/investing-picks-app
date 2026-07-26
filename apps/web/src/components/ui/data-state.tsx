@@ -184,13 +184,13 @@ function Body({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * Same states, wrapped in a `soft-card` — for pages that render a standalone
+ * Same states, wrapped in a `data-card` — for pages that render a standalone
  * panel rather than a table body.
  */
 export function DataStateCard(props: DataStateProps & { className?: string }) {
   const { className, ...rest } = props;
   return (
-    <div className={`soft-card !p-0 overflow-hidden ${className ?? ""}`}>
+    <div className={`data-panel ${className ?? ""}`}>
       <DataState {...rest} />
     </div>
   );

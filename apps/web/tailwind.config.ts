@@ -57,11 +57,13 @@ const config: Config = {
         // deliberately instead of letting them glow as stray white boxes.
         plate: withOpacity("--color-plate"),
       },
+      // Two faces, no more: Outfit sets everything, IBM Plex Mono carries the
+      // numerals and tickers. There is deliberately no `serif` or `display`
+      // alias — both used to point at Outfit, which meant `font-serif italic`
+      // silently rendered as italic sans and read as a bug at every call site.
       fontFamily: {
         mono: ["IBM Plex Mono", "monospace"],
         sans: ["Outfit", "sans-serif"],
-        serif: ["Outfit", "sans-serif"],
-        display: ["Outfit", "sans-serif"],
       },
       borderRadius: {
         pill: "9999px",

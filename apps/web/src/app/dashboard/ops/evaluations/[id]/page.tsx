@@ -23,12 +23,12 @@ export default function EvaluationDetailPage({
   if (error || !data) return <p className="text-accent-red text-sm">Not found</p>;
 
   return (
-    <div className="space-y-8 max-w-4xl">
+    <div className="space-y-6">
       <div>
         <Link href="/dashboard/ops" className="text-xs text-text-dim hover:text-text">
           ← Ledger
         </Link>
-        <h1 className="font-sans text-3xl font-bold text-text mt-2">
+        <h1 className="page-title mt-2">
           Evaluation #{data.id}
         </h1>
         <p className="text-sm text-text-muted mt-1">
@@ -52,7 +52,7 @@ export default function EvaluationDetailPage({
               message?: string;
             }[];
           }) => (
-            <article key={s.id} className="soft-card !p-4 space-y-3">
+            <article key={s.id} className="data-card space-y-3">
               <div className="flex gap-3 items-baseline">
                 <span className="font-mono text-accent-green text-sm">{s.action}</span>
                 <span className="font-mono text-lg text-text">{s.ticker}</span>

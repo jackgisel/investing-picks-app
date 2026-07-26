@@ -11,16 +11,15 @@ import {
   formatChartDate,
 } from "@/components/ui/picks-benchmark-chart";
 import { TrendingUp } from "lucide-react";
+import { pnlClass } from "@/lib/portfolio";
 
 function EmptyChart({ compact }: { compact?: boolean }) {
   return (
     <div
-      className={`soft-card ${compact ? "h-56" : "h-80"} flex flex-col items-center justify-center`}
+      className={`data-card ${compact ? "h-56" : "h-80"} flex flex-col items-center justify-center`}
     >
       <TrendingUp size={28} className="text-text-dim mb-3" />
-      <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">
-        Building track record
-      </span>
+      <span className="field-label">Building track record</span>
       <p className="font-sans text-[13px] text-text-muted mt-2 max-w-sm text-center">
         The picks curve populates once there are at least two days of marks on
         the capital deployed into picks.
@@ -39,11 +38,9 @@ export function PerformanceChart({ compact = false }: { compact?: boolean }) {
   if (isPending) {
     return (
       <div
-        className={`soft-card ${compact ? "h-56" : "h-80"} flex items-center justify-center`}
+        className={`data-card ${compact ? "h-56" : "h-80"} flex items-center justify-center`}
       >
-        <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim animate-pulse">
-          Loading chart data...
-        </span>
+        <span className="field-label animate-pulse">Loading chart data…</span>
       </div>
     );
   }
@@ -59,7 +56,7 @@ export function PerformanceChart({ compact = false }: { compact?: boolean }) {
     })!;
     return (
       <div
-        className={`soft-card !p-0 ${compact ? "h-56" : "h-80"} flex items-center justify-center`}
+        className={`data-panel ${compact ? "h-56" : "h-80"} flex items-center justify-center`}
       >
         <DataState state={state} error={error} onRetry={() => void refetch()} />
       </div>
@@ -78,14 +75,14 @@ export function PerformanceChart({ compact = false }: { compact?: boolean }) {
   const { benchmarks, picksLatestPct, startDate, latestDate } = comparison;
 
   return (
-    <div className={`soft-card ${compact ? "!p-4" : ""}`}>
+    <div className="data-card">
       <div
         className={`flex flex-wrap items-start justify-between gap-x-6 gap-y-3 ${
           compact ? "mb-3" : "mb-5"
         }`}
       >
         <div>
-          <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">
+          <span className="panel-label">
             Return on capital deployed into picks
           </span>
           {!compact && (
@@ -98,9 +95,9 @@ export function PerformanceChart({ compact = false }: { compact?: boolean }) {
         {picksLatestPct !== null && (
           <div className="text-right">
             <span
-              className={`font-mono text-[26px] font-bold leading-none ${
-                picksLatestPct >= 0 ? "text-accent-green" : "text-accent-red"
-              }`}
+              className={`font-mono text-[26px] font-bold leading-none ${pnlClass(
+                picksLatestPct,
+              )}`}
             >
               {formatChartPct(picksLatestPct)}
             </span>
@@ -135,17 +132,13 @@ export function PerformanceChart({ compact = false }: { compact?: boolean }) {
                     key={b.key}
                     className="rounded-soft border border-border px-4 py-3"
                   >
-                    <p className="font-sans text-[10px] font-bold tracking-[0.12em] uppercase text-text-dim">
+                    <p className="field-label">
                       vs {b.label}
                     </p>
                     <p
-                      className={`font-mono text-[18px] font-bold mt-1.5 leading-none ${
-                        gap === null
-                          ? "text-text-dim"
-                          : gap >= 0
-                            ? "text-accent-green"
-                            : "text-accent-red"
-                      }`}
+                      className={`font-mono text-[18px] font-bold mt-1.5 leading-none ${pnlClass(
+                        gap,
+                      )}`}
                     >
                       {gap === null
                         ? "—"

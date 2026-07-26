@@ -3,22 +3,22 @@
 import { useStrategy } from "@/lib/hooks/use-strategy";
 import { useChart } from "@/lib/hooks/use-chart";
 import { PerformanceChart } from "@/components/dashboard/performance-chart";
+import { StatTile } from "@/components/dashboard/stat-tile";
 import { LiveStatus } from "@/components/dashboard/live-status";
 import { DataStateCard, resolveDataState } from "@/components/ui/data-state";
-import { computePortfolioReturnPct, formatPct } from "@/lib/portfolio";
+import { useInceptionDate } from "@/lib/hooks/use-inception";
+import {
+  computePortfolioReturnPct,
+  daysSinceInception,
+  formatPct,
+  pnlClass,
+} from "@/lib/portfolio";
 import { TrendingUp, BarChart3, Activity, Trophy } from "lucide-react";
-
-const LIVE_INCEPTION = "2026-04-01";
-
-function daysSince(dateStr: string): number {
-  const start = new Date(dateStr).getTime();
-  const now = Date.now();
-  return Math.max(0, Math.floor((now - start) / (1000 * 60 * 60 * 24)));
-}
 
 export default function PerformancePage() {
   const strategyQuery = useStrategy();
   const chartQuery = useChart();
+  const { inceptionISO } = useInceptionDate();
   const { data: strategy, isPending, isError, error } = strategyQuery;
   const { data: chartData } = chartQuery;
 
@@ -61,15 +61,15 @@ export default function PerformancePage() {
     ? [...holdings].sort((a, b) => a.pnl_pct - b.pnl_pct)[0]
     : null;
 
-  const days = daysSince(LIVE_INCEPTION);
+  const days = daysSinceInception(inceptionISO);
   // Count the picks curve, not the legacy book-equity series — that is what the
   // chart below actually plots, so the two must agree.
   const seriesPoints = chartData?.picks_series?.length ?? 0;
 
   return (
-    <div className="max-w-[1100px] space-y-6">
+    <div className="space-y-5">
       <div>
-        <h1 className="font-sans text-xl font-bold">Performance</h1>
+        <h1 className="page-title">Performance</h1>
         <p className="font-sans text-[13px] text-text-dim mt-1">
           {gate
             ? gate === "subscription"
@@ -89,32 +89,37 @@ export default function PerformancePage() {
 
         {/* Live metrics */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <MetricCard
+          <StatTile
             label="PICKS RETURN"
             value={hasReturn ? formatPct(totalReturnPct) : "—"}
             icon={TrendingUp}
-            green={hasReturn && totalReturnPct >= 0}
-            red={hasReturn && totalReturnPct < 0}
+            tone="mint"
+            valueTone={
+              !hasReturn ? "neutral" : totalReturnPct >= 0 ? "green" : "red"
+            }
             loading={isPending}
           />
-          <MetricCard
+          <StatTile
             label="POSITIONS"
             value={portfolio?.position_count.toString() ?? "—"}
             icon={BarChart3}
+            tone="cyan"
             loading={isPending}
           />
-          <MetricCard
+          <StatTile
             label="WINNERS"
             value={
               holdings ? `${winnersCount} / ${holdings.length}` : "—"
             }
             icon={Trophy}
+            tone="yellow"
             loading={isPending}
           />
-          <MetricCard
+          <StatTile
             label="DAYS LIVE"
             value={days.toString()}
             icon={Activity}
+            tone="lilac"
             loading={isPending}
           />
         </div>
@@ -134,8 +139,8 @@ export default function PerformancePage() {
         {(bestHolding || worstHolding) && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {bestHolding && (
-              <div className="soft-card">
-                <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim block mb-2">
+              <div className="data-card">
+                <span className="panel-label block mb-2">
                   BEST HOLDING
                 </span>
                 <div className="flex items-baseline justify-between">
@@ -143,11 +148,9 @@ export default function PerformancePage() {
                     {bestHolding.ticker}
                   </span>
                   <span
-                    className={`font-mono text-[18px] font-bold ${
-                      bestHolding.pnl_pct >= 0
-                        ? "text-accent-green"
-                        : "text-accent-red"
-                    }`}
+                    className={`font-mono text-[18px] font-bold tabular-nums ${pnlClass(
+                      bestHolding.pnl_pct,
+                    )}`}
                   >
                     {formatPct(bestHolding.pnl_pct)}
                   </span>
@@ -158,8 +161,8 @@ export default function PerformancePage() {
               </div>
             )}
             {worstHolding && (
-              <div className="soft-card">
-                <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim block mb-2">
+              <div className="data-card">
+                <span className="panel-label block mb-2">
                   WORST HOLDING
                 </span>
                 <div className="flex items-baseline justify-between">
@@ -167,11 +170,9 @@ export default function PerformancePage() {
                     {worstHolding.ticker}
                   </span>
                   <span
-                    className={`font-mono text-[18px] font-bold ${
-                      worstHolding.pnl_pct >= 0
-                        ? "text-accent-green"
-                        : "text-accent-red"
-                    }`}
+                    className={`font-mono text-[18px] font-bold tabular-nums ${pnlClass(
+                      worstHolding.pnl_pct,
+                    )}`}
                   >
                     {formatPct(worstHolding.pnl_pct)}
                   </span>
@@ -186,7 +187,7 @@ export default function PerformancePage() {
         </>
       )}
 
-      <div className="soft-card">
+      <div className="data-card">
         <p className="font-sans text-[12px] text-text-muted leading-relaxed">
           This page shows <strong className="text-text">only live performance</strong>.
           Historical strategy validation (the walk-forward backtest) is
@@ -204,42 +205,3 @@ export default function PerformancePage() {
   );
 }
 
-function MetricCard({
-  label,
-  value,
-  icon: Icon,
-  green = false,
-  red = false,
-  loading = false,
-}: {
-  label: string;
-  value: string;
-  icon: React.ElementType;
-  green?: boolean;
-  red?: boolean;
-  loading?: boolean;
-}) {
-  return (
-    <div className="soft-card">
-      <div className="flex items-center gap-2 mb-2">
-        <Icon size={14} className="text-text-dim" />
-        <span className="font-sans text-[11px] font-bold tracking-[0.1em] uppercase text-text-dim">
-          {label}
-        </span>
-      </div>
-      <span
-        className={`font-mono text-xl font-bold ${
-          loading
-            ? "text-text-dim animate-pulse"
-            : red
-              ? "text-accent-red"
-              : green
-                ? "text-accent-green"
-                : "text-text"
-        }`}
-      >
-        {value}
-      </span>
-    </div>
-  );
-}

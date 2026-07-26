@@ -28,8 +28,10 @@ export const BACKTEST = {
   label: "COMBINED: best weights + best Outpick-style",
   startDate: "Jun 15, 2022",
   endDate: "Apr 06, 2026",
-  yearsCovered: 5,
-  yearsLabel: "5-year trailing history",
+  // Jun 15, 2022 — Apr 06, 2026 is 3.81 years. Keep these two in sync with
+  // startDate/endDate above; they are rendered as performance claims.
+  yearsCovered: 3.8,
+  yearsLabel: "3.8-year trailing history",
   totalReturn: "+250.39%",
   cagr: "+38.99%",
   spyReturn: "+83.34%",
@@ -41,7 +43,9 @@ export const BACKTEST = {
   wins: 35,
   losses: 18,
   trades: 132,
-  winnersCircle: 8,
+  // Distinct positions that doubled — see WINNERS_CIRCLE. Must equal
+  // WINNERS_CIRCLE.length; there is a script check in scripts/.
+  winnersCircle: 5,
   doubledMinReturnPct: 100,
   // Validation period (out-of-sample only)
   validationAlpha: "+67%",
@@ -62,17 +66,35 @@ export const LIVE_PORTFOLIO = {
   foundersDealMaxDay: FOUNDERS_DEAL_MAX_DAY,
 };
 
-// Stocks that doubled during the backtest (8 total)
+// Positions that doubled during the backtest.
+//
+// One position can exit in several tranches — the strategy trims winners and
+// recycles the proceeds rather than closing all at once. The raw backtest log
+// therefore contains eight doubling *exits*, but only five doubling
+// *positions*: AVGO exited three times and YPF twice, each from a single
+// entry. Counting the tranches made "8 picks doubled" a headline claim that
+// showed the same ticker three times over.
+//
+// `ret` is the best realized tranche for that position. A blended
+// position-level return would be more precise but needs the per-tranche share
+// counts, which are not in this repo.
+//
+// `exits` records how many times each position was sold out of, so the
+// trimming behaviour can still be described honestly in copy — see
+// WINNERS_CIRCLE_EXITS below.
 export const WINNERS_CIRCLE = [
-  { ticker: "YPF",  entry: "2023-11-20", exit: "2025-01-06", ret: "+199.87%" },
-  { ticker: "TGS",  entry: "2023-02-21", exit: "2026-01-05", ret: "+189.83%" },
-  { ticker: "BMA",  entry: "2023-12-04", exit: "2024-09-16", ret: "+179.01%" },
-  { ticker: "AVGO", entry: "2023-10-02", exit: "2025-03-03", ret: "+128.40%" },
-  { ticker: "IRS",  entry: "2023-07-17", exit: "2025-06-02", ret: "+160.98%" },
-  { ticker: "AVGO", entry: "2023-10-02", exit: "2024-12-02", ret: "+102.45%" },
-  { ticker: "YPF",  entry: "2023-11-20", exit: "2025-01-21", ret: "+188.81%" },
-  { ticker: "AVGO", entry: "2023-10-02", exit: "2025-04-21", ret: "+103.23%" },
+  { ticker: "YPF",  entry: "2023-11-20", exit: "2025-01-06", ret: "+199.87%", exits: 2 },
+  { ticker: "TGS",  entry: "2023-02-21", exit: "2026-01-05", ret: "+189.83%", exits: 1 },
+  { ticker: "BMA",  entry: "2023-12-04", exit: "2024-09-16", ret: "+179.01%", exits: 1 },
+  { ticker: "IRS",  entry: "2023-07-17", exit: "2025-06-02", ret: "+160.98%", exits: 1 },
+  { ticker: "AVGO", entry: "2023-10-02", exit: "2025-03-03", ret: "+128.40%", exits: 3 },
 ];
+
+/** Doubling exits, counting each trim separately. */
+export const WINNERS_CIRCLE_EXITS = WINNERS_CIRCLE.reduce(
+  (n, w) => n + w.exits,
+  0,
+);
 
 // Final holdings at end of backtest (16 positions)
 export const FINAL_HOLDINGS = [
@@ -94,14 +116,6 @@ export const FINAL_HOLDINGS = [
   { ticker: "SEZL", entry: "2025-02-03", ret: "-42.91%",  fromPeak: "-62.0%" },
 ];
 
-export const NAV_LINKS = [
-  { label: "Track record", href: "/#track-record" },
-  { label: "Our strategy", href: "/#strategy" },
-  { label: "How it works", href: "/#how-it-works" },
-  { label: "Pricing", href: "/#pricing" },
-  { label: "Blog", href: "/blog" },
-  { label: "FAQ", href: "/#faq" },
-] as const;
 
 export const PADDLE_CLIENT_TOKEN = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || "";
 export const PADDLE_PRICE_ID = process.env.NEXT_PUBLIC_PADDLE_PRICE_ID || "";

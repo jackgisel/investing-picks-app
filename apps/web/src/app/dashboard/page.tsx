@@ -3,6 +3,10 @@
 import { useStrategy } from "@/lib/hooks/use-strategy";
 import { usePicks } from "@/lib/hooks/use-picks";
 import { LiveStatus } from "@/components/dashboard/live-status";
+import { PerformanceChart } from "@/components/dashboard/performance-chart";
+import { StatTile } from "@/components/dashboard/stat-tile";
+import { SectorAllocation } from "@/components/dashboard/sector-allocation";
+import { InsightsCard } from "@/components/dashboard/insights-card";
 import {
   DataState,
   DataStateCard,
@@ -10,7 +14,12 @@ import {
   resolveDataState,
   type DataStateKind,
 } from "@/components/ui/data-state";
-import { computePortfolioReturnPct, formatPct } from "@/lib/portfolio";
+import {
+  computePortfolioReturnPct,
+  formatPct,
+  formatPctOrDash,
+  pnlClass,
+} from "@/lib/portfolio";
 import {
   TrendingUp,
   Activity,
@@ -27,6 +36,11 @@ import Link from "next/link";
  */
 function isGate(state: DataStateKind | null): state is "unauthenticated" | "subscription" {
   return state === "unauthenticated" || state === "subscription";
+}
+
+/** The API sends "biweekly"; the stat cards read as sentence case. */
+function titleCase(s: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
 
 export default function DashboardPage() {
@@ -99,9 +113,9 @@ export default function DashboardPage() {
         : "Loading...";
 
   return (
-    <div className="max-w-[1100px] space-y-6">
+    <div className="space-y-5">
       <div>
-        <h1 className="font-sans text-xl font-bold">Dashboard</h1>
+        <h1 className="page-title">Dashboard</h1>
         <p className="font-sans text-[13px] text-text-dim mt-1">{subtitle}</p>
       </div>
 
@@ -117,33 +131,46 @@ export default function DashboardPage() {
 
           {/* Live stats */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <StatCard
-              label="TOTAL RETURN"
+            <StatTile
+              label="PICKS RETURN"
               value={hasReturn ? formatPct(totalReturnPct) : "—"}
               icon={TrendingUp}
-              green={hasReturn && totalReturnPct >= 0}
-              red={hasReturn && totalReturnPct < 0}
+              tone="mint"
+              valueTone={
+                !hasReturn ? "neutral" : totalReturnPct >= 0 ? "green" : "red"
+              }
               loading={strategyQuery.isPending}
             />
-            <StatCard
+            <StatTile
               label="POSITIONS"
               value={portfolio ? portfolio.position_count.toString() : "—"}
               icon={Layers}
+              tone="cyan"
               loading={strategyQuery.isPending}
             />
-            <StatCard
+            <StatTile
               label="WINNERS"
               value={holdings ? `${winnersCount} / ${positionsCount}` : "—"}
               icon={Trophy}
+              tone="yellow"
               loading={strategyQuery.isPending}
             />
-            <StatCard
+            <StatTile
               label="EVALUATION"
-              value="Biweekly"
+              value={
+                strategyMeta
+                  ? titleCase(strategyMeta.evaluation_frequency)
+                  : "—"
+              }
               icon={Activity}
+              tone="lilac"
               loading={strategyQuery.isPending}
             />
           </div>
+
+          {/* The picks curve. The index page had no chart at all, so the
+              headline number arrived with no shape behind it. */}
+          <PerformanceChart compact />
 
           {strategyFailed ? (
             <DataStateCard
@@ -152,8 +179,17 @@ export default function DashboardPage() {
               onRetry={() => void strategyQuery.refetch()}
             />
           ) : (
-            /* Top + Bottom holdings */
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {holdings && holdings.length > 0 && (
+                <SectorAllocation
+                  holdings={holdings}
+                  sectorCap={
+                    typeof strategy?.params?.sector_concentration === "number"
+                      ? strategy.params.sector_concentration
+                      : null
+                  }
+                />
+              )}
               <HoldingsCard
                 title="TOP PERFORMERS"
                 holdings={topHoldings}
@@ -167,10 +203,12 @@ export default function DashboardPage() {
             </div>
           )}
 
+          <InsightsCard holdings={holdings} />
+
           {/* Recent picks */}
-          <div className="soft-card !p-0 overflow-hidden">
+          <div className="data-panel">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-              <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">
+              <span className="panel-label">
                 RECENT PICKS
               </span>
               <Link
@@ -180,7 +218,7 @@ export default function DashboardPage() {
                 ALL PICKS <ArrowUpRight size={10} />
               </Link>
             </div>
-            <div className="divide-y divide-border">
+            <div className="divide-y divide-border-light">
               {hasDataState(picksState) ? (
                 <DataState
                   compact
@@ -192,7 +230,6 @@ export default function DashboardPage() {
                 />
               ) : (
                 recentPicks?.map((p, i) => {
-                  const pct = p.pnl_pct ?? 0;
                   return (
                     <div
                       key={`${p.ticker}-${i}`}
@@ -205,11 +242,11 @@ export default function DashboardPage() {
                         Entered {p.entry_date}
                       </span>
                       <span
-                        className={`font-mono text-[12px] font-semibold text-right ${
-                          pct >= 0 ? "text-accent-green" : "text-accent-red"
-                        }`}
+                        className={`font-mono text-[12px] font-semibold text-right ${pnlClass(
+                          p.pnl_pct,
+                        )}`}
                       >
-                        {p.pnl_pct === null ? "—" : formatPct(pct)}
+                        {formatPctOrDash(p.pnl_pct)}
                       </span>
                     </div>
                   );
@@ -223,11 +260,11 @@ export default function DashboardPage() {
       {/* Curiosity nudge to Strategy page */}
       <Link
         href="/dashboard/strategy"
-        className="block soft-card hover:bg-bg-tertiary transition-colors group"
+        className="block data-card hover:bg-bg-tertiary transition-colors group"
       >
         <div className="flex items-center justify-between">
           <div>
-            <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim block mb-1">
+            <span className="panel-label block mb-1">
               METHODOLOGY
             </span>
             <p className="font-sans text-[14px] font-semibold">
@@ -247,45 +284,6 @@ export default function DashboardPage() {
   );
 }
 
-function StatCard({
-  label,
-  value,
-  icon: Icon,
-  green = false,
-  red = false,
-  loading = false,
-}: {
-  label: string;
-  value: string;
-  icon: React.ElementType;
-  green?: boolean;
-  red?: boolean;
-  loading?: boolean;
-}) {
-  return (
-    <div className="soft-card">
-      <div className="flex items-center gap-2 mb-2">
-        <Icon size={14} className="text-text-dim" />
-        <span className="font-sans text-[11px] font-bold tracking-[0.1em] uppercase text-text-dim">
-          {label}
-        </span>
-      </div>
-      <span
-        className={`font-mono text-xl font-bold ${
-          loading
-            ? "text-text-dim animate-pulse"
-            : red
-              ? "text-accent-red"
-              : green
-                ? "text-accent-green"
-                : "text-text"
-        }`}
-      >
-        {value}
-      </span>
-    </div>
-  );
-}
 
 function HoldingsCard({
   title,
@@ -299,9 +297,9 @@ function HoldingsCard({
   state: DataStateKind | null;
 }) {
   return (
-    <div className="soft-card !p-0 overflow-hidden">
+    <div className="data-panel">
       <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-        <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">
+        <span className="panel-label">
           {title}
         </span>
         <Link
@@ -311,7 +309,7 @@ function HoldingsCard({
           VIEW ALL <ArrowUpRight size={10} />
         </Link>
       </div>
-      <div className="divide-y divide-border">
+      <div className="divide-y divide-border-light">
         {hasDataState(state) ? (
           <DataState
             compact
@@ -334,12 +332,11 @@ function HoldingsCard({
                 </span>
               </div>
               <span
-                className={`font-mono text-[13px] font-semibold ${
-                  h.pnl_pct >= 0 ? "text-accent-green" : "text-accent-red"
-                }`}
+                className={`font-mono text-[13px] font-semibold ${pnlClass(
+                  h.pnl_pct,
+                )}`}
               >
-                {h.pnl_pct >= 0 ? "+" : ""}
-                {h.pnl_pct.toFixed(2)}%
+                {formatPctOrDash(h.pnl_pct)}
               </span>
             </div>
           ))

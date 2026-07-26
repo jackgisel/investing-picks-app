@@ -41,7 +41,15 @@ export function Navbar() {
 
   return (
     <nav className="border-b border-border sticky top-0 z-50 bg-bg/95 backdrop-blur-sm">
-      <div className="container-op flex items-center justify-between h-[72px]">
+      {/* The marketing container is 1120px centered; the dashboard sidebar is
+          flush left. Sharing it put the wordmark ~180px right of the sidebar
+          on a wide display, so nothing lined up down the left edge. On app
+          routes the bar goes full-bleed at the sidebar's own inset instead. */}
+      <div
+        className={`flex items-center justify-between h-[72px] ${
+          isDashboard ? "px-6" : "container-op"
+        }`}
+      >
         <div className="flex items-center gap-7 min-w-0">
           <Link href="/" className="shrink-0">
             <OutpickWordmark />

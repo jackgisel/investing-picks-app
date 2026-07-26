@@ -51,6 +51,29 @@ export function formatPct(n: number, digits = 2): string {
   return `${sign}${n.toFixed(digits)}%`;
 }
 
+/** `formatPct` for values that may be unknown. Never coerce null to zero. */
+export function formatPctOrDash(n: number | null | undefined, digits = 2) {
+  return typeof n === "number" ? formatPct(n, digits) : "—";
+}
+
+/**
+ * The colour for a P&L figure.
+ *
+ * Three cases the inlined `n >= 0 ? green : red` ternary got wrong:
+ *
+ *   - `null` is unknown, not a gain. Rendering it green (and, with `?? 0`,
+ *     as "+0.00%") invents a result we do not have.
+ *   - Exactly flat is not a gain either.
+ *   - Colour is never the only signal — `formatPct` emits +/- for everyone
+ *     who can't rely on it, so always pair this with `formatPct`.
+ */
+export function pnlClass(n: number | null | undefined): string {
+  if (typeof n !== "number") return "text-text-dim";
+  if (n > 0) return "text-accent-green";
+  if (n < 0) return "text-accent-red";
+  return "text-text-muted";
+}
+
 export function daysSinceInception(
   inceptionISO: string = LIVE_PORTFOLIO.inceptionISO
 ): number {

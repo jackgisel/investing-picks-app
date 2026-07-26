@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getAdminUser } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = { title: "Decision ledger" };
 
 /**
  * Server-side admin gate for every /dashboard/ops page.

@@ -42,7 +42,11 @@
   --color-border-strong: 82 82 82;
   --color-text: 250 250 250;
   --color-text-muted: 163 163 163;
-  --color-text-dim: 115 115 115;
+  /* #808080, not the #737373 used in light. text-dim is the most-used colour
+     in the dashboard and lands mostly on 10-11px type; #737373 is only 3.89:1
+     against the panel ground (#141414) and 4.18:1 against the page. #808080
+     clears AA on both (4.66:1 / 5.01:1) at no visible cost. */
+  --color-text-dim: 128 128 128;
   --color-inverse: 250 250 250;
   --color-inverse-fg: 10 10 10;
   /* Deliberately identical to :root — the pastels it sits on don't change. */
@@ -157,8 +161,81 @@
     @apply pill bg-bg text-text border border-border-strong;
   }
 
+  /* Marketing card. Generous on purpose — a landing feature block holds a
+     heading and a paragraph, and the page is meant to breathe. */
   .soft-card {
     @apply bg-bg-secondary rounded-soft p-6 sm:p-8;
+  }
+
+  /* Dashboard card.
+     `.soft-card` was doing this job and was wrong for it in three ways:
+     32px of padding around a tile whose content is an 11px label and a 20px
+     number, a 20px radius that reads as consumer-app rather than instrument,
+     and no border — bg-secondary sits at 1.07:1 against the page in dark
+     mode, below the threshold where an edge is visible at all, so the padding
+     read as unexplained emptiness instead of as a framed panel.
+     21 of the 35 dashboard uses were already fighting it with `!p-4`/`!p-0`. */
+  .data-card {
+    @apply bg-bg-secondary/60 border border-border rounded-xl p-4 sm:p-5;
+  }
+
+  /* Same frame with no padding, for panels that open with a header strip or a
+     full-bleed table. Replaces the `soft-card !p-0 overflow-hidden` idiom. */
+  .data-panel {
+    @apply bg-bg-secondary/60 border border-border rounded-xl overflow-hidden;
+  }
+
+  /* One <h1> scale for every dashboard page. There used to be two — text-xl
+     on the member pages and text-3xl on strategy/ops/claim-admin — so moving
+     between them jumped the page title by 50%. */
+  .page-title {
+    @apply font-sans text-[22px] font-bold tracking-tight text-text;
+  }
+
+  /* Reading measure for the form and prose surfaces (settings, strategy).
+     The data pages take the full shell width; a holdings table has no reason
+     to be narrower than the window. */
+  .page-measure {
+    @apply max-w-[760px];
+  }
+
+  /* Panel eyebrow — the dashboard's counterpart to `.section-label`.
+     The dashboard had reimplemented that eyebrow by hand seventeen times,
+     always monochrome, which is most of why none of the brand pastels
+     appeared anywhere in the product. Each surface gets one stable tone, so
+     the colour identifies where you are instead of decorating at random.
+     Sits at text-muted rather than text-dim: #737373 on the panel ground is
+     4.35:1, under AA for 11px type. */
+  .panel-label {
+    @apply font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-muted
+           inline-flex items-center gap-2;
+  }
+
+  .panel-label::before {
+    content: "";
+    @apply h-1 w-4 rounded-full shrink-0 bg-accent-cyan;
+  }
+
+  .panel-label-yellow::before {
+    @apply bg-accent-yellow;
+  }
+  .panel-label-peach::before {
+    @apply bg-accent-peach;
+  }
+  .panel-label-lilac::before {
+    @apply bg-accent-lilac;
+  }
+  .panel-label-mint::before {
+    @apply bg-accent-mint;
+  }
+  .panel-label-coral::before {
+    @apply bg-accent-coral;
+  }
+
+  /* The small label above a number inside a tile. Deliberately has no tone
+     rule — a dot on every field would be noise, not signal. */
+  .field-label {
+    @apply font-sans text-[10px] font-bold tracking-[0.1em] uppercase text-text-dim;
   }
 
   /* Warm paper for the illustrations. `isolate` keeps the multiply blend of

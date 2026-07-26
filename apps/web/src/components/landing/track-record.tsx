@@ -10,7 +10,12 @@ import {
   PicksBenchmarkLegend,
   formatChartPct,
 } from "@/components/ui/picks-benchmark-chart";
-import { BACKTEST, LIVE_PORTFOLIO, WINNERS_CIRCLE } from "@/lib/constants";
+import {
+  BACKTEST,
+  WINNERS_CIRCLE,
+  WINNERS_CIRCLE_EXITS,
+} from "@/lib/constants";
+import { useInceptionDate } from "@/lib/hooks/use-inception";
 import {
   computePortfolioReturnPct,
   countDoubledWinners,
@@ -29,9 +34,22 @@ const backtestSecondary = [
   { label: "Max drawdown", value: BACKTEST.maxDrawdown, green: false },
 ];
 
+/** "2026-04-01" → "Apr 01, 2026". UTC so the label never slips a day. */
+function formatInceptionDate(iso: string): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 export function TrackRecord() {
   const { data: strategy } = useStrategy();
   const { data: chart } = useChart();
+  const { inceptionISO } = useInceptionDate();
   const portfolio = strategy?.portfolio;
   const totalReturnPct = computePortfolioReturnPct(strategy);
   const hasReturn = totalReturnPct !== null;
@@ -131,7 +149,7 @@ export function TrackRecord() {
 
               <div className="px-6 sm:px-7 py-6 sm:py-7">
                 <p className="font-mono text-[11px] text-text-dim mb-6">
-                  Inception {LIVE_PORTFOLIO.inceptionDate} · Day {days}
+                  Inception {formatInceptionDate(inceptionISO)} · Day {days}
                 </p>
 
                 <div className="grid grid-cols-2 gap-6 sm:gap-8 pb-6 mb-6 border-b border-border">
@@ -208,7 +226,7 @@ export function TrackRecord() {
           <div className="rounded-soft border border-border overflow-hidden bg-bg-secondary/30">
             <div className="flex flex-wrap items-center justify-between gap-3 px-6 sm:px-7 py-5 border-b border-border">
               <span className="font-sans text-[10px] font-bold tracking-[0.14em] uppercase text-text-dim">
-                5-year model backtest
+                {BACKTEST.yearsCovered}-year model backtest
               </span>
               <span className="font-sans text-[9px] tracking-[0.1em] font-bold px-3 py-1 rounded-pill bg-bg-tertiary text-text-muted uppercase">
                 Simulated · not live
@@ -280,7 +298,9 @@ export function TrackRecord() {
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6 font-sans text-[13px] text-text-muted leading-relaxed mb-12">
             <p>
-              <strong className="text-text">Built on 5 years of history.</strong>{" "}
+              <strong className="text-text">
+                Built on {BACKTEST.yearsCovered} years of history.
+              </strong>{" "}
               We developed the model on trailing market data, then validated it
               walk-forward — training on one period, testing on unseen data (
               {BACKTEST.validationStart} – {BACKTEST.validationEnd}) before
@@ -296,8 +316,10 @@ export function TrackRecord() {
               <strong className="text-text">Winners run, losers get cut.</strong>{" "}
               Position sizing and risk guardrails keep the book disciplined,
               but we don&apos;t cap upside on names that pay back their cost
-              basis — that&apos;s how {BACKTEST.winnersCircle} picks doubled in
-              the backtest.
+              basis. In the backtest {BACKTEST.winnersCircle} positions
+              doubled, and we sold out of them across{" "}
+              {WINNERS_CIRCLE_EXITS} separate exits — trimming as they ran
+              rather than closing all at once.
             </p>
             <p>
               <strong className="text-text">Live portfolio = example, not instruction.</strong>{" "}

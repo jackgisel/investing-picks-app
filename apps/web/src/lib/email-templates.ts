@@ -4,8 +4,13 @@
  * These return HTML strings, not JSX. Email clients have notoriously bad
  * CSS support — table-based layouts, inline styles, and conservative font
  * stacks are the only reliable approach. The visual language matches the
- * Outpick site: black background, accent green, IBM Plex (with safe
- * fallbacks for clients that block web fonts).
+ * Outpick site: black background, accent green, Outfit for text and IBM Plex
+ * Mono for numerals.
+ *
+ * No web font is linked here on purpose — most clients strip @import and
+ * <link>, so the brand faces are named first for the few that have them
+ * installed and every stack falls through to a system face that will not
+ * reflow the layout.
  */
 
 import { SITE_NAME } from "@/lib/constants";
@@ -19,7 +24,7 @@ const COLOR_TEXT_DIM = "#666666";
 const COLOR_GREEN = "#22C55E";
 const COLOR_GREEN_HOVER = "#16A34A";
 
-const FONT_SANS = `'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`;
+const FONT_SANS = `'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`;
 const FONT_MONO = `'IBM Plex Mono', 'SF Mono', Menlo, Consolas, monospace`;
 
 function escapeHtml(input: string): string {

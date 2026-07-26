@@ -59,7 +59,7 @@ export default function SettingsPage() {
 
   if (sessionPending) {
     return (
-      <div className="max-w-[760px]">
+      <div className="page-measure">
         <p className="font-mono text-[11px] text-text-dim animate-pulse">
           LOADING...
         </p>
@@ -69,7 +69,7 @@ export default function SettingsPage() {
 
   if (!user) {
     return (
-      <div className="max-w-[760px]">
+      <div className="page-measure">
         <p className="font-sans text-[14px] text-text-muted">
           You need to be signed in to view settings.
         </p>
@@ -78,10 +78,10 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="max-w-[760px] space-y-12">
+    <div className="page-measure space-y-8">
       {/* Header */}
       <div>
-        <h1 className="font-sans text-xl font-bold">Settings</h1>
+        <h1 className="page-title">Settings</h1>
         <p className="font-sans text-[13px] text-text-dim mt-1">
           Manage your account, notifications, and subscription.
         </p>
@@ -173,7 +173,7 @@ function Section({
     <section>
       <div className="flex items-center gap-2 mb-3">
         <Icon size={14} className="text-accent-green" />
-        <p className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text">
+        <p className="panel-label panel-label-lilac">
           {label}
         </p>
       </div>
@@ -181,7 +181,7 @@ function Section({
       <p className="font-sans text-[13px] text-text-muted mb-5 leading-relaxed max-w-[560px]">
         {description}
       </p>
-      <div className="soft-card">{children}</div>
+      <div className="data-card">{children}</div>
     </section>
   );
 }
@@ -258,7 +258,7 @@ function ProfileForm({
         <button
           type="submit"
           disabled={!dirty || status.kind === "saving"}
-          className="font-mono text-[11px] bg-accent-green text-black px-5 py-2.5 font-semibold tracking-wider hover:bg-accent-green-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="font-mono text-[11px] bg-accent-green text-on-accent px-5 py-2.5 font-semibold tracking-wider hover:bg-accent-green-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {status.kind === "saving" ? "SAVING..." : "SAVE NAME"}
         </button>
@@ -362,7 +362,7 @@ function PasswordForm() {
             !newPassword ||
             !confirmPassword
           }
-          className="font-mono text-[11px] bg-accent-green text-black px-5 py-2.5 font-semibold tracking-wider hover:bg-accent-green-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="font-mono text-[11px] bg-accent-green text-on-accent px-5 py-2.5 font-semibold tracking-wider hover:bg-accent-green-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {status.kind === "saving" ? "UPDATING..." : "UPDATE PASSWORD"}
         </button>
@@ -543,7 +543,7 @@ function SubscriptionPanel() {
     <div className="space-y-5">
       <div className="flex items-baseline justify-between gap-4 pb-5 border-b border-border">
         <div>
-          <p className="font-sans text-[11px] font-bold tracking-[0.1em] uppercase text-text-dim mb-1">
+          <p className="field-label mb-1">
             CURRENT PLAN
           </p>
           <p className="font-sans text-[16px] font-semibold">
@@ -571,7 +571,7 @@ function SubscriptionPanel() {
       {/* Status row */}
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="font-sans text-[11px] font-bold tracking-[0.1em] uppercase text-text-dim mb-1.5">
+          <p className="field-label mb-1.5">
             STATUS
           </p>
           {!loaded ? (
@@ -584,7 +584,7 @@ function SubscriptionPanel() {
         </div>
         {loaded && renewal && (
           <div className="text-right">
-            <p className="font-sans text-[11px] font-bold tracking-[0.1em] uppercase text-text-dim mb-1.5">
+            <p className="field-label mb-1.5">
               {status === "canceled" ? "ACCESS UNTIL" : "RENEWS"}
             </p>
             <p className="font-mono text-[12px] font-semibold">{renewal}</p>
@@ -626,7 +626,7 @@ function SubscriptionPanel() {
         <div className="flex flex-wrap items-center gap-3">
           <a
             href="mailto:hello@outpick.xyz?subject=Subscription%20request"
-            className="font-mono text-[11px] bg-accent-green text-black px-5 py-2.5 font-semibold tracking-wider hover:bg-accent-green-hover transition-colors inline-flex items-center gap-2"
+            className="font-mono text-[11px] bg-accent-green text-on-accent px-5 py-2.5 font-semibold tracking-wider hover:bg-accent-green-hover transition-colors inline-flex items-center gap-2"
           >
             <Mail size={12} />
             CONTACT BILLING
@@ -824,7 +824,7 @@ function FieldRow({
 }) {
   return (
     <div>
-      <label className="font-sans text-[11px] font-bold tracking-[0.1em] uppercase text-text-dim block mb-2">
+      <label className="field-label block mb-2">
         {label}
       </label>
       {children}

@@ -9,7 +9,7 @@ import {
 import type { PicksComparison } from "@/lib/hooks/use-chart";
 import type { Holding } from "@/lib/hooks/use-strategy";
 import type { Trade } from "@/lib/hooks/use-trades";
-import type { BlogPostSummary } from "@/lib/hooks/use-blog-posts";
+import type { InsightIndexEntry } from "@/lib/insight-index";
 import { formatPct } from "@/lib/portfolio";
 import { BACKTEST, SITE_URL } from "@/lib/constants";
 
@@ -189,7 +189,7 @@ export function ScoreboardSlide({
           label="Model target CAGR"
           value={BACKTEST.cagr}
           tone="green"
-          note="5-year walk-forward backtest"
+          note={`${BACKTEST.yearsCovered}-year walk-forward backtest`}
         />
       </div>
     </Slide>
@@ -367,18 +367,18 @@ export function TradesSlide({ trades }: { trades: Trade[] }) {
   );
 }
 
-export function ResearchSlide({ post }: { post: BlogPostSummary }) {
+export function ResearchSlide({ insight }: { insight: InsightIndexEntry }) {
   return (
-    <Slide eyebrow="Research note" title={post.ticker ?? "Latest research"}>
+    <Slide eyebrow="Research note" title={insight.ticker ?? "Latest research"}>
       <div className="h-full flex flex-col justify-center max-w-[1180px]">
         <h3 className="font-sans text-[46px] font-bold tracking-tight leading-[1.12] mb-9">
-          {post.title}
+          {insight.title}
         </h3>
         <p className="font-sans text-[25px] text-text-muted leading-[1.55]">
-          {post.excerpt}
+          {insight.description}
         </p>
         <p className="font-mono text-[15px] text-text-dim mt-10 tracking-wide">
-          Published {post.published_at.slice(0, 10)} · full thesis for members at
+          Published {insight.publishedAt} · full thesis for members at
           outpick.xyz/insights
         </p>
       </div>

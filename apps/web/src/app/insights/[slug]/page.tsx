@@ -3,24 +3,29 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
 
+import { getAccess } from "@/lib/api-gate";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
-import { getInsightBySlug, insights } from "@/lib/insights";
+import { getInsightBySlug } from "@/lib/insights";
 import { CategoryTag } from "@/components/ui/category-tag";
 
 type Params = { slug: string };
-
-export function generateStaticParams(): Params[] {
-  return insights.map((i) => ({ slug: i.meta.slug }));
-}
 
 export async function generateMetadata({
   params,
 }: {
   params: Promise<Params>;
 }): Promise<Metadata> {
+  const access = await getAccess();
+  if (!access.entitled) {
+    return {
+      title: "Insights — Members only",
+      robots: { index: false, follow: false },
+    };
+  }
+
   const { slug } = await params;
   const insight = getInsightBySlug(slug);
-  if (!insight) return {};
+  if (!insight) return { robots: { index: false, follow: false } };
 
   const { meta } = insight;
   const url = `${SITE_URL}/insights/${meta.slug}`;
@@ -28,6 +33,7 @@ export async function generateMetadata({
   return {
     title: meta.title,
     description: meta.description,
+    robots: { index: false, follow: false },
     alternates: { canonical: url },
     openGraph: {
       title: meta.title,
@@ -40,7 +46,7 @@ export async function generateMetadata({
       tags: meta.tags,
     },
     twitter: {
-      card: "summary_large_image",
+      card: "summary",
       title: meta.title,
       description: meta.description,
     },
@@ -77,66 +83,42 @@ export default async function InsightDetailPage({
 
   const tone = meta.postType === "quarterly_review" ? "lilac" : "yellow";
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    headline: meta.title,
-    description: meta.description,
-    datePublished: meta.publishedAt,
-    author: {
-      "@type": "Organization",
-      name: meta.author ?? "Outpick Research",
-      url: SITE_URL,
-    },
-    publisher: { "@type": "Organization", name: SITE_NAME, url: SITE_URL },
-    mainEntityOfPage: {
-      "@type": "WebPage",
-      "@id": `${SITE_URL}/insights/${meta.slug}`,
-    },
-  };
-
   return (
-    <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-      <article>
-        <header className="border-b border-border">
-          <div className="container-op pt-14 pb-16">
-            <Link
-              href="/insights"
-              className="inline-flex items-center gap-2 font-sans text-[12px] font-bold tracking-[0.1em] uppercase text-text-dim hover:text-text transition-colors mb-10"
-            >
-              <ArrowLeft size={12} />
-              All insights
-            </Link>
+    <article>
+      <header className="border-b border-border">
+        <div className="container-op pt-14 pb-16">
+          <Link
+            href="/insights"
+            className="inline-flex items-center gap-2 font-sans text-[12px] font-bold tracking-[0.1em] uppercase text-text-dim hover:text-text transition-colors mb-10"
+          >
+            <ArrowLeft size={12} />
+            All insights
+          </Link>
 
-            <div className="flex flex-wrap items-center gap-3 mb-6">
-              <CategoryTag tone={tone}>{categoryLabel}</CategoryTag>
-              <span className="font-sans text-[13px] text-text-dim">
-                {formatDate(meta.publishedAt)}
-                {meta.quarter ? ` · ${meta.quarter}` : ""}
-                {meta.readingTime ? ` · ${meta.readingTime} min read` : ""}
-              </span>
-            </div>
-
-            <h1 className="font-sans text-[34px] sm:text-[42px] font-extrabold leading-[1.15] tracking-tight text-text max-w-[760px] mb-6">
-              {meta.title}
-            </h1>
-
-            {meta.description && (
-              <p className="font-sans text-[17px] text-text-muted leading-[1.6] max-w-[680px]">
-                {meta.description}
-              </p>
-            )}
+          <div className="flex flex-wrap items-center gap-3 mb-6">
+            <CategoryTag tone={tone}>{categoryLabel}</CategoryTag>
+            <span className="font-sans text-[13px] text-text-dim">
+              {formatDate(meta.publishedAt)}
+              {meta.quarter ? ` · ${meta.quarter}` : ""}
+              {meta.readingTime ? ` · ${meta.readingTime} min read` : ""}
+            </span>
           </div>
-        </header>
 
-        <div className="container-op py-16">
-          <Content />
+          <h1 className="font-sans text-[34px] sm:text-[42px] font-extrabold leading-[1.15] tracking-tight text-text max-w-[760px] mb-6">
+            {meta.title}
+          </h1>
+
+          {meta.description && (
+            <p className="font-sans text-[17px] text-text-muted leading-[1.6] max-w-[680px]">
+              {meta.description}
+            </p>
+          )}
         </div>
-      </article>
-    </>
+      </header>
+
+      <div className="container-op py-16">
+        <Content />
+      </div>
+    </article>
   );
 }

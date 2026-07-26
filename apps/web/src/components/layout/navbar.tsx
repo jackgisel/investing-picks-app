@@ -11,7 +11,6 @@ import { useSession, signOut } from "@/lib/auth-client";
 
 const NAV_LINKS = [
   { label: "Strategy", href: "/#strategy" },
-  { label: "Insights", href: "/insights" },
   { label: "Pricing", href: "/#pricing" },
   { label: "Blog", href: "/blog" },
 ] as const;

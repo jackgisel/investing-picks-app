@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { SITE_NAME, SITE_TAGLINE } from "@/lib/constants";
+import { SITE_NAME, SITE_SUBHEADLINE, SITE_TAGLINE } from "@/lib/constants";
 
 export const alt = `${SITE_NAME} — ${SITE_TAGLINE}`;
 export const size = { width: 1200, height: 630 };
@@ -119,7 +119,7 @@ export default async function OpenGraphImage() {
               maxWidth: 720,
             }}
           >
-            Value-based stock research for investors who outgrew index funds.
+            {SITE_SUBHEADLINE}
           </div>
         </div>
 

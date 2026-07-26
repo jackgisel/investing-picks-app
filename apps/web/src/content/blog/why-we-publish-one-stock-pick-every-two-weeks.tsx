@@ -146,7 +146,7 @@ const article: Article = {
           },
           {
             q: "Where do I read the notes for current holdings?",
-            a: "Each live position has an Insight write-up under /insights, and the dashboard links tickers through to those notes.",
+            a: "Each live position has a member-only Insight write-up. The dashboard links tickers through to those notes for subscribers.",
           },
         ]}
       />

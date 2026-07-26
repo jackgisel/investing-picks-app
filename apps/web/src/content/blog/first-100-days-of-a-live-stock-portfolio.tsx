@@ -127,7 +127,7 @@ const article: Article = {
       <H2>How we want you to read the dashboard</H2>
       <P>
         Use the <A href="/dashboard">dashboard</A> as a living lab notebook, not a mutual-fund
-        fact sheet. Click through to{" "}
+        fact sheet. Members can open{" "}
         <A href="/insights">Insights</A> for why each name is there. Compare the live book to
         the index over time, but give the strategy enough cycles to look like itself. And if
         you are building your own book alongside ours, size for your sleep — our risk budget

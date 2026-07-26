@@ -378,7 +378,7 @@ export function ResearchSlide({ post }: { post: BlogPostSummary }) {
           {post.excerpt}
         </p>
         <p className="font-mono text-[15px] text-text-dim mt-10 tracking-wide">
-          Published {post.published_at.slice(0, 10)} · full thesis at
+          Published {post.published_at.slice(0, 10)} · full thesis for members at
           outpick.xyz/insights
         </p>
       </div>

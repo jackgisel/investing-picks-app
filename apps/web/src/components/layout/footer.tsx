@@ -33,14 +33,6 @@ export function Footer() {
                 </li>
                 <li>
                   <Link
-                    href="/insights"
-                    className="font-sans text-[13px] font-semibold tracking-[0.08em] uppercase text-text-muted hover:text-text transition-colors"
-                  >
-                    Insights
-                  </Link>
-                </li>
-                <li>
-                  <Link
                     href="/blog"
                     className="font-sans text-[13px] font-semibold tracking-[0.08em] uppercase text-text-muted hover:text-text transition-colors"
                   >

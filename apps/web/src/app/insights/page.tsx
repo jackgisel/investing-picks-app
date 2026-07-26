@@ -8,14 +8,14 @@ import { CategoryTag } from "@/components/ui/category-tag";
 export const metadata: Metadata = {
   title: "Insights — Research behind every position in the portfolio",
   description:
-    "Live commentary on every Outpick pick — the thesis, the fundamentals, and the market cycle context behind each buy, plus quarterly portfolio reviews.",
+    "Member research notes on every Outpick pick — thesis, fundamentals, and market cycle context.",
+  robots: { index: false, follow: false },
   alternates: {
     canonical: `${SITE_URL}/insights`,
   },
   openGraph: {
     title: `Insights — ${SITE_NAME}`,
-    description:
-      "Live research notes on every pick in the Outpick portfolio, plus quarterly reviews.",
+    description: "Member research notes on every pick in the Outpick portfolio.",
     url: `${SITE_URL}/insights`,
     siteName: SITE_NAME,
     type: "website",

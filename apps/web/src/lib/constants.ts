@@ -1,6 +1,8 @@
 export const SITE_NAME = "Outpick";
 export const SITE_URL = "https://outpick.xyz";
 export const SITE_TAGLINE = "Intentional investing beyond the index.";
+export const SITE_SUBHEADLINE =
+  "Value-based stock research for investors who outgrew index funds.";
 export const SITE_DESCRIPTION =
   "Outpick is a stock research team for investors who outgrew index funds. Value-based picks grounded in business fundamentals and market cycles — researched, tracked, and published every two weeks.";
 
@@ -97,7 +99,6 @@ export const NAV_LINKS = [
   { label: "Our strategy", href: "/#strategy" },
   { label: "How it works", href: "/#how-it-works" },
   { label: "Pricing", href: "/#pricing" },
-  { label: "Insights", href: "/insights" },
   { label: "Blog", href: "/blog" },
   { label: "FAQ", href: "/#faq" },
 ] as const;

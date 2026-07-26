@@ -21,7 +21,7 @@ const insight: Insight = {
       "Ategrity Specialty focuses on excess-and-surplus insurance for small and mid-sized businesses — a tech-enabled underwriting platform with early public-market earnings momentum.",
     ticker: "ASIC",
     postType: "pick",
-    publishedAt: "2026-07-25",
+    publishedAt: "2026-06-18",
     readingTime: 7,
     author: "Outpick Research",
     tags: ["insurance", "E&S", "specialty P&C"],
@@ -79,7 +79,8 @@ const insight: Insight = {
 
       <H2>Our buy thesis</H2>
       <P>
-        We own ASIC because E&amp;S for SMBs is structurally attractive and still fragmented.
+        We added Ategrity on June 18, 2026. We own ASIC because E&amp;S for SMBs is
+        structurally attractive and still fragmented.
         Admitted markets routinely decline or constrain risks that do not fit standard forms;
         surplus lines fill that gap at pricing that can be more responsive to risk. Serving
         that demand with low-touch, high-speed brokerage workflows is a real distribution

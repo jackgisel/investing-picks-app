@@ -31,7 +31,7 @@ const article: Article = {
       "risk adjusted return",
       "sharpe ratio formula",
     ],
-    publishedAt: "2026-04-07",
+    publishedAt: "2026-04-08",
     category: "Education",
     tags: ["sharpe ratio", "risk-adjusted return", "metrics"],
     readingTime: 7,

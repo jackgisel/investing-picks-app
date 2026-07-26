@@ -21,7 +21,7 @@ const insight: Insight = {
       "Roku is the operating system of streaming for millions of households — and platform advertising plus subscriptions are now driving double-digit growth with expanding free cash flow.",
     ticker: "ROKU",
     postType: "pick",
-    publishedAt: "2026-07-25",
+    publishedAt: "2026-05-15",
     readingTime: 8,
     author: "Outpick Research",
     tags: ["streaming", "advertising", "platform"],
@@ -81,8 +81,8 @@ const insight: Insight = {
 
       <H2>Our buy thesis</H2>
       <P>
-        We own Roku because streaming has won living rooms, and someone has to own the
-        aggregation layer where apps, ads, and subscriptions meet. Roku&apos;s installed base
+        We added Roku on May 15, 2026. We own it because streaming has won living rooms,
+        and someone has to own the aggregation layer where apps, ads, and subscriptions meet. Roku&apos;s installed base
         and hours streamed give it a scarce audience graph in a world where linear TV
         advertising keeps shrinking.
       </P>

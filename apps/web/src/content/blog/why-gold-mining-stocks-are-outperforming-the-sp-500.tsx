@@ -31,7 +31,7 @@ const article: Article = {
       "AEM AGI ASA",
       "gold mining basket",
     ],
-    publishedAt: "2026-04-07",
+    publishedAt: "2026-05-20",
     category: "Markets",
     tags: ["gold", "miners", "macro"],
     readingTime: 8,

@@ -21,7 +21,7 @@ const insight: Insight = {
       "Sezzle is turning buy-now-pay-later into a subscription-led consumer platform — with rising purchase frequency, expanding product surface, and raised 2026 earnings guidance.",
     ticker: "SEZL",
     postType: "pick",
-    publishedAt: "2026-07-25",
+    publishedAt: "2026-04-10",
     readingTime: 8,
     author: "Outpick Research",
     tags: ["fintech", "BNPL", "consumer credit"],
@@ -84,8 +84,8 @@ const insight: Insight = {
 
       <H2>Our buy thesis</H2>
       <P>
-        We own Sezzle because the company is proving that engagement can compound faster
-        than pure GMV stories usually do. In Q1 2026, management highlighted a new high in
+        We added Sezzle to the live book on April 10, 2026. We own it because the company
+        is proving that engagement can compound faster than pure GMV stories usually do. In Q1 2026, management highlighted a new high in
         average quarterly purchase frequency (about 7.1×) and active-subscriber growth of
         roughly 48% year over year. Those are not vanity metrics for a lender — they are
         the inputs to lower marketing drag, better credit selection, and more fee surface

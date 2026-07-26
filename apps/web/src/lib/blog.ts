@@ -53,6 +53,8 @@ import findTenBaggers from "@/content/blog/how-to-find-10x-stocks-as-a-long-term
 import goldMiningStocks2026 from "@/content/blog/why-gold-mining-stocks-are-outperforming-the-sp-500";
 import argentinaStocks from "@/content/blog/argentina-stocks-the-quiet-engine-of-our-best-trades";
 import walkForwardBacktesting from "@/content/blog/walk-forward-backtesting-explained";
+import onePickEveryTwoWeeks from "@/content/blog/why-we-publish-one-stock-pick-every-two-weeks";
+import firstHundredDays from "@/content/blog/first-100-days-of-a-live-stock-portfolio";
 
 export const articles: Article[] = [
   howToOutperformSp500,
@@ -67,6 +69,8 @@ export const articles: Article[] = [
   goldMiningStocks2026,
   argentinaStocks,
   walkForwardBacktesting,
+  onePickEveryTwoWeeks,
+  firstHundredDays,
 ].sort((a, b) => b.meta.publishedAt.localeCompare(a.meta.publishedAt));
 
 export function getArticleBySlug(slug: string): Article | undefined {

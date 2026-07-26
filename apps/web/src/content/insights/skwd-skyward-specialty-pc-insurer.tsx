@@ -21,7 +21,7 @@ const insight: Insight = {
       "Skyward Specialty underwrites niche commercial risks in the U.S. and, via Apollo, at Lloyd’s — a specialty insurer diversifying premium and fee income after a transformative acquisition.",
     ticker: "SKWD",
     postType: "pick",
-    publishedAt: "2026-07-25",
+    publishedAt: "2026-07-02",
     readingTime: 7,
     author: "Outpick Research",
     tags: ["insurance", "specialty P&C", "Lloyd's"],
@@ -77,8 +77,9 @@ const insight: Insight = {
 
       <H2>Our buy thesis</H2>
       <P>
-        We own Skyward because specialty commercial insurance remains one of the better
-        places in P&amp;C to earn underwriting profit when leadership stays disciplined.
+        We added Skyward on July 2, 2026. We own it because specialty commercial insurance
+        remains one of the better places in P&amp;C to earn underwriting profit when
+        leadership stays disciplined.
         Niche books can reprice faster than mass-market personal lines, and skilled
         underwriters can walk away from stupid risk — a cultural advantage that shows up in
         combined ratios over time.

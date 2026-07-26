@@ -21,7 +21,7 @@ const insight: Insight = {
       "WisdomTree is an asset manager with record AUM, a higher fee mix, and optionality in tokenized assets and private markets — a scaled compounder in a consolidating industry.",
     ticker: "WT",
     postType: "pick",
-    publishedAt: "2026-07-25",
+    publishedAt: "2026-05-01",
     readingTime: 7,
     author: "Outpick Research",
     tags: ["asset management", "ETFs", "digital assets"],
@@ -76,8 +76,8 @@ const insight: Insight = {
 
       <H2>Our buy thesis</H2>
       <P>
-        We own WisdomTree because AUM scale finally looks like a flywheel instead of a
-        perpetual turnaround story. Record ending AUM near $153 billion in Q1 2026, up both
+        We added WisdomTree on May 1, 2026. We own it because AUM scale finally looks like
+        a flywheel instead of a perpetual turnaround story. Record ending AUM near $153 billion in Q1 2026, up both
         sequentially and year over year, came from a mix of net inflows and market
         appreciation. Average AUM and a higher average advisory fee helped operating revenue
         jump sharply versus the prior year.

@@ -30,7 +30,7 @@ const article: Article = {
       "how to evaluate a stock picking service",
       "stock picking newsletter red flags",
     ],
-    publishedAt: "2026-04-07",
+    publishedAt: "2026-02-11",
     category: "Education",
     tags: ["stock picking", "newsletters", "buyer guide"],
     readingTime: 8,

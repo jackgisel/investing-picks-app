@@ -31,7 +31,7 @@ const article: Article = {
       "deep value EM",
       "position sizing",
     ],
-    publishedAt: "2026-04-07",
+    publishedAt: "2026-06-03",
     category: "Markets",
     tags: ["argentina", "emerging markets", "contrarian"],
     readingTime: 8,

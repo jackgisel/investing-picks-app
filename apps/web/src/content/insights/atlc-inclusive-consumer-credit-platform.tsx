@@ -21,7 +21,7 @@ const insight: Insight = {
       "Atlanticus enables partners to offer consumer credit to Everyday Americans — and the Mercury acquisition is amplifying an already profitable Credit-as-a-Service platform.",
     ticker: "ATLC",
     postType: "pick",
-    publishedAt: "2026-07-25",
+    publishedAt: "2026-04-17",
     readingTime: 8,
     author: "Outpick Research",
     tags: ["fintech", "consumer credit", "specialty finance"],
@@ -85,8 +85,9 @@ const insight: Insight = {
 
       <H2>Our buy thesis</H2>
       <P>
-        We own Atlanticus because inclusive credit is a structural market, not a fad — and
-        because ATLC is one of the few scaled public platforms purpose-built for it. More
+        We added Atlanticus on April 17, 2026. We own it because inclusive credit is a
+        structural market, not a fad — and because ATLC is one of the few scaled public
+        platforms purpose-built for it. More
         than 100 million U.S. consumers sit in near-prime and non-prime segments that still
         need revolving and installment credit for retail, healthcare, and everyday spending.
         Banks periodically retreat from that risk; specialists who underwrite and service it

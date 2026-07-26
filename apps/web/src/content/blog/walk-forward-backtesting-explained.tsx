@@ -30,7 +30,7 @@ const article: Article = {
       "out of sample testing",
       "point in time data",
     ],
-    publishedAt: "2026-04-07",
+    publishedAt: "2026-06-17",
     category: "Education",
     tags: ["backtesting", "walk-forward", "methodology"],
     readingTime: 7,

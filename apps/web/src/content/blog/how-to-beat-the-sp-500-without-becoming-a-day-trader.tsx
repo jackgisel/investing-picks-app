@@ -30,7 +30,7 @@ const article: Article = {
       "part time investor",
       "beat the market",
     ],
-    publishedAt: "2026-04-07",
+    publishedAt: "2026-01-28",
     category: "Strategy",
     tags: ["long-term investing", "strategy", "time"],
     readingTime: 8,

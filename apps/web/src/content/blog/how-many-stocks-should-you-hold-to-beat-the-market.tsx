@@ -30,7 +30,7 @@ const article: Article = {
       "active portfolio size",
       "position sizing",
     ],
-    publishedAt: "2026-04-07",
+    publishedAt: "2026-03-10",
     category: "Education",
     tags: ["portfolio construction", "diversification", "concentration"],
     readingTime: 8,

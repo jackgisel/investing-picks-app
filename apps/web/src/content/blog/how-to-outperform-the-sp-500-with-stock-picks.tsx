@@ -30,7 +30,7 @@ const article: Article = {
       "alpha generation",
       "concentrated portfolio",
     ],
-    publishedAt: "2026-04-07",
+    publishedAt: "2026-01-14",
     category: "Strategy",
     tags: ["alpha", "strategy", "s&p 500"],
     readingTime: 8,

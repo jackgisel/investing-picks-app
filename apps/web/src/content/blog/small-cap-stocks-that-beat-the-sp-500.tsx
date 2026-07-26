@@ -30,7 +30,7 @@ const article: Article = {
       "SMB factor",
       "small cap investing strategy",
     ],
-    publishedAt: "2026-04-07",
+    publishedAt: "2026-02-25",
     category: "Research",
     tags: ["small cap", "research", "growth"],
     readingTime: 8,

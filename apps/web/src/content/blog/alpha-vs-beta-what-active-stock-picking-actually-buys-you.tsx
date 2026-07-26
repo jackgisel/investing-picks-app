@@ -30,7 +30,7 @@ const article: Article = {
       "CAPM explained",
       "measuring portfolio alpha",
     ],
-    publishedAt: "2026-04-07",
+    publishedAt: "2026-04-22",
     category: "Education",
     tags: ["alpha", "beta", "active management"],
     readingTime: 8,

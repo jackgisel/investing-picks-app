@@ -21,7 +21,7 @@ const insight: Insight = {
       "SoFi is compounding members, products, and fee income across lending, deposits, and brokerage — with Q1 2026 showing record revenue and sustained profitability.",
     ticker: "SOFI",
     postType: "pick",
-    publishedAt: "2026-07-25",
+    publishedAt: "2026-06-05",
     readingTime: 8,
     author: "Outpick Research",
     tags: ["fintech", "digital banking", "consumer finance"],
@@ -76,8 +76,8 @@ const insight: Insight = {
 
       <H2>Our buy thesis</H2>
       <P>
-        We own SoFi because member growth and product intensity are showing up as both
-        revenue and profit. Q1 adjusted net revenue of about $1.1 billion was up 41% year
+        We added SoFi on June 5, 2026. We own it because member growth and product intensity
+        are showing up as both revenue and profit. Q1 adjusted net revenue of about $1.1 billion was up 41% year
         over year; adjusted EBITDA rose ~62%; GAAP net income was $167 million. Management
         highlighted an 18th consecutive quarter above a Rule-of-40 threshold — shorthand for
         combining growth and margin in a way growth-stage fintechs often fail to do.

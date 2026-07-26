@@ -30,7 +30,7 @@ const article: Article = {
       "Peter Lynch stock picking",
       "concentrated portfolio strategy",
     ],
-    publishedAt: "2026-04-07",
+    publishedAt: "2026-05-06",
     category: "Research",
     tags: ["10x", "growth", "asymmetric upside"],
     readingTime: 8,

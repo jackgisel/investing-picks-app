@@ -21,7 +21,7 @@ const insight: Insight = {
       "Post-split Western Digital is a pure-play HDD franchise riding hyperscale AI data growth — with record margins, long-term customer agreements, and a repaired balance sheet.",
     ticker: "WDC",
     postType: "pick",
-    publishedAt: "2026-07-25",
+    publishedAt: "2026-07-17",
     readingTime: 8,
     author: "Outpick Research",
     tags: ["storage", "AI infrastructure", "semiconductors"],
@@ -76,8 +76,8 @@ const insight: Insight = {
 
       <H2>Our buy thesis</H2>
       <P>
-        We own Western Digital because AI creates data faster than flash economics can store
-        it at scale. Training runs, checkpoints, inference logs, and retention policies push
+        We added Western Digital on July 17, 2026. We own it because AI creates data faster
+        than flash economics can store it at scale. Training runs, checkpoints, inference logs, and retention policies push
         exabytes into cold and warm tiers where HDDs remain several times cheaper per TB than
         enterprise SSD. That is not a 2012 &ldquo;PC refresh&rdquo; cycle; it is a structural
         storage workload.

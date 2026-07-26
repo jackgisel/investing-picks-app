@@ -30,7 +30,7 @@ const article: Article = {
       "stock picking service fees",
       "break even alpha calculation",
     ],
-    publishedAt: "2026-04-07",
+    publishedAt: "2026-03-24",
     category: "Education",
     tags: ["roi", "stock picking", "fees"],
     readingTime: 8,

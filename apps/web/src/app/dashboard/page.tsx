@@ -4,6 +4,7 @@ import { useStrategy } from "@/lib/hooks/use-strategy";
 import { usePicks } from "@/lib/hooks/use-picks";
 import { LiveStatus } from "@/components/dashboard/live-status";
 import { PerformanceChart } from "@/components/dashboard/performance-chart";
+import { StatTile } from "@/components/dashboard/stat-tile";
 import {
   DataState,
   DataStateCard,
@@ -128,27 +129,31 @@ export default function DashboardPage() {
 
           {/* Live stats */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <StatCard
+            <StatTile
               label="TOTAL RETURN"
               value={hasReturn ? formatPct(totalReturnPct) : "—"}
               icon={TrendingUp}
-              green={hasReturn && totalReturnPct >= 0}
-              red={hasReturn && totalReturnPct < 0}
+              tone="mint"
+              valueTone={
+                !hasReturn ? "neutral" : totalReturnPct >= 0 ? "green" : "red"
+              }
               loading={strategyQuery.isPending}
             />
-            <StatCard
+            <StatTile
               label="POSITIONS"
               value={portfolio ? portfolio.position_count.toString() : "—"}
               icon={Layers}
+              tone="cyan"
               loading={strategyQuery.isPending}
             />
-            <StatCard
+            <StatTile
               label="WINNERS"
               value={holdings ? `${winnersCount} / ${positionsCount}` : "—"}
               icon={Trophy}
+              tone="yellow"
               loading={strategyQuery.isPending}
             />
-            <StatCard
+            <StatTile
               label="EVALUATION"
               value={
                 strategyMeta
@@ -156,6 +161,7 @@ export default function DashboardPage() {
                   : "—"
               }
               icon={Activity}
+              tone="lilac"
               loading={strategyQuery.isPending}
             />
           </div>
@@ -189,7 +195,7 @@ export default function DashboardPage() {
           {/* Recent picks */}
           <div className="data-panel">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-              <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">
+              <span className="panel-label">
                 RECENT PICKS
               </span>
               <Link
@@ -199,7 +205,7 @@ export default function DashboardPage() {
                 ALL PICKS <ArrowUpRight size={10} />
               </Link>
             </div>
-            <div className="divide-y divide-border">
+            <div className="divide-y divide-border-light">
               {hasDataState(picksState) ? (
                 <DataState
                   compact
@@ -245,7 +251,7 @@ export default function DashboardPage() {
       >
         <div className="flex items-center justify-between">
           <div>
-            <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim block mb-1">
+            <span className="panel-label block mb-1">
               METHODOLOGY
             </span>
             <p className="font-sans text-[14px] font-semibold">
@@ -265,45 +271,6 @@ export default function DashboardPage() {
   );
 }
 
-function StatCard({
-  label,
-  value,
-  icon: Icon,
-  green = false,
-  red = false,
-  loading = false,
-}: {
-  label: string;
-  value: string;
-  icon: React.ElementType;
-  green?: boolean;
-  red?: boolean;
-  loading?: boolean;
-}) {
-  return (
-    <div className="data-card">
-      <div className="flex items-center gap-2 mb-2">
-        <Icon size={14} className="text-text-dim" />
-        <span className="font-sans text-[11px] font-bold tracking-[0.1em] uppercase text-text-dim">
-          {label}
-        </span>
-      </div>
-      <span
-        className={`font-mono text-xl font-bold ${
-          loading
-            ? "text-text-dim animate-pulse"
-            : red
-              ? "text-accent-red"
-              : green
-                ? "text-accent-green"
-                : "text-text"
-        }`}
-      >
-        {value}
-      </span>
-    </div>
-  );
-}
 
 function HoldingsCard({
   title,
@@ -319,7 +286,7 @@ function HoldingsCard({
   return (
     <div className="data-panel">
       <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-        <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">
+        <span className="panel-label">
           {title}
         </span>
         <Link
@@ -329,7 +296,7 @@ function HoldingsCard({
           VIEW ALL <ArrowUpRight size={10} />
         </Link>
       </div>
-      <div className="divide-y divide-border">
+      <div className="divide-y divide-border-light">
         {hasDataState(state) ? (
           <DataState
             compact

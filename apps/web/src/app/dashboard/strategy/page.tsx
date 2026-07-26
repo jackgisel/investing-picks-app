@@ -41,21 +41,21 @@ export default function StrategyPage() {
         <>
           <div className="grid grid-cols-2 gap-4">
             <div className="data-card">
-              <p className="font-sans text-[10px] font-bold tracking-[0.1em] uppercase text-text-dim">NAME</p>
+              <p className="field-label">NAME</p>
               <p className="text-text mt-1">{data.name || data.strategy?.name}</p>
             </div>
             <div className="data-card">
-              <p className="font-sans text-[10px] font-bold tracking-[0.1em] uppercase text-text-dim">PARAMS VERSION</p>
+              <p className="field-label">PARAMS VERSION</p>
               <p className="font-mono text-text mt-1">{data.params_version || "—"}</p>
             </div>
             <div className="data-card">
-              <p className="font-sans text-[10px] font-bold tracking-[0.1em] uppercase text-text-dim">CADENCE</p>
+              <p className="field-label">CADENCE</p>
               <p className="text-text mt-1">
                 {data.evaluation_frequency || data.strategy?.evaluation_frequency}
               </p>
             </div>
             <div className="data-card">
-              <p className="font-sans text-[10px] font-bold tracking-[0.1em] uppercase text-text-dim">POSITIONS</p>
+              <p className="field-label">POSITIONS</p>
               <p className="text-text mt-1">
                 {data.position_count ?? data.portfolio?.position_count} /{" "}
                 {data.max_positions ?? data.strategy?.max_positions}
@@ -64,7 +64,7 @@ export default function StrategyPage() {
           </div>
 
           <section>
-            <h2 className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim mb-3">
+            <h2 className="panel-label panel-label-yellow mb-3">
               KEY RULES (RUN 118)
             </h2>
             <ul className="space-y-2 text-sm text-text-muted">
@@ -79,7 +79,7 @@ export default function StrategyPage() {
 
           {data.params && (
             <section>
-              <h2 className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim mb-3">
+              <h2 className="panel-label panel-label-yellow mb-3">
                 LIVE PARAMS JSON
               </h2>
               <pre className="text-xs font-mono text-text-muted overflow-x-auto data-card">

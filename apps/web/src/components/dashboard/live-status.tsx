@@ -34,7 +34,7 @@ export function LiveStatus() {
           <div>
             <div className="flex items-center gap-2">
               <Radio size={12} className="text-accent-green" />
-              <span className="font-sans text-[11px] font-bold tracking-[0.14em] uppercase text-text">
+              <span className="panel-label panel-label-mint">
                 Live portfolio
               </span>
             </div>
@@ -55,13 +55,13 @@ export function LiveStatus() {
 
         <div className="flex items-center gap-6">
           <div>
-            <span className="font-sans text-[10px] font-bold tracking-[0.1em] uppercase text-text-dim block">
+            <span className="field-label block">
               Days live
             </span>
             <span className="font-mono text-[18px] font-bold">{days}</span>
           </div>
           <div>
-            <span className="font-sans text-[10px] font-bold tracking-[0.1em] uppercase text-text-dim block">
+            <span className="field-label block">
               Positions
             </span>
             <span className="font-mono text-[18px] font-bold">
@@ -69,7 +69,7 @@ export function LiveStatus() {
             </span>
           </div>
           <div>
-            <span className="font-sans text-[10px] font-bold tracking-[0.1em] uppercase text-text-dim block">
+            <span className="field-label block">
               Total return
             </span>
             <span

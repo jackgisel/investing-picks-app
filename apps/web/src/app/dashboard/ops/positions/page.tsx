@@ -50,7 +50,7 @@ const inputClass =
   "placeholder:text-text-dim focus:outline-none focus:border-border-strong transition-colors";
 
 const labelClass =
-  "block font-sans text-[10px] font-bold tracking-[0.12em] uppercase text-text-dim mb-1.5";
+  "block field-label mb-1.5";
 
 function money(n: number | null | undefined): string {
   if (n == null || Number.isNaN(n)) return "—";
@@ -212,7 +212,7 @@ export default function OpsPositionsPage() {
   return (
     <div className="space-y-6">
       <header>
-        <p className="font-sans text-[11px] font-bold tracking-[0.14em] uppercase text-text-dim mb-2">
+        <p className="panel-label panel-label-coral mb-2">
           OPS
         </p>
         <h1 className="page-title">Manual book entry</h1>
@@ -239,7 +239,7 @@ export default function OpsPositionsPage() {
               ["Positions", String(data.positions?.length ?? 0)],
             ].map(([label, value]) => (
               <div key={label} className="data-card">
-                <p className="font-sans text-[10px] font-bold tracking-[0.1em] uppercase text-text-dim">
+                <p className="field-label">
                   {label}
                 </p>
                 <p className="font-mono text-xl text-text mt-1">{value}</p>
@@ -249,7 +249,7 @@ export default function OpsPositionsPage() {
 
           {/* --- Inception date ------------------------------------------ */}
           <section className="space-y-3">
-            <h2 className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">
+            <h2 className="panel-label panel-label-coral">
               Inception date
             </h2>
             <div className="data-card space-y-3">
@@ -301,7 +301,7 @@ export default function OpsPositionsPage() {
 
           {/* --- Add position -------------------------------------------- */}
           <section className="space-y-3">
-            <h2 className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">
+            <h2 className="panel-label panel-label-coral">
               Add position
             </h2>
             <form
@@ -438,14 +438,14 @@ export default function OpsPositionsPage() {
 
           {/* --- Existing positions -------------------------------------- */}
           <section className="space-y-3">
-            <h2 className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">
+            <h2 className="panel-label panel-label-coral">
               Positions
             </h2>
             {editError && <p className="text-sm text-accent-red">{editError}</p>}
             <div className="data-panel overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left font-sans text-[10px] font-bold tracking-[0.1em] uppercase text-text-dim border-b border-border">
+                  <tr className="text-left field-label border-b border-border">
                     <th className="p-3">Ticker</th>
                     <th className="p-3">Shares</th>
                     <th className="p-3">Entry price</th>

@@ -85,7 +85,7 @@ export default function OpsEvaluationsPage() {
   return (
     <div className="space-y-6">
       <header>
-        <p className="font-sans text-[11px] font-bold tracking-[0.14em] uppercase text-text-dim mb-2">OPS</p>
+        <p className="panel-label panel-label-coral mb-2">OPS</p>
         <h1 className="page-title">Decision ledger</h1>
         <p className="text-text-muted mt-2 text-sm max-w-xl">
           Every buy and sell is recorded with the exact rule checks that fired — not LLM prose.
@@ -94,7 +94,7 @@ export default function OpsEvaluationsPage() {
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-4 flex-wrap">
-          <h2 className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">NEXT EVAL (DRY-RUN)</h2>
+          <h2 className="panel-label panel-label-coral">NEXT EVAL (DRY-RUN)</h2>
           <div className="flex items-center gap-3">
             {dry.dataUpdatedAt > 0 && !dry.isFetching && (
               <span className="font-mono text-xs text-text-dim">
@@ -114,7 +114,7 @@ export default function OpsEvaluationsPage() {
               type="button"
               onClick={() => (simulate ? dry.refetch() : setSimulate(true))}
               disabled={dry.isFetching}
-              className="btn-outline !py-2 !px-4 !text-[11px] !border-accent-purple !text-accent-purple hover:!bg-accent-purple hover:!text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              className="btn-outline !py-2 !px-4 !text-[11px] !border-accent-purple !text-accent-purple hover:!bg-accent-purple hover:!text-on-accent disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <FlaskConical size={13} />
               {dry.isFetching && simulate ? "Simulating…" : "Simulate"}
@@ -215,7 +215,7 @@ export default function OpsEvaluationsPage() {
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-4 flex-wrap">
-          <h2 className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">WORKER JOBS</h2>
+          <h2 className="panel-label panel-label-coral">WORKER JOBS</h2>
           <button
             type="button"
             onClick={() => refresh.mutate()}
@@ -270,7 +270,7 @@ export default function OpsEvaluationsPage() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">HISTORY</h2>
+        <h2 className="panel-label panel-label-coral">HISTORY</h2>
         {isLoading && <p className="text-text-muted text-sm">Loading…</p>}
         {error && <p className="text-accent-red text-sm">Could not load evaluations</p>}
         <div className="divide-y divide-border data-panel">

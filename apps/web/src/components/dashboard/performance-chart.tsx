@@ -19,9 +19,7 @@ function EmptyChart({ compact }: { compact?: boolean }) {
       className={`data-card ${compact ? "h-56" : "h-80"} flex flex-col items-center justify-center`}
     >
       <TrendingUp size={28} className="text-text-dim mb-3" />
-      <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">
-        Building track record
-      </span>
+      <span className="field-label">Building track record</span>
       <p className="font-sans text-[13px] text-text-muted mt-2 max-w-sm text-center">
         The picks curve populates once there are at least two days of marks on
         the capital deployed into picks.
@@ -42,9 +40,7 @@ export function PerformanceChart({ compact = false }: { compact?: boolean }) {
       <div
         className={`data-card ${compact ? "h-56" : "h-80"} flex items-center justify-center`}
       >
-        <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim animate-pulse">
-          Loading chart data...
-        </span>
+        <span className="field-label animate-pulse">Loading chart data…</span>
       </div>
     );
   }
@@ -86,7 +82,7 @@ export function PerformanceChart({ compact = false }: { compact?: boolean }) {
         }`}
       >
         <div>
-          <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">
+          <span className="panel-label">
             Return on capital deployed into picks
           </span>
           {!compact && (
@@ -136,7 +132,7 @@ export function PerformanceChart({ compact = false }: { compact?: boolean }) {
                     key={b.key}
                     className="rounded-soft border border-border px-4 py-3"
                   >
-                    <p className="font-sans text-[10px] font-bold tracking-[0.12em] uppercase text-text-dim">
+                    <p className="field-label">
                       vs {b.label}
                     </p>
                     <p

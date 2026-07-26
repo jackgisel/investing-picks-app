@@ -8,7 +8,8 @@ import {
   hasDataState,
   resolveDataState,
 } from "@/components/ui/data-state";
-import { ArrowUpDown } from "lucide-react";
+import { ArrowUpDown, Briefcase, Trophy, TrendingDown, TrendingUp } from "lucide-react";
+import { StatTile } from "@/components/dashboard/stat-tile";
 import {
   computePortfolioReturnPct,
   formatPct,
@@ -93,36 +94,45 @@ export default function PortfolioPage() {
         <>
         {/* Summary cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <SummaryCard
+          <StatTile
             label="TOTAL RETURN"
             value={hasReturn ? formatPct(totalReturnPct!) : "—"}
+            icon={TrendingUp}
+            tone="mint"
+            valueTone={
+              !hasReturn ? "neutral" : totalReturnPct! >= 0 ? "green" : "red"
+            }
             loading={isPending}
-            green={hasReturn && totalReturnPct! >= 0}
-            red={hasReturn && totalReturnPct! < 0}
           />
-          <SummaryCard
+          <StatTile
             label="POSITIONS"
             value={portfolio?.position_count.toString() ?? "—"}
+            icon={Briefcase}
+            tone="cyan"
             loading={isPending}
           />
-          <SummaryCard
+          <StatTile
             label="WINNERS"
             value={holdings ? `${winnersCount}` : "—"}
+            icon={Trophy}
+            tone="yellow"
+            valueTone={winnersCount > 0 ? "green" : "neutral"}
             loading={isPending}
-            green={winnersCount > 0}
           />
-          <SummaryCard
+          <StatTile
             label="LOSERS"
             value={holdings ? `${losersCount}` : "—"}
+            icon={TrendingDown}
+            tone="coral"
+            valueTone={losersCount > 0 ? "red" : "neutral"}
             loading={isPending}
-            red={losersCount > 0}
           />
         </div>
 
         {/* Holdings table */}
         <div className="data-panel">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-            <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">
+            <span className="panel-label panel-label-mint">
               ALL HOLDINGS {isPending || isError ? "" : `(${sorted?.length ?? 0})`}
             </span>
           </div>
@@ -205,37 +215,3 @@ export default function PortfolioPage() {
   );
 }
 
-function SummaryCard({
-  label,
-  value,
-  loading,
-  green = false,
-  red = false,
-}: {
-  label: string;
-  value: string;
-  loading: boolean;
-  green?: boolean;
-  red?: boolean;
-}) {
-  return (
-    <div className="data-card text-center">
-      <span className="font-sans text-[10px] font-bold tracking-[0.1em] uppercase text-text-dim block mb-1">
-        {label}
-      </span>
-      <span
-        className={`font-mono text-[16px] font-semibold ${
-          loading
-            ? "text-text-dim animate-pulse"
-            : red
-              ? "text-accent-red"
-              : green
-                ? "text-accent-green"
-                : "text-text"
-        }`}
-      >
-        {loading ? "—" : value}
-      </span>
-    </div>
-  );
-}

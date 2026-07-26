@@ -42,7 +42,11 @@
   --color-border-strong: 82 82 82;
   --color-text: 250 250 250;
   --color-text-muted: 163 163 163;
-  --color-text-dim: 115 115 115;
+  /* #808080, not the #737373 used in light. text-dim is the most-used colour
+     in the dashboard and lands mostly on 10-11px type; #737373 is only 3.89:1
+     against the panel ground (#141414) and 4.18:1 against the page. #808080
+     clears AA on both (4.66:1 / 5.01:1) at no visible cost. */
+  --color-text-dim: 128 128 128;
   --color-inverse: 250 250 250;
   --color-inverse-fg: 10 10 10;
   /* Deliberately identical to :root — the pastels it sits on don't change. */
@@ -193,6 +197,45 @@
      to be narrower than the window. */
   .page-measure {
     @apply max-w-[760px];
+  }
+
+  /* Panel eyebrow — the dashboard's counterpart to `.section-label`.
+     The dashboard had reimplemented that eyebrow by hand seventeen times,
+     always monochrome, which is most of why none of the brand pastels
+     appeared anywhere in the product. Each surface gets one stable tone, so
+     the colour identifies where you are instead of decorating at random.
+     Sits at text-muted rather than text-dim: #737373 on the panel ground is
+     4.35:1, under AA for 11px type. */
+  .panel-label {
+    @apply font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-muted
+           inline-flex items-center gap-2;
+  }
+
+  .panel-label::before {
+    content: "";
+    @apply h-1 w-4 rounded-full shrink-0 bg-accent-cyan;
+  }
+
+  .panel-label-yellow::before {
+    @apply bg-accent-yellow;
+  }
+  .panel-label-peach::before {
+    @apply bg-accent-peach;
+  }
+  .panel-label-lilac::before {
+    @apply bg-accent-lilac;
+  }
+  .panel-label-mint::before {
+    @apply bg-accent-mint;
+  }
+  .panel-label-coral::before {
+    @apply bg-accent-coral;
+  }
+
+  /* The small label above a number inside a tile. Deliberately has no tone
+     rule — a dot on every field would be noise, not signal. */
+  .field-label {
+    @apply font-sans text-[10px] font-bold tracking-[0.1em] uppercase text-text-dim;
   }
 
   /* Warm paper for the illustrations. `isolate` keeps the multiply blend of

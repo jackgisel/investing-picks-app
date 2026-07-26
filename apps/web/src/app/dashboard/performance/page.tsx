@@ -3,6 +3,7 @@
 import { useStrategy } from "@/lib/hooks/use-strategy";
 import { useChart } from "@/lib/hooks/use-chart";
 import { PerformanceChart } from "@/components/dashboard/performance-chart";
+import { StatTile } from "@/components/dashboard/stat-tile";
 import { LiveStatus } from "@/components/dashboard/live-status";
 import { DataStateCard, resolveDataState } from "@/components/ui/data-state";
 import { useInceptionDate } from "@/lib/hooks/use-inception";
@@ -10,6 +11,7 @@ import {
   computePortfolioReturnPct,
   daysSinceInception,
   formatPct,
+  pnlClass,
 } from "@/lib/portfolio";
 import { TrendingUp, BarChart3, Activity, Trophy } from "lucide-react";
 
@@ -87,32 +89,37 @@ export default function PerformancePage() {
 
         {/* Live metrics */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <MetricCard
+          <StatTile
             label="PICKS RETURN"
             value={hasReturn ? formatPct(totalReturnPct) : "—"}
             icon={TrendingUp}
-            green={hasReturn && totalReturnPct >= 0}
-            red={hasReturn && totalReturnPct < 0}
+            tone="mint"
+            valueTone={
+              !hasReturn ? "neutral" : totalReturnPct >= 0 ? "green" : "red"
+            }
             loading={isPending}
           />
-          <MetricCard
+          <StatTile
             label="POSITIONS"
             value={portfolio?.position_count.toString() ?? "—"}
             icon={BarChart3}
+            tone="cyan"
             loading={isPending}
           />
-          <MetricCard
+          <StatTile
             label="WINNERS"
             value={
               holdings ? `${winnersCount} / ${holdings.length}` : "—"
             }
             icon={Trophy}
+            tone="yellow"
             loading={isPending}
           />
-          <MetricCard
+          <StatTile
             label="DAYS LIVE"
             value={days.toString()}
             icon={Activity}
+            tone="lilac"
             loading={isPending}
           />
         </div>
@@ -133,7 +140,7 @@ export default function PerformancePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {bestHolding && (
               <div className="data-card">
-                <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim block mb-2">
+                <span className="panel-label block mb-2">
                   BEST HOLDING
                 </span>
                 <div className="flex items-baseline justify-between">
@@ -141,11 +148,9 @@ export default function PerformancePage() {
                     {bestHolding.ticker}
                   </span>
                   <span
-                    className={`font-mono text-[18px] font-bold ${
-                      bestHolding.pnl_pct >= 0
-                        ? "text-accent-green"
-                        : "text-accent-red"
-                    }`}
+                    className={`font-mono text-[18px] font-bold tabular-nums ${pnlClass(
+                      bestHolding.pnl_pct,
+                    )}`}
                   >
                     {formatPct(bestHolding.pnl_pct)}
                   </span>
@@ -157,7 +162,7 @@ export default function PerformancePage() {
             )}
             {worstHolding && (
               <div className="data-card">
-                <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim block mb-2">
+                <span className="panel-label block mb-2">
                   WORST HOLDING
                 </span>
                 <div className="flex items-baseline justify-between">
@@ -165,11 +170,9 @@ export default function PerformancePage() {
                     {worstHolding.ticker}
                   </span>
                   <span
-                    className={`font-mono text-[18px] font-bold ${
-                      worstHolding.pnl_pct >= 0
-                        ? "text-accent-green"
-                        : "text-accent-red"
-                    }`}
+                    className={`font-mono text-[18px] font-bold tabular-nums ${pnlClass(
+                      worstHolding.pnl_pct,
+                    )}`}
                   >
                     {formatPct(worstHolding.pnl_pct)}
                   </span>
@@ -202,42 +205,3 @@ export default function PerformancePage() {
   );
 }
 
-function MetricCard({
-  label,
-  value,
-  icon: Icon,
-  green = false,
-  red = false,
-  loading = false,
-}: {
-  label: string;
-  value: string;
-  icon: React.ElementType;
-  green?: boolean;
-  red?: boolean;
-  loading?: boolean;
-}) {
-  return (
-    <div className="data-card">
-      <div className="flex items-center gap-2 mb-2">
-        <Icon size={14} className="text-text-dim" />
-        <span className="font-sans text-[11px] font-bold tracking-[0.1em] uppercase text-text-dim">
-          {label}
-        </span>
-      </div>
-      <span
-        className={`font-mono text-xl font-bold ${
-          loading
-            ? "text-text-dim animate-pulse"
-            : red
-              ? "text-accent-red"
-              : green
-                ? "text-accent-green"
-                : "text-text"
-        }`}
-      >
-        {value}
-      </span>
-    </div>
-  );
-}

@@ -180,7 +180,7 @@ export default function PicksPage() {
                       <td className="px-5 py-3.5">
                         {insightSlug ? (
                           <Link
-                            href={`/insights/${insightSlug}`}
+                            href={`/dashboard/insights/${insightSlug}`}
                             title="Read the research note"
                             className="inline-flex items-center gap-1.5 font-mono font-semibold text-[14px] text-text underline underline-offset-4 hover:opacity-70"
                           >

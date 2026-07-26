@@ -24,7 +24,7 @@ function formatDate(iso: string): string {
 function InsightRow({ insight }: { insight: InsightIndexEntry }) {
   return (
     <Link
-      href={`/insights/${insight.slug}`}
+      href={`/dashboard/insights/${insight.slug}`}
       className="group flex items-start gap-3 px-5 py-3.5 transition-colors hover:bg-bg-tertiary/50 focus-visible:outline-none focus-visible:bg-bg-tertiary/50"
     >
       {insight.ticker && (
@@ -83,7 +83,7 @@ export function InsightsCard({ holdings }: { holdings?: readonly Holding[] }) {
           {onHoldings ? "Research on your holdings" : "Latest research"}
         </span>
         <Link
-          href="/insights"
+          href="/dashboard/insights"
           className="flex items-center gap-1 font-mono text-[10px] font-semibold text-text underline underline-offset-2 hover:opacity-70"
         >
           ALL INSIGHTS <ArrowUpRight size={10} />

@@ -10,6 +10,23 @@ const nextConfig = {
       },
     ],
   },
+  async redirects() {
+    // Insights moved inside the dashboard shell. These URLs were subscriber-
+    // gated and noindex, so nothing public depended on them, but a blog post
+    // and any bookmark a member kept still point here.
+    //
+    // 307, not 308: browsers cache permanent redirects hard, and this is a
+    // layout decision we might revisit. Nothing about SEO argues for 308 —
+    // both locations are noindex.
+    return [
+      { source: "/insights", destination: "/dashboard/insights", permanent: false },
+      {
+        source: "/insights/:slug",
+        destination: "/dashboard/insights/:slug",
+        permanent: false,
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

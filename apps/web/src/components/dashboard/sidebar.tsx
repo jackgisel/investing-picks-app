@@ -52,7 +52,7 @@ const NAV_GROUPS: readonly NavGroup[] = [
       { label: "Pick history", href: "/dashboard/picks", icon: History },
       { label: "Trades", href: "/dashboard/trades", icon: ArrowLeftRight },
       { label: "Performance", href: "/dashboard/performance", icon: BarChart3 },
-      { label: "Insights", href: "/insights", icon: FileText },
+      { label: "Insights", href: "/dashboard/insights", icon: FileText },
       { label: "Strategy", href: "/dashboard/strategy", icon: BookOpen },
       { label: "Settings", href: "/dashboard/settings", icon: Settings },
     ],

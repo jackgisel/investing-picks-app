@@ -182,7 +182,10 @@ def get_strategy(db: Session = Depends(get_db)):
         "max_positions": params.max_positions,
         "position_count": len(positions),
         "params_version": params.version_hash(),
-        "params": params.to_dict(),
+        # public_dict(), never to_dict(): the latter carries the factor
+        # weights and every rating threshold, i.e. the model. See
+        # StrategyParams.PUBLIC_FIELDS.
+        "params": params.public_dict(),
     }
 
 

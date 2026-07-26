@@ -9,6 +9,8 @@ used to score better than a genuinely worst-in-sector one.
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from outpick_strategy import RUN118_PARAMS
@@ -173,3 +175,44 @@ def test_ties_do_not_disturb_genuine_ordering():
 def test_lower_is_better_still_inverts():
     out = factor_percentile_score([1.0, 9.0], higher_is_better=False)
     assert out[0] == 100.0 and out[1] == 0.0
+
+
+def test_public_params_never_leak_the_model():
+    """The public payload must not carry the research.
+
+    GET /api/v1/strategy used to return params.to_dict() wholesale, which
+    included every factor weight and rating threshold — enough to reimplement
+    the strategy. This pins the boundary so widening the dataclass cannot
+    quietly widen the API too.
+    """
+    from outpick_strategy.params import RUN118_PARAMS
+
+    public = RUN118_PARAMS.public_dict()
+    serialised = json.dumps(public)
+
+    secret_fields = [
+        "weight_valuation",
+        "weight_growth",
+        "weight_profitability",
+        "weight_momentum",
+        "weight_revisions",
+        "z_score_floor",
+        "momentum_penalty",
+        "min_factor_coverage",
+        "buy_criteria",
+        "strong_sell_rating",
+        "hold_removal_rating",
+        "underwater_qr_threshold",
+        "weak_signal_threshold",
+        "position_size_pct",
+        "position_size_usd",
+    ]
+    for field_name in secret_fields:
+        assert field_name not in public, f"{field_name} must not be published"
+        assert field_name not in serialised
+
+    # The discipline the risk contract depends on must still be there — the
+    # dashboard reads sector_concentration to draw the concentration guardrail.
+    assert public["sector_concentration"] == 0.30
+    assert public["max_positions"] == 50
+    assert public["eval_frequency"] == "biweekly"

@@ -112,6 +112,39 @@ class StrategyParams:
         d = asdict(self)
         return d
 
+    # Fields safe to serve over the public API.
+    #
+    # Everything omitted here is the model itself: the factor weights, the
+    # scoring filters that shape them, and the rating thresholds each gate
+    # fires on. Those are the research, and `to_dict()` was being returned
+    # wholesale on GET /api/v1/strategy — so any subscriber could read the
+    # exact weighting and reimplement it.
+    #
+    # What remains is the *discipline* rather than the *model*: how
+    # concentrated the book may get, when a winner is trimmed, how long an
+    # underwater position is given. Outpick publishes those deliberately —
+    # they are the risk contract with a subscriber, and knowing them does not
+    # let anyone reproduce a pick.
+    PUBLIC_FIELDS = (
+        "max_positions",
+        "eval_frequency",
+        "max_adds_per_evaluation",
+        "sector_concentration",
+        "position_cap_normal",
+        "position_trim_target",
+        "position_cap_house_money",
+        "winner_threshold",
+        "max_underwater_days",
+        "min_holding_days",
+        "allow_double_buy",
+        "version_label",
+    )
+
+    def public_dict(self) -> dict:
+        """The subset of parameters safe to publish. See PUBLIC_FIELDS."""
+        d = asdict(self)
+        return {k: d[k] for k in self.PUBLIC_FIELDS}
+
     def version_hash(self) -> str:
         payload = json.dumps(self.to_dict(), sort_keys=True, default=str)
         return hashlib.sha256(payload.encode()).hexdigest()[:12]

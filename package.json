@@ -4,9 +4,10 @@
   "scripts": {
     "dev:web": "pnpm --dir apps/web dev",
     "dev:api": "cd apps/api && PYTHONPATH=. uvicorn app.main:app --reload --port 8000",
-    "test": "pnpm test:strategy && pnpm test:api",
-    "test:strategy": "pytest packages/strategy/tests -q",
-    "test:api": "pytest apps/api/tests -q",
+    "test": "pnpm test:strategy && pnpm test:api && pnpm test:web",
+    "test:strategy": "sh scripts/pytest.sh packages/strategy/tests -q",
+    "test:api": "sh scripts/pytest.sh apps/api/tests -q",
+    "test:web": "pnpm --dir apps/web check",
     "build:web": "pnpm --dir apps/web build"
   }
 }

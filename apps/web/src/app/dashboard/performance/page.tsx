@@ -5,20 +5,18 @@ import { useChart } from "@/lib/hooks/use-chart";
 import { PerformanceChart } from "@/components/dashboard/performance-chart";
 import { LiveStatus } from "@/components/dashboard/live-status";
 import { DataStateCard, resolveDataState } from "@/components/ui/data-state";
-import { computePortfolioReturnPct, formatPct } from "@/lib/portfolio";
+import { useInceptionDate } from "@/lib/hooks/use-inception";
+import {
+  computePortfolioReturnPct,
+  daysSinceInception,
+  formatPct,
+} from "@/lib/portfolio";
 import { TrendingUp, BarChart3, Activity, Trophy } from "lucide-react";
-
-const LIVE_INCEPTION = "2026-04-01";
-
-function daysSince(dateStr: string): number {
-  const start = new Date(dateStr).getTime();
-  const now = Date.now();
-  return Math.max(0, Math.floor((now - start) / (1000 * 60 * 60 * 24)));
-}
 
 export default function PerformancePage() {
   const strategyQuery = useStrategy();
   const chartQuery = useChart();
+  const { inceptionISO } = useInceptionDate();
   const { data: strategy, isPending, isError, error } = strategyQuery;
   const { data: chartData } = chartQuery;
 
@@ -61,7 +59,7 @@ export default function PerformancePage() {
     ? [...holdings].sort((a, b) => a.pnl_pct - b.pnl_pct)[0]
     : null;
 
-  const days = daysSince(LIVE_INCEPTION);
+  const days = daysSinceInception(inceptionISO);
   // Count the picks curve, not the legacy book-equity series — that is what the
   // chart below actually plots, so the two must agree.
   const seriesPoints = chartData?.picks_series?.length ?? 0;

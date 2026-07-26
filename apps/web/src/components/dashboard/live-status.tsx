@@ -1,25 +1,22 @@
 "use client";
 
 import { useStrategy } from "@/lib/hooks/use-strategy";
-import { computePortfolioReturnPct, formatPct } from "@/lib/portfolio";
+import { useInceptionDate } from "@/lib/hooks/use-inception";
+import {
+  computePortfolioReturnPct,
+  daysSinceInception,
+  formatPctOrDash,
+  pnlClass,
+} from "@/lib/portfolio";
 import { Radio } from "lucide-react";
-
-const LIVE_INCEPTION = "2026-04-01";
-
-function daysSince(dateStr: string): number {
-  const start = new Date(dateStr).getTime();
-  const now = Date.now();
-  return Math.max(0, Math.floor((now - start) / (1000 * 60 * 60 * 24)));
-}
 
 export function LiveStatus() {
   const { data: strategy, isPending, isError } = useStrategy();
+  const { inceptionISO } = useInceptionDate();
   const isLoading = isPending;
-  const days = daysSince(LIVE_INCEPTION);
+  const days = daysSinceInception(inceptionISO);
   const portfolio = strategy?.portfolio;
   const totalReturnPct = computePortfolioReturnPct(strategy);
-  const hasReturn = totalReturnPct !== null;
-  const isPositive = hasReturn && totalReturnPct! >= 0;
 
   // A pulsing green "Live portfolio" banner full of em-dashes is worse than no
   // banner: it asserts everything is fine while the numbers are unavailable.
@@ -43,11 +40,15 @@ export function LiveStatus() {
             </div>
             <p className="font-sans text-[13px] text-text-muted mt-1">
               Real trades · Tracked since{" "}
-              {new Date(LIVE_INCEPTION).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}
+              {new Date(`${inceptionISO}T00:00:00Z`).toLocaleDateString(
+                "en-US",
+                {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                  timeZone: "UTC",
+                },
+              )}
             </p>
           </div>
         </div>
@@ -72,15 +73,11 @@ export function LiveStatus() {
               Total return
             </span>
             <span
-              className={`font-mono text-[18px] font-bold ${
-                isLoading || !hasReturn
-                  ? "text-text-dim"
-                  : isPositive
-                    ? "text-accent-green"
-                    : "text-accent-red"
-              }`}
+              className={`font-mono text-[18px] font-bold ${pnlClass(
+                isLoading ? null : totalReturnPct,
+              )}`}
             >
-              {isLoading || !hasReturn ? "—" : formatPct(totalReturnPct!)}
+              {isLoading ? "—" : formatPctOrDash(totalReturnPct)}
             </span>
           </div>
         </div>

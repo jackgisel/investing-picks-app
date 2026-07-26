@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { useTheme } from "@/components/providers/theme-provider";
 import type { BenchmarkMeta, PicksComparison } from "@/lib/hooks/use-chart";
+import { pnlClass } from "@/lib/portfolio";
 
 type ThemeName = "light" | "dark";
 
@@ -299,9 +300,9 @@ export function PicksBenchmarkLegend({
         </span>
         {showValues && picksLatestPct !== null && (
           <span
-            className={`font-mono text-[11px] font-bold ${
-              picksLatestPct >= 0 ? "text-accent-green" : "text-accent-red"
-            }`}
+            className={`font-mono text-[11px] font-bold ${pnlClass(
+              picksLatestPct,
+            )}`}
           >
             {formatPctValue(picksLatestPct)}
           </span>

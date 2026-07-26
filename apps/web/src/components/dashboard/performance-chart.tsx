@@ -11,6 +11,7 @@ import {
   formatChartDate,
 } from "@/components/ui/picks-benchmark-chart";
 import { TrendingUp } from "lucide-react";
+import { pnlClass } from "@/lib/portfolio";
 
 function EmptyChart({ compact }: { compact?: boolean }) {
   return (
@@ -98,9 +99,9 @@ export function PerformanceChart({ compact = false }: { compact?: boolean }) {
         {picksLatestPct !== null && (
           <div className="text-right">
             <span
-              className={`font-mono text-[26px] font-bold leading-none ${
-                picksLatestPct >= 0 ? "text-accent-green" : "text-accent-red"
-              }`}
+              className={`font-mono text-[26px] font-bold leading-none ${pnlClass(
+                picksLatestPct,
+              )}`}
             >
               {formatChartPct(picksLatestPct)}
             </span>
@@ -139,13 +140,9 @@ export function PerformanceChart({ compact = false }: { compact?: boolean }) {
                       vs {b.label}
                     </p>
                     <p
-                      className={`font-mono text-[18px] font-bold mt-1.5 leading-none ${
-                        gap === null
-                          ? "text-text-dim"
-                          : gap >= 0
-                            ? "text-accent-green"
-                            : "text-accent-red"
-                      }`}
+                      className={`font-mono text-[18px] font-bold mt-1.5 leading-none ${pnlClass(
+                        gap,
+                      )}`}
                     >
                       {gap === null
                         ? "—"

@@ -10,7 +10,12 @@ import {
   resolveDataState,
   type DataStateKind,
 } from "@/components/ui/data-state";
-import { computePortfolioReturnPct, formatPct } from "@/lib/portfolio";
+import {
+  computePortfolioReturnPct,
+  formatPct,
+  formatPctOrDash,
+  pnlClass,
+} from "@/lib/portfolio";
 import {
   TrendingUp,
   Activity,
@@ -192,7 +197,6 @@ export default function DashboardPage() {
                 />
               ) : (
                 recentPicks?.map((p, i) => {
-                  const pct = p.pnl_pct ?? 0;
                   return (
                     <div
                       key={`${p.ticker}-${i}`}
@@ -205,11 +209,11 @@ export default function DashboardPage() {
                         Entered {p.entry_date}
                       </span>
                       <span
-                        className={`font-mono text-[12px] font-semibold text-right ${
-                          pct >= 0 ? "text-accent-green" : "text-accent-red"
-                        }`}
+                        className={`font-mono text-[12px] font-semibold text-right ${pnlClass(
+                          p.pnl_pct,
+                        )}`}
                       >
-                        {p.pnl_pct === null ? "—" : formatPct(pct)}
+                        {formatPctOrDash(p.pnl_pct)}
                       </span>
                     </div>
                   );
@@ -334,12 +338,11 @@ function HoldingsCard({
                 </span>
               </div>
               <span
-                className={`font-mono text-[13px] font-semibold ${
-                  h.pnl_pct >= 0 ? "text-accent-green" : "text-accent-red"
-                }`}
+                className={`font-mono text-[13px] font-semibold ${pnlClass(
+                  h.pnl_pct,
+                )}`}
               >
-                {h.pnl_pct >= 0 ? "+" : ""}
-                {h.pnl_pct.toFixed(2)}%
+                {formatPctOrDash(h.pnl_pct)}
               </span>
             </div>
           ))

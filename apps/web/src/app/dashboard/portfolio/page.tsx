@@ -9,7 +9,12 @@ import {
   resolveDataState,
 } from "@/components/ui/data-state";
 import { ArrowUpDown } from "lucide-react";
-import { computePortfolioReturnPct, formatPct } from "@/lib/portfolio";
+import {
+  computePortfolioReturnPct,
+  formatPct,
+  formatPctOrDash,
+  pnlClass,
+} from "@/lib/portfolio";
 
 type SortKey = "ticker" | "pnl_pct" | "entry_date";
 type SortDir = "asc" | "desc";
@@ -181,11 +186,11 @@ export default function PortfolioPage() {
                         {daysHeld(h.entry_date)}
                       </td>
                       <td
-                        className={`px-5 py-3.5 font-mono text-[13px] font-semibold ${
-                          h.pnl_pct >= 0 ? "text-accent-green" : "text-accent-red"
-                        }`}
+                        className={`px-5 py-3.5 font-mono text-[13px] font-semibold ${pnlClass(
+                          h.pnl_pct,
+                        )}`}
                       >
-                        {formatPct(h.pnl_pct)}
+                        {formatPctOrDash(h.pnl_pct)}
                       </td>
                     </tr>
                   ))

@@ -9,7 +9,7 @@ import {
   resolveDataState,
 } from "@/components/ui/data-state";
 import { Filter, ArrowUpDown } from "lucide-react";
-import { formatPct } from "@/lib/portfolio";
+import { formatPctOrDash, pnlClass } from "@/lib/portfolio";
 import { getInsightSlugByTicker } from "@/lib/insight-links";
 
 /** Buy-ish ratings read green, sell-ish red, hold neutral. */
@@ -221,13 +221,11 @@ export default function PicksPage() {
                         {p.exit_date ?? "—"}
                       </td>
                       <td
-                        className={`px-5 py-3.5 font-mono text-[13px] font-semibold ${
-                          (p.pnl_pct ?? 0) >= 0
-                            ? "text-accent-green"
-                            : "text-accent-red"
-                        }`}
+                        className={`px-5 py-3.5 font-mono text-[13px] font-semibold ${pnlClass(
+                          p.pnl_pct,
+                        )}`}
                       >
-                        {formatPct(p.pnl_pct ?? 0)}
+                        {formatPctOrDash(p.pnl_pct)}
                       </td>
                       <td className="px-5 py-3.5 font-sans text-[11px] text-text-dim max-w-[220px] truncate">
                         {p.exit_reason || "—"}

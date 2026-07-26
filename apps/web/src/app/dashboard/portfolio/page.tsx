@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/data-state";
 import { ArrowUpDown, Briefcase, Trophy, TrendingDown, TrendingUp } from "lucide-react";
 import { StatTile } from "@/components/dashboard/stat-tile";
+import { SectorAllocation } from "@/components/dashboard/sector-allocation";
 import {
   computePortfolioReturnPct,
   formatPct,
@@ -17,7 +18,7 @@ import {
   pnlClass,
 } from "@/lib/portfolio";
 
-type SortKey = "ticker" | "pnl_pct" | "entry_date";
+type SortKey = "ticker" | "pnl_pct" | "entry_date" | "weight_pct" | "sector";
 type SortDir = "asc" | "desc";
 
 function daysHeld(entryDate: string | null): string {
@@ -54,6 +55,10 @@ export default function PortfolioPage() {
         let cmp = 0;
         if (sortKey === "ticker") cmp = a.ticker.localeCompare(b.ticker);
         else if (sortKey === "pnl_pct") cmp = a.pnl_pct - b.pnl_pct;
+        else if (sortKey === "weight_pct")
+          cmp = (a.weight_pct ?? 0) - (b.weight_pct ?? 0);
+        else if (sortKey === "sector")
+          cmp = (a.sector ?? "").localeCompare(b.sector ?? "");
         else if (sortKey === "entry_date")
           cmp = (a.entry_date ?? "").localeCompare(b.entry_date ?? "");
         return sortDir === "asc" ? cmp : -cmp;
@@ -129,6 +134,19 @@ export default function PortfolioPage() {
           />
         </div>
 
+        {/* Sector exposure. sector and weight_pct have shipped on
+            /api/v1/strategy all along and were rendered nowhere. */}
+        {holdings && holdings.length > 0 && (
+          <SectorAllocation
+            holdings={holdings}
+            sectorCap={
+              typeof strategy?.params?.sector_concentration === "number"
+                ? strategy.params.sector_concentration
+                : null
+            }
+          />
+        )}
+
         {/* Holdings table */}
         <div className="data-panel">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
@@ -144,6 +162,8 @@ export default function PortfolioPage() {
                   {(
                     [
                       { key: "ticker" as SortKey, label: "TICKER" },
+                      { key: "sector" as SortKey, label: "SECTOR" },
+                      { key: "weight_pct" as SortKey, label: "WEIGHT" },
                       { key: "entry_date" as SortKey, label: "ENTRY DATE" },
                       { key: null, label: "DAYS HELD" },
                       { key: "pnl_pct" as SortKey, label: "RETURN" },
@@ -171,7 +191,7 @@ export default function PortfolioPage() {
               <tbody>
                 {hasDataState(state) ? (
                   <DataStateRow
-                    colSpan={4}
+                    colSpan={6}
                     state={state}
                     error={error}
                     onRetry={() => void strategyQuery.refetch()}
@@ -185,9 +205,29 @@ export default function PortfolioPage() {
                       className="border-b border-border last:border-b-0 hover:bg-bg-tertiary/50 transition-colors"
                     >
                       <td className="px-5 py-3.5">
-                        <span className="font-mono font-semibold text-[14px]">
-                          {h.ticker}
+                        <span className="flex items-center gap-2">
+                          <span className="font-mono font-semibold text-[14px]">
+                            {h.ticker}
+                          </span>
+                          {h.is_house_money && (
+                            <span
+                              className="badge badge-buy !text-[9px] !px-2"
+                              title="The original stake has already been recovered via a Winners Circle partial sell — this position is running on profit."
+                            >
+                              House
+                            </span>
+                          )}
                         </span>
+                      </td>
+                      <td className="px-5 py-3.5 font-sans text-[12px] text-text-muted whitespace-nowrap">
+                        {h.sector?.trim() || (
+                          <span className="text-text-dim">Unclassified</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3.5 font-mono text-[12px] text-text-muted tabular-nums">
+                        {typeof h.weight_pct === "number"
+                          ? `${h.weight_pct.toFixed(1)}%`
+                          : "—"}
                       </td>
                       <td className="px-5 py-3.5 font-mono text-[12px] text-text-muted">
                         {h.entry_date}

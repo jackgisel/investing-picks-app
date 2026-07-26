@@ -5,6 +5,7 @@ import { usePicks } from "@/lib/hooks/use-picks";
 import { LiveStatus } from "@/components/dashboard/live-status";
 import { PerformanceChart } from "@/components/dashboard/performance-chart";
 import { StatTile } from "@/components/dashboard/stat-tile";
+import { SectorAllocation } from "@/components/dashboard/sector-allocation";
 import {
   DataState,
   DataStateCard,
@@ -177,8 +178,17 @@ export default function DashboardPage() {
               onRetry={() => void strategyQuery.refetch()}
             />
           ) : (
-            /* Top + Bottom holdings */
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {holdings && holdings.length > 0 && (
+                <SectorAllocation
+                  holdings={holdings}
+                  sectorCap={
+                    typeof strategy?.params?.sector_concentration === "number"
+                      ? strategy.params.sector_concentration
+                      : null
+                  }
+                />
+              )}
               <HoldingsCard
                 title="TOP PERFORMERS"
                 holdings={topHoldings}

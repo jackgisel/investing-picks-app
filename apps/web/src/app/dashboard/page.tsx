@@ -34,6 +34,11 @@ function isGate(state: DataStateKind | null): state is "unauthenticated" | "subs
   return state === "unauthenticated" || state === "subscription";
 }
 
+/** The API sends "biweekly"; the stat cards read as sentence case. */
+function titleCase(s: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
 export default function DashboardPage() {
   const strategyQuery = useStrategy();
   const picksQuery = usePicks("active");
@@ -144,7 +149,11 @@ export default function DashboardPage() {
             />
             <StatCard
               label="EVALUATION"
-              value="Biweekly"
+              value={
+                strategyMeta
+                  ? titleCase(strategyMeta.evaluation_frequency)
+                  : "—"
+              }
               icon={Activity}
               loading={strategyQuery.isPending}
             />

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useTrades } from "@/lib/hooks/use-trades";
+import Link from "next/link";
+import { TRADES_LIMIT, useTrades, type Trade } from "@/lib/hooks/use-trades";
+import { useIsAdmin } from "@/components/dashboard/admin-context";
 import {
   DataStateRow,
   hasDataState,
@@ -11,6 +13,32 @@ import { Filter } from "lucide-react";
 
 type SideFilter = "all" | "buy" | "sell";
 
+/**
+ * Colour carries the direction of the decision, not just buy vs sell:
+ * green added exposure, red closed a position outright, purple took something
+ * off the table while staying in the name. A trim on a doubled winner and a
+ * stop-out both used to render as the same red SELL.
+ */
+const ACTION_META: Record<string, { label: string; badge: string }> = {
+  buy: { label: "Buy", badge: "badge-buy" },
+  double_buy: { label: "Double buy", badge: "badge-buy" },
+  full_sell: { label: "Full sell", badge: "badge-sell" },
+  partial_sell: { label: "Partial sell", badge: "badge-hold" },
+  trim: { label: "Trim", badge: "badge-hold" },
+  recycle_trim: { label: "Recycle trim", badge: "badge-hold" },
+  hold: { label: "Hold", badge: "badge-hold" },
+};
+
+/** Hand-entered seed trades have no action; fall back to the coarse side. */
+function actionMeta(trade: Trade) {
+  return (
+    (trade.action && ACTION_META[trade.action]) ?? {
+      label: trade.side === "buy" ? "Buy" : "Sell",
+      badge: trade.side === "buy" ? "badge-buy" : "badge-sell",
+    }
+  );
+}
+
 export default function TradesPage() {
   const {
     data: tradesData,
@@ -19,7 +47,11 @@ export default function TradesPage() {
     error,
     refetch,
   } = useTrades();
+  const isAdmin = useIsAdmin();
   const trades = tradesData?.trades;
+  // The API returns at most TRADES_LIMIT rows and no grand total, so a full
+  // page means there are probably more we are not showing.
+  const truncated = (trades?.length ?? 0) >= TRADES_LIMIT;
   const [sideFilter, setSideFilter] = useState<SideFilter>("all");
   const [page, setPage] = useState(0);
   const pageSize = 50;
@@ -54,7 +86,7 @@ export default function TradesPage() {
             ? "Loading..."
             : isError
               ? "Trade history unavailable"
-              : `${trades?.length ?? 0} trades · ${buyCount} buys · ${sellCount} sells`}
+              : `${truncated ? "Most recent " : ""}${trades?.length ?? 0} trades · ${buyCount} buys · ${sellCount} sells`}
         </p>
       </div>
 
@@ -88,7 +120,13 @@ export default function TradesPage() {
           <table className="w-full">
             <thead>
               <tr>
-                {["DATE", "TICKER", "SIDE", "REASON"].map((h) => (
+                {[
+                  "DATE",
+                  "TICKER",
+                  "ACTION",
+                  "REASON",
+                  ...(isAdmin ? ["EVAL"] : []),
+                ].map((h) => (
                   <th
                     key={h}
                     className="font-mono text-left px-5 py-3 text-[10px] text-text-dim tracking-[1.5px] font-medium border-b border-border bg-bg rounded-none"
@@ -101,7 +139,7 @@ export default function TradesPage() {
             <tbody>
               {hasDataState(state) ? (
                 <DataStateRow
-                  colSpan={4}
+                  colSpan={isAdmin ? 5 : 4}
                   state={state}
                   error={error}
                   onRetry={() => void refetch()}
@@ -110,40 +148,53 @@ export default function TradesPage() {
                 />
               ) : filteredOut ? (
                 <tr>
-                  <td colSpan={4} className="px-5 py-8 text-center">
+                  <td colSpan={isAdmin ? 5 : 4} className="px-5 py-8 text-center">
                     <span className="font-mono text-[11px] text-text-dim">
                       NO TRADES MATCH FILTERS
                     </span>
                   </td>
                 </tr>
               ) : (
-                paged?.map((t, i) => (
-                  <tr
-                    key={`${t.ticker}-${t.date}-${i}`}
-                    className="border-b border-border last:border-b-0 hover:bg-bg-tertiary/50 transition-colors"
-                  >
-                    <td className="px-5 py-3 font-mono text-[12px] text-text-muted whitespace-nowrap">
-                      {t.date.slice(0, 10)}
-                    </td>
-                    <td className="px-5 py-3">
-                      <span className="font-mono font-semibold text-[14px]">
-                        {t.ticker}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3">
-                      <span
-                        className={`badge ${
-                          t.side === "buy" ? "badge-buy" : "badge-sell"
-                        }`}
-                      >
-                        {t.side.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3 font-sans text-[12px] text-text-muted max-w-[420px] truncate">
-                      {t.reason || "—"}
-                    </td>
-                  </tr>
-                ))
+                paged?.map((t, i) => {
+                  const meta = actionMeta(t);
+                  return (
+                    <tr
+                      key={`${t.ticker}-${t.date}-${i}`}
+                      className="border-b border-border last:border-b-0 hover:bg-bg-tertiary/50 transition-colors"
+                    >
+                      <td className="px-5 py-3 font-mono text-[12px] text-text-muted whitespace-nowrap">
+                        {t.date.slice(0, 10)}
+                      </td>
+                      <td className="px-5 py-3">
+                        <span className="font-mono font-semibold text-[14px]">
+                          {t.ticker}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 whitespace-nowrap">
+                        <span className={`badge ${meta.badge}`}>
+                          {meta.label}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 font-sans text-[12px] text-text-muted max-w-[420px] truncate">
+                        {t.reason || "—"}
+                      </td>
+                      {isAdmin && (
+                        <td className="px-5 py-3 font-mono text-[11px] whitespace-nowrap">
+                          {t.evaluation_id === null ? (
+                            <span className="text-text-dim">—</span>
+                          ) : (
+                            <Link
+                              href={`/dashboard/ops/evaluations/${t.evaluation_id}`}
+                              className="text-text underline underline-offset-2 hover:opacity-70"
+                            >
+                              #{t.evaluation_id}
+                            </Link>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

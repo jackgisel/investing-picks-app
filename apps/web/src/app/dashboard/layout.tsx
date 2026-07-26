@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Sidebar, MobileNav } from "@/components/dashboard/sidebar";
+import { DashboardAdminProvider } from "@/components/dashboard/admin-context";
 import { getAdminUser } from "@/lib/admin";
 
 export const metadata: Metadata = {
@@ -21,12 +22,14 @@ export default async function DashboardLayout({
   const isAdmin = (await getAdminUser()) !== null;
 
   return (
-    <div className="flex min-h-[calc(100vh-72px)] bg-bg">
-      <Sidebar isAdmin={isAdmin} />
-      <div className="flex-1 min-w-0">
-        <MobileNav isAdmin={isAdmin} />
-        <div className="p-6 lg:p-8">{children}</div>
+    <DashboardAdminProvider isAdmin={isAdmin}>
+      <div className="flex min-h-[calc(100vh-72px)] bg-bg">
+        <Sidebar isAdmin={isAdmin} />
+        <div className="flex-1 min-w-0">
+          <MobileNav isAdmin={isAdmin} />
+          <div className="p-6 lg:p-8">{children}</div>
+        </div>
       </div>
-    </div>
+    </DashboardAdminProvider>
   );
 }

@@ -9,23 +9,23 @@ import { PillButton } from "@/components/ui/pill-button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useSession, signOut } from "@/lib/auth-client";
 
-const LEFT_LINKS = [
+const NAV_LINKS = [
   { label: "Strategy", href: "/#strategy" },
   { label: "Insights", href: "/insights" },
-] as const;
-
-const RIGHT_LINKS = [
   { label: "Pricing", href: "/#pricing" },
   { label: "Blog", href: "/blog" },
 ] as const;
 
-const MOBILE_LINKS = [
-  ...LEFT_LINKS,
-  ...RIGHT_LINKS,
+const MOBILE_EXTRA_LINKS = [
   { label: "Track record", href: "/#track-record" },
   { label: "How it works", href: "/#how-it-works" },
   { label: "FAQ", href: "/#faq" },
 ] as const;
+
+const MOBILE_LINKS = [...NAV_LINKS, ...MOBILE_EXTRA_LINKS] as const;
+
+const linkClassName =
+  "font-sans text-[12px] font-bold tracking-[0.14em] uppercase text-text hover:opacity-60 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 rounded-sm";
 
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -42,40 +42,28 @@ export function Navbar() {
 
   return (
     <nav className="border-b border-border sticky top-0 z-50 bg-bg/95 backdrop-blur-sm">
-      <div className="container-op grid grid-cols-[1fr_auto_1fr] items-center h-[72px]">
-        <div className="hidden md:flex items-center gap-7 justify-start">
-          {!isDashboard &&
-            LEFT_LINKS.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="font-sans text-[12px] font-bold tracking-[0.14em] uppercase text-text hover:opacity-60 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 rounded-sm"
-              >
-                {link.label}
-              </Link>
-            ))}
+      <div className="container-op flex items-center justify-between h-[72px]">
+        <div className="flex items-center gap-7 min-w-0">
+          <Link href="/" className="shrink-0">
+            <OutpickWordmark />
+          </Link>
+
+          {!isDashboard && (
+            <div className="hidden md:flex items-center gap-6">
+              {NAV_LINKS.map((link) => (
+                <Link key={link.href} href={link.href} className={linkClassName}>
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
 
-        <Link href="/" className="justify-self-center col-start-2">
-          <OutpickWordmark />
-        </Link>
-
-        <div className="hidden md:flex items-center gap-5 justify-end">
-          {!isDashboard &&
-            RIGHT_LINKS.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="font-sans text-[12px] font-bold tracking-[0.14em] uppercase text-text hover:opacity-60 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 rounded-sm"
-              >
-                {link.label}
-              </Link>
-            ))}
-
+        <div className="hidden md:flex items-center gap-3">
           <ThemeToggle />
 
           {session ? (
-            <div className="flex items-center gap-3">
+            <>
               {!isDashboard && (
                 <PillButton href="/dashboard" className="text-[11px] px-4 py-2">
                   Dashboard
@@ -88,7 +76,7 @@ export function Navbar() {
                 <LogOut size={12} />
                 Sign out
               </button>
-            </div>
+            </>
           ) : (
             <PillButton href="/login" className="text-[11px] px-4 py-2">
               Log in
@@ -98,7 +86,7 @@ export function Navbar() {
 
         <button
           onClick={() => setMobileOpen(!mobileOpen)}
-          className="md:hidden justify-self-end col-start-3 text-text"
+          className="md:hidden text-text shrink-0"
           aria-label={mobileOpen ? "Close menu" : "Open menu"}
         >
           {mobileOpen ? <X size={22} /> : <Menu size={22} />}

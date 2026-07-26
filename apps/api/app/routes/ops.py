@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import hmac
 import logging
 from datetime import date, datetime, time, timedelta, timezone
@@ -488,13 +489,66 @@ def _universe_diagnosis(db: Session, scored: int) -> dict:
     }
 
 
+def _simulation_params(params, missing: dict[str, int], considered: int):
+    """Relax ONLY the rules a genuinely absent factor makes unanswerable.
+
+    A factor with no data for the entire universe is not evidence that every
+    company is bad at it, so leaving it to grade F and veto every buy tells the
+    operator nothing. Waive those, keep every other Run 118 rule intact, and
+    report exactly what was waived.
+    """
+    absent = {name for name, count in missing.items() if count >= considered > 0}
+    waived: list[str] = []
+    criteria = params.buy_criteria
+    if "revisions" in absent:
+        criteria = dataclasses.replace(criteria, min_revisions_grade="F")
+        waived.append("min_revisions_grade")
+    if "growth" in absent:
+        criteria = dataclasses.replace(criteria, min_growth_grade="F")
+        waived.append("min_growth_grade")
+
+    weights = params.factor_weights()
+    total = sum(weights.values()) or 1.0
+    present = total - sum(weights.get(name, 0.0) for name in absent)
+    sim = params.with_overrides(
+        min_factor_coverage=min(params.min_factor_coverage, present / total),
+        buy_criteria=criteria,
+    )
+    if absent:
+        waived.append(f"factor_coverage({', '.join(sorted(absent))} absent)")
+    return sim, waived, sorted(absent)
+
+
 @router.get("/dry-run", dependencies=[Depends(require_ops_key)])
-def dry_run_preview(db: Session = Depends(get_db)):
-    """What would we do next eval? Does not persist trades."""
+def dry_run_preview(simulate: bool = False, db: Session = Depends(get_db)):
+    """What would we do next eval? Does not persist trades.
+
+    `simulate=true` re-scores the universe in memory with the rules that a
+    universe-wide missing factor makes unanswerable waived, so an operator can
+    still see which name the strategy favours today. It is NOT a Run 118
+    decision and never writes.
+    """
     portfolio = ensure_default_portfolio(db, get_settings().initial_cash)
     params = params_from_portfolio(portfolio)
     state = load_portfolio_state(db, portfolio)
-    scores = load_latest_scores(db)
+
+    simulation: dict | None = None
+    if simulate:
+        from worker.services.scoring import preview_scores
+
+        as_of = date.today()
+        _, missing, considered = preview_scores(db, params, as_of)
+        params, waived, absent = _simulation_params(params, missing, considered)
+        scores, _, _ = preview_scores(db, params, as_of)
+        simulation = {
+            "enabled": True,
+            "waived_rules": waived,
+            "absent_factors": absent,
+            "considered": considered,
+        }
+    else:
+        scores = load_latest_scores(db)
+
     ranked = ranked_candidates(scores)
     signals = evaluate(state, scores, ranked, params)
     # Without these counts an empty `signals` list is ambiguous: it reads as
@@ -505,6 +559,8 @@ def dry_run_preview(db: Session = Depends(get_db)):
     scored_held = sum(1 for t in state.positions if t in scores)
     return {
         "diagnosis": _universe_diagnosis(db, len(scores)),
+        "simulation": simulation,
+        "target_notional": params.target_notional(state.equity),
         "params_version": params.version_hash(),
         "portfolio": {
             "cash": state.cash,

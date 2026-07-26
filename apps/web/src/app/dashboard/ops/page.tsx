@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Database, RefreshCw } from "lucide-react";
+import { Database, FlaskConical, RefreshCw } from "lucide-react";
 
 type JobRun = {
   id: number;
@@ -33,10 +34,14 @@ export default function OpsEvaluationsPage() {
     },
   });
 
+  const [simulate, setSimulate] = useState(false);
+
   const dry = useQuery({
-    queryKey: ["ops-dry-run"],
+    queryKey: ["ops-dry-run", simulate],
     queryFn: async () => {
-      const res = await fetch("/api/ops/dry-run", { cache: "no-store" });
+      const res = await fetch(`/api/ops/dry-run${simulate ? "?simulate=true" : ""}`, {
+        cache: "no-store",
+      });
       if (!res.ok) throw new Error("Failed to dry-run");
       return res.json();
     },
@@ -98,12 +103,21 @@ export default function OpsEvaluationsPage() {
             )}
             <button
               type="button"
-              onClick={() => dry.refetch()}
+              onClick={() => (simulate ? setSimulate(false) : dry.refetch())}
               disabled={dry.isFetching}
               className="btn-outline !py-2 !px-4 !text-[11px] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <RefreshCw size={13} className={dry.isFetching ? "animate-spin" : undefined} />
-              {dry.isFetching ? "Running…" : "Run dry-run"}
+              {dry.isFetching && !simulate ? "Running…" : "Run dry-run"}
+            </button>
+            <button
+              type="button"
+              onClick={() => (simulate ? dry.refetch() : setSimulate(true))}
+              disabled={dry.isFetching}
+              className="btn-outline !py-2 !px-4 !text-[11px] !border-accent-purple !text-accent-purple hover:!bg-accent-purple hover:!text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <FlaskConical size={13} />
+              {dry.isFetching && simulate ? "Simulating…" : "Simulate"}
             </button>
           </div>
         </div>
@@ -113,11 +127,25 @@ export default function OpsEvaluationsPage() {
         </p>
         {dry.isFetching && !dry.data && <p className="text-text-muted text-sm">Computing…</p>}
         {dry.error && <p className="text-accent-red text-sm">Dry-run unavailable (is the API up?)</p>}
+        {dry.data?.simulation?.enabled && (
+          <div className="rounded-soft border border-accent-purple/40 bg-accent-purple/5 p-3 space-y-1">
+            <p className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-accent-purple">
+              Simulation — not a Run 118 decision
+            </p>
+            <p className="text-xs text-text-muted">
+              Re-scored in memory with rules a universe-wide missing factor makes
+              unanswerable waived. Every other rule ran unchanged. Nothing was written.
+            </p>
+            <p className="font-mono text-xs text-text-dim">
+              waived: {(dry.data.simulation.waived_rules || []).join(" · ") || "none"}
+            </p>
+          </div>
+        )}
         {dry.data && (
           <div
             className={`soft-card p-4 space-y-3 transition-opacity ${
               dry.isFetching ? "opacity-50" : "opacity-100"
-            }`}
+            } ${dry.data.simulation?.enabled ? "ring-1 ring-accent-purple/30" : ""}`}
           >
             <p className="text-sm text-text-muted">
               Params <span className="font-mono text-text">{dry.data.params_version}</span>
@@ -131,6 +159,11 @@ export default function OpsEvaluationsPage() {
                 {dry.data.portfolio?.position_count ?? 0}
               </span>{" "}
               positions
+              {" · "}
+              entry{" "}
+              <span className="font-mono text-text">
+                ${Math.round(Number(dry.data.target_notional ?? 0)).toLocaleString()}
+              </span>
               {" · "}
               {dry.data.signals?.length ?? 0} signals
             </p>

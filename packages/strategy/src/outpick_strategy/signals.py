@@ -413,7 +413,7 @@ def _buy_signals(
 
     buys = 0
     equity = portfolio.equity
-    target_notional = equity * params.position_size_pct
+    target_notional = params.target_notional(equity)
     reserve = params.cash_reserve_buys * target_notional
     # Simulate cash freed by pending sells / weight trims
     sim_cash = portfolio.cash

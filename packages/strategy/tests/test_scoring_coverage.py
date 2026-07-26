@@ -84,3 +84,14 @@ def test_percentile_scoring_leaves_nulls_null():
     out = factor_percentile_score([10.0, None, 5.0], higher_is_better=True)
     assert out[1] is None
     assert out[0] == 100.0 and out[2] == 0.0
+
+
+def test_fixed_dollar_sizing_overrides_percent_of_equity():
+    """Equal-weighted $1k entries, independent of how the book grows."""
+    equity = 250_000.0
+    assert RUN118_PARAMS.target_notional(equity) == pytest.approx(equity * 0.035)
+
+    fixed = RUN118_PARAMS.with_overrides(position_size_usd=1000.0)
+    assert fixed.target_notional(equity) == 1000.0
+    assert fixed.target_notional(50_000.0) == 1000.0
+    assert fixed.version_hash() != RUN118_PARAMS.version_hash()

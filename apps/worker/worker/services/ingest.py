@@ -13,6 +13,7 @@ from outpick_strategy import RUN118_PARAMS
 from app.db.models import Fundamentals, Portfolio, PortfolioSnapshot, Position, PriceBar, Stock
 from app.services.portfolio import ensure_default_portfolio
 from worker.services.fmp import FMPAccessError, FMPClient
+from worker.services.market_calendar import last_trading_day_on_or_before
 
 log = logging.getLogger(__name__)
 
@@ -501,7 +502,13 @@ def refresh_marks(db: Session, fmp: FMPClient) -> int:
     )
     tickers = list({*pos_tickers, *[c[0] for c in candidates], "SPY"})
     quotes = fmp.batch_quotes(tickers)
-    today = date.today()
+    # Date the bar to the session it actually belongs to. FMP returns the last
+    # close when the market is shut, so stamping it with date.today() invented a
+    # Saturday bar carrying Friday's price — 115 such phantom rows accumulated.
+    # They distort any date-windowed price lookup and put flat points on the
+    # curve. job_daily_marks already guards this by skipping non-trading days;
+    # weekly_refresh calls refresh_marks directly and did not.
+    today = last_trading_day_on_or_before(date.today())
     n = 0
     by_sym = {q.get("symbol"): q for q in quotes if q.get("symbol")}
     for ticker in tickers:

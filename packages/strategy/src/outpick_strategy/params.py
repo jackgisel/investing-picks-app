@@ -49,6 +49,11 @@ class StrategyParams:
     # Cadence & sizing
     max_positions: int = 50
     position_size_pct: float = 0.035
+    # Fixed dollars per entry. When set, this wins over position_size_pct and
+    # every pick is funded equally regardless of how the book has grown — the
+    # sizing the live book was actually seeded with ($1,000 x 8 positions).
+    # None restores percent-of-equity sizing.
+    position_size_usd: float | None = None
     max_adds_per_evaluation: int = 1  # Exactly 1 — no adaptive filler
     cash_reserve_buys: int = 2
     sector_concentration: float = 0.30
@@ -81,6 +86,12 @@ class StrategyParams:
     enable_daily_sell_pass: bool = False
 
     version_label: str = "run118"
+
+    def target_notional(self, equity: float) -> float:
+        """Dollars to deploy on one entry."""
+        if self.position_size_usd is not None:
+            return self.position_size_usd
+        return equity * self.position_size_pct
 
     def factor_weights(self) -> dict[str, float]:
         return {

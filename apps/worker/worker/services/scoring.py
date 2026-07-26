@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import date, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from outpick_strategy import RUN118_PARAMS, StrategyParams
+from outpick_strategy import RUN118_PARAMS, ScoreSnapshot, StrategyParams
 from outpick_strategy.scoring import (
     composite_from_factor_pcts,
     factor_percentile_score,
@@ -126,9 +127,28 @@ def _momentum_12m(
     return (latest / past) - 1.0
 
 
-def score_universe(db: Session, params: StrategyParams | None = None) -> int:
-    params = params or RUN118_PARAMS
-    as_of = date.today()
+@dataclass
+class ScoredTicker:
+    ticker: str
+    sector: str
+    composite: float
+    quant_rating: float
+    grades: dict[str, str]
+    factor_pcts: dict[str, float | None]
+    momentum_12m: float | None
+
+
+def compute_scores(
+    db: Session, params: StrategyParams, as_of: date
+) -> tuple[list[ScoredTicker], dict[str, int], int]:
+    """Score the universe in memory. Writes nothing.
+
+    Shared by the persisting `score_universe` and the read-only simulation
+    behind the ops dry-run, so the two can never drift — the repo's rule is that
+    live and simulated paths run the same code.
+
+    Returns (scored, missing_factor_counts, considered).
+    """
     stocks = (
         db.query(Stock)
         .filter(Stock.is_active == True, Stock.is_etf == False)  # noqa: E712
@@ -136,18 +156,8 @@ def score_universe(db: Session, params: StrategyParams | None = None) -> int:
         .all()
     )
     if not stocks:
-        log.warning("No stocks to score")
-        return 0
+        return [], {}, 0
 
-    # Latest fundamentals per ticker, and ONLY the latest. This used to load
-    # every row ever written — JSON payload included — and discard all but the
-    # newest per ticker immediately after. At ~405 rows a week that grows without
-    # bound, and the same code runs inside the API process for on-demand
-    # refreshes.
-    #
-    # The max-age cut matters just as much: `refresh_fundamentals` caps at
-    # max_tickers, so a name that drops out of the budget keeps an old snapshot
-    # and would otherwise be scored against fresh peers forever.
     oldest_allowed = as_of - timedelta(days=FUNDAMENTALS_MAX_AGE_DAYS)
     latest_ids = (
         db.query(func.max(Fundamentals.id))
@@ -165,23 +175,13 @@ def score_universe(db: Session, params: StrategyParams | None = None) -> int:
         if s.ticker in funds and s.sector:
             by_sector[s.sector].append(s.ticker)
 
-    # (ticker, as_of) is unique, so a re-run on the same day must update in
-    # place. Blind inserts would either violate the constraint or, before it
-    # existed, create a duplicate "prior" row for the same day.
-    existing_today = {
-        row.ticker: row
-        for row in db.query(CompositeScore).filter(CompositeScore.as_of == as_of).all()
-    }
-
-    written = 0
-    with_revisions = 0
-    unscoreable = 0
-    dropped = 0
+    scored: list[ScoredTicker] = []
     missing_factor: dict[str, int] = defaultdict(int)
+    considered = 0
+
     for sector, tickers in by_sector.items():
-        # Build metric columns
+
         def col(keys) -> dict[str, list[float | None]]:
-            """One column per metric, taking the first alias that has a value."""
             out = {aliases[0]: [] for aliases, _ in keys}
             for t in tickers:
                 data = funds.get(t, {})
@@ -200,12 +200,6 @@ def score_universe(db: Session, params: StrategyParams | None = None) -> int:
                     out[aliases[0]].append(value)
             return out
 
-        val_cols = col(VALUATION_KEYS)
-        gro_cols = col(GROWTH_KEYS)
-        pro_cols = col(PROFIT_KEYS)
-        rev_cols = col(REVISION_KEYS)
-
-        # Average of per-metric percentiles.
         def avg_factor(cols, keys):
             pct_matrix = [
                 factor_percentile_score(cols[aliases[0]], hib) for aliases, hib in keys
@@ -216,17 +210,17 @@ def score_universe(db: Session, params: StrategyParams | None = None) -> int:
                 result.append(sum(vals) / len(vals) if vals else None)
             return result
 
-        val_pcts = avg_factor(val_cols, VALUATION_KEYS)
-        gro_pcts = avg_factor(gro_cols, GROWTH_KEYS)
-        pro_pcts = avg_factor(pro_cols, PROFIT_KEYS)
-        rev_pcts = avg_factor(rev_cols, REVISION_KEYS)
+        val_pcts = avg_factor(col(VALUATION_KEYS), VALUATION_KEYS)
+        gro_pcts = avg_factor(col(GROWTH_KEYS), GROWTH_KEYS)
+        pro_pcts = avg_factor(col(PROFIT_KEYS), PROFIT_KEYS)
+        rev_pcts = avg_factor(col(REVISION_KEYS), REVISION_KEYS)
 
-        # Momentum from prices
         history = load_price_history(db, tickers, as_of)
         mom_raw = [_momentum_12m(history, t, as_of) for t in tickers]
         mom_pcts = factor_percentile_score(mom_raw, True)
 
         for i, ticker in enumerate(tickers):
+            considered += 1
             factor_pcts = {
                 "valuation": val_pcts[i],
                 "growth": gro_pcts[i],
@@ -238,36 +232,91 @@ def score_universe(db: Session, params: StrategyParams | None = None) -> int:
                 factor_pcts, params, momentum_12m=mom_raw[i]
             )
             if composite is None:
-                # Unscoreable now, but an earlier run today may have written a
-                # row. Leaving it makes `load_latest_scores` serve a stale
-                # rating as current — the strategy would trade on a number this
-                # run just decided it cannot stand behind.
-                stale = existing_today.pop(ticker, None)
-                if stale is not None:
-                    db.delete(stale)
-                    dropped += 1
                 for name, pct in factor_pcts.items():
                     if pct is None:
                         missing_factor[name] += 1
-                unscoreable += 1
                 continue
-            if rev_pcts[i] is not None:
-                with_revisions += 1
-            qr = quant_rating_from_composite(composite)
-            row = existing_today.get(ticker)
-            if row is None:
-                row = CompositeScore(ticker=ticker, as_of=as_of)
-                db.add(row)
-                existing_today[ticker] = row
-            row.quant_rating = round(qr, 3)
-            row.composite = round(composite, 3)
-            row.valuation_grade = grades.get("valuation", "F")
-            row.growth_grade = grades.get("growth", "F")
-            row.profitability_grade = grades.get("profitability", "F")
-            row.momentum_grade = grades.get("momentum", "F")
-            row.revisions_grade = grades.get("revisions", "F")
-            row.sector = sector
-            written += 1
+            scored.append(
+                ScoredTicker(
+                    ticker=ticker,
+                    sector=sector,
+                    composite=composite,
+                    quant_rating=quant_rating_from_composite(composite),
+                    grades=grades,
+                    factor_pcts=factor_pcts,
+                    momentum_12m=mom_raw[i],
+                )
+            )
+    return scored, dict(missing_factor), considered
+
+
+def preview_scores(
+    db: Session, params: StrategyParams, as_of: date
+) -> tuple[dict[str, ScoreSnapshot], dict[str, int], int]:
+    """Scores as ScoreSnapshots for `evaluate()`, without touching the database."""
+    scored, missing, considered = compute_scores(db, params, as_of)
+    snapshots = {
+        s.ticker: ScoreSnapshot(
+            ticker=s.ticker,
+            quant_rating=s.quant_rating,
+            valuation_grade=s.grades.get("valuation", "F"),
+            growth_grade=s.grades.get("growth", "F"),
+            profitability_grade=s.grades.get("profitability", "F"),
+            momentum_grade=s.grades.get("momentum", "F"),
+            revisions_grade=s.grades.get("revisions", "F"),
+            sector=s.sector,
+        )
+        for s in scored
+    }
+    return snapshots, missing, considered
+
+
+def score_universe(db: Session, params: StrategyParams | None = None) -> int:
+    params = params or RUN118_PARAMS
+    as_of = date.today()
+
+    scored, missing_factor, considered = compute_scores(db, params, as_of)
+    if not considered:
+        log.warning("No stocks to score")
+        return 0
+
+    # (ticker, as_of) is unique, so a re-run on the same day must update in
+    # place. Blind inserts would either violate the constraint or, before it
+    # existed, create a duplicate "prior" row for the same day.
+    existing_today = {
+        row.ticker: row
+        for row in db.query(CompositeScore).filter(CompositeScore.as_of == as_of).all()
+    }
+
+    written = 0
+    with_revisions = 0
+    dropped = 0
+    for s in scored:
+        if s.factor_pcts.get("revisions") is not None:
+            with_revisions += 1
+        row = existing_today.pop(s.ticker, None)
+        if row is None:
+            row = CompositeScore(ticker=s.ticker, as_of=as_of)
+            db.add(row)
+        row.quant_rating = round(s.quant_rating, 3)
+        row.composite = round(s.composite, 3)
+        row.valuation_grade = s.grades.get("valuation", "F")
+        row.growth_grade = s.grades.get("growth", "F")
+        row.profitability_grade = s.grades.get("profitability", "F")
+        row.momentum_grade = s.grades.get("momentum", "F")
+        row.revisions_grade = s.grades.get("revisions", "F")
+        row.sector = s.sector
+        written += 1
+
+    # Anything still in existing_today was scored by an earlier run today and is
+    # unscoreable now. Leaving it makes `load_latest_scores` serve a stale rating
+    # as current — the strategy would trade on a number this run just decided it
+    # cannot stand behind.
+    for stale in existing_today.values():
+        db.delete(stale)
+        dropped += 1
+
+    unscoreable = considered - written
 
     db.commit()
     log.info(

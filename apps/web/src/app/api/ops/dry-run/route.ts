@@ -4,7 +4,7 @@ import { opsHeaders, opsMisconfiguredResponse, requireAdmin } from "@/lib/admin"
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   const guard = await requireAdmin();
   if (!guard.ok) return guard.response;
 
@@ -15,7 +15,9 @@ export async function GET() {
     return opsMisconfiguredResponse(e);
   }
 
-  const res = await fetch(`${OPS_API_BASE}/dry-run`, {
+  const simulate =
+    new URL(request.url).searchParams.get("simulate") === "true" ? "?simulate=true" : "";
+  const res = await fetch(`${OPS_API_BASE}/dry-run${simulate}`, {
     headers,
     cache: "no-store",
   });

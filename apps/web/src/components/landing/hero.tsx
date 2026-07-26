@@ -1,12 +1,12 @@
 import Image from "next/image";
 import {
-  PRICING,
   SITE_NAME,
   SITE_SUBHEADLINE,
   SITE_TAGLINE,
 } from "@/lib/constants";
 import { OutpickLogo } from "@/components/ui/outpick-logo";
 import { PillButton } from "@/components/ui/pill-button";
+import { PriceLine } from "./price-line";
 
 export function Hero() {
   return (
@@ -42,9 +42,7 @@ export function Hero() {
               <PillButton href="/dashboard" arrow>
                 Start your membership
               </PillButton>
-              <p className="mt-4 font-sans text-[13px] text-text-dim">
-                Founders: {PRICING.foundersLabel} · then {PRICING.label}
-              </p>
+              <PriceLine className="mt-4" />
             </div>
           </div>
 

@@ -33,6 +33,16 @@ class StrategyParams:
     min_universe_market_cap: float = 300_000_000
     min_share_price: float = 5.0
 
+    # Minimum share of total factor weight that must have data before a ticker
+    # is scored at all. Without it, composite_from_factor_pcts renormalises over
+    # whatever happens to be present, so a ticker MISSING a factor outscores one
+    # that is genuinely worst-in-sector on it — 60.0 vs 39.0 for a null vs a
+    # zero-percentile growth reading. That silently re-weights the model (with
+    # growth, revisions and momentum absent the effective weights become
+    # profitability 0.75 / valuation 0.25) while still stamping the Run 118
+    # version hash on the result. 1.0 = every factor required.
+    min_factor_coverage: float = 1.0
+
     # Buy criteria
     buy_criteria: BuyCriteria = field(default_factory=BuyCriteria)
 

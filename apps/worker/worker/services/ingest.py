@@ -5,13 +5,14 @@ from __future__ import annotations
 import logging
 from datetime import date, datetime, timedelta, timezone
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from outpick_strategy import RUN118_PARAMS
 
 from app.db.models import Fundamentals, Portfolio, PortfolioSnapshot, Position, PriceBar, Stock
 from app.services.portfolio import ensure_default_portfolio
-from worker.services.fmp import FMPClient
+from worker.services.fmp import FMPAccessError, FMPClient
 
 log = logging.getLogger(__name__)
 
@@ -43,6 +44,49 @@ def upsert_price_bar(db: Session, ticker: str, bar_date: date, close: float) -> 
     db.add(bar)
     db.flush()
     return bar
+
+
+def bulk_insert_price_bars(db: Session, rows: list[dict], chunk_size: int = 2000) -> int:
+    """Insert many bars, skipping any that already exist. Returns rows attempted.
+
+    `upsert_price_bar` is correct for the update-in-place case but does a
+    SELECT + INSERT + flush per bar — unusable for a history backfill of ~160k
+    rows. Reading the existing keys first and inserting the difference would be
+    check-then-act: `refresh_marks` writes bars for the same tickers on its own
+    schedule, and on Postgres one unique violation aborts the whole statement
+    AND transaction, losing every other row in the batch.
+
+    ON CONFLICT DO NOTHING pushes the race to the database, which makes this
+    both concurrency-safe and idempotent — a killed run resumes by simply being
+    re-run. Both Postgres and SQLite support it (SQLite since 3.24).
+
+    DO NOTHING rather than DO UPDATE is deliberate: `refresh_marks` stores a
+    live quote for today, and this must never overwrite it with an EOD bar.
+    """
+    if not rows:
+        return 0
+
+    dialect = db.get_bind().dialect.name
+    if dialect == "postgresql":
+        from sqlalchemy.dialects.postgresql import insert as _insert
+    elif dialect == "sqlite":
+        from sqlalchemy.dialects.sqlite import insert as _insert
+    else:  # pragma: no cover - only these two are ever deployed
+        for row in rows:
+            upsert_price_bar(db, row["ticker"], row["date"], row["close"])
+        db.commit()
+        return len(rows)
+
+    written = 0
+    for start in range(0, len(rows), chunk_size):
+        chunk = rows[start : start + chunk_size]
+        stmt = _insert(PriceBar.__table__).values(chunk)
+        db.execute(stmt.on_conflict_do_nothing(index_elements=["ticker", "date"]))
+        # Commit per chunk so a killed job leaves durable progress rather than
+        # rolling back the entire backfill.
+        db.commit()
+        written += len(chunk)
+    return written
 
 
 def refresh_universe(db: Session, fmp: FMPClient, limit: int = 800) -> int:
@@ -184,6 +228,72 @@ def compute_estimate_revisions(
     return out
 
 
+def _sum_field(rows: list[dict], field: str) -> float | None:
+    total = 0.0
+    for row in rows:
+        value = row.get(field)
+        if value is None:
+            return None
+        try:
+            total += float(value)
+        except (TypeError, ValueError):
+            return None
+    return total
+
+
+def compute_ttm_growth(rows: list[dict]) -> dict:
+    """Trailing-twelve-month growth from eight quarterly income statements.
+
+    Latest four quarters against the four before them. This reproduces what the
+    `*GrowthTTM` metric names have always implied, and it is calendar-aligned
+    across companies — unlike FMP's fiscal-year `financial-growth`, where a
+    December filer and a June filer end up percentile-ranked against windows
+    almost a year apart.
+
+    `abs()` in the denominator, matching `_pct_change`: a company whose net
+    income goes from -$10m to +$5m has improved, and a signed denominator would
+    score that as -150% and bury the turnaround at the bottom of the factor.
+
+    EPS is derived from TTM net income over the latest diluted share count
+    rather than by summing quarterly EPS, which drifts when the count changes
+    mid-year.
+    """
+    dated = [r for r in rows if r.get("date")]
+    if len(dated) < 8:
+        return {}
+    dated.sort(key=lambda r: str(r["date"]), reverse=True)
+    recent, prior = dated[:4], dated[4:8]
+
+    out: dict = {}
+    for field, key in (
+        ("revenue", "revenueGrowthTTM"),
+        ("netIncome", "netIncomeGrowthTTM"),
+    ):
+        cur = _sum_field(recent, field)
+        old = _sum_field(prior, field)
+        if cur is None or old is None or old == 0:
+            continue
+        out[key] = (cur - old) / abs(old)
+
+    cur_ni = _sum_field(recent, "netIncome")
+    old_ni = _sum_field(prior, "netIncome")
+    cur_sh = recent[0].get("weightedAverageShsOutDil")
+    old_sh = prior[0].get("weightedAverageShsOutDil")
+    try:
+        cur_sh = float(cur_sh) if cur_sh else None
+        old_sh = float(old_sh) if old_sh else None
+    except (TypeError, ValueError):
+        cur_sh = old_sh = None
+    if cur_ni is not None and old_ni is not None and cur_sh and old_sh:
+        cur_eps, old_eps = cur_ni / cur_sh, old_ni / old_sh
+        if old_eps != 0:
+            out["epsGrowthTTM"] = (cur_eps - old_eps) / abs(old_eps)
+
+    if out:
+        out["growthBasisPeriod"] = str(recent[0]["date"])[:10]
+    return out
+
+
 def refresh_fundamentals(db: Session, fmp: FMPClient, max_tickers: int = 400) -> int:
     # Held positions are ALWAYS refreshed, whatever their size. Ranking by market
     # cap alone dropped 7 of 8 real holdings outside the cut, and an unscored
@@ -211,10 +321,32 @@ def refresh_fundamentals(db: Session, fmp: FMPClient, max_tickers: int = 400) ->
     as_of = date.today()
     n = 0
     revisions_available = 0
+    growth_available = 0
+    # Growth is one endpoint among several here. `_get` raises FMPAccessError on
+    # 401/402/403 so a plan restriction can never masquerade as "no data" — but
+    # unhandled that would abort refresh_fundamentals and take the rest of
+    # weekly_refresh with it, including refresh_marks. Losing marks means stale
+    # position prices and a hole in the published equity curve, which is far
+    # worse than losing one factor for a day. Trip a breaker instead.
+    growth_supported = True
     for s in stocks:
         metrics = fmp.key_metrics_ttm(s.ticker) or {}
         ratios = fmp.ratios_ttm(s.ticker) or {}
         data = {**metrics, **ratios}
+        if growth_supported:
+            try:
+                growth = compute_ttm_growth(fmp.income_statement_quarterly(s.ticker))
+            except FMPAccessError:
+                log.exception(
+                    "income-statement is not available on this FMP plan; growth "
+                    "will be null for the rest of this run, which blocks every "
+                    "buy via min_growth_grade. Continuing so marks still update."
+                )
+                growth_supported = False
+                growth = {}
+            if growth:
+                growth_available += 1
+                data.update(growth)
         estimate = _forward_estimate(fmp.analyst_estimates(s.ticker), as_of)
         if estimate:
             data.update(estimate)
@@ -224,7 +356,17 @@ def refresh_fundamentals(db: Session, fmp: FMPClient, max_tickers: int = 400) ->
             data.update(revision)
         if not data:
             continue
-        db.add(Fundamentals(ticker=s.ticker, as_of=as_of, data=data))
+        # Update in place: (ticker, as_of) is unique, so a second run on the
+        # same day must overwrite rather than insert alongside.
+        row = (
+            db.query(Fundamentals)
+            .filter(Fundamentals.ticker == s.ticker, Fundamentals.as_of == as_of)
+            .one_or_none()
+        )
+        if row is None:
+            db.add(Fundamentals(ticker=s.ticker, as_of=as_of, data=data))
+        else:
+            row.data = data
         profile = fmp.profile(s.ticker)
         if profile:
             s.sector = profile.get("sector") or s.sector
@@ -253,7 +395,92 @@ def refresh_fundamentals(db: Session, fmp: FMPClient, max_tickers: int = 400) ->
         )
     else:
         log.info("Estimate revisions computed for %s/%s tickers", revisions_available, n)
+    if n and not growth_available:
+        log.warning(
+            "Fundamentals refresh stored %s tickers but computed 0 TTM growth "
+            "values. Growth carries weight 0.35 and gates every buy via "
+            "min_growth_grade, and under the factor-coverage floor a null growth "
+            "value makes the ticker unscoreable outright.",
+            n,
+        )
+    else:
+        log.info("TTM growth computed for %s/%s tickers", growth_available, n)
     return n
+
+
+def backfill_price_history(
+    db: Session,
+    fmp: FMPClient,
+    lookback_days: int = 430,
+    min_bars: int = 200,
+    max_tickers: int | None = None,
+) -> dict:
+    """Fetch daily closes so the 12-month momentum factor can be computed.
+
+    Momentum needs a bar at or before `as_of - 365d`. Fetching exactly 365 days
+    lands the first bar *after* the target once weekends and holidays are
+    accounted for, so the lookup finds nothing — hence 430.
+
+    Tickers that already have `min_bars` are skipped, which makes this cheap to
+    re-run and lets it double as top-up for names that entered the universe
+    later. Today is excluded so this never contends with `refresh_marks`.
+    """
+    start = date.today() - timedelta(days=lookback_days)
+    cutoff = date.today()
+
+    counts = dict(
+        db.query(PriceBar.ticker, func.count(PriceBar.id)).group_by(PriceBar.ticker).all()
+    )
+    universe = (
+        db.query(Stock.ticker)
+        .filter(Stock.is_active == True)  # noqa: E712
+        .order_by(Stock.market_cap.desc().nullslast())
+        .all()
+    )
+    held = {
+        row[0]
+        for row in db.query(Position.ticker).filter(Position.portfolio_id == 1).all()
+    }
+    tickers = [t for (t,) in universe if counts.get(t, 0) < min_bars]
+    for ticker in sorted(held):
+        if ticker not in tickers and counts.get(ticker, 0) < min_bars:
+            tickers.append(ticker)
+    if max_tickers is not None:
+        tickers = tickers[:max_tickers]
+
+    fetched = 0
+    inserted = 0
+    for ticker in tickers:
+        try:
+            rows = fmp.historical_prices(ticker, start)
+        except FMPAccessError:
+            log.exception("historical prices unavailable on this plan; stopping")
+            break
+        bars: list[dict] = []
+        for row in rows or []:
+            raw_date = row.get("date")
+            close = row.get("adjClose", row.get("close"))
+            if not raw_date or close is None:
+                continue
+            try:
+                bar_date = date.fromisoformat(str(raw_date)[:10])
+                close = float(close)
+            except (TypeError, ValueError):
+                continue
+            if bar_date >= cutoff or bar_date < start:
+                continue
+            bars.append({"ticker": ticker, "date": bar_date, "close": close})
+        if bars:
+            # Dedupe within the payload; ON CONFLICT cannot resolve two rows
+            # with the same key inside a single statement.
+            unique = {(b["ticker"], b["date"]): b for b in bars}
+            inserted += bulk_insert_price_bars(db, list(unique.values()))
+        fetched += 1
+        if fetched % 25 == 0:
+            log.info("Price backfill progress: %s/%s tickers", fetched, len(tickers))
+
+    log.info("Price backfill: %s tickers, %s bars attempted", fetched, inserted)
+    return {"tickers": fetched, "bars": inserted, "candidates": len(tickers)}
 
 
 def refresh_marks(db: Session, fmp: FMPClient) -> int:

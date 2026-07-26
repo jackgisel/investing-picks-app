@@ -38,7 +38,13 @@ def composite_from_factor_pcts(
     momentum_12m: float | None = None,
     z_score: float | None = None,
 ) -> tuple[float | None, dict[str, str]]:
-    """Return (composite 0–100, grades) or (None, grades) if Z-filter fails."""
+    """Return (composite 0–100, grades), or (None, grades) if unscoreable.
+
+    None means "we cannot rate this ticker" — a failed Z-filter, or too little
+    factor coverage to be the strategy we claim to be running. Callers must
+    treat it as absent rather than as a bad score; `_removal_signals` already
+    skips positions with no score, so an unrated holding fails safe.
+    """
     grades = {
         name: percentile_to_grade(pct) if pct is not None else "F"
         for name, pct in factor_pcts.items()
@@ -58,6 +64,14 @@ def composite_from_factor_pcts(
         total_w += w
 
     if total_w <= 0:
+        return None, grades
+
+    # Coverage floor. Renormalising over the surviving factors does not degrade
+    # gracefully — it silently redistributes the missing weight onto whatever
+    # data happens to exist, so a missing factor reads as better than a bad one.
+    # Refuse to rate the ticker instead.
+    all_w = sum(weights.values())
+    if all_w > 0 and (total_w / all_w) < params.min_factor_coverage:
         return None, grades
 
     composite = score / total_w

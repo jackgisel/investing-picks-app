@@ -184,6 +184,21 @@ class FMPClient:
             return data.get("historical") or []
         return []
 
+    def income_statement_quarterly(self, ticker: str, limit: int = 8) -> list[dict]:
+        """Recent quarters, newest first, for deriving TTM growth.
+
+        Eight quarters is the minimum for a trailing-twelve-month comparison:
+        the latest four against the four before them. FMP's `financial-growth`
+        endpoint is not a substitute — it is fiscal-year-over-year, so it is
+        stale by up to a year, misaligned between companies with different
+        fiscal calendars, and computed over a signed denominator that inverts
+        for loss-makers.
+        """
+        data = self._get(
+            "income-statement", {"symbol": ticker, "period": "quarter", "limit": limit}
+        )
+        return data if isinstance(data, list) else []
+
     def key_metrics_ttm(self, ticker: str) -> dict | None:
         return self._first(self._get("key-metrics-ttm", {"symbol": ticker}))
 

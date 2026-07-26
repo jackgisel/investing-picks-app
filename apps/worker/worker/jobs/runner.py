@@ -13,7 +13,12 @@ from app.db.session import SessionLocal
 from app.services.portfolio import ensure_default_portfolio, run_evaluation
 from worker.services.fmp import FMPClient
 from worker.services.market_calendar import is_effective_run_day, is_trading_day
-from worker.services.ingest import refresh_fundamentals, refresh_marks, refresh_universe
+from worker.services.ingest import (
+    backfill_price_history,
+    refresh_fundamentals,
+    refresh_marks,
+    refresh_universe,
+)
 from worker.services.scoring import score_universe
 
 log = logging.getLogger(__name__)
@@ -81,6 +86,12 @@ def job_daily_marks():
 
 def job_weekly_refresh():
     def _run(db: Session):
+        # Schema upkeep FIRST. There is no Alembic here; ensure_schema is the
+        # migration hook, and it previously only ran via refresh_marks — the
+        # last step. Anything earlier in the job that depends on a new index
+        # (the fundamentals (ticker, as_of) uniqueness) would run against a
+        # table that had not been migrated yet.
+        ensure_default_portfolio(db, get_settings().initial_cash)
         fmp = _fmp()
         try:
             u = refresh_universe(db, fmp)
@@ -102,6 +113,26 @@ def job_backfill_snapshots():
     from worker.backfill_snapshots import run_from_env
 
     return _track("backfill_snapshots", lambda _db: run_from_env())
+
+
+def job_backfill_prices():
+    """One-shot price-history load so momentum can be computed. Not scheduled.
+
+    Deliberately separate from weekly_refresh: it is a repair, not a weekly
+    need, it must not run inside the API process behind the ops button, and
+    padding the weekly job's runtime widens the window in which a redeploy can
+    kill it. Idempotent — re-run it freely.
+    """
+
+    def _run(db: Session):
+        ensure_default_portfolio(db, get_settings().initial_cash)
+        fmp = _fmp()
+        try:
+            return backfill_price_history(db, fmp)
+        finally:
+            fmp.close()
+
+    return _track("backfill_prices", _run)
 
 
 def biweekly_target_friday(today: date) -> date | None:

@@ -16,6 +16,7 @@ if _API not in sys.path:
     sys.path.insert(0, _API)
 
 from worker.jobs.runner import (
+    job_backfill_prices,
     job_backfill_snapshots,
     job_biweekly_evaluate,
     job_daily_marks,
@@ -65,6 +66,9 @@ def main():
             # Not on any schedule — a one-shot repair, dry run unless
             # BACKFILL_COMMIT is set.
             "backfill_snapshots": job_backfill_snapshots,
+            # Also unscheduled: loads ~14 months of daily closes so the
+            # 12-month momentum factor can be computed. Idempotent.
+            "backfill_prices": job_backfill_prices,
         }[name]()
         return
 

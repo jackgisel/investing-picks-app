@@ -659,6 +659,37 @@ def ensure_schema(db: Session, force: bool = False) -> None:
                             "ON composite_scores (ticker, as_of)"
                         )
                     )
+
+            if "fundamentals" in tables:
+                # Same hazard as composite_scores, with a longer fuse. Blind
+                # inserts let a re-run write a second row for the same
+                # (ticker, as_of); score_universe takes the highest id, so a
+                # degraded retry silently overwrites a good snapshot. Worse,
+                # `_prior_estimate_snapshot` reads the last-written row at the
+                # lookback date — so a bad retry today can null out estimate
+                # revisions three weeks from now, which blocks every buy.
+                covered = [
+                    list(c.get("column_names") or [])
+                    for c in inspector.get_unique_constraints("fundamentals")
+                ] + [
+                    list(i.get("column_names") or [])
+                    for i in inspector.get_indexes("fundamentals")
+                    if i.get("unique")
+                ]
+                if not any(set(c) == {"ticker", "as_of"} for c in covered):
+                    conn.execute(
+                        text(
+                            "DELETE FROM fundamentals WHERE id NOT IN "
+                            "(SELECT MAX(id) FROM fundamentals GROUP BY ticker, as_of)"
+                        )
+                    )
+                    conn.execute(
+                        text(
+                            "CREATE UNIQUE INDEX IF NOT EXISTS "
+                            "uq_fundamentals_ticker_as_of "
+                            "ON fundamentals (ticker, as_of)"
+                        )
+                    )
         _SCHEMA_READY = True
     except Exception:  # pragma: no cover - never block startup on upkeep
         log.exception("Schema upkeep failed; continuing with existing schema")

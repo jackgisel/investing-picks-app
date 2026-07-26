@@ -20,6 +20,13 @@ const nextConfig = {
     // both locations are noindex.
     return [
       { source: "/insights", destination: "/dashboard/insights", permanent: false },
+      // Performance folded into the dashboard index — it repeated the same
+      // live status banner, the same three stat tiles and the same chart.
+      {
+        source: "/dashboard/performance",
+        destination: "/dashboard",
+        permanent: false,
+      },
       {
         source: "/insights/:slug",
         destination: "/dashboard/insights/:slug",

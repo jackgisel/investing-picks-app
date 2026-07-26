@@ -1,6 +1,7 @@
 "use client";
 
 import { useStrategy } from "@/lib/hooks/use-strategy";
+import { useInceptionDate } from "@/lib/hooks/use-inception";
 import { usePicks } from "@/lib/hooks/use-picks";
 import { LiveStatus } from "@/components/dashboard/live-status";
 import { PerformanceChart } from "@/components/dashboard/performance-chart";
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/data-state";
 import {
   computePortfolioReturnPct,
+  daysSinceInception,
   formatPct,
   formatPctOrDash,
   pnlClass,
@@ -38,14 +40,11 @@ function isGate(state: DataStateKind | null): state is "unauthenticated" | "subs
   return state === "unauthenticated" || state === "subscription";
 }
 
-/** The API sends "biweekly"; the stat cards read as sentence case. */
-function titleCase(s: string): string {
-  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
-}
 
 export default function DashboardPage() {
   const strategyQuery = useStrategy();
   const picksQuery = usePicks("active");
+  const { inceptionISO } = useInceptionDate();
   const { data: strategy } = strategyQuery;
   const { data: picksData } = picksQuery;
 
@@ -94,6 +93,8 @@ export default function DashboardPage() {
   const bottomHoldings = holdings
     ? [...holdings].sort((a, b) => a.pnl_pct - b.pnl_pct).slice(0, 5)
     : undefined;
+
+  const days = daysSinceInception(inceptionISO);
 
   // Most recent picks (sorted by entry date desc)
   const recentPicks = picksData?.picks
@@ -156,21 +157,18 @@ export default function DashboardPage() {
               loading={strategyQuery.isPending}
             />
             <StatTile
-              label="EVALUATION"
-              value={
-                strategyMeta
-                  ? titleCase(strategyMeta.evaluation_frequency)
-                  : "—"
-              }
+              label="DAYS LIVE"
+              value={days.toString()}
               icon={Activity}
               tone="lilac"
               loading={strategyQuery.isPending}
             />
           </div>
 
-          {/* The picks curve. The index page had no chart at all, so the
-              headline number arrived with no shape behind it. */}
-          <PerformanceChart compact />
+          {/* Full size, not compact: the vs-SPY / vs-VTI / vs-MAGS gap tiles
+              only render at full size, and they were the one thing the
+              Performance page carried that this one did not. */}
+          <PerformanceChart />
 
           {strategyFailed ? (
             <DataStateCard
@@ -271,7 +269,8 @@ export default function DashboardPage() {
               How the strategy works &middot; Full backtest methodology
             </p>
             <p className="font-sans text-[12px] text-text-muted mt-1">
-              Read the thesis, see the simulation results, understand the rules.
+              Everything above is live performance. The walk-forward backtest
+              is documented separately so simulation is never mistaken for it.
             </p>
           </div>
           <ArrowUpRight

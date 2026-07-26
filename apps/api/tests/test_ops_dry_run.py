@@ -77,3 +77,42 @@ def test_dry_run_writes_nothing(client, db):
 
     assert db.query(Evaluation).count() == 0
     assert db.query(Trade).count() == 0
+
+
+def test_diagnosis_names_the_single_snapshot_cause(db, portfolio):
+    """The old message blamed weekly_refresh even when it had run fine."""
+    from datetime import date
+
+    from app.db.models import Fundamentals
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from app.db.session import get_db
+    from app.routes import ops
+
+    db.add(Fundamentals(ticker="AAA", as_of=date.today(), data={"x": 1}))
+    db.commit()
+
+    app = FastAPI()
+    app.include_router(ops.router)
+    app.dependency_overrides[get_db] = lambda: db
+    res = TestClient(app).get("/api/ops/dry-run", headers=OPS_HEADERS)
+
+    diagnosis = res.json()["diagnosis"]
+    assert diagnosis["state"] == "awaiting_second_snapshot"
+    assert "two snapshots" in diagnosis["detail"]
+
+
+def test_diagnosis_reports_missing_fundamentals(db, portfolio):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from app.db.session import get_db
+    from app.routes import ops
+
+    app = FastAPI()
+    app.include_router(ops.router)
+    app.dependency_overrides[get_db] = lambda: db
+    res = TestClient(app).get("/api/ops/dry-run", headers=OPS_HEADERS)
+
+    assert res.json()["diagnosis"]["state"] == "no_fundamentals"

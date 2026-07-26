@@ -164,10 +164,15 @@ export default function OpsEvaluationsPage() {
                     )}
                   </li>
                 ) : (
-                  <li className="text-sm text-accent-red">
-                    No signals because the universe is unscored — 0 candidates. The
-                    strategy could not evaluate a single buy or sell. Check that
-                    weekly_refresh (universe → fundamentals → score) has run.
+                  <li className="text-sm text-accent-red space-y-1">
+                    <span className="block">
+                      No signals — the universe is unscored, so the strategy
+                      evaluated neither a buy nor a sell.
+                    </span>
+                    <span className="block text-text-muted">
+                      {dry.data.diagnosis?.detail ??
+                        "Check that weekly_refresh (universe → fundamentals → score) has run."}
+                    </span>
                   </li>
                 ))}
             </ul>

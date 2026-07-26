@@ -439,6 +439,55 @@ def trigger_evaluate(dry_run: bool = True, mode: str = "biweekly", db: Session =
     return {"evaluation_id": ev.id, "mode": ev.mode, "executed": ev.executed}
 
 
+def _universe_diagnosis(db: Session, scored: int) -> dict:
+    """Why is the universe unscored? Distinguish the three real causes.
+
+    "Check that weekly_refresh has run" is the wrong advice when it HAS run and
+    every ticker was rejected by the factor-coverage floor — which is the
+    expected state on a database whose fundamentals only span a single date,
+    because estimate revisions need two snapshots to exist at all.
+    """
+    if scored:
+        return {"state": "scored"}
+
+    from app.db.models import Fundamentals
+
+    dates = [
+        row[0]
+        for row in db.query(Fundamentals.as_of)
+        .distinct()
+        .order_by(Fundamentals.as_of.desc())
+        .limit(2)
+        .all()
+    ]
+    if not dates:
+        return {
+            "state": "no_fundamentals",
+            "detail": "No fundamentals have been ingested. Run a universe refresh.",
+        }
+    if len(dates) < 2:
+        return {
+            "state": "awaiting_second_snapshot",
+            "snapshot_dates": [d.isoformat() for d in dates],
+            "detail": (
+                "Fundamentals exist for one date only. Estimate revisions are "
+                "measured between two snapshots, so the revisions factor cannot "
+                "be computed yet and every ticker fails the factor-coverage "
+                "floor. This clears on the next refresh dated after "
+                f"{dates[0].isoformat()}."
+            ),
+        }
+    return {
+        "state": "coverage_floor",
+        "snapshot_dates": [d.isoformat() for d in dates],
+        "detail": (
+            "Fundamentals span multiple dates but no ticker cleared the "
+            "factor-coverage floor. Check the worker log for the missing-factor "
+            "breakdown."
+        ),
+    }
+
+
 @router.get("/dry-run", dependencies=[Depends(require_ops_key)])
 def dry_run_preview(db: Session = Depends(get_db)):
     """What would we do next eval? Does not persist trades."""
@@ -455,6 +504,7 @@ def dry_run_preview(db: Session = Depends(get_db)):
     # an unscored universe yields zero signals and zero explanation.
     scored_held = sum(1 for t in state.positions if t in scores)
     return {
+        "diagnosis": _universe_diagnosis(db, len(scores)),
         "params_version": params.version_hash(),
         "portfolio": {
             "cash": state.cash,

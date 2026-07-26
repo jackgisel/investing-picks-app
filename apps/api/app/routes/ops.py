@@ -471,11 +471,13 @@ def dry_run_preview(db: Session = Depends(get_db)):
             # every buy. That is deliberate (see compute_estimate_revisions),
             # but without a number here it is indistinguishable from a strategy
             # that simply found nothing worth buying.
-            "revisions_gate": params.min_revisions_grade,
+            "revisions_gate": params.buy_criteria.min_revisions_grade,
             "passing_revisions_gate": sum(
                 1
                 for s in scores.values()
-                if grade_meets_minimum(s.revisions_grade, params.min_revisions_grade)
+                if grade_meets_minimum(
+                    s.revisions_grade, params.buy_criteria.min_revisions_grade
+                )
             ),
         },
         "signals": [s.to_dict() for s in signals],

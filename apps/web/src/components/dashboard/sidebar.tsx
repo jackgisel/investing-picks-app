@@ -11,6 +11,7 @@ import {
   BookOpen,
   Settings,
   ScanSearch,
+  FileText,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
@@ -33,6 +34,7 @@ const NAV_ITEMS: readonly NavItem[] = [
   { label: "Pick history", href: "/dashboard/picks", icon: History },
   { label: "Trades", href: "/dashboard/trades", icon: ArrowLeftRight },
   { label: "Performance", href: "/dashboard/performance", icon: BarChart3 },
+  { label: "Insights", href: "/insights", icon: FileText },
   { label: "Strategy", href: "/dashboard/strategy", icon: BookOpen },
   {
     label: "Decision ledger",

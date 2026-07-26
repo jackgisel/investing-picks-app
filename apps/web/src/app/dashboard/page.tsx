@@ -6,6 +6,7 @@ import { LiveStatus } from "@/components/dashboard/live-status";
 import { PerformanceChart } from "@/components/dashboard/performance-chart";
 import { StatTile } from "@/components/dashboard/stat-tile";
 import { SectorAllocation } from "@/components/dashboard/sector-allocation";
+import { InsightsCard } from "@/components/dashboard/insights-card";
 import {
   DataState,
   DataStateCard,
@@ -201,6 +202,8 @@ export default function DashboardPage() {
               />
             </div>
           )}
+
+          <InsightsCard holdings={holdings} />
 
           {/* Recent picks */}
           <div className="data-panel">

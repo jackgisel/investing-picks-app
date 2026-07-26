@@ -8,7 +8,7 @@ import {
   hasDataState,
   resolveDataState,
 } from "@/components/ui/data-state";
-import { Filter, ArrowUpDown } from "lucide-react";
+import { Filter, ArrowUpDown, FileText } from "lucide-react";
 import { formatPctOrDash, pnlClass } from "@/lib/portfolio";
 import { getInsightByTicker } from "@/lib/insight-index";
 
@@ -181,9 +181,13 @@ export default function PicksPage() {
                         {insightSlug ? (
                           <Link
                             href={`/insights/${insightSlug}`}
-                            className="font-mono font-semibold text-[14px] text-text underline underline-offset-2 hover:opacity-70 underline-offset-4"
+                            title="Read the research note"
+                            className="inline-flex items-center gap-1.5 font-mono font-semibold text-[14px] text-text underline underline-offset-4 hover:opacity-70"
                           >
                             {p.ticker}
+                            {/* The underline alone made the archive something
+                                you found by accident. */}
+                            <FileText size={11} className="text-accent-lilac" />
                           </Link>
                         ) : (
                           <span className="font-mono font-semibold text-[14px]">

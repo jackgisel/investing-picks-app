@@ -8,7 +8,9 @@
     "dev:clean": "rm -rf .next && next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "insights:index": "node scripts/build-insight-index.mjs",
+    "check": "node scripts/build-insight-index.mjs --check && node scripts/test-constants.mjs && node scripts/test-api-gate.mjs && node scripts/test-api-error.mjs && node scripts/test-paddle-webhook.mjs"
   },
   "dependencies": {
     "@better-auth/core": "^1.1.0",

@@ -103,6 +103,7 @@ export function PositionsOpen() {
               ? strategy.params.sector_concentration
               : null
           }
+          maxPositions={strategy?.strategy?.max_positions ?? null}
         />
       )}
 

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { activeHref, covers, flatten, visibleGroups } from "./nav-model";
-import { groupBySector, UNCLASSIFIED } from "./sector-model";
+import {
+  groupBySector,
+  sectorPositionCap,
+  UNCLASSIFIED,
+} from "./sector-model";
 import { actionMeta } from "./trade-action";
 import { getInsightByTicker, getInsightsForTickers } from "@/lib/insight-index";
 
@@ -248,5 +252,31 @@ describe("anonymised payload safety", () => {
   it("getInsightsForTickers still matches around missing entries", () => {
     const mixed = [undefined, "wdc", null] as never as string[];
     expect(getInsightsForTickers(mixed).map((i) => i.ticker)).toEqual(["WDC"]);
+  });
+});
+
+describe("sectorPositionCap", () => {
+  // sector_concentration reads like a share of the book and is not one. The
+  // engine computes int(max_positions * sector_concentration) and compares it
+  // against a COUNT of held names, so 0.30 across 50 slots means 15 names.
+  // The dashboard first compared it against weight, which would have called a
+  // 6-of-8 book a breach of a cap it was nowhere near.
+  it("returns a position count, not a percentage", () => {
+    expect(sectorPositionCap(0.3, 50)).toBe(15);
+  });
+
+  it("floors rather than rounds, matching int() in the engine", () => {
+    expect(sectorPositionCap(0.3, 11)).toBe(3);
+    expect(sectorPositionCap(0.33, 10)).toBe(3);
+  });
+
+  it("is unknown when either input is missing", () => {
+    expect(sectorPositionCap(null, 50)).toBeNull();
+    expect(sectorPositionCap(0.3, null)).toBeNull();
+    expect(sectorPositionCap(undefined, undefined)).toBeNull();
+  });
+
+  it("treats a cap that floors to zero as no cap at all", () => {
+    expect(sectorPositionCap(0.05, 10)).toBeNull();
   });
 });

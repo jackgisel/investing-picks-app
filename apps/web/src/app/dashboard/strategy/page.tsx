@@ -13,6 +13,7 @@ import {
   SectorRelativeExample,
   type Emphasis,
 } from "@/components/dashboard/strategy-diagrams";
+import { sectorPositionCap } from "@/components/dashboard/sector-model";
 import { Check, X } from "lucide-react";
 
 /**
@@ -199,11 +200,15 @@ export default function StrategyPage() {
               <div className="data-card">
                 <p className="field-label">SECTOR CEILING</p>
                 <p className="mt-1.5 font-mono text-xl font-bold tabular-nums text-text">
-                  {sectorCap === null ? "—" : `${Math.round(sectorCap * 100)}%`}
+                  {sectorPositionCap(sectorCap, maxPositions) ?? "—"}
+                  <span className="font-sans text-[13px] font-medium text-text-dim">
+                    {" "}
+                    names
+                  </span>
                 </p>
                 <p className="mt-2 font-sans text-[12px] leading-relaxed text-text-dim">
-                  No sector may exceed this share of the book. Enforced on every
-                  buy, not reviewed after the fact.
+                  The most positions we will hold in any one sector. Checked on
+                  every buy, not reviewed after the fact.
                 </p>
               </div>
               <div className="data-card">

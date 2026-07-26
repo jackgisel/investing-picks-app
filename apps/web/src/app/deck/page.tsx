@@ -15,7 +15,7 @@ import {
 import { useStrategy } from "@/lib/hooks/use-strategy";
 import { useChart, buildPicksComparison } from "@/lib/hooks/use-chart";
 import { useTrades } from "@/lib/hooks/use-trades";
-import { useBlogPosts } from "@/lib/hooks/use-blog-posts";
+import { INSIGHT_INDEX } from "@/lib/insight-index";
 import { computePortfolioReturnPct } from "@/lib/portfolio";
 
 /** Positions per holdings slide — two columns of seven fills the frame. */
@@ -29,7 +29,6 @@ export default function DeckPage() {
   const { data: strategy } = useStrategy();
   const { data: chart } = useChart();
   const { data: tradesData } = useTrades(MAX_TRADES);
-  const { data: blog } = useBlogPosts("pick");
 
   const comparison = useMemo(() => buildPicksComparison(chart), [chart]);
 
@@ -56,7 +55,9 @@ export default function DeckPage() {
       holdingPages.push(holdings.slice(i, i + HOLDINGS_PER_SLIDE));
     }
 
-    const research = (blog?.posts ?? []).slice(0, MAX_RESEARCH_SLIDES);
+    const research = INSIGHT_INDEX.filter(
+      (i) => i.postType === "pick",
+    ).slice(0, MAX_RESEARCH_SLIDES);
 
     return [
       <CoverSlide key="cover" reviewDate={reviewDate} />,
@@ -80,12 +81,12 @@ export default function DeckPage() {
         ? [<WinnersLaggardsSlide key="winners" holdings={holdings} />]
         : []),
       <TradesSlide key="trades" trades={tradesData?.trades ?? []} />,
-      ...research.map((post) => (
-        <ResearchSlide key={post.slug} post={post} />
+      ...research.map((insight) => (
+        <ResearchSlide key={insight.slug} insight={insight} />
       )),
       <OutroSlide key="outro" />,
     ];
-  }, [strategy, comparison, tradesData, blog, reviewDate]);
+  }, [strategy, comparison, tradesData, reviewDate]);
 
   // Data arriving can shorten the deck (e.g. the winners slide drops out), so
   // clamp rather than letting the stage index past the end and render blank.

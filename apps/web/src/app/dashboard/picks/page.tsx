@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/data-state";
 import { Filter, ArrowUpDown } from "lucide-react";
 import { formatPctOrDash, pnlClass } from "@/lib/portfolio";
-import { getInsightSlugByTicker } from "@/lib/insight-links";
+import { getInsightByTicker } from "@/lib/insight-index";
 
 /** Buy-ish ratings read green, sell-ish red, hold neutral. */
 function signalBadgeClass(signal: string): string {
@@ -171,7 +171,7 @@ export default function PicksPage() {
               ) : (
                 filtered.map((p, i) => {
                   const insightSlug =
-                    p.blog_slug ?? getInsightSlugByTicker(p.ticker);
+                    p.blog_slug ?? getInsightByTicker(p.ticker)?.slug;
                   return (
                     <tr
                       key={`${p.ticker}-${p.entry_date}-${i}`}

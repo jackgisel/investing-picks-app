@@ -34,7 +34,7 @@ export function DashboardPreview() {
           <div>
             <p className="section-label section-label-coral">Backtest winners</p>
             <h2 className="section-title max-w-[540px]">
-              Eight picks doubled. That&apos;s the edge.
+              {BACKTEST.winnersCircle} picks doubled. That&apos;s the edge.
             </h2>
             <p className="section-sub mb-0 max-w-[500px]">
               Total return tells part of the story. What matters is how many

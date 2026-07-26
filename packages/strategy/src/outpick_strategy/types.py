@@ -15,6 +15,11 @@ class Action(str, Enum):
     PARTIAL_SELL = "partial_sell"
     TRIM = "trim"
     RECYCLE_TRIM = "recycle_trim"
+    # Records a decision NOT to act — currently an exit suppressed by
+    # min_holding_days. `apply_signals` dispatches on an explicit allow-list of
+    # buy and sell actions, so this is inert at execution time by construction;
+    # it exists so the ledger shows the rule that fired instead of silence.
+    HOLD = "hold"
 
 
 @dataclass

@@ -95,3 +95,62 @@ def test_fixed_dollar_sizing_overrides_percent_of_equity():
     assert fixed.target_notional(equity) == 1000.0
     assert fixed.target_notional(50_000.0) == 1000.0
     assert fixed.version_hash() != RUN118_PARAMS.version_hash()
+
+
+def _position(entry_days_ago: int):
+    from datetime import date, timedelta
+
+    from outpick_strategy import PositionState
+
+    return PositionState(
+        ticker="SOFI",
+        shares=100.0,
+        avg_cost=10.0,
+        current_price=10.08,
+        entry_date=date.today() - timedelta(days=entry_days_ago),
+        initial_investment=1000.0,
+    )
+
+
+def _score(qr: float):
+    from outpick_strategy import ScoreSnapshot
+
+    return ScoreSnapshot(ticker="SOFI", quant_rating=qr, valuation_grade="C",
+                         growth_grade="C", profitability_grade="C",
+                         momentum_grade="C", revisions_grade="C", sector="Financial Services")
+
+
+def _evaluate(qr: float, days_held: int, min_holding_days: int):
+    from datetime import date
+
+    from outpick_strategy import PortfolioState, evaluate_sells_only
+
+    params = RUN118_PARAMS.with_overrides(
+        min_holding_days=min_holding_days, enable_daily_sell_pass=True
+    )
+    state = PortfolioState(cash=1000.0, positions={"SOFI": _position(days_held)})
+    return evaluate_sells_only(state, {"SOFI": _score(qr)}, params, as_of=date.today())
+
+
+def test_min_holding_days_suppresses_an_early_hold_removal():
+    """SOFI's real shape: QR 1.66, held 50 days."""
+    actions = [s.action.value for s in _evaluate(1.66, days_held=50, min_holding_days=180)]
+    assert "full_sell" not in actions
+    assert "hold" in actions, "the suppression should be recorded, not silent"
+
+
+def test_hold_removal_fires_once_the_minimum_has_passed():
+    actions = [s.action.value for s in _evaluate(1.66, days_held=200, min_holding_days=180)]
+    assert "full_sell" in actions
+
+
+def test_strong_sell_is_never_suppressed():
+    """A collapsing name must stay exitable — that is the whole design point."""
+    actions = [s.action.value for s in _evaluate(1.2, days_held=10, min_holding_days=180)]
+    assert "full_sell" in actions
+
+
+def test_run118_default_has_no_holding_period():
+    assert RUN118_PARAMS.min_holding_days == 0
+    actions = [s.action.value for s in _evaluate(1.66, days_held=1, min_holding_days=0)]
+    assert "full_sell" in actions

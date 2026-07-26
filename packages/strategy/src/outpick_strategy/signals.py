@@ -218,6 +218,33 @@ def _removal_signals(
 
         # Hold removal / Winners Circle
         if qr < params.hold_removal_rating:
+            # Turnover control: too soon to act on an ordinary rating decline.
+            # Checked here rather than at the top of the loop so it never
+            # suppresses strong_sell or the underwater stop above.
+            if params.min_holding_days and pos.entry_date:
+                days_held = (as_of - pos.entry_date).days
+                if days_held < params.min_holding_days:
+                    signals.append(
+                        Signal(
+                            action=Action.HOLD,
+                            ticker=pos.ticker,
+                            reason=(
+                                f"Hold-removal suppressed: {days_held}d held, "
+                                f"minimum {params.min_holding_days}d (QR {qr:.1f})"
+                            ),
+                            score=score,
+                            rules=[
+                                RuleCheck(
+                                    rule_id="min_holding_days",
+                                    passed=False,
+                                    inputs={"days_held": days_held, "qr": qr},
+                                    threshold={"min_holding_days": params.min_holding_days},
+                                    message="Rating is below hold, but the position is too young to exit",
+                                )
+                            ],
+                        )
+                    )
+                    continue
             if (
                 is_winner
                 and not pos.is_house_money

@@ -68,6 +68,12 @@ class StrategyParams:
     # Exits
     strong_sell_rating: float = 1.5
     hold_removal_rating: float = 2.5
+    # Minimum days before the ordinary hold-removal exit (rating below
+    # hold_removal_rating) may fire. Deliberately does NOT gate strong_sell:
+    # a name collapsing past that threshold is the case you most need to be
+    # able to exit, and a turnover control should not become a trap. The
+    # underwater stop has its own, longer clock. 0 = Run 118 as backtested.
+    min_holding_days: int = 0
     winner_threshold: float = 0.60
     max_underwater_days: int = 270  # Run 118
     underwater_qr_threshold: float = 3.0

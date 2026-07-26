@@ -224,3 +224,29 @@ describe("insight index lookups", () => {
     expect([...dates].sort().reverse()).toEqual(dates);
   });
 });
+
+describe("anonymised payload safety", () => {
+  // Regression. anonymiseStrategy returns HTTP 200 with holdings stripped to
+  // { pnl_pct, weight_pct, sector } — no ticker — for a signed-in
+  // non-subscriber. /dashboard/positions rendered that payload and threw
+  // "Cannot read properties of undefined (reading 'toUpperCase')", replacing
+  // the whole shell with a client-side exception. TypeScript missed it
+  // because Holding.ticker was declared non-optional: the type described the
+  // entitled payload only.
+  it("getInsightByTicker survives a missing ticker", () => {
+    expect(() => getInsightByTicker(undefined as never)).not.toThrow();
+    expect(getInsightByTicker(undefined as never)).toBeUndefined();
+    expect(getInsightByTicker("" as never)).toBeUndefined();
+  });
+
+  it("getInsightsForTickers survives holdings with no tickers", () => {
+    const anonymised = [undefined, null, ""] as never as string[];
+    expect(() => getInsightsForTickers(anonymised)).not.toThrow();
+    expect(getInsightsForTickers(anonymised)).toEqual([]);
+  });
+
+  it("getInsightsForTickers still matches around missing entries", () => {
+    const mixed = [undefined, "wdc", null] as never as string[];
+    expect(getInsightsForTickers(mixed).map((i) => i.ticker)).toEqual(["WDC"]);
+  });
+});

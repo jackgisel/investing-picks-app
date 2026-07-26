@@ -2,7 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { dataQueryOptions, fetchJson } from "./api-error";
 
 export interface Holding {
-  ticker: string;
+  /**
+   * Null on the anonymised payload served to non-subscribers — `/api/data/
+   * strategy` answers 200, not 402, so this shape reaches the browser on the
+   * normal success path. Declaring it non-optional is what let a ticker-less
+   * row crash the positions page.
+   */
+  ticker: string | null;
   entry_date: string | null;
   /** Gain vs. cost basis. Real for house-money holdings now, not a flat 0%. */
   pnl_pct: number;

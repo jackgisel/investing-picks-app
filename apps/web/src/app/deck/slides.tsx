@@ -294,7 +294,7 @@ export function WinnersLaggardsSlide({ holdings }: { holdings: Holding[] }) {
             Leading
           </p>
           {winners.map((h) => (
-            <Row key={h.ticker} ticker={h.ticker} value={h.pnl_pct} />
+            <Row key={h.ticker ?? "—"} ticker={h.ticker ?? "—"} value={h.pnl_pct} />
           ))}
         </div>
         <div>
@@ -302,7 +302,7 @@ export function WinnersLaggardsSlide({ holdings }: { holdings: Holding[] }) {
             Lagging
           </p>
           {laggards.map((h) => (
-            <Row key={h.ticker} ticker={h.ticker} value={h.pnl_pct} />
+            <Row key={h.ticker ?? "—"} ticker={h.ticker ?? "—"} value={h.pnl_pct} />
           ))}
         </div>
       </div>

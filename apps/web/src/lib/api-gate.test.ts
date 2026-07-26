@@ -169,10 +169,22 @@ describe("anonymiseStrategy", () => {
   it("strips the ticker and entry date from holdings", () => {
     const out = anonymiseStrategy(payload);
     expect(out.holdings[0]).toEqual({
+      // Present and null, not absent: consumers type these as `string | null`,
+      // and an omitted key reads as `undefined` at runtime while still
+      // satisfying that type — which is how a ticker-less row reached
+      // `ticker.toUpperCase()` and crashed the positions page.
+      ticker: null,
+      entry_date: null,
       pnl_pct: 12.5,
       weight_pct: 8.1,
       sector: "Technology",
     });
+  });
+
+  it("leaks no identifying value, whatever the key shape", () => {
+    const serialised = JSON.stringify(anonymiseStrategy(payload));
+    expect(serialised).not.toContain("WDC");
+    expect(serialised).not.toContain("2026-01-02");
   });
 
   it("strips the ticker list and every dollar figure", () => {

@@ -73,7 +73,8 @@ export function PositionsOpen() {
   const sorted = holdings
     ? [...holdings].sort((a, b) => {
         let cmp = 0;
-        if (sortKey === "ticker") cmp = a.ticker.localeCompare(b.ticker);
+        if (sortKey === "ticker")
+          cmp = (a.ticker ?? "").localeCompare(b.ticker ?? "");
         else if (sortKey === "pnl_pct") cmp = a.pnl_pct - b.pnl_pct;
         else if (sortKey === "weight_pct")
           cmp = (a.weight_pct ?? 0) - (b.weight_pct ?? 0);
@@ -133,10 +134,12 @@ export function PositionsOpen() {
               ) : (
                 sorted?.map((h) => {
                   const slug = getInsightByTicker(h.ticker)?.slug;
-                  const signal = signalByTicker.get(h.ticker);
+                  const signal = h.ticker
+                    ? signalByTicker.get(h.ticker)
+                    : undefined;
                   return (
                     <tr
-                      key={h.ticker}
+                      key={h.ticker ?? h.entry_date ?? "row"}
                       className="border-b border-border transition-colors last:border-b-0 hover:bg-bg-tertiary/50"
                     >
                       <td className="px-5 py-3.5">
@@ -155,7 +158,7 @@ export function PositionsOpen() {
                             </Link>
                           ) : (
                             <span className="font-mono text-[14px] font-semibold">
-                              {h.ticker}
+                              {h.ticker ?? "—"}
                             </span>
                           )}
                           {h.is_house_money && (

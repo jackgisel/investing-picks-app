@@ -31,15 +31,29 @@ export default function PositionsPage() {
 
   // Every tab sits behind the same paywall, so a gate replaces the whole page
   // rather than letting the user tab between three copies of the same prompt.
-  const gateState = resolveDataState({
-    isPending: strategyQuery.isPending,
-    isError: strategyQuery.isError,
-    error: strategyQuery.error,
-    isEmpty: false,
-  });
-  const gate =
-    gateState === "unauthenticated" || gateState === "subscription"
-      ? gateState
+  //
+  // Both queries are consulted deliberately. /api/data/strategy answers 200
+  // to a signed-in non-subscriber with an ANONYMISED body — holdings with no
+  // tickers — so entitlement cannot be inferred from its error state alone.
+  // /api/data/picks answers 402 for the same caller, which is what actually
+  // reveals the gate. Reading only the strategy query is how ticker-less rows
+  // reached the table and crashed it.
+  const gateFrom = (q: { isPending: boolean; isError: boolean; error: unknown }) =>
+    resolveDataState({
+      isPending: q.isPending,
+      isError: q.isError,
+      error: q.error,
+      isEmpty: false,
+    });
+  const isGate = (s: string | null) =>
+    s === "unauthenticated" || s === "subscription";
+
+  const strategyGate = gateFrom(strategyQuery);
+  const closedGate = gateFrom(closedQuery);
+  const gate = isGate(strategyGate)
+    ? (strategyGate as "unauthenticated" | "subscription")
+    : isGate(closedGate)
+      ? (closedGate as "unauthenticated" | "subscription")
       : null;
 
   const tabs: readonly TabDef<TabId>[] = [

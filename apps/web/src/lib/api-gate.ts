@@ -134,6 +134,11 @@ export function anonymiseStrategy<T extends Record<string, unknown>>(payload: T)
   const holdings = out.holdings;
   if (Array.isArray(holdings)) {
     out.holdings = holdings.map((h: Holding) => ({
+      // Explicitly null rather than absent: consumers type this as
+      // `string | null`, and an omitted key reads as `undefined` at runtime
+      // while still satisfying the type.
+      ticker: null,
+      entry_date: null,
       pnl_pct: h.pnl_pct ?? 0,
       weight_pct: h.weight_pct ?? 0,
       sector: h.sector ?? null,

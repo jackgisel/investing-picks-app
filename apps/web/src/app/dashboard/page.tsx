@@ -280,7 +280,7 @@ function HoldingsCard({
 }: {
   title: string;
   holdings:
-    | { ticker: string; pnl_pct: number; entry_date: string | null }[]
+    | { ticker: string | null; pnl_pct: number; entry_date: string | null }[]
     | undefined;
   state: DataStateKind | null;
 }) {

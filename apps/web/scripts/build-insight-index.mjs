@@ -113,10 +113,16 @@ export const INSIGHT_INDEX: readonly InsightIndexEntry[] = [
 ${rows}
 ];
 
-/** The insight covering a ticker, if we have published one. */
+/**
+ * The insight covering a ticker, if we have published one.
+ *
+ * Tolerates a null ticker: the anonymised payload served to non-subscribers
+ * has no tickers, and it arrives as a 200 on the ordinary success path.
+ */
 export function getInsightByTicker(
-  ticker: string,
+  ticker: string | null | undefined,
 ): InsightIndexEntry | undefined {
+  if (!ticker) return undefined;
   const upper = ticker.toUpperCase();
   return INSIGHT_INDEX.find(
     (i) => i.postType === "pick" && i.ticker?.toUpperCase() === upper,
@@ -125,9 +131,11 @@ export function getInsightByTicker(
 
 /** Insights covering any of these tickers, newest first. */
 export function getInsightsForTickers(
-  tickers: readonly string[],
+  tickers: readonly (string | null | undefined)[],
 ): InsightIndexEntry[] {
-  const wanted = new Set(tickers.map((t) => t.toUpperCase()));
+  const wanted = new Set(
+    tickers.filter((t): t is string => Boolean(t)).map((t) => t.toUpperCase()),
+  );
   return INSIGHT_INDEX.filter(
     (i) => i.ticker !== null && wanted.has(i.ticker.toUpperCase()),
   );

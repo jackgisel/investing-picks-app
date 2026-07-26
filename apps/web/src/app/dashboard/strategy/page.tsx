@@ -261,37 +261,36 @@ export default function StrategyPage() {
 
           {/* Provenance */}
           <section className="space-y-3">
-            <p className="panel-label">Engine</p>
-            <div className="data-panel">
-              <div className="grid grid-cols-2 divide-x divide-border border-b border-border sm:grid-cols-4 sm:divide-y-0">
-                {[
-                  { label: "STRATEGY", value: data?.name ?? data?.strategy?.name ?? "—" },
-                  { label: "VERSION", value: data?.params_version ?? "—", mono: true },
-                  { label: "CADENCE", value: cadence },
-                  {
-                    label: "OPEN / MAX",
-                    value: `${data?.position_count ?? data?.portfolio?.position_count ?? "—"} / ${maxPositions ?? "—"}`,
-                    mono: true,
-                  },
-                ].map((c) => (
-                  <div key={c.label} className="px-5 py-4">
-                    <p className="field-label">{c.label}</p>
-                    <p
-                      className={`mt-1.5 text-[14px] font-semibold text-text ${
-                        c.mono ? "font-mono tabular-nums" : "font-sans"
-                      }`}
-                    >
-                      {c.value}
-                    </p>
-                  </div>
-                ))}
-              </div>
-              <p className="px-5 py-4 font-sans text-[12px] leading-relaxed text-text-dim">
-                The version is a fingerprint of the exact parameter set the
-                engine is running. It is published so a subscriber can tell that
-                the strategy trading the live book is the same one that produced
-                the backtest — and can tell when it changes.
+            <p className="panel-label">Nothing changes quietly</p>
+            <div className="data-card">
+              <p className="max-w-[620px] font-sans text-[13px] leading-relaxed text-text-muted">
+                The rules above are fixed in advance and applied the same way
+                every cycle. To prove that, we publish a fingerprint of the
+                exact settings the strategy is running. If we ever change how
+                picks are chosen, this changes with it — so you can hold us to
+                the method you subscribed to rather than take our word for it.
               </p>
+              <div className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-4 border-t border-border pt-4">
+                <div>
+                  <p className="field-label">CURRENT METHOD</p>
+                  <p className="mt-1.5 font-mono text-[14px] font-semibold tabular-nums text-text">
+                    {data?.params_version ?? "—"}
+                  </p>
+                </div>
+                <div>
+                  <p className="field-label">REVIEWED</p>
+                  <p className="mt-1.5 font-sans text-[14px] font-semibold capitalize text-text">
+                    {cadence}
+                  </p>
+                </div>
+                <div>
+                  <p className="field-label">POSITIONS OPEN</p>
+                  <p className="mt-1.5 font-mono text-[14px] font-semibold tabular-nums text-text">
+                    {data?.position_count ?? data?.portfolio?.position_count ?? "—"}
+                    <span className="text-text-dim"> / {maxPositions ?? "—"}</span>
+                  </p>
+                </div>
+              </div>
             </div>
           </section>
         </>

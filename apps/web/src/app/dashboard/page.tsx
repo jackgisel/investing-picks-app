@@ -109,7 +109,9 @@ export default function DashboardPage() {
     : strategyFailed
       ? "Live data unavailable"
       : strategyMeta
-        ? `${strategyMeta.name} · ${strategyMeta.evaluation_frequency} evaluation`
+        ? // Deliberately not strategyMeta.name — that is the internal
+          // portfolio label ("AP Strategy") and means nothing to a subscriber.
+          `Live portfolio · ${strategyMeta.evaluation_frequency} evaluation`
         : "Loading...";
 
   return (

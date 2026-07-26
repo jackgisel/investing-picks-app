@@ -15,6 +15,7 @@ from app.db.models import (
     Portfolio,
     PortfolioSnapshot,
     Position,
+    Stock,
     Trade,
 )
 from app.db.session import get_db
@@ -143,6 +144,7 @@ def get_strategy(db: Session = Depends(get_db)):
     # realized P&L, and is immune to house-money positions.
     total_return = total_return_pct(db, portfolio)
     picks = picks_return(db, portfolio)
+    sectors = _sector_by_ticker(db, [p.ticker for p in positions])
     holdings = [
         {
             "ticker": p.ticker,
@@ -152,7 +154,7 @@ def get_strategy(db: Session = Depends(get_db)):
             "pnl_pct": _pnl_pct(p.avg_cost, p.current_price) or 0,
             "is_house_money": bool(p.is_house_money),
             "weight_pct": round(p.market_value / equity * 100, 2) if equity else 0,
-            "sector": p.sector,
+            "sector": p.sector or sectors.get(p.ticker),
         }
         for p in positions
     ]
@@ -187,6 +189,28 @@ def get_strategy(db: Session = Depends(get_db)):
         # StrategyParams.PUBLIC_FIELDS.
         "params": params.public_dict(),
     }
+
+
+def _sector_by_ticker(db: Session, tickers: list[str]) -> dict[str, str | None]:
+    """Sector from the `stocks` reference table, keyed by ticker.
+
+    `Position.sector` is stamped at buy time from the score snapshot, so every
+    position opened by the engine has one. The live book was seeded by hand and
+    those rows have NULL — which rendered the entire portfolio as
+    "Unclassified" on the dashboard even though `stocks` has the real sector,
+    refreshed from the FMP profile on every ingest.
+
+    Read-time fallback rather than a backfill migration: `stocks` is the
+    canonical reference and stays current, so this also heals any future row
+    whose sector was missing at entry.
+
+    Note this is display only. The strategy's own sector-concentration cap
+    reads `CompositeScore.sector` first (signals.py), so it was never affected.
+    """
+    if not tickers:
+        return {}
+    rows = db.query(Stock.ticker, Stock.sector).filter(Stock.ticker.in_(tickers)).all()
+    return {ticker: sector for ticker, sector in rows}
 
 
 def _latest_ratings(db: Session) -> dict[str, float]:

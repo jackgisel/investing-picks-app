@@ -3,6 +3,7 @@
 import { useStrategy } from "@/lib/hooks/use-strategy";
 import { usePicks } from "@/lib/hooks/use-picks";
 import { LiveStatus } from "@/components/dashboard/live-status";
+import { PerformanceChart } from "@/components/dashboard/performance-chart";
 import {
   DataState,
   DataStateCard,
@@ -159,6 +160,10 @@ export default function DashboardPage() {
             />
           </div>
 
+          {/* The picks curve. The index page had no chart at all, so the
+              headline number arrived with no shape behind it. */}
+          <PerformanceChart compact />
+
           {strategyFailed ? (
             <DataStateCard
               state="error"
@@ -167,7 +172,7 @@ export default function DashboardPage() {
             />
           ) : (
             /* Top + Bottom holdings */
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <HoldingsCard
                 title="TOP PERFORMERS"
                 holdings={topHoldings}

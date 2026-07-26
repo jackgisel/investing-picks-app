@@ -208,7 +208,7 @@ export function TrackRecord() {
           <div className="rounded-soft border border-border overflow-hidden bg-bg-secondary/30">
             <div className="flex flex-wrap items-center justify-between gap-3 px-6 sm:px-7 py-5 border-b border-border">
               <span className="font-sans text-[10px] font-bold tracking-[0.14em] uppercase text-text-dim">
-                5-year model backtest
+                {BACKTEST.yearsCovered}-year model backtest
               </span>
               <span className="font-sans text-[9px] tracking-[0.1em] font-bold px-3 py-1 rounded-pill bg-bg-tertiary text-text-muted uppercase">
                 Simulated · not live
@@ -280,7 +280,9 @@ export function TrackRecord() {
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6 font-sans text-[13px] text-text-muted leading-relaxed mb-12">
             <p>
-              <strong className="text-text">Built on 5 years of history.</strong>{" "}
+              <strong className="text-text">
+                Built on {BACKTEST.yearsCovered} years of history.
+              </strong>{" "}
               We developed the model on trailing market data, then validated it
               walk-forward — training on one period, testing on unseen data (
               {BACKTEST.validationStart} – {BACKTEST.validationEnd}) before

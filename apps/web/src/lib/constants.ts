@@ -28,8 +28,10 @@ export const BACKTEST = {
   label: "COMBINED: best weights + best Outpick-style",
   startDate: "Jun 15, 2022",
   endDate: "Apr 06, 2026",
-  yearsCovered: 5,
-  yearsLabel: "5-year trailing history",
+  // Jun 15, 2022 — Apr 06, 2026 is 3.81 years. Keep these two in sync with
+  // startDate/endDate above; they are rendered as performance claims.
+  yearsCovered: 3.8,
+  yearsLabel: "3.8-year trailing history",
   totalReturn: "+250.39%",
   cagr: "+38.99%",
   spyReturn: "+83.34%",

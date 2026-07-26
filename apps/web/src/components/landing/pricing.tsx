@@ -1,4 +1,4 @@
-import { PRICING, FOUNDERS_DEAL_MAX_DAY } from "@/lib/constants";
+import { BACKTEST, PRICING, FOUNDERS_DEAL_MAX_DAY } from "@/lib/constants";
 import { FoundersPricingCallout } from "./founders-pricing-callout";
 import { PillButton } from "@/components/ui/pill-button";
 import { TONE_BG, toneByIndex } from "@/lib/tones";
@@ -9,7 +9,7 @@ const features = [
   "Performance tracking vs S&P 500",
   "Email alerts on new picks",
   "Complete research notes and investment thesis",
-  "5-year model backtest + live example portfolio",
+  `${BACKTEST.yearsCovered}-year model backtest + live example portfolio`,
   "Transparent track record — wins and losses",
 ];
 

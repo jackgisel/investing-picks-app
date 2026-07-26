@@ -82,14 +82,14 @@ export function StatsBar() {
             <div className="op-animate-rise op-animate-rise-delay-1 xl:flex-1 xl:pl-10">
               <div className="flex items-center justify-between gap-3 mb-3">
                 <p className="font-sans text-[10px] font-bold tracking-[0.16em] uppercase text-text-dim">
-                  5-year walk-forward model
+                  {BACKTEST.yearsCovered}-year walk-forward model
                 </p>
                 <span className="badge bg-bg-tertiary text-text-muted shrink-0">
                   Simulated
                 </span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-8">
-                <Stat label="5-yr CAGR" value={BACKTEST.cagr} hero />
+                <Stat label="Model CAGR" value={BACKTEST.cagr} hero />
                 <Stat label="2× winners" value={String(BACKTEST.winnersCircle)} />
                 <Stat label="Win rate" value={BACKTEST.winRate} />
                 <Stat label="vs S&P" value={BACKTEST.alpha} />

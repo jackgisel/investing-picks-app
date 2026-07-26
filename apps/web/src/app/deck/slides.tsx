@@ -189,7 +189,7 @@ export function ScoreboardSlide({
           label="Model target CAGR"
           value={BACKTEST.cagr}
           tone="green"
-          note="5-year walk-forward backtest"
+          note={`${BACKTEST.yearsCovered}-year walk-forward backtest`}
         />
       </div>
     </Slide>

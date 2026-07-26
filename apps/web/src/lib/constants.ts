@@ -79,8 +79,9 @@ export const LIVE_PORTFOLIO = {
 // position-level return would be more precise but needs the per-tranche share
 // counts, which are not in this repo.
 //
-// Eight doubling exits across five positions; `topExitsPerPosition` is kept so
-// the trimming behaviour can still be described honestly in copy.
+// `exits` records how many times each position was sold out of, so the
+// trimming behaviour can still be described honestly in copy — see
+// WINNERS_CIRCLE_EXITS below.
 export const WINNERS_CIRCLE = [
   { ticker: "YPF",  entry: "2023-11-20", exit: "2025-01-06", ret: "+199.87%", exits: 2 },
   { ticker: "TGS",  entry: "2023-02-21", exit: "2026-01-05", ret: "+189.83%", exits: 1 },
@@ -115,14 +116,6 @@ export const FINAL_HOLDINGS = [
   { ticker: "SEZL", entry: "2025-02-03", ret: "-42.91%",  fromPeak: "-62.0%" },
 ];
 
-export const NAV_LINKS = [
-  { label: "Track record", href: "/#track-record" },
-  { label: "Our strategy", href: "/#strategy" },
-  { label: "How it works", href: "/#how-it-works" },
-  { label: "Pricing", href: "/#pricing" },
-  { label: "Blog", href: "/blog" },
-  { label: "FAQ", href: "/#faq" },
-] as const;
 
 export const PADDLE_CLIENT_TOKEN = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || "";
 export const PADDLE_PRICE_ID = process.env.NEXT_PUBLIC_PADDLE_PRICE_ID || "";

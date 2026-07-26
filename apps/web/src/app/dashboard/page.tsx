@@ -132,7 +132,7 @@ export default function DashboardPage() {
           {/* Live stats */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <StatTile
-              label="TOTAL RETURN"
+              label="PICKS RETURN"
               value={hasReturn ? formatPct(totalReturnPct) : "—"}
               icon={TrendingUp}
               tone="mint"

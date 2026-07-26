@@ -10,7 +10,11 @@ import {
   PicksBenchmarkLegend,
   formatChartPct,
 } from "@/components/ui/picks-benchmark-chart";
-import { BACKTEST, WINNERS_CIRCLE } from "@/lib/constants";
+import {
+  BACKTEST,
+  WINNERS_CIRCLE,
+  WINNERS_CIRCLE_EXITS,
+} from "@/lib/constants";
 import { useInceptionDate } from "@/lib/hooks/use-inception";
 import {
   computePortfolioReturnPct,
@@ -312,8 +316,10 @@ export function TrackRecord() {
               <strong className="text-text">Winners run, losers get cut.</strong>{" "}
               Position sizing and risk guardrails keep the book disciplined,
               but we don&apos;t cap upside on names that pay back their cost
-              basis — that&apos;s how {BACKTEST.winnersCircle} picks doubled in
-              the backtest.
+              basis. In the backtest {BACKTEST.winnersCircle} positions
+              doubled, and we sold out of them across{" "}
+              {WINNERS_CIRCLE_EXITS} separate exits — trimming as they ran
+              rather than closing all at once.
             </p>
             <p>
               <strong className="text-text">Live portfolio = example, not instruction.</strong>{" "}

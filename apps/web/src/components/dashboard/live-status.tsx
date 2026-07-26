@@ -70,7 +70,7 @@ export function LiveStatus() {
           </div>
           <div>
             <span className="field-label block">
-              Total return
+              Picks return
             </span>
             <span
               className={`font-mono text-[18px] font-bold ${pnlClass(

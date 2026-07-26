@@ -27,6 +27,10 @@ const nextConfig = {
         destination: "/dashboard",
         permanent: false,
       },
+      // Portfolio, Pick history and Trades were three views of one object.
+      { source: "/dashboard/portfolio", destination: "/dashboard/positions", permanent: false },
+      { source: "/dashboard/picks", destination: "/dashboard/positions", permanent: false },
+      { source: "/dashboard/trades", destination: "/dashboard/positions", permanent: false },
       {
         source: "/insights/:slug",
         destination: "/dashboard/insights/:slug",

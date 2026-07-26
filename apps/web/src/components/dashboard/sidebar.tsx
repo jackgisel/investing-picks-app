@@ -6,8 +6,6 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Briefcase,
-  History,
-  ArrowLeftRight,
   BookOpen,
   Settings,
   ScanSearch,
@@ -47,9 +45,7 @@ const NAV_GROUPS: readonly NavGroup[] = [
   {
     items: [
       { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-      { label: "Portfolio", href: "/dashboard/portfolio", icon: Briefcase },
-      { label: "Pick history", href: "/dashboard/picks", icon: History },
-      { label: "Trades", href: "/dashboard/trades", icon: ArrowLeftRight },
+      { label: "Positions", href: "/dashboard/positions", icon: Briefcase },
       { label: "Insights", href: "/dashboard/insights", icon: FileText },
       { label: "Strategy", href: "/dashboard/strategy", icon: BookOpen },
       { label: "Settings", href: "/dashboard/settings", icon: Settings },

@@ -6,7 +6,6 @@ import { usePicks } from "@/lib/hooks/use-picks";
 import { LiveStatus } from "@/components/dashboard/live-status";
 import { PerformanceChart } from "@/components/dashboard/performance-chart";
 import { StatTile } from "@/components/dashboard/stat-tile";
-import { SectorAllocation } from "@/components/dashboard/sector-allocation";
 import { InsightsCard } from "@/components/dashboard/insights-card";
 import {
   DataState,
@@ -177,17 +176,7 @@ export default function DashboardPage() {
               onRetry={() => void strategyQuery.refetch()}
             />
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {holdings && holdings.length > 0 && (
-                <SectorAllocation
-                  holdings={holdings}
-                  sectorCap={
-                    typeof strategy?.params?.sector_concentration === "number"
-                      ? strategy.params.sector_concentration
-                      : null
-                  }
-                />
-              )}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <HoldingsCard
                 title="TOP PERFORMERS"
                 holdings={topHoldings}
@@ -210,10 +199,10 @@ export default function DashboardPage() {
                 RECENT PICKS
               </span>
               <Link
-                href="/dashboard/picks"
+                href="/dashboard/positions"
                 className="font-mono text-[10px] text-text font-semibold underline underline-offset-2 hover:opacity-70 flex items-center gap-1"
               >
-                ALL PICKS <ArrowUpRight size={10} />
+                ALL POSITIONS <ArrowUpRight size={10} />
               </Link>
             </div>
             <div className="divide-y divide-border-light">
@@ -302,7 +291,7 @@ function HoldingsCard({
           {title}
         </span>
         <Link
-          href="/dashboard/portfolio"
+          href="/dashboard/positions"
           className="font-sans text-[11px] text-text font-semibold underline underline-offset-2 hover:opacity-70 flex items-center gap-1"
         >
           VIEW ALL <ArrowUpRight size={10} />

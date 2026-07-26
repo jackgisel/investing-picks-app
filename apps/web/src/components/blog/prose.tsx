@@ -4,7 +4,8 @@ import { cn } from "@/lib/utils";
 
 /**
  * Prose primitives for blog articles. Each component renders styled output
- * matching Outpick' IBM Plex Sans/Mono dark aesthetic. Compose freely.
+ * matching Outpick's dark aesthetic — Outfit for text, IBM Plex Mono for
+ * numerals and tickers. Compose freely.
  */
 
 export function Prose({ children }: { children: ReactNode }) {
@@ -248,7 +249,7 @@ export function Quote({
 }) {
   return (
     <blockquote className="my-10 max-w-[680px] border-l-2 border-accent-green pl-6 py-1">
-      <p className="font-serif text-[19px] text-text leading-[1.55] italic">
+      <p className="font-sans text-[19px] text-text leading-[1.55] italic">
         {children}
       </p>
       {cite ? (

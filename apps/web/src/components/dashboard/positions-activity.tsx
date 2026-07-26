@@ -14,33 +14,9 @@ import {
   FilterChips,
   PanelHeader,
 } from "@/components/dashboard/data-table";
+import { actionMeta } from "./trade-action";
 
 type SideFilter = "all" | "buy" | "sell";
-
-/**
- * Colour carries the direction of the decision, not just buy vs sell:
- * green added exposure, red closed a position outright, purple took something
- * off the table while staying in the name.
- */
-const ACTION_META: Record<string, { label: string; badge: string }> = {
-  buy: { label: "Buy", badge: "badge-buy" },
-  double_buy: { label: "Double buy", badge: "badge-buy" },
-  full_sell: { label: "Full sell", badge: "badge-sell" },
-  partial_sell: { label: "Partial sell", badge: "badge-hold" },
-  trim: { label: "Trim", badge: "badge-hold" },
-  recycle_trim: { label: "Recycle trim", badge: "badge-hold" },
-  hold: { label: "Hold", badge: "badge-hold" },
-};
-
-/** Hand-entered seed trades have no action; fall back to the coarse side. */
-function actionMeta(trade: Trade) {
-  return (
-    (trade.action && ACTION_META[trade.action]) ?? {
-      label: trade.side === "buy" ? "Buy" : "Sell",
-      badge: trade.side === "buy" ? "badge-buy" : "badge-sell",
-    }
-  );
-}
 
 const PAGE_SIZE = 50;
 

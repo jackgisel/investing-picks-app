@@ -3,6 +3,7 @@ import "@/styles/globals.css";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL, SITE_TAGLINE } from "@/lib/constants";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
+import { MarketingOnly } from "@/components/layout/app-chrome";
 import { CookieBanner } from "@/components/layout/cookie-banner";
 import { FoundersBanner } from "@/components/landing/founders-banner";
 import { QueryProvider } from "@/components/providers/query-provider";
@@ -95,7 +96,9 @@ export default function RootLayout({
             <FoundersBanner />
             <Navbar />
             <main>{children}</main>
-            <Footer />
+            <MarketingOnly>
+              <Footer />
+            </MarketingOnly>
             <CookieBanner />
           </QueryProvider>
         </ThemeProvider>

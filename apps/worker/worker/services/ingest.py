@@ -22,6 +22,14 @@ log = logging.getLogger(__name__)
 # approximates the conventional 1-month revision window.
 REVISION_LOOKBACK_DAYS = 21
 
+# Shortest window that can carry a real revision signal. Consensus estimates
+# barely move day to day, so comparing snapshots a day apart returns 0.0% for
+# most of the universe — not "no change worth noting" but a tie block that
+# percentile ranking then has to resolve. Below this we report NO revision,
+# which under the factor-coverage floor leaves the ticker unscored rather than
+# scored on a fabricated factor. A weekly refresh clears it comfortably.
+MIN_REVISION_LOOKBACK_DAYS = 5
+
 
 def upsert_price_bar(db: Session, ticker: str, bar_date: date, close: float) -> PriceBar:
     """Insert-or-update one daily bar.
@@ -213,6 +221,8 @@ def compute_estimate_revisions(
     prior_row = _prior_estimate_snapshot(db, ticker, as_of)
     prior = (prior_row.data or {}) if prior_row else {}
     if not prior or prior.get("estimatePeriod") != period:
+        return {}
+    if (as_of - prior_row.as_of).days < MIN_REVISION_LOOKBACK_DAYS:
         return {}
     out: dict = {}
     eps_rev = _pct_change(current.get("epsEstimateAvg"), prior.get("epsEstimateAvg"))

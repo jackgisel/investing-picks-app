@@ -10,7 +10,14 @@ def factor_percentile_score(
     values: list[float | None],
     higher_is_better: bool,
 ) -> list[float | None]:
-    """Rank non-null values into 0–100 percentiles within the list."""
+    """Rank non-null values into 0–100 percentiles within the list.
+
+    Equal values receive an equal percentile. Spreading ties across the range by
+    list position invents a ranking out of nothing, and it bites hardest exactly
+    where ties are common: a short revisions window leaves most of the universe
+    at 0.0% change, which would otherwise be dealt arbitrary grades — and
+    revisions carries weight 0.30 and gates every buy.
+    """
     indexed = [(i, v) for i, v in enumerate(values) if v is not None]
     if not indexed:
         return [None] * len(values)
@@ -18,10 +25,21 @@ def factor_percentile_score(
     indexed.sort(key=lambda x: x[1], reverse=higher_is_better)
     n = len(indexed)
     out: list[float | None] = [None] * len(values)
-    for rank, (i, _) in enumerate(indexed):
-        # Higher rank index among sorted-best-first → higher percentile
-        pct = 100.0 * (n - 1 - rank) / max(n - 1, 1) if n > 1 else 50.0
-        out[i] = pct
+
+    rank = 0
+    while rank < n:
+        # Consume the whole run of equal values, then give each the percentile
+        # of the run's midpoint.
+        end = rank
+        while end + 1 < n and indexed[end + 1][1] == indexed[rank][1]:
+            end += 1
+        if n > 1:
+            pct = 100.0 * (n - 1 - (rank + end) / 2.0) / (n - 1)
+        else:
+            pct = 50.0
+        for k in range(rank, end + 1):
+            out[indexed[k][0]] = pct
+        rank = end + 1
     return out
 
 

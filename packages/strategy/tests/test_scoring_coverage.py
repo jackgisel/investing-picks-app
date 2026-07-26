@@ -154,3 +154,22 @@ def test_run118_default_has_no_holding_period():
     assert RUN118_PARAMS.min_holding_days == 0
     actions = [s.action.value for s in _evaluate(1.66, days_held=1, min_holding_days=0)]
     assert "full_sell" in actions
+
+
+def test_tied_values_share_a_percentile():
+    """A short revisions window leaves most of the universe at exactly 0.0."""
+    out = factor_percentile_score([0.0, 0.0, 0.0, 0.0], higher_is_better=True)
+    assert out == [50.0, 50.0, 50.0, 50.0], "ties were dealt arbitrary ranks"
+
+
+def test_ties_do_not_disturb_genuine_ordering():
+    # one clear winner, a tied middle, one clear loser
+    out = factor_percentile_score([9.0, 5.0, 5.0, 1.0], higher_is_better=True)
+    assert out[0] == 100.0
+    assert out[3] == 0.0
+    assert out[1] == out[2] == pytest.approx(50.0)
+
+
+def test_lower_is_better_still_inverts():
+    out = factor_percentile_score([1.0, 9.0], higher_is_better=False)
+    assert out[0] == 100.0 and out[1] == 0.0

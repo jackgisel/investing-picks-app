@@ -292,3 +292,29 @@ def test_refresh_marks_prices_a_position_with_no_stock_row(db, portfolio):
     assert pos.market_value == 1500.0
     # And the Stock row is created so later runs have somewhere to write.
     assert db.get(Stock, "ZZZ").last_price == 150.0
+
+
+def test_revisions_need_a_meaningful_window(db):
+    """A one-day comparison must yield no revision, not a fabricated 0.0%."""
+    from datetime import date, timedelta
+
+    from app.db.models import Fundamentals
+    from worker.services.ingest import compute_estimate_revisions
+
+    today = date.today()
+    current = {"estimatePeriod": "2026-12-31", "epsEstimateAvg": 2.10,
+               "revenueEstimateAvg": 1000.0}
+
+    db.add(Fundamentals(ticker="AAA", as_of=today - timedelta(days=1),
+                        data={**current, "epsEstimateAvg": 2.00}))
+    db.commit()
+    assert compute_estimate_revisions(db, "AAA", current, today) == {}
+
+    # Same data, a window long enough to mean something.
+    db.query(Fundamentals).delete()
+    db.add(Fundamentals(ticker="AAA", as_of=today - timedelta(days=7),
+                        data={**current, "epsEstimateAvg": 2.00}))
+    db.commit()
+    out = compute_estimate_revisions(db, "AAA", current, today)
+    assert out["epsRevisionPct"] == pytest.approx(0.05)
+    assert out["revisionLookbackDays"] == 7

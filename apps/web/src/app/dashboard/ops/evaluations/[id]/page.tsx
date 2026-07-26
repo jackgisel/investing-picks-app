@@ -52,7 +52,7 @@ export default function EvaluationDetailPage({
               message?: string;
             }[];
           }) => (
-            <article key={s.id} className="soft-card !p-4 space-y-3">
+            <article key={s.id} className="data-card space-y-3">
               <div className="flex gap-3 items-baseline">
                 <span className="font-mono text-accent-green text-sm">{s.action}</span>
                 <span className="font-mono text-lg text-text">{s.ticker}</span>

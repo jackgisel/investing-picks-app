@@ -90,7 +90,7 @@ export default function TradesPage() {
         </p>
       </div>
 
-      <div className="soft-card !p-0 overflow-hidden">
+      <div className="data-panel">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-5 py-4 border-b border-border gap-3">
           <div className="flex items-center gap-2">
             <Filter size={12} className="text-text-dim" />

@@ -182,7 +182,7 @@ export default function DashboardPage() {
           )}
 
           {/* Recent picks */}
-          <div className="soft-card !p-0 overflow-hidden">
+          <div className="data-panel">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
               <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">
                 RECENT PICKS
@@ -236,7 +236,7 @@ export default function DashboardPage() {
       {/* Curiosity nudge to Strategy page */}
       <Link
         href="/dashboard/strategy"
-        className="block soft-card hover:bg-bg-tertiary transition-colors group"
+        className="block data-card hover:bg-bg-tertiary transition-colors group"
       >
         <div className="flex items-center justify-between">
           <div>
@@ -276,7 +276,7 @@ function StatCard({
   loading?: boolean;
 }) {
   return (
-    <div className="soft-card">
+    <div className="data-card">
       <div className="flex items-center gap-2 mb-2">
         <Icon size={14} className="text-text-dim" />
         <span className="font-sans text-[11px] font-bold tracking-[0.1em] uppercase text-text-dim">
@@ -312,7 +312,7 @@ function HoldingsCard({
   state: DataStateKind | null;
 }) {
   return (
-    <div className="soft-card !p-0 overflow-hidden">
+    <div className="data-panel">
       <div className="flex items-center justify-between px-5 py-4 border-b border-border">
         <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">
           {title}

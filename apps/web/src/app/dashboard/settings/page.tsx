@@ -181,7 +181,7 @@ function Section({
       <p className="font-sans text-[13px] text-text-muted mb-5 leading-relaxed max-w-[560px]">
         {description}
       </p>
-      <div className="soft-card">{children}</div>
+      <div className="data-card">{children}</div>
     </section>
   );
 }

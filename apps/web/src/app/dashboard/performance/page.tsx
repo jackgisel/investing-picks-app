@@ -132,7 +132,7 @@ export default function PerformancePage() {
         {(bestHolding || worstHolding) && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {bestHolding && (
-              <div className="soft-card">
+              <div className="data-card">
                 <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim block mb-2">
                   BEST HOLDING
                 </span>
@@ -156,7 +156,7 @@ export default function PerformancePage() {
               </div>
             )}
             {worstHolding && (
-              <div className="soft-card">
+              <div className="data-card">
                 <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim block mb-2">
                   WORST HOLDING
                 </span>
@@ -184,7 +184,7 @@ export default function PerformancePage() {
         </>
       )}
 
-      <div className="soft-card">
+      <div className="data-card">
         <p className="font-sans text-[12px] text-text-muted leading-relaxed">
           This page shows <strong className="text-text">only live performance</strong>.
           Historical strategy validation (the walk-forward backtest) is
@@ -218,7 +218,7 @@ function MetricCard({
   loading?: boolean;
 }) {
   return (
-    <div className="soft-card">
+    <div className="data-card">
       <div className="flex items-center gap-2 mb-2">
         <Icon size={14} className="text-text-dim" />
         <span className="font-sans text-[11px] font-bold tracking-[0.1em] uppercase text-text-dim">

@@ -157,8 +157,28 @@
     @apply pill bg-bg text-text border border-border-strong;
   }
 
+  /* Marketing card. Generous on purpose — a landing feature block holds a
+     heading and a paragraph, and the page is meant to breathe. */
   .soft-card {
     @apply bg-bg-secondary rounded-soft p-6 sm:p-8;
+  }
+
+  /* Dashboard card.
+     `.soft-card` was doing this job and was wrong for it in three ways:
+     32px of padding around a tile whose content is an 11px label and a 20px
+     number, a 20px radius that reads as consumer-app rather than instrument,
+     and no border — bg-secondary sits at 1.07:1 against the page in dark
+     mode, below the threshold where an edge is visible at all, so the padding
+     read as unexplained emptiness instead of as a framed panel.
+     21 of the 35 dashboard uses were already fighting it with `!p-4`/`!p-0`. */
+  .data-card {
+    @apply bg-bg-secondary/60 border border-border rounded-xl p-4 sm:p-5;
+  }
+
+  /* Same frame with no padding, for panels that open with a header strip or a
+     full-bleed table. Replaces the `soft-card !p-0 overflow-hidden` idiom. */
+  .data-panel {
+    @apply bg-bg-secondary/60 border border-border rounded-xl overflow-hidden;
   }
 
   /* Warm paper for the illustrations. `isolate` keeps the multiply blend of

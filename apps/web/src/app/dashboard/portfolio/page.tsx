@@ -120,7 +120,7 @@ export default function PortfolioPage() {
         </div>
 
         {/* Holdings table */}
-        <div className="soft-card !p-0 overflow-hidden">
+        <div className="data-panel">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border">
             <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">
               ALL HOLDINGS {isPending || isError ? "" : `(${sorted?.length ?? 0})`}
@@ -219,7 +219,7 @@ function SummaryCard({
   red?: boolean;
 }) {
   return (
-    <div className="soft-card p-4 text-center">
+    <div className="data-card text-center">
       <span className="font-sans text-[10px] font-bold tracking-[0.1em] uppercase text-text-dim block mb-1">
         {label}
       </span>

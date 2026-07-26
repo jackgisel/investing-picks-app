@@ -39,14 +39,14 @@ export default function OpsBookPage() {
           ["Equity", `$${Number(data.equity).toLocaleString()}`],
           ["Positions", String(data.positions?.length ?? 0)],
         ].map(([label, value]) => (
-          <div key={label} className="soft-card !p-4">
+          <div key={label} className="data-card">
             <p className="font-sans text-[10px] font-bold tracking-[0.1em] uppercase text-text-dim tracking-[1px]">{label}</p>
             <p className="font-mono text-xl text-text mt-1">{value}</p>
           </div>
         ))}
       </div>
 
-      <div className="overflow-x-auto soft-card !p-0">
+      <div className="data-panel overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left font-sans text-[10px] font-bold tracking-[0.1em] uppercase text-text-dim tracking-[1px] border-b border-border">

@@ -238,7 +238,7 @@ export default function OpsPositionsPage() {
               ["Equity", money(data.equity)],
               ["Positions", String(data.positions?.length ?? 0)],
             ].map(([label, value]) => (
-              <div key={label} className="soft-card !p-4">
+              <div key={label} className="data-card">
                 <p className="font-sans text-[10px] font-bold tracking-[0.1em] uppercase text-text-dim">
                   {label}
                 </p>
@@ -252,7 +252,7 @@ export default function OpsPositionsPage() {
             <h2 className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">
               Inception date
             </h2>
-            <div className="soft-card !p-5 space-y-3">
+            <div className="data-card space-y-3">
               <p className="text-sm text-text-muted">
                 Day the live track record starts. Drives the founders-deal countdown and
                 every &ldquo;days live&rdquo; figure on the site.
@@ -305,7 +305,7 @@ export default function OpsPositionsPage() {
               Add position
             </h2>
             <form
-              className="soft-card !p-5 space-y-4"
+              className="data-card space-y-4"
               onSubmit={(e) => {
                 e.preventDefault();
                 setFormError(null);
@@ -442,7 +442,7 @@ export default function OpsPositionsPage() {
               Positions
             </h2>
             {editError && <p className="text-sm text-accent-red">{editError}</p>}
-            <div className="overflow-x-auto soft-card !p-0">
+            <div className="data-panel overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left font-sans text-[10px] font-bold tracking-[0.1em] uppercase text-text-dim border-b border-border">

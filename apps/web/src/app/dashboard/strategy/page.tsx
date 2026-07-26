@@ -40,21 +40,21 @@ export default function StrategyPage() {
       {data && (
         <>
           <div className="grid grid-cols-2 gap-4">
-            <div className="soft-card !p-4">
+            <div className="data-card">
               <p className="font-sans text-[10px] font-bold tracking-[0.1em] uppercase text-text-dim">NAME</p>
               <p className="text-text mt-1">{data.name || data.strategy?.name}</p>
             </div>
-            <div className="soft-card !p-4">
+            <div className="data-card">
               <p className="font-sans text-[10px] font-bold tracking-[0.1em] uppercase text-text-dim">PARAMS VERSION</p>
               <p className="font-mono text-text mt-1">{data.params_version || "—"}</p>
             </div>
-            <div className="soft-card !p-4">
+            <div className="data-card">
               <p className="font-sans text-[10px] font-bold tracking-[0.1em] uppercase text-text-dim">CADENCE</p>
               <p className="text-text mt-1">
                 {data.evaluation_frequency || data.strategy?.evaluation_frequency}
               </p>
             </div>
-            <div className="soft-card !p-4">
+            <div className="data-card">
               <p className="font-sans text-[10px] font-bold tracking-[0.1em] uppercase text-text-dim">POSITIONS</p>
               <p className="text-text mt-1">
                 {data.position_count ?? data.portfolio?.position_count} /{" "}
@@ -82,7 +82,7 @@ export default function StrategyPage() {
               <h2 className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim mb-3">
                 LIVE PARAMS JSON
               </h2>
-              <pre className="text-xs font-mono text-text-muted overflow-x-auto soft-card !p-4">
+              <pre className="text-xs font-mono text-text-muted overflow-x-auto data-card">
                 {JSON.stringify(data.params, null, 2)}
               </pre>
             </section>

@@ -16,7 +16,7 @@ import { pnlClass } from "@/lib/portfolio";
 function EmptyChart({ compact }: { compact?: boolean }) {
   return (
     <div
-      className={`soft-card ${compact ? "h-56" : "h-80"} flex flex-col items-center justify-center`}
+      className={`data-card ${compact ? "h-56" : "h-80"} flex flex-col items-center justify-center`}
     >
       <TrendingUp size={28} className="text-text-dim mb-3" />
       <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">
@@ -40,7 +40,7 @@ export function PerformanceChart({ compact = false }: { compact?: boolean }) {
   if (isPending) {
     return (
       <div
-        className={`soft-card ${compact ? "h-56" : "h-80"} flex items-center justify-center`}
+        className={`data-card ${compact ? "h-56" : "h-80"} flex items-center justify-center`}
       >
         <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim animate-pulse">
           Loading chart data...
@@ -60,7 +60,7 @@ export function PerformanceChart({ compact = false }: { compact?: boolean }) {
     })!;
     return (
       <div
-        className={`soft-card !p-0 ${compact ? "h-56" : "h-80"} flex items-center justify-center`}
+        className={`data-panel ${compact ? "h-56" : "h-80"} flex items-center justify-center`}
       >
         <DataState state={state} error={error} onRetry={() => void refetch()} />
       </div>
@@ -79,7 +79,7 @@ export function PerformanceChart({ compact = false }: { compact?: boolean }) {
   const { benchmarks, picksLatestPct, startDate, latestDate } = comparison;
 
   return (
-    <div className={`soft-card ${compact ? "!p-4" : ""}`}>
+    <div className="data-card">
       <div
         className={`flex flex-wrap items-start justify-between gap-x-6 gap-y-3 ${
           compact ? "mb-3" : "mb-5"

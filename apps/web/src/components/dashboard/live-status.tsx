@@ -24,7 +24,7 @@ export function LiveStatus() {
   if (isError) return null;
 
   return (
-    <div className="soft-card">
+    <div className="data-card">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
         <div className="flex items-center gap-4">
           <span className="relative flex h-2.5 w-2.5 shrink-0">

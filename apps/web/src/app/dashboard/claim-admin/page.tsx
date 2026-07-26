@@ -57,7 +57,7 @@ export default function ClaimAdminPage() {
       </header>
 
       {status === "done" ? (
-        <div className="soft-card p-6 space-y-4">
+        <div className="data-card space-y-4">
           <p className="text-accent-green font-sans font-bold">
             Admin granted.
           </p>
@@ -69,7 +69,7 @@ export default function ClaimAdminPage() {
           </a>
         </div>
       ) : (
-        <form onSubmit={submit} className="soft-card p-6 space-y-4">
+        <form onSubmit={submit} className="data-card space-y-4">
           <label className="block">
             <span className="font-sans text-[11px] font-bold tracking-[0.14em] uppercase text-text-dim">
               Bootstrap token

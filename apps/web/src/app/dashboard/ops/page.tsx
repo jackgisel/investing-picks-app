@@ -143,7 +143,7 @@ export default function OpsEvaluationsPage() {
         )}
         {dry.data && (
           <div
-            className={`soft-card p-4 space-y-3 transition-opacity ${
+            className={`data-card space-y-3 transition-opacity ${
               dry.isFetching ? "opacity-50" : "opacity-100"
             } ${dry.data.simulation?.enabled ? "ring-1 ring-accent-purple/30" : ""}`}
           >
@@ -241,7 +241,7 @@ export default function OpsEvaluationsPage() {
             alone explains an unscored universe.
           </p>
         )}
-        <div className="divide-y divide-border soft-card !p-0 overflow-hidden">
+        <div className="divide-y divide-border data-panel">
           {(jobs.data?.jobs || []).map((j) => (
             <div key={j.id} className="px-4 py-3">
               <div className="flex items-center justify-between gap-3">
@@ -273,7 +273,7 @@ export default function OpsEvaluationsPage() {
         <h2 className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">HISTORY</h2>
         {isLoading && <p className="text-text-muted text-sm">Loading…</p>}
         {error && <p className="text-accent-red text-sm">Could not load evaluations</p>}
-        <div className="divide-y divide-border soft-card !p-0 overflow-hidden">
+        <div className="divide-y divide-border data-panel">
           {(data?.evaluations || []).map((e) => (
             <Link
               key={e.id}

@@ -27,7 +27,14 @@ export default async function DashboardLayout({
         <Sidebar isAdmin={isAdmin} />
         <div className="flex-1 min-w-0">
           <MobileNav isAdmin={isAdmin} />
-          <div className="p-6 lg:p-8">{children}</div>
+          {/* One width, centered, owned by the shell. Every page used to cap
+            itself — five different values across twelve files — inside a
+            flex child that was not capped at all, so on a wide display the
+            content hugged the sidebar with several hundred pixels of dead
+            gutter to its right. */}
+        <div className="mx-auto w-full max-w-[1400px] px-5 py-6 lg:px-8 lg:py-7">
+          {children}
+        </div>
         </div>
       </div>
     </DashboardAdminProvider>

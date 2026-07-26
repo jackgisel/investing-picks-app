@@ -59,7 +59,7 @@ export default function SettingsPage() {
 
   if (sessionPending) {
     return (
-      <div className="max-w-[760px]">
+      <div className="page-measure">
         <p className="font-mono text-[11px] text-text-dim animate-pulse">
           LOADING...
         </p>
@@ -69,7 +69,7 @@ export default function SettingsPage() {
 
   if (!user) {
     return (
-      <div className="max-w-[760px]">
+      <div className="page-measure">
         <p className="font-sans text-[14px] text-text-muted">
           You need to be signed in to view settings.
         </p>
@@ -78,10 +78,10 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="max-w-[760px] space-y-12">
+    <div className="page-measure space-y-8">
       {/* Header */}
       <div>
-        <h1 className="font-sans text-xl font-bold">Settings</h1>
+        <h1 className="page-title">Settings</h1>
         <p className="font-sans text-[13px] text-text-dim mt-1">
           Manage your account, notifications, and subscription.
         </p>

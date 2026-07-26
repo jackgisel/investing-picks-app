@@ -78,9 +78,9 @@ export default function TradesPage() {
   const filteredOut = !state && !paged?.length;
 
   return (
-    <div className="max-w-[1100px] space-y-6">
+    <div className="space-y-5">
       <div>
-        <h1 className="font-sans text-xl font-bold">Trades</h1>
+        <h1 className="page-title">Trades</h1>
         <p className="font-sans text-[13px] text-text-dim mt-1">
           {isPending
             ? "Loading..."

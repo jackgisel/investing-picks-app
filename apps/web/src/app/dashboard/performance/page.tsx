@@ -65,9 +65,9 @@ export default function PerformancePage() {
   const seriesPoints = chartData?.picks_series?.length ?? 0;
 
   return (
-    <div className="max-w-[1100px] space-y-6">
+    <div className="space-y-5">
       <div>
-        <h1 className="font-sans text-xl font-bold">Performance</h1>
+        <h1 className="page-title">Performance</h1>
         <p className="font-sans text-[13px] text-text-dim mt-1">
           {gate
             ? gate === "subscription"

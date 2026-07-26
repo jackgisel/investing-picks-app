@@ -83,10 +83,10 @@ export default function OpsEvaluationsPage() {
   });
 
   return (
-    <div className="space-y-10 max-w-4xl">
+    <div className="space-y-6">
       <header>
         <p className="font-sans text-[11px] font-bold tracking-[0.14em] uppercase text-text-dim mb-2">OPS</p>
-        <h1 className="font-sans text-3xl font-bold text-text">Decision ledger</h1>
+        <h1 className="page-title">Decision ledger</h1>
         <p className="text-text-muted mt-2 text-sm max-w-xl">
           Every buy and sell is recorded with the exact rule checks that fired — not LLM prose.
         </p>

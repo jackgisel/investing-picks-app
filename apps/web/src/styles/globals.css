@@ -181,6 +181,20 @@
     @apply bg-bg-secondary/60 border border-border rounded-xl overflow-hidden;
   }
 
+  /* One <h1> scale for every dashboard page. There used to be two — text-xl
+     on the member pages and text-3xl on strategy/ops/claim-admin — so moving
+     between them jumped the page title by 50%. */
+  .page-title {
+    @apply font-sans text-[22px] font-bold tracking-tight text-text;
+  }
+
+  /* Reading measure for the form and prose surfaces (settings, strategy).
+     The data pages take the full shell width; a holdings table has no reason
+     to be narrower than the window. */
+  .page-measure {
+    @apply max-w-[760px];
+  }
+
   /* Warm paper for the illustrations. `isolate` keeps the multiply blend of
      the artwork inside this box instead of letting it reach the page. */
   .illustration-plate {

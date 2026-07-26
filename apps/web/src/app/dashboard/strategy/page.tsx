@@ -20,9 +20,9 @@ export default function StrategyPage() {
   });
 
   return (
-    <div className="space-y-8 max-w-3xl">
+    <div className="page-measure space-y-6">
       <header>
-        <h1 className="font-sans text-3xl font-bold text-text">Strategy</h1>
+        <h1 className="page-title">Strategy</h1>
         <p className="text-text-muted mt-2 text-sm">
           Live Run 118 parameters from the engine — not marketing copy.
         </p>

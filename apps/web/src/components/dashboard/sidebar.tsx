@@ -30,7 +30,7 @@ interface NavItem {
 const NAV_ITEMS: readonly NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Portfolio", href: "/dashboard/portfolio", icon: Briefcase },
-  { label: "Pick History", href: "/dashboard/picks", icon: History },
+  { label: "Pick history", href: "/dashboard/picks", icon: History },
   { label: "Trades", href: "/dashboard/trades", icon: ArrowLeftRight },
   { label: "Performance", href: "/dashboard/performance", icon: BarChart3 },
   { label: "Strategy", href: "/dashboard/strategy", icon: BookOpen },

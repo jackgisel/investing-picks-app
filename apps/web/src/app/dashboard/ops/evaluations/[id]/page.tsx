@@ -23,12 +23,12 @@ export default function EvaluationDetailPage({
   if (error || !data) return <p className="text-accent-red text-sm">Not found</p>;
 
   return (
-    <div className="space-y-8 max-w-4xl">
+    <div className="space-y-6">
       <div>
         <Link href="/dashboard/ops" className="text-xs text-text-dim hover:text-text">
           ← Ledger
         </Link>
-        <h1 className="font-sans text-3xl font-bold text-text mt-2">
+        <h1 className="page-title mt-2">
           Evaluation #{data.id}
         </h1>
         <p className="text-sm text-text-muted mt-1">

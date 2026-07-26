@@ -210,12 +210,12 @@ export default function OpsPositionsPage() {
   }
 
   return (
-    <div className="space-y-10 max-w-5xl">
+    <div className="space-y-6">
       <header>
         <p className="font-sans text-[11px] font-bold tracking-[0.14em] uppercase text-text-dim mb-2">
           OPS
         </p>
-        <h1 className="font-sans text-3xl font-bold text-text">Manual book entry</h1>
+        <h1 className="page-title">Manual book entry</h1>
         <p className="text-sm text-text-muted mt-2 max-w-xl">
           Seed and correct the virtual book by hand. Adding a position spends cash at the
           entry price; removing one returns its cost basis. Cash can never go negative.

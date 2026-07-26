@@ -71,9 +71,9 @@ export default function PortfolioPage() {
   const gate = state === "unauthenticated" || state === "subscription";
 
   return (
-    <div className="max-w-[1100px] space-y-6">
+    <div className="space-y-5">
       <div>
-        <h1 className="font-sans text-xl font-bold">Portfolio</h1>
+        <h1 className="page-title">Portfolio</h1>
         <p className="font-sans text-[13px] text-text-dim mt-1">
           {gate
             ? state === "subscription"

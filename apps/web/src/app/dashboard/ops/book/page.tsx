@@ -17,11 +17,11 @@ export default function OpsBookPage() {
   if (error || !data) return <p className="text-accent-red text-sm">Ops portfolio unavailable</p>;
 
   return (
-    <div className="space-y-8 max-w-5xl">
+    <div className="space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="font-sans text-[11px] font-bold tracking-[0.14em] uppercase text-text-dim mb-2">OPS</p>
-          <h1 className="font-sans text-3xl font-bold text-text">Virtual book</h1>
+          <h1 className="page-title">Virtual book</h1>
           <p className="text-sm text-text-muted mt-2">
             Source of truth — no Alpaca. Params {data.params_version}
             {data.params_version === data.run118_hash ? " (= Run 118)" : " (drifted from Run 118)"}

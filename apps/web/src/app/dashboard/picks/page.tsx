@@ -81,9 +81,9 @@ export default function PicksPage() {
   const filteredOut = !state && filtered.length === 0;
 
   return (
-    <div className="max-w-[1100px] space-y-6">
+    <div className="space-y-5">
       <div>
-        <h1 className="font-sans text-xl font-bold">Pick History</h1>
+        <h1 className="page-title">Pick history</h1>
         <p className="font-sans text-[13px] text-text-dim mt-1">
           {isPending
             ? "Loading..."

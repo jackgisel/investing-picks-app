@@ -181,3 +181,97 @@ undermines any parity claim.
 - Web e2e
 - **Parity against `jdpicks`, and verification that the published `BACKTEST`
   claims trace to a recorded run**
+
+---
+
+# PART 2 — Parity audit vs. the previous system of record
+
+Added 2026-07-27. Claims below marked **VERIFIED** were checked by hand against
+`~/workspace/jdpicks` (read-only) by the reviewing engineer, not taken from the
+audit that surfaced them.
+
+## BUG-P1 — the published performance claims trace to no recorded run
+`apps/web/src/lib/constants.ts:27-54` — **CRITICAL — VERIFIED**
+
+The site publishes, as Run 118: +250.39% total return, +38.99% CAGR, Sharpe
+1.14, max drawdown -27.38%, over Jun 15 2022 – Apr 06 2026.
+
+Run 118's only surviving record says otherwise:
+
+> `jdpicks/CLAUDE.md`: "Validated via 7-year walk-forward backtesting (Apr 2019
+> - Apr 2026). +323% total return, 22.8% CAGR, 0.69 Sharpe. Validation period
+> (Jul 2024+): 1.36 Sharpe, +94.5% alpha over SPY. Backtest Run ID 118."
+
+`BACKTEST_HISTORY.md` contains exactly seven runs — 6 through 12. There is no
+Run 118 in it, and no recorded run anywhere returning more than +155.3%. The
+`backtest_runs` / `backtest_snapshots` tables are absent from `jd.db`.
+
+**Every headline figure differs from the record**: CAGR 38.99% vs 22.8%,
+Sharpe 1.14 vs 0.69, max drawdown -27.38% vs -41%, period Jun 2022 vs Apr 2019.
+
+## BUG-P2 — the numbers describe a configuration that was replaced
+**CRITICAL — VERIFIED**
+
+Two commits in `jdpicks`, both dated 2026-04-06:
+
+- `6f2b68c` "feat: deploy optimized AP strategy — **250% backtest return (39%
+  CAGR)**" — the published figures, verbatim.
+- `37d889d` "feat: aggressive recycling (QR<4.0) + underwater stop — 323% 7yr
+  backtest", body: "7yr results: **+323%, 22.8% CAGR, 0.69 Sharpe, -41% max
+  DD**." This commit **is** Run 118.
+
+`37d889d` lands *after* `6f2b68c` and changes the strategy (recycling threshold
+3.0→4.0, underwater stop, winner threshold 1.0→0.60). `RUN118_PARAMS` in this
+repo encodes `37d889d`.
+
+So the marketing numbers describe the configuration that Run 118 **replaced**,
+while the shipped strategy is the replacement. They are two different parameter
+sets, and the site attributes one's numbers to the other.
+
+## BUG-P3 — the Z-score bankruptcy filter is dead code
+`apps/worker/worker/services/scoring.py:231` — **HIGH — VERIFIED**
+
+`composite_from_factor_pcts` accepts `z_score` and rejects a ticker below
+`z_score_floor = 1.8` (`packages/strategy/.../scoring.py:71`). The only
+production caller never passes it, so `z_score` is always None and the branch
+never fires. Distressed names the backtest excluded are now buyable.
+
+Found independently by two separate audit passes.
+
+## BUG-P4 — fundamentals are not bounded point-in-time (latent look-ahead)
+`apps/worker/worker/services/scoring.py:161-167` — **HIGH (latent) — VERIFIED**
+
+Prices are bounded on both sides:
+`PriceBar.date <= as_of` and `>= window_start` (line 92).
+Fundamentals have only a lower bound: `Fundamentals.as_of >= oldest_allowed`.
+
+Live scoring is unaffected — `as_of` is always today. But the moment anyone
+passes a historical `as_of` (i.e. builds the backtester this project needs),
+prices will be honest and fundamentals clairvoyant. **This must be fixed before
+any backtest result is trusted.**
+
+## BUG-P7 — the scoring model is not a faithful port
+**HIGH — agent-reported, spot-checked, not exhaustively re-verified**
+
+Portfolio mechanics (sizing, trims, caps, exits, recycling, cadence, sector cap)
+are a faithful port. The scoring model is not:
+
+| Input | Old (Run 118) | New |
+|---|---|---|
+| Revisions (**30% weight**, gates every buy via `min_revisions_grade=B+`) | consensus-dispersion position within analyst high/low | period-over-period change in consensus |
+| Momentum (15%) | average of 6m and 12m percentiles | 12m only |
+| Percentile formula | inclusive rank, ties take top of run | tie-midpoint on 0–100 |
+| Missing factors | renormalize over present factors | refuse to score (`min_factor_coverage=1.0`) |
+| Country cap | 20% of positions per non-US country | **absent** |
+| Min sector population | ≥15 names to rank | **absent** |
+
+**Consequence: even on identical price data, the new engine picks different
+stocks than Run 118 did.** Parity is not reachable by fixing defects alone.
+
+## What this means for Aug 7
+
+Parity with Run 118 cannot currently be demonstrated, for three independent
+reasons:
+1. Run 118's underlying record does not exist in any reachable location.
+2. The new scoring model computes different inputs, so it is a different model.
+3. There is no backtester, and BUG-P4 would invalidate one if written today.

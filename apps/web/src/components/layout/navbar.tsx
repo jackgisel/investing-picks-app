@@ -7,6 +7,7 @@ import { Menu, X, LogOut } from "lucide-react";
 import { OutpickWordmark } from "@/components/ui/outpick-logo";
 import { PillButton } from "@/components/ui/pill-button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { UserMenu } from "@/components/layout/user-menu";
 import { useSession, signOut } from "@/lib/auth-client";
 
 const NAV_LINKS = [
@@ -67,8 +68,6 @@ export function Navbar() {
         </div>
 
         <div className="hidden md:flex items-center gap-3">
-          <ThemeToggle />
-
           {session ? (
             <>
               {!isDashboard && (
@@ -76,18 +75,24 @@ export function Navbar() {
                   Dashboard
                 </PillButton>
               )}
-              <button
-                onClick={handleSignOut}
-                className="font-sans text-[11px] font-semibold tracking-[0.1em] uppercase text-text-dim hover:text-text transition-colors flex items-center gap-1.5"
-              >
-                <LogOut size={12} />
-                Sign out
-              </button>
+              {/* Theme lives inside this menu once signed in. */}
+              <UserMenu
+                userId={session.user.id}
+                accountName={session.user.name ?? null}
+                email={session.user.email ?? ""}
+                onSignOut={handleSignOut}
+              />
             </>
           ) : (
-            <PillButton href="/login" className="text-[11px] px-4 py-2">
-              Log in
-            </PillButton>
+            <>
+              {/* Signed-out visitors have no menu to put it in, so the standalone
+                  toggle stays — otherwise the marketing site has no way to
+                  switch theme at all. */}
+              <ThemeToggle />
+              <PillButton href="/login" className="text-[11px] px-4 py-2">
+                Log in
+              </PillButton>
+            </>
           )}
         </div>
 

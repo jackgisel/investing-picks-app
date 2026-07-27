@@ -17,7 +17,7 @@ export function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
   const active = activeHref(pathname, flatten(groups));
 
   return (
-    <aside className="w-60 shrink-0 border-r border-border bg-bg min-h-[calc(100vh-72px)] hidden lg:flex lg:flex-col lg:justify-between">
+    <aside className="w-60 shrink-0 border-r border-border bg-bg min-h-[calc(100vh-72px)] hidden lg:flex lg:flex-col">
       <nav aria-label="Dashboard" className="py-6 px-3">
         {groups.map((group) => (
           <div
@@ -55,12 +55,6 @@ export function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
           </div>
         ))}
       </nav>
-      <div className="px-6 py-4 border-t border-border flex items-center justify-between">
-        <span className="font-sans text-[10px] font-bold tracking-[0.16em] uppercase text-text-dim">
-          Theme
-        </span>
-        <ThemeToggle />
-      </div>
     </aside>
   );
 }

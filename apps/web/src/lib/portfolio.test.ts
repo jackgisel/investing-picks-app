@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  closedWinRate,
   computeAnnualizedReturn,
   computeBookReturnPct,
   computePortfolioReturnPct,
@@ -331,5 +332,35 @@ describe("calendar date formatting", () => {
     expect(formatDayMonth("not-a-date")).toBeNull();
     expect(formatWeekdayDate(null)).toBeNull();
     expect(formatWeekdayDate("2026-13-45")).toBeNull();
+  });
+});
+
+describe("closedWinRate", () => {
+  // The tile used to count OPEN positions marked above cost and call them
+  // "winners". That is an unrealized number: a book that opened into a rising
+  // fortnight shows 8 of 8 and has proven nothing.
+  it("counts only closed positions that finished above cost", () => {
+    expect(
+      closedWinRate([{ pnl_pct: 12 }, { pnl_pct: -4 }, { pnl_pct: 30 }]),
+    ).toEqual({ wins: 2, total: 3, pct: (2 / 3) * 100 });
+  });
+
+  it("is null, not zero, when nothing has closed yet", () => {
+    // 0% is a claim about the record. "No record yet" is the truth.
+    expect(closedWinRate([])).toEqual({ wins: 0, total: 0, pct: null });
+    expect(closedWinRate(undefined)).toEqual({ wins: 0, total: 0, pct: null });
+  });
+
+  it("excludes an unknown result from both sides rather than scoring it a loss", () => {
+    const r = closedWinRate([{ pnl_pct: 10 }, { pnl_pct: null }]);
+    expect(r).toEqual({ wins: 1, total: 1, pct: 100 });
+  });
+
+  it("treats exactly flat as not a win", () => {
+    expect(closedWinRate([{ pnl_pct: 0 }])).toEqual({
+      wins: 0,
+      total: 1,
+      pct: 0,
+    });
   });
 });

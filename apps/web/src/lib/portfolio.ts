@@ -317,9 +317,52 @@ export function countDoubledWinners(
   return holdings.filter((h) => h.pnl_pct >= minPct).length;
 }
 
+/**
+ * Open positions currently marked above cost.
+ *
+ * NOT a win rate, and must never be labelled one. These are unrealized marks
+ * on positions that are still running: a book that opened into a rising
+ * fortnight shows 8 of 8 and has proven nothing. The realized figure is
+ * `closedWinRate`.
+ */
 export function countWinningPositions(
   holdings: Holding[] | undefined
 ): number {
   if (!holdings?.length) return 0;
   return holdings.filter((h) => h.pnl_pct > 0).length;
+}
+
+export interface ClosedWinRate {
+  /** Closed positions that finished above cost. */
+  wins: number;
+  /** Closed positions with a known result. */
+  total: number;
+  /** wins/total as a percentage, or null when there is nothing to divide. */
+  pct: number | null;
+}
+
+/**
+ * The win rate the product can actually stand behind: closed positions that
+ * finished in the green, over all closed positions.
+ *
+ * A pick with a null `pnl_pct` is excluded from BOTH sides rather than counted
+ * as a loss — an unknown result is not a bad one, and burying it in the
+ * denominator understates the record just as silently as omitting losers would
+ * overstate it.
+ *
+ * Returns pct: null rather than 0 for an empty book. Zero closed positions is
+ * "no record yet"; rendering it as 0% is a claim, and the wrong one.
+ */
+export function closedWinRate(
+  picks: { pnl_pct: number | null }[] | undefined
+): ClosedWinRate {
+  const scored = (picks ?? []).filter(
+    (p): p is { pnl_pct: number } => typeof p.pnl_pct === "number",
+  );
+  const wins = scored.filter((p) => p.pnl_pct > 0).length;
+  return {
+    wins,
+    total: scored.length,
+    pct: scored.length > 0 ? (wins / scored.length) * 100 : null,
+  };
 }

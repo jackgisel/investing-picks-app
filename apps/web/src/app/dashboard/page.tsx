@@ -15,6 +15,7 @@ import {
   type DataStateKind,
 } from "@/components/ui/data-state";
 import {
+  closedWinRate,
   computePortfolioReturnPct,
   daysSinceInception,
   formatPct,
@@ -43,6 +44,9 @@ function isGate(state: DataStateKind | null): state is "unauthenticated" | "subs
 export default function DashboardPage() {
   const strategyQuery = useStrategy();
   const picksQuery = usePicks("active");
+  // Closed picks drive the win rate — the only version of that number the
+  // product can stand behind.
+  const closedQuery = usePicks("closed");
   const { inceptionISO } = useInceptionDate();
   const { data: strategy } = strategyQuery;
   const { data: picksData } = picksQuery;
@@ -79,9 +83,12 @@ export default function DashboardPage() {
   const totalReturnPct = computedReturnPct ?? 0;
   const hasReturn = computedReturnPct !== null;
 
-  // Winners count (positions in the green right now)
-  const winnersCount = holdings?.filter((h) => h.pnl_pct > 0).length ?? 0;
-  const positionsCount = holdings?.length ?? 0;
+  // The win rate is RESOLVED results only — closed positions that finished
+  // above cost. The tile used to count open positions marked in the green,
+  // which reads as a track record but is unrealized: a book that opened into a
+  // rising fortnight shows 8 of 8 having proven nothing, and the number falls
+  // apart the moment the market turns.
+  const winRate = closedWinRate(closedQuery.data?.picks);
 
   // Top 5 holdings by P&L
   const topHoldings = holdings
@@ -150,12 +157,19 @@ export default function DashboardPage() {
               tone="cyan"
               loading={strategyQuery.isPending}
             />
+            {/* Reads "—" until there are exits. Zero closed positions is "no
+                record yet"; rendering it as 0% would be a claim, and a false
+                one. */}
             <StatTile
-              label="WINNERS"
-              value={holdings ? `${winnersCount} / ${positionsCount}` : "—"}
+              label="WIN RATE"
+              value={
+                winRate.pct === null
+                  ? "—"
+                  : `${winRate.wins} / ${winRate.total}`
+              }
               icon={Trophy}
               tone="yellow"
-              loading={strategyQuery.isPending}
+              loading={closedQuery.isPending}
             />
             <StatTile
               label="DAYS LIVE"

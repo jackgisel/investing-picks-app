@@ -355,3 +355,49 @@ def test_revisions_need_a_meaningful_window(db):
     out = compute_estimate_revisions(db, "AAA", current, today)
     assert out["epsRevisionPct"] == pytest.approx(0.05)
     assert out["revisionLookbackDays"] == 7
+
+
+def test_refresh_marks_backfills_market_cap_so_held_names_can_be_scored(db):
+    """A hand-entered position was invisible to the scorer, forever.
+
+    compute_scores filters on `Stock.market_cap >= min_universe_market_cap`.
+    NULL fails that comparison in SQL, so a Stock row created by refresh_marks
+    (which never set market_cap) was not scored, not rated on the dashboard,
+    and — because _removal_signals skips holdings with no score — not eligible
+    for any exit rule either.
+    """
+    from app.db.models import Portfolio, Position
+
+    db.add(Portfolio(id=1, name="Test", cash=1000.0))
+    db.add(Position(portfolio_id=1, ticker="AAA", shares=10, avg_cost=5.0))
+    db.commit()
+
+    class CapFMP:
+        def batch_quotes(self, tickers):
+            return [
+                {"symbol": t, "price": 11.0, "marketCap": 4_200_000_000}
+                for t in tickers
+            ]
+
+    refresh_marks(db, CapFMP())
+
+    stock = db.get(Stock, "AAA")
+    assert stock is not None
+    assert stock.market_cap == 4_200_000_000
+
+
+def test_refresh_marks_leaves_a_known_market_cap_alone(db):
+    """The screener is authoritative; marks must not overwrite it."""
+    from app.db.models import Portfolio, Position
+
+    db.add(Portfolio(id=1, name="Test", cash=1000.0))
+    db.add(Position(portfolio_id=1, ticker="AAA", shares=10, avg_cost=5.0))
+    db.add(Stock(ticker="AAA", is_active=True, market_cap=9_000_000_000))
+    db.commit()
+
+    class CapFMP:
+        def batch_quotes(self, tickers):
+            return [{"symbol": t, "price": 11.0, "marketCap": 1} for t in tickers]
+
+    refresh_marks(db, CapFMP())
+    assert db.get(Stock, "AAA").market_cap == 9_000_000_000

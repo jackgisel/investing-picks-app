@@ -534,8 +534,26 @@ def refresh_marks(db: Session, fmp: FMPClient) -> int:
             # refresh_universe — manually entered positions are the common
             # case. Skipping them here silently left every hand-entered
             # position marked at its entry price forever.
-            stock = Stock(ticker=ticker, name=q.get("name"), is_active=True)
+            stock = Stock(ticker=ticker, name=q.get("name"), is_active=True, is_etf=False)
             db.add(stock)
+        # Backfill market cap whenever it is unknown, including on rows this
+        # function created earlier.
+        #
+        # compute_scores filters the universe with
+        # `Stock.market_cap >= min_universe_market_cap`, and in SQL a NULL fails
+        # that comparison. A hand-entered position therefore was not merely
+        # unscored, it was never CONSIDERED — permanently "unrated" on the
+        # dashboard no matter how often scoring ran. Worse, `_removal_signals`
+        # skips holdings with no score, so no exit rule could ever fire on one
+        # either. Unknown is not the same as small, and it must not be resolved
+        # by silently dropping the row.
+        if stock.market_cap is None:
+            raw_cap = q.get("marketCap") or q.get("marketCapitalization")
+            if raw_cap:
+                try:
+                    stock.market_cap = float(raw_cap)
+                except (TypeError, ValueError):
+                    pass
         stock.last_price = float(price)
         stock.updated_at = datetime.now(timezone.utc)
         upsert_price_bar(db, ticker, today, float(price))

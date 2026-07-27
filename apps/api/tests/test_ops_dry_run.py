@@ -116,3 +116,51 @@ def test_diagnosis_reports_missing_fundamentals(db, portfolio):
     res = TestClient(app).get("/api/ops/dry-run", headers=OPS_HEADERS)
 
     assert res.json()["diagnosis"]["state"] == "no_fundamentals"
+
+
+def test_diagnosis_names_the_absent_factor_instead_of_the_worker_log(db, portfolio):
+    """Two snapshots exist, so revisions is answerable — but with no price bars
+    momentum is absent for every ticker and the coverage floor rejects all of
+    them. The old message sent the operator to a log on another service; the
+    breakdown is a count per factor, so name it.
+    """
+    from datetime import date, timedelta
+
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from app.db.models import Fundamentals, Stock
+    from app.db.session import get_db
+    from app.routes import ops
+
+    today = date.today()
+    db.add(
+        Stock(
+            ticker="AAA",
+            sector="Technology",
+            is_active=True,
+            is_etf=False,
+            # Below min_universe_market_cap the ticker is not even CONSIDERED,
+            # so the breakdown would be empty for a reason unrelated to factors.
+            market_cap=5_000_000_000,
+        )
+    )
+    db.add(Fundamentals(ticker="AAA", as_of=today, data={"peRatioTTM": 10}))
+    db.add(
+        Fundamentals(ticker="AAA", as_of=today - timedelta(days=30), data={"peRatioTTM": 12})
+    )
+    db.commit()
+
+    app = FastAPI()
+    app.include_router(ops.router)
+    app.dependency_overrides[get_db] = lambda: db
+    diagnosis = TestClient(app).get("/api/ops/dry-run", headers=OPS_HEADERS).json()[
+        "diagnosis"
+    ]
+
+    assert diagnosis["state"] == "coverage_floor"
+    assert "momentum" in diagnosis["absent_factors"]
+    # The actionable half: backfill_prices is not on any schedule, so a database
+    # that never had it run stays unscored forever.
+    assert "backfill_prices" in diagnosis["detail"]
+    assert "worker log" not in diagnosis["detail"]

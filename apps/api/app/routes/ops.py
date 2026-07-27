@@ -483,14 +483,52 @@ def _universe_diagnosis(db: Session, scored: int) -> dict:
                 f"{dates[0].isoformat()}."
             ),
         }
+    # Name the factor rather than sending the operator to the worker log. The
+    # log is on a different service, rotates, and the answer here is a single
+    # number per factor that we can just compute. `momentum` in particular
+    # points at price history: `backfill_prices` is deliberately unscheduled,
+    # so a database that never had it run fails coverage on every ticker
+    # forever with nothing in the UI saying why.
+    breakdown: dict[str, int] = {}
+    considered = 0
+    try:
+        from worker.services.scoring import preview_scores
+
+        portfolio = db.get(Portfolio, 1)
+        params = params_from_portfolio(portfolio) if portfolio else RUN118_PARAMS
+        _snapshots, breakdown, considered = preview_scores(db, params, date.today())
+    except Exception as e:  # pragma: no cover - diagnostic must never 500
+        log.warning("Could not compute missing-factor breakdown: %s", e)
+
+    absent = sorted(
+        (name for name, n in breakdown.items() if n >= considered > 0),
+    )
+    detail = (
+        "Fundamentals span multiple dates but no ticker cleared the "
+        "factor-coverage floor."
+    )
+    if absent:
+        detail += (
+            f" {', '.join(absent)} is missing for EVERY ticker considered "
+            f"({considered}). "
+        )
+        if "momentum" in absent:
+            detail += (
+                "Momentum needs ~12 months of daily closes; run the "
+                "backfill_prices job, which is not on any schedule."
+            )
+        elif "revisions" in absent:
+            detail += (
+                "Revisions need two fundamentals snapshots spanning the "
+                "lookback; another refresh will clear it."
+            )
     return {
         "state": "coverage_floor",
         "snapshot_dates": [d.isoformat() for d in dates],
-        "detail": (
-            "Fundamentals span multiple dates but no ticker cleared the "
-            "factor-coverage floor. Check the worker log for the missing-factor "
-            "breakdown."
-        ),
+        "considered": considered,
+        "missing_by_factor": breakdown,
+        "absent_factors": absent,
+        "detail": detail,
     }
 
 

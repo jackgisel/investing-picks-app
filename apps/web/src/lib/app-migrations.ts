@@ -76,4 +76,48 @@ export async function runAppMigrations() {
       ON market_note_subscriber(created_at)
       WHERE unsubscribed_at IS NULL
   `);
+
+  // Public identity for comment threads, kept SEPARATE from BetterAuth's
+  // `name`. `name` comes from signup and is frequently a real full name; the
+  // moment comments are published it would become public without the user ever
+  // choosing that. Null means "has not set one" — the UI must not fall back to
+  // `name` for display.
+  await pool.query(`
+    ALTER TABLE "user"
+      ADD COLUMN IF NOT EXISTS display_name TEXT
+  `);
+
+  // Comments on blog posts and research notes.
+  //
+  // (subject_type, subject_slug) rather than a FK: posts and insights are
+  // filesystem content (lib/blog.ts, lib/insights.ts), not database rows, so
+  // there is nothing to reference. subject_type is constrained because a typo
+  // would silently create a second, invisible thread on the same page.
+  //
+  // deleted_at rather than DELETE: a removed comment in the middle of a thread
+  // still has replies hanging off it, and cascading them away deletes other
+  // people's words to moderate one person's.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS post_comment (
+      id BIGSERIAL PRIMARY KEY,
+      subject_type TEXT NOT NULL CHECK (subject_type IN ('blog', 'insight')),
+      subject_slug TEXT NOT NULL,
+      user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+      parent_id BIGINT REFERENCES post_comment(id) ON DELETE CASCADE,
+      body TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      deleted_at TIMESTAMPTZ
+    )
+  `);
+
+  // The one query every thread runs.
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS post_comment_subject_idx
+      ON post_comment(subject_type, subject_slug, created_at)
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS post_comment_parent_idx
+      ON post_comment(parent_id)
+  `);
 }

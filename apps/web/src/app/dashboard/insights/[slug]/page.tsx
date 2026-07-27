@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
 
+import { CommentThread } from "@/components/comments/comment-thread";
 import { getAccess } from "@/lib/api-gate";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
 import { getInsightBySlug } from "@/lib/insights";
@@ -126,6 +127,8 @@ export default async function InsightDetailPage({
       <div className="pt-10">
         <Content />
       </div>
+
+      <CommentThread subjectType="insight" subjectSlug={meta.slug} />
     </article>
   );
 }

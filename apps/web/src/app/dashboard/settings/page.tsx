@@ -14,8 +14,10 @@ import {
   AlertCircle,
   LogOut,
   Mail,
+  MessageSquare,
   Trash2,
 } from "lucide-react";
+import { DisplayNameForm } from "@/components/comments/display-name-form";
 
 type NotificationPrefs = {
   newPicks: boolean;
@@ -98,6 +100,17 @@ export default function SettingsPage() {
           initialName={user.name ?? ""}
           email={user.email ?? ""}
         />
+      </Section>
+
+      {/* Public identity — separate from the account name above, which is
+          private and appears on receipts. */}
+      <Section
+        label="PUBLIC PROFILE"
+        title="How you appear in discussions"
+        description="Your display name and monogram are shown beside every comment you leave on research notes and blog posts. Set one before your first comment."
+        icon={MessageSquare}
+      >
+        <DisplayNameForm userId={user.id} />
       </Section>
 
       {/* Password */}

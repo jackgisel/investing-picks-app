@@ -5,6 +5,7 @@ import type { ArticleMeta, Article } from "@/lib/blog";
 import { ArticleCard } from "./article-card";
 import { CategoryTag, type PastelTone } from "@/components/ui/category-tag";
 import { MarketNoteSignup } from "@/components/marketing/market-note-signup";
+import { CommentThread } from "@/components/comments/comment-thread";
 
 function formatDate(iso: string): string {
   const d = new Date(iso + "T12:00:00Z");
@@ -76,7 +77,15 @@ export function PostLayout({
         </div>
       </header>
 
-      <div className="container-op py-16">{children}</div>
+      <div className="container-op py-16">
+        {children}
+        {/* Discussion sits inside the article column, above the signup: it is
+            part of the post, not a footer promo. Reading is public; posting is
+            gated in the route handler. */}
+        <div className="max-w-[720px]">
+          <CommentThread subjectType="blog" subjectSlug={meta.slug} />
+        </div>
+      </div>
 
       {/* The end of an article is the highest-intent moment on the marketing
           site: they just read 1,500 words voluntarily. Ask for the email here,

@@ -82,6 +82,51 @@ export function daysSinceInception(
   return Math.max(0, Math.floor((now - start) / (1000 * 60 * 60 * 24)));
 }
 
+/**
+ * Parse a plain `YYYY-MM-DD` as a LOCAL calendar date.
+ *
+ * `new Date("2026-08-07")` is UTC midnight, which formats as the 6th for every
+ * viewer west of Greenwich. These are calendar dates — a scoring date, an
+ * evaluation Friday — not instants, so they must not be shifted by timezone.
+ */
+function parseCalendarDate(iso: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (!m) return null;
+  const [year, month, day] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const d = new Date(year, month - 1, day);
+  // The Date constructor rolls out-of-range parts over silently — month 13 day
+  // 45 becomes the following February — so a malformed date would format as a
+  // confident, wrong day rather than failing. Read the parts back.
+  if (
+    d.getFullYear() !== year ||
+    d.getMonth() !== month - 1 ||
+    d.getDate() !== day
+  ) {
+    return null;
+  }
+  return d;
+}
+
+/** `2026-07-26` -> `26 Jul`. Null when the input is not a calendar date. */
+export function formatDayMonth(iso: string | null | undefined): string | null {
+  const d = iso ? parseCalendarDate(iso) : null;
+  return d
+    ? d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+    : null;
+}
+
+/** `2026-08-07` -> `Fri 7 Aug`. Null when the input is not a calendar date. */
+export function formatWeekdayDate(iso: string | null | undefined): string | null {
+  const d = iso ? parseCalendarDate(iso) : null;
+  return d
+    ? d.toLocaleDateString("en-GB", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+      })
+    : null;
+}
+
 /** Whole days between two ISO dates (end - start). */
 export function daysBetweenISO(startISO: string, endISO: string): number {
   const start = new Date(startISO).getTime();

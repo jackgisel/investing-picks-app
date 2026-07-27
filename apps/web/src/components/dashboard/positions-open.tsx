@@ -17,20 +17,29 @@ import {
   type Column,
   type SortDir,
 } from "@/components/dashboard/data-table";
-import { formatPctOrDash, pnlClass } from "@/lib/portfolio";
+import { formatDayMonth, formatPctOrDash, pnlClass } from "@/lib/portfolio";
 import { getInsightByTicker } from "@/lib/insight-index";
 
 type SortKey = "ticker" | "sector" | "weight_pct" | "entry_date" | "pnl_pct";
 
-const COLUMNS: readonly Column<SortKey>[] = [
-  { label: "TICKER", sortKey: "ticker" },
-  { label: "SECTOR", sortKey: "sector" },
-  { label: "WEIGHT", sortKey: "weight_pct" },
-  { label: "RATING" },
-  { label: "ENTRY DATE", sortKey: "entry_date" },
-  { label: "DAYS HELD" },
-  { label: "RETURN", sortKey: "pnl_pct" },
-];
+/**
+ * `ratingNote` stamps the RATING column with the date those ratings were
+ * struck. The universe is scored on a schedule, not on page load, so a badge
+ * with no date on it reads as the strategy's view *today* however old it is —
+ * which is the reading that matters least when someone is deciding whether to
+ * add to a position.
+ */
+function buildColumns(ratingNote: string | null): readonly Column<SortKey>[] {
+  return [
+    { label: "TICKER", sortKey: "ticker" },
+    { label: "SECTOR", sortKey: "sector" },
+    { label: "WEIGHT", sortKey: "weight_pct" },
+    { label: "RATING", note: ratingNote ?? undefined },
+    { label: "ENTRY DATE", sortKey: "entry_date" },
+    { label: "DAYS HELD" },
+    { label: "RETURN", sortKey: "pnl_pct" },
+  ];
+}
 
 function daysHeld(entryDate: string | null): string {
   if (!entryDate) return "—";
@@ -69,6 +78,10 @@ export function PositionsOpen() {
   const signalByTicker = new Map(
     (picksQuery.data?.picks ?? []).map((p) => [p.ticker, p.signal]),
   );
+
+  const ratingAsOf = picksQuery.data?.rating_as_of ?? null;
+  const ratingDate = formatDayMonth(ratingAsOf);
+  const columns = buildColumns(ratingDate && `as of ${ratingDate}`);
 
   const sorted = holdings
     ? [...holdings].sort((a, b) => {
@@ -117,7 +130,7 @@ export function PositionsOpen() {
         <div className="overflow-x-auto">
           <table className="w-full">
             <SortableHead
-              columns={COLUMNS}
+              columns={columns}
               sortKey={sortKey}
               sortDir={sortDir}
               onSort={toggleSort}
@@ -125,7 +138,7 @@ export function PositionsOpen() {
             <tbody>
               {hasDataState(state) ? (
                 <DataStateRow
-                  colSpan={COLUMNS.length}
+                  colSpan={columns.length}
                   state={state}
                   error={error}
                   onRetry={() => void strategyQuery.refetch()}
@@ -184,13 +197,20 @@ export function PositionsOpen() {
                       </td>
                       <td className="px-5 py-3.5">
                         {signal ? (
-                          <span className={`badge ${signalBadgeClass(signal)}`}>
+                          <span
+                            className={`badge ${signalBadgeClass(signal)}`}
+                            title={
+                              ratingAsOf
+                                ? `The strategy's read on ${h.ticker} as of ${ratingAsOf}. Ratings are re-struck each trading day, not live.`
+                                : undefined
+                            }
+                          >
                             {signal.replace("_", " ").toUpperCase()}
                           </span>
                         ) : (
                           <span
                             className="font-mono text-[11px] text-text-dim"
-                            title="The universe is currently unscored, so the strategy has no rating for this name."
+                            title="This name has no score in the latest run, so the strategy has no rating to publish for it."
                           >
                             unrated
                           </span>

@@ -8,8 +8,10 @@ import {
   daysBetweenISO,
   daysSinceInception,
   describeLiveCagr,
+  formatDayMonth,
   formatPct,
   formatPctOrDash,
+  formatWeekdayDate,
   foundersDealDaysRemaining,
   isFoundersDealActive,
   pnlClass,
@@ -301,5 +303,33 @@ describe("isFoundersDealActive", () => {
 
   it("never counts remaining days below zero", () => {
     expect(foundersDealDaysRemaining(FOUNDERS_DEAL_MAX_DAY + 99)).toBe(0);
+  });
+});
+
+describe("calendar date formatting", () => {
+  // These are calendar dates — a scoring date, an evaluation Friday — not
+  // instants. `new Date("2026-08-07")` is UTC midnight, so a naive
+  // implementation renders the 6th for every viewer west of Greenwich and the
+  // dashboard quietly promises picks a day early.
+  it("does not shift the date across timezones", () => {
+    expect(formatDayMonth("2026-08-07")).toBe("7 Aug");
+    expect(formatWeekdayDate("2026-08-07")).toBe("Fri 7 Aug");
+  });
+
+  it("formats a scoring date", () => {
+    expect(formatDayMonth("2026-07-26")).toBe("26 Jul");
+  });
+
+  it("accepts a full timestamp and keeps the calendar day", () => {
+    expect(formatDayMonth("2026-01-01T23:30:00Z")).toBe("1 Jan");
+  });
+
+  it("returns null rather than 'Invalid Date' for missing or junk input", () => {
+    expect(formatDayMonth(null)).toBeNull();
+    expect(formatDayMonth(undefined)).toBeNull();
+    expect(formatDayMonth("")).toBeNull();
+    expect(formatDayMonth("not-a-date")).toBeNull();
+    expect(formatWeekdayDate(null)).toBeNull();
+    expect(formatWeekdayDate("2026-13-45")).toBeNull();
   });
 });

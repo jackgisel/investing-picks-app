@@ -118,6 +118,43 @@ def test_prior_rating_ignores_older_periods(db):
     assert scores["AAA"].prior_quant_rating == 4.5
 
 
+def test_prior_rating_skips_intervening_daily_runs(db):
+    """"Prior" is a fixed span back, not "the run before this one".
+
+    The universe is scored every trading day. Taking the second-most-recent
+    as_of would make the QR velocity rule compare today against YESTERDAY — a
+    one-day drop of a full rating point is close to unheard of, so the rule
+    would stop firing without anyone having changed it.
+    """
+    _score(db, "AAA", date(2026, 7, 19), 4.5)
+    _score(db, "AAA", date(2026, 7, 26), 4.4)  # yesterday's run
+    _score(db, "AAA", date(2026, 7, 27), 2.0)
+
+    scores = load_latest_scores(db)
+    assert scores["AAA"].quant_rating == 2.0
+    assert scores["AAA"].prior_quant_rating == 4.5
+
+
+def test_prior_rating_includes_the_window_boundary(db):
+    _score(db, "AAA", date(2026, 7, 20), 3.9)  # exactly the lookback back
+    _score(db, "AAA", date(2026, 7, 27), 2.0)
+
+    scores = load_latest_scores(db)
+    assert scores["AAA"].prior_quant_rating == 3.9
+
+
+def test_prior_rating_abstains_when_history_is_shorter_than_the_window(db):
+    """Falling back to the nearest available date would compare over a window
+    shorter than the rule means, so the velocity exit must simply not fire.
+    """
+    _score(db, "AAA", date(2026, 7, 25), 4.5)
+    _score(db, "AAA", date(2026, 7, 27), 2.0)
+
+    scores = load_latest_scores(db)
+    assert scores["AAA"].quant_rating == 2.0
+    assert scores["AAA"].prior_quant_rating is None
+
+
 def test_same_day_rescore_does_not_become_its_own_prior(db):
     """Two scoring runs in one day used to make prior == today, which silently
     disabled the rating-drop exits.

@@ -213,20 +213,25 @@ def _sector_by_ticker(db: Session, tickers: list[str]) -> dict[str, str | None]:
     return {ticker: sector for ticker, sector in rows}
 
 
-def _latest_ratings(db: Session) -> dict[str, float]:
-    """Quant rating per ticker from the most recent scoring date.
+def _latest_ratings(db: Session) -> tuple[dict[str, float], date | None]:
+    """Quant ratings from the most recent scoring date, and that date.
 
     Scoped to a single `as_of` so a name that dropped out of the latest run
     cannot be shown with a rating from an earlier one — an unscored holding must
     read as unrated, not as stale-but-confident.
+
+    The date is returned rather than left implicit because the UI publishes
+    these ratings next to holdings a subscriber may be buying into. Scoring can
+    fall behind (a failed worker run, a coverage-floor rejection), and a badge
+    with no date on it reads as today's view regardless of when it was struck.
     """
     latest = db.query(func.max(CompositeScore.as_of)).scalar()
     if latest is None:
-        return {}
+        return {}, None
     return {
         row.ticker: row.quant_rating
         for row in db.query(CompositeScore).filter(CompositeScore.as_of == latest).all()
-    }
+    }, latest
 
 
 @router.get("/picks")
@@ -238,8 +243,9 @@ def get_picks(
     if not portfolio:
         return {"count": 0, "picks": []}
     picks = []
+    rating_as_of: date | None = None
     if status in ("all", "active"):
-        ratings = _latest_ratings(db)
+        ratings, rating_as_of = _latest_ratings(db)
         for p in db.query(Position).filter(Position.portfolio_id == portfolio.id).all():
             rating = ratings.get(p.ticker)
             picks.append(
@@ -288,7 +294,14 @@ def get_picks(
                     "blog_slug": None,
                 }
             )
-    return {"status": status, "count": len(picks), "picks": picks}
+    return {
+        "status": status,
+        "count": len(picks),
+        "picks": picks,
+        # The scoring date every `signal` on this payload was struck from. Null
+        # when nothing is scored. Consumers must show it beside the badge.
+        "rating_as_of": rating_as_of.isoformat() if rating_as_of else None,
+    }
 
 
 @router.get("/trades")

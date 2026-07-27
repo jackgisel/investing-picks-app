@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import logging
-from datetime import date
+from datetime import date, timedelta
 
-from sqlalchemy import inspect as sa_inspect, text
+from sqlalchemy import func, inspect as sa_inspect, text
 from sqlalchemy.orm import Session
 
 from dataclasses import fields
@@ -231,27 +231,42 @@ def total_return_pct(db: Session, portfolio: Portfolio) -> float | None:
     return round((equity / base - 1) * 100, 2)
 
 
-def load_latest_scores(db: Session) -> dict[str, ScoreSnapshot]:
-    """Current score per ticker, plus the previous scoring period's rating.
+# How far back "prior" reaches when measuring a rating drop. This is a fixed
+# span in DAYS, deliberately not "the previous scoring run".
+#
+# The QR velocity rule sells on `qr - prior_qr < -qr_velocity_drop`. While the
+# universe was scored weekly those were the same thing, so prior simply meant
+# the second-most-recent as_of. Scoring now runs every trading day, and reading
+# prior as "the run before this one" would silently reinterpret the rule as a
+# one-DAY drop — a threshold a rating almost never crosses overnight, which
+# retires a risk control without anyone changing it. Pinning the span keeps the
+# rule meaning the same thing at any scoring cadence.
+QR_VELOCITY_LOOKBACK_DAYS = 7
 
-    Scoped to the two most recent `as_of` dates. Previously this loaded the
-    entire `composite_scores` table and treated the second row it happened to
-    see for a ticker as "prior", so two scoring runs on the same day made
-    prior == today and neutered the rating-drop exits.
+
+def load_latest_scores(db: Session) -> dict[str, ScoreSnapshot]:
+    """Current score per ticker, plus its rating a lookback window ago.
+
+    Scoped to two `as_of` dates: the newest, and the newest that is at least
+    QR_VELOCITY_LOOKBACK_DAYS older. Previously this loaded the entire
+    `composite_scores` table and treated the second row it happened to see for
+    a ticker as "prior", so two scoring runs on the same day made prior ==
+    today and neutered the rating-drop exits.
     """
-    recent_dates = [
-        row[0]
-        for row in db.query(CompositeScore.as_of)
-        .distinct()
-        .order_by(CompositeScore.as_of.desc())
-        .limit(2)
-        .all()
-    ]
-    if not recent_dates:
+    current_date = db.query(func.max(CompositeScore.as_of)).scalar()
+    if current_date is None:
         return {}
 
-    current_date = recent_dates[0]
-    prior_date = recent_dates[1] if len(recent_dates) > 1 else None
+    # The most recent snapshot at least a full window back. None when the table
+    # does not reach that far yet, which correctly leaves prior_quant_rating
+    # unset so the velocity rule abstains rather than firing on a short window.
+    prior_date = (
+        db.query(func.max(CompositeScore.as_of))
+        .filter(CompositeScore.as_of <= current_date - timedelta(days=QR_VELOCITY_LOOKBACK_DAYS))
+        .scalar()
+    )
+
+    recent_dates = [d for d in (current_date, prior_date) if d is not None]
 
     rows = (
         db.query(CompositeScore)

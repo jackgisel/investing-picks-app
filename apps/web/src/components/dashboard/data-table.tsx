@@ -8,6 +8,12 @@ export interface Column<K extends string> {
   label: string;
   /** Omit to make the column unsortable. */
   sortKey?: K;
+  /**
+   * Small second line under the label, for provenance that belongs to the
+   * whole column rather than to each cell — the date a rating was struck, say.
+   * Kept outside the sort button so it is never mistaken for a control.
+   */
+  note?: string;
 }
 
 /**
@@ -49,20 +55,27 @@ export function SortableHead<K extends string>({
               }
               className="border-b border-border bg-bg px-5 py-3 text-left font-mono text-[10px] font-medium tracking-[1.5px] text-text-dim"
             >
-              {col.sortKey ? (
-                <button
-                  type="button"
-                  onClick={() => onSort(col.sortKey as K)}
-                  className="flex items-center gap-1 uppercase transition-colors hover:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
-                >
-                  {col.label}
-                  {isSorted && (
-                    <ArrowUpDown size={10} className="text-accent-green" />
-                  )}
-                </button>
-              ) : (
-                <span className="flex items-center gap-1">{col.label}</span>
-              )}
+              <span className="flex flex-col gap-0.5">
+                {col.sortKey ? (
+                  <button
+                    type="button"
+                    onClick={() => onSort(col.sortKey as K)}
+                    className="flex items-center gap-1 uppercase transition-colors hover:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+                  >
+                    {col.label}
+                    {isSorted && (
+                      <ArrowUpDown size={10} className="text-accent-green" />
+                    )}
+                  </button>
+                ) : (
+                  <span className="flex items-center gap-1">{col.label}</span>
+                )}
+                {col.note && (
+                  <span className="font-mono text-[9px] font-normal normal-case tracking-normal text-text-dim">
+                    {col.note}
+                  </span>
+                )}
+              </span>
             </th>
           );
         })}

@@ -21,6 +21,13 @@ export interface PicksResponse {
   count: number;
   status: string;
   thesis_id: number;
+  /**
+   * Scoring date every `signal` above was struck from, or null when nothing is
+   * scored. Ratings are published next to holdings people buy into, so this
+   * must be rendered beside the badge — undated, a badge reads as today's view
+   * however old it is.
+   */
+  rating_as_of?: string | null;
 }
 
 export function usePicks(status: "active" | "closed" = "active") {

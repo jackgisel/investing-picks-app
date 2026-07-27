@@ -75,9 +75,17 @@ def job_daily_marks():
         try:
             ensure_default_portfolio(db, get_settings().initial_cash)
             n = refresh_marks(db, fmp)
+            # Re-score every trading day, after marks so momentum sees today's
+            # bar. Scoring is pure DB compute — compute_scores reads
+            # Fundamentals/PriceBar/Stock and calls no FMP endpoint — so this
+            # adds no API quota. It exists because a rating is published next to
+            # every holding: scoring only on Saturday meant a subscriber
+            # averaging into a name mid-week was reading a badge up to six days
+            # old with nothing on screen saying so.
+            s = score_universe(db)
             # Optional daily sells if enabled in params
             run_evaluation(db, mode="daily", dry_run=False)
-            return {"marks": n}
+            return {"marks": n, "scores": s}
         finally:
             fmp.close()
 

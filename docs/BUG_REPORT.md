@@ -510,3 +510,101 @@ idempotency; the 45-day fundamentals cutoff; TTM growth math; `FMPClient` error
 handling (401/402/403 raise rather than reading as "no data", 429 backs off,
 api key is not logged); `market_calendar` including Easter and observed-holiday
 shifts; estimate-revision fiscal-period pinning.
+
+---
+
+# PART 5 — parity against the LIVE old model
+
+Added 2026-07-27. Oracle is `~/workspace/jdpicks` **live** code
+(`services/scoring_engine.py`, `stock_selector.py`), not `services/backtest/`.
+This matters: PART 2 compared against the backtest engine, but the current book
+was picked by the live engine, and the two are not identical.
+
+`jd.db` locally is empty (1 row, `theses`) — live data is on the production DB.
+So parity here is a **differential test of the two implementations**, not a
+data replay.
+
+## What already matches — the configuration is not the problem
+
+The live thesis row confirms the old system ran:
+- factor weights `val 0.05 / gro 0.35 / pro 0.15 / mom 0.15 / rev 0.30`
+- buy criteria `QR 4.0, rev B+, gro B, pro D, val C-`
+- signal thresholds `4.5 / 3.5 / 2.5 / 1.5`, `max_positions 50`,
+  `hold_removal 2.5`, biweekly
+
+**All identical to `RUN118_PARAMS`.** Every divergence below is in how factor
+*inputs* are computed, not how they are weighted.
+
+## DIVERGENCE-1 — momentum is a different quantity (15% of the model)
+
+Old live (`scoring_engine.py:203-239`): four windows, recency-weighted —
+1m×0.15, 3m×0.25, 6m×0.30, 12m×0.30 — each percentile-ranked within sector,
+plus a momentum-acceleration term.
+
+New (`worker/services/scoring.py:218-220`): **12-month return only.**
+
+Larger than PART 2 reported. That comparison was against the backtest engine
+(6m+12m averaged); the *live* engine that picked the book uses four windows
+weighted toward recent momentum. A name with strong 1m/3m and weak 12m scored
+well in the old system and scores badly in the new one.
+
+## DIVERGENCE-2 — the Z-score bankruptcy filter ran live and is dead here
+
+`scoring_engine.py:291` implements `_compute_z_score`. The new system's
+`z_score_floor = 1.8` is never reached because the only caller omits the
+argument (BUG-P3). **The filter that excluded distressed names from the book
+you own is not running.**
+
+## DIVERGENCE-3 — percentile formula, quantified
+
+Old: `rank = count(v <= value)`, `pct = rank/n × 100` — best 100, worst 100/n,
+ties take the top of the run.
+New: tie-midpoint over 0–100 — best 100, worst 0, ties take the midpoint.
+
+Measured on an evenly-ranked 20-name sector, applying each scheme to all five
+factors and running the real `composite_from_factor_pcts`:
+
+| rank | old pct | new pct | old QR | new QR | ΔQR |
+|---|---|---|---|---|---|
+| 1 | 100.0 | 100.0 | 5.00 | 5.00 | +0.00 |
+| 5 | 80.0 | 78.9 | 4.20 | 4.16 | −0.04 |
+| 10 | 55.0 | 52.6 | 3.20 | 3.11 | −0.09 |
+| 15 | 30.0 | 26.3 | 2.20 | 2.05 | −0.15 |
+| 20 | 5.0 | 0.0 | 1.20 | 1.00 | −0.20 |
+
+**The new engine is systematically slightly more bearish**, identical at the
+top and diverging as rank falls. Bounded at ~0.20 QR points.
+
+Where that changes a decision:
+- Buy gate `min_quant_rating 4.0` — only a narrow band (old QR ≈ 4.00–4.04)
+  flips to ineligible.
+- Sell gate `hold_removal_rating 2.5` — a name at old QR 2.50–2.65 lands
+  **below** 2.5 in the new engine. **The new system exits names the old one
+  held.**
+
+Checked separately: at n=10 the grade ladder produced **no** flips of the
+`min_revisions_grade = B+` gate. The formula change moves the lower half of the
+distribution, which is not where the buy gate sits.
+
+## Assessment
+
+Ranked by how much each moves the picks:
+
+1. **Revisions** (30% weight, gates every buy) — consensus *change* vs
+   consensus *dispersion position*. A different quantity, not a different scale.
+2. **Momentum** (15%) — one window vs four recency-weighted windows.
+3. **Z-score filter** — ran live, dead here.
+4. **Percentile formula** — real but bounded at ~0.2 QR, and directional
+   (slightly more bearish).
+5. **Missing filters** — country cap (20% per non-US country), minimum sector
+   population (≥15).
+
+1 and 2 are the ones that would make the new engine pick different stocks. 3
+and 5 change which names are eligible at all. 4 only shifts timing at the
+margin.
+
+**Parity is achievable — but as porting work, not bug-fixing.** The defects in
+PARTS 1–4 are real and worth fixing on their own merits; fixing all of them
+would not make this engine reproduce the old one's picks, because the factor
+inputs are computed differently by design decisions nobody flagged as
+decisions.

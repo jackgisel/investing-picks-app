@@ -398,3 +398,115 @@ genuinely fixed); transaction boundary (a crash mid-evaluation leaves no torn
 state); dry-run writes nothing; **paywall and model leakage — `public_dict()`
 everywhere public, no factor weights exposed**; CAGR denominator; benchmark
 series construction.
+
+---
+
+# PART 4 — worker / data pipeline audit
+
+Added 2026-07-27.
+
+## BUG-W3 — a NULL sector drops a ticker with no trace (FIXED)
+`apps/worker/worker/services/scoring.py:175` — **HIGH — VERIFIED**
+
+```python
+if s.ticker in funds and s.sector:
+```
+
+The same NULL-truthiness class as the `market_cap` bug, one gate later, and
+worse: the skip happens **before `considered` is incremented and before
+`missing_factor` is touched**, so the ticker appears in no count and no log
+line anywhere.
+
+**This means the market_cap fix in `294252e` was incomplete.** `refresh_marks`
+creates `Stock(ticker=..., name=..., is_active=True, is_etf=False)` with no
+sector, so a hand-seeded holding cleared the market-cap SQL filter and was then
+dropped here — still unscored, still unrated, and still ineligible for every
+exit rule because `_removal_signals` skips holdings with no score.
+
+`refresh_fundamentals` resolves sector from the `profile` endpoint, but only on
+the weekly Saturday refresh. Fixed by resolving sector in `refresh_marks` for
+**held** tickers (scoped: candidates arrive from `refresh_universe` with a
+sector, and SPY legitimately has none), with a loud warning when it cannot be
+resolved.
+
+## BUG-W1 — `refresh_marks` quotes an arbitrary, frozen set of 100 tickers
+`apps/worker/worker/services/ingest.py:507-512` — **HIGH**
+
+Candidates are selected `ORDER BY composite_scores.id DESC LIMIT 100`.
+`score_universe` UPDATEs rows in place and only INSERTs for new tickers, so
+**ids are frozen at first sight**: the 100 selected are whichever tickers
+happened to be inserted last on the first-ever scoring run, permanently. There
+is no `as_of` filter, so one ticker can occupy several slots.
+
+A top-rated pick inserted early never gets a fresh quote — its mark and its
+daily bar stop updating, feeding a stale price into momentum and into the price
+shown beside the pick.
+
+## BUG-W2 — momentum accepts an arbitrarily stale latest bar
+`apps/worker/worker/services/scoring.py:104-127` — **HIGH**
+
+`_momentum_12m` imposes no recency requirement on the newest bar. Only held
+positions, the (arbitrary, per W1) 100, and SPY get daily bars;
+`backfill_price_history` is unscheduled. So most of the universe has a newest
+bar frozen at the backfill date while the `as_of − 365d` anchor keeps moving.
+
+A stock whose last bar is three months old at 200, against 100 a year before,
+reports **+100% momentum** and tops its sector — while actually trading at 80.
+
+## BUG-W4 — a two-ticker sector manufactures a perfect rating
+`apps/worker/worker/services/scoring.py:213-220` — **HIGH**
+
+No minimum sector population before percentile ranking (the old system required
+≥15 names). With n=2 the better name scores 100th percentile on all five
+factors → composite 100 → **quant_rating 5.0 with A+ across the board**,
+clearing `min_quant_rating 4.0` and every grade floor at once, on no
+information. n=1 is safe (50.0 → QR 3.0, below the buy gate), which makes n=2
+the cliff. `min_factor_coverage = 1.0` shrinks covered sectors, making this
+reachable.
+
+## BUG-W6 — the $5 share-price floor never fires on a missing price
+`apps/worker/worker/services/ingest.py:109-111` — **MEDIUM**
+
+`price = row.get("price") or 0` then `if price and price < min_share_price`. A
+missing or zero screener price is falsy, so the floor is skipped and the ticker
+is admitted. `refresh_universe` is the only code path that reads
+`min_share_price`, and nothing re-applies it, so admission is permanent.
+
+## BUG-W7 / W8 — price-field handling
+- `row.get("adjClose", row.get("close"))` uses the default only when the key is
+  **absent**, not when it is present-and-null. FMP sends explicit nulls, so a
+  usable close in the same row is discarded (`ingest.py:473`). A hole at the
+  12-month anchor makes the ticker unscoreable.
+- Two writers of `price_bars` disagree on field priority — `ingest` prefers
+  `adjClose`, `backfill._parse_series` prefers `close`, and `upsert_price_bar`
+  overwrites on conflict. Across a split this fabricates a 3x discontinuity
+  that momentum reads as −67% or +200%.
+- **Open question worth resolving against live FMP JSON:** `backfill.py:272-276`
+  documents `/stable/historical-price-eod/full` as returning no `adjClose` at
+  all. If that comment is right, ingest's preferred field is always absent and
+  **all momentum runs on unadjusted prices**, so every recent split fabricates a
+  large negative 12-month return.
+
+## FMP field-name audit
+Of ~33 fields read from FMP, **15 have no alias tuple** — notably
+`priceToBookRatioTTM`, `priceToSalesRatioTTM`, the three profitability margins,
+and `returnOnEquityTTM`/`returnOnAssetsTTM`/`returnOnCapitalEmployedTTM` (v3
+called these `roeTTM`/`roaTTM`/`roicTTM`). A rename in any of them nulls the
+factor.
+
+`refresh_fundamentals` merges `{**key_metrics_ttm, **ratios_ttm}`, so the code
+never records which endpoint supplied which metric and **`ratios-ttm` silently
+wins any collision**.
+
+The one live mitigation is `min_factor_coverage = 1.0`: a fully-nulled factor
+makes tickers unscoreable and loudly logged rather than silently re-weighting
+the model. **Lowering that floor would make the next FMP rename invisible.**
+
+## Audited and CLEAN
+Timezone handling (ET scheduler vs UTC `date.today()` — no boundary bug);
+`existing_today` deletion is guarded against a total outage; screener partial
+failure cannot shrink the universe (`is_active` is never set False); re-run
+idempotency; the 45-day fundamentals cutoff; TTM growth math; `FMPClient` error
+handling (401/402/403 raise rather than reading as "no data", 429 backs off,
+api key is not logged); `market_calendar` including Easter and observed-holiday
+shifts; estimate-revision fiscal-period pinning.

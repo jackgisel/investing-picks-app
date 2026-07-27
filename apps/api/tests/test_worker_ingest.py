@@ -401,3 +401,76 @@ def test_refresh_marks_leaves_a_known_market_cap_alone(db):
 
     refresh_marks(db, CapFMP())
     assert db.get(Stock, "AAA").market_cap == 9_000_000_000
+
+
+def test_refresh_marks_resolves_a_missing_sector_so_a_holding_can_be_scored(db):
+    """market_cap was only the first gate; sector is the second.
+
+    compute_scores builds peer groups with `if s.ticker in funds and s.sector`,
+    so a NULL sector drops the ticker before `considered` is incremented — it
+    appears in no count and no log line. Backfilling market_cap alone (commit
+    294252e) left hand-seeded holdings still unscoreable, still unrated, and
+    still ineligible for every exit rule.
+    """
+    from app.db.models import Portfolio, Position
+
+    db.add(Portfolio(id=1, name="Test", cash=1000.0))
+    db.add(Position(portfolio_id=1, ticker="AAA", shares=10, avg_cost=5.0))
+    db.commit()
+
+    class ProfileFMP:
+        def batch_quotes(self, tickers):
+            return [{"symbol": t, "price": 11.0, "marketCap": 4e9} for t in tickers]
+
+        def profile(self, ticker):
+            return {"sector": "Technology", "industry": "Software",
+                    "companyName": "Aaa Inc"}
+
+    refresh_marks(db, ProfileFMP())
+
+    stock = db.get(Stock, "AAA")
+    assert stock.sector == "Technology"
+    assert stock.market_cap == 4e9
+
+
+def test_refresh_marks_does_not_refetch_a_profile_it_already_has(db):
+    """One call per ticker missing a sector, not one per marks run."""
+    from app.db.models import Portfolio, Position
+
+    db.add(Portfolio(id=1, name="Test", cash=1000.0))
+    db.add(Position(portfolio_id=1, ticker="AAA", shares=10, avg_cost=5.0))
+    db.add(Stock(ticker="AAA", is_active=True, sector="Energy", market_cap=1e9))
+    db.commit()
+
+    calls: list[str] = []
+
+    class CountingFMP:
+        def batch_quotes(self, tickers):
+            return [{"symbol": t, "price": 11.0} for t in tickers]
+
+        def profile(self, ticker):
+            calls.append(ticker)
+            return {"sector": "Technology"}
+
+    refresh_marks(db, CountingFMP())
+    assert calls == []
+    assert db.get(Stock, "AAA").sector == "Energy"
+
+
+def test_refresh_marks_survives_a_failing_profile_lookup(db):
+    """A marks run must not die because one profile call raised."""
+    from app.db.models import Portfolio, Position
+
+    db.add(Portfolio(id=1, name="Test", cash=1000.0))
+    db.add(Position(portfolio_id=1, ticker="AAA", shares=10, avg_cost=5.0))
+    db.commit()
+
+    class AngryFMP:
+        def batch_quotes(self, tickers):
+            return [{"symbol": t, "price": 11.0} for t in tickers]
+
+        def profile(self, ticker):
+            raise RuntimeError("FMP is down")
+
+    assert refresh_marks(db, AngryFMP()) >= 1
+    assert db.get(Stock, "AAA").last_price == 11.0

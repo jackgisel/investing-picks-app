@@ -510,6 +510,7 @@ def refresh_marks(db: Session, fmp: FMPClient) -> int:
         .limit(100)
         .all()
     )
+    held_tickers = set(pos_tickers)
     tickers = list({*pos_tickers, *[c[0] for c in candidates], "SPY"})
     quotes = fmp.batch_quotes(tickers)
     # Date the bar to the session it actually belongs to. FMP returns the last
@@ -554,6 +555,39 @@ def refresh_marks(db: Session, fmp: FMPClient) -> int:
                     stock.market_cap = float(raw_cap)
                 except (TypeError, ValueError):
                     pass
+        # Sector is the second gate, and clearing market_cap alone does not get
+        # a ticker scored. `compute_scores` builds its peer groups with
+        # `if s.ticker in funds and s.sector` — a NULL sector drops the row
+        # before `considered` is even incremented, so it appears in no count and
+        # no log line. Sector is not on the quote payload, so fetch the profile,
+        # but only for rows that lack one: this is a per-ticker call and the
+        # gap it closes is rare and permanent, not recurring.
+        #
+        # `refresh_fundamentals` also resolves sector from the same endpoint,
+        # but only on the weekly refresh. A held position that cannot be scored
+        # is not merely unrated on the dashboard — `_removal_signals` skips
+        # holdings with no score, so no exit rule can fire on it. Waiting until
+        # Saturday for that is too long.
+        #
+        # Scoped to HELD tickers. Candidates arrive via refresh_universe with a
+        # sector already set, and SPY is a benchmark that legitimately has none
+        # — looking it up every run would spend a call and log a warning
+        # forever for a row that is not a candidate for anything.
+        if not stock.sector and ticker in held_tickers:
+            try:
+                profile = fmp.profile(ticker)
+            except Exception:  # never let a marks run die on one lookup
+                profile = None
+            if profile:
+                stock.sector = profile.get("sector") or stock.sector
+                stock.industry = profile.get("industry") or stock.industry
+                stock.name = stock.name or profile.get("companyName")
+            if not stock.sector:
+                log.warning(
+                    "%s has no sector; it cannot be scored, rated, or exited "
+                    "by any rule until one is resolved",
+                    ticker,
+                )
         stock.last_price = float(price)
         stock.updated_at = datetime.now(timezone.utc)
         upsert_price_bar(db, ticker, today, float(price))

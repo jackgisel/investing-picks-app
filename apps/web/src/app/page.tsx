@@ -6,6 +6,7 @@ import { Audience } from "@/components/landing/audience";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { Strategy } from "@/components/landing/strategy";
 import { DashboardPreview } from "@/components/landing/dashboard-preview";
+import { WhatWeAreNot } from "@/components/landing/what-we-are-not";
 import { Pricing } from "@/components/landing/pricing";
 import { MarketNoteCta } from "@/components/landing/market-note-cta";
 import { FAQ } from "@/components/landing/faq";
@@ -25,6 +26,9 @@ export default function HomePage() {
       <HowItWorks />
       <Strategy />
       <DashboardPreview />
+      {/* Immediately before pricing on purpose: someone who wants alerts and
+          price targets should self-select out here, not after paying. */}
+      <WhatWeAreNot />
       <Pricing />
       {/* Catches the visitor who just decided not to pay today. */}
       <MarketNoteCta />

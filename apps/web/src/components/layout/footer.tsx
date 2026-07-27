@@ -55,6 +55,14 @@ export function Footer() {
                     Pricing
                   </Link>
                 </li>
+                <li>
+                  <Link
+                    href="/what-we-are-not"
+                    className="font-sans text-[13px] font-semibold tracking-[0.08em] uppercase text-text-muted hover:text-text transition-colors"
+                  >
+                    What we are not
+                  </Link>
+                </li>
               </ul>
             </div>
             <div>

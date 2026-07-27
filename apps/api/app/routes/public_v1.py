@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from outpick_strategy import quant_to_signal
+from outpick_strategy import next_evaluation_friday, quant_to_signal
 
 from app.db.models import (
     CompositeScore,
@@ -136,6 +136,7 @@ def get_strategy(db: Session = Depends(get_db)):
             "evaluation_frequency": "biweekly",
             "max_positions": 50,
             "position_count": 0,
+            "next_evaluation_date": next_evaluation_friday(date.today()).isoformat(),
         }
     params = params_from_portfolio(portfolio)
     positions = db.query(Position).filter(Position.portfolio_id == portfolio.id).all()
@@ -188,6 +189,11 @@ def get_strategy(db: Session = Depends(get_db)):
         # weights and every rating threshold, i.e. the model. See
         # StrategyParams.PUBLIC_FIELDS.
         "params": params.public_dict(),
+        # When the book is next re-evaluated. Published because the cadence is
+        # otherwise invisible: a subscriber watching a static holdings table has
+        # no way to tell a strategy that decided to do nothing from one that is
+        # simply between cycles.
+        "next_evaluation_date": next_evaluation_friday(date.today()).isoformat(),
     }
 
 

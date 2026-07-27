@@ -7,6 +7,8 @@ from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
+from outpick_strategy.cadence import is_evaluation_friday
+
 from app.config import get_settings
 from app.db.models import JobRun
 from app.db.session import SessionLocal
@@ -146,13 +148,13 @@ def job_backfill_prices():
 def biweekly_target_friday(today: date) -> date | None:
     """The evaluation Friday for `today`'s week, if this is an evaluation week.
 
-    Run 118 evaluates on the 1st and 3rd Friday, i.e. a Friday falling on day
-    1-7 or 15-21 of the month.
+    Week-scoped on purpose — the scheduler fires every weekday of an evaluation
+    week and this answers "which Friday is that firing for". The cadence rule
+    itself lives in `outpick_strategy.cadence` because the API publishes the
+    next evaluation date to subscribers and cannot import the worker.
     """
     friday = today + timedelta(days=4 - today.weekday())
-    if friday.weekday() != 4:
-        return None
-    return friday if (1 <= friday.day <= 7 or 15 <= friday.day <= 21) else None
+    return friday if is_evaluation_friday(friday) else None
 
 
 def job_biweekly_evaluate():

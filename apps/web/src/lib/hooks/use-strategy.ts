@@ -52,6 +52,13 @@ export interface StrategyData {
   position_count?: number;
   params_version?: string;
   params?: Record<string, unknown>;
+  /**
+   * The next date the book is re-evaluated (ISO calendar date). Published
+   * because the cadence is otherwise invisible — a subscriber looking at an
+   * unchanged holdings table cannot tell a strategy that chose to do nothing
+   * from one that is simply between cycles.
+   */
+  next_evaluation_date?: string | null;
 }
 
 export function useStrategy() {

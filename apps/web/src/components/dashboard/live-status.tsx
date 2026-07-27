@@ -6,6 +6,7 @@ import {
   computePortfolioReturnPct,
   daysSinceInception,
   formatPctOrDash,
+  formatWeekdayDate,
   pnlClass,
 } from "@/lib/portfolio";
 import { Radio } from "lucide-react";
@@ -17,6 +18,7 @@ export function LiveStatus() {
   const days = daysSinceInception(inceptionISO);
   const portfolio = strategy?.portfolio;
   const totalReturnPct = computePortfolioReturnPct(strategy);
+  const nextEvaluation = formatWeekdayDate(strategy?.next_evaluation_date);
 
   // A pulsing green "Live portfolio" banner full of em-dashes is worse than no
   // banner: it asserts everything is fine while the numbers are unavailable.
@@ -78,6 +80,15 @@ export function LiveStatus() {
               )}`}
             >
               {isLoading ? "—" : formatPctOrDash(totalReturnPct)}
+            </span>
+          </div>
+          <div>
+            <span className="field-label block">Next picks</span>
+            <span
+              className="font-mono text-[18px] font-bold whitespace-nowrap"
+              title="The book is re-evaluated on the 1st and 3rd Friday of each month. Holdings do not change in between."
+            >
+              {isLoading ? "—" : (nextEvaluation ?? "—")}
             </span>
           </div>
         </div>

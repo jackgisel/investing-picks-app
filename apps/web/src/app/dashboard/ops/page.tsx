@@ -14,6 +14,15 @@ type JobRun = {
   finished_at: string | null;
 };
 
+type NextEvaluation = {
+  /** The nominal evaluation Friday — the date subscribers are shown. */
+  target: string;
+  /** The session it actually executes on. Earlier than target on a holiday. */
+  runs_on: string;
+  moved_for_holiday: boolean;
+  last_run: { status: string; detail: string | null; started_at: string | null } | null;
+};
+
 type EvaluationSummary = {
   id: number;
   mode: string;
@@ -56,7 +65,10 @@ export default function OpsEvaluationsPage() {
     queryFn: async () => {
       const res = await fetch("/api/ops/jobs", { cache: "no-store" });
       if (!res.ok) throw new Error("Failed to load jobs");
-      return res.json() as Promise<{ jobs: JobRun[] }>;
+      return res.json() as Promise<{
+        jobs: JobRun[];
+        next_evaluation?: NextEvaluation | null;
+      }>;
     },
     staleTime: 0,
     gcTime: 0,
@@ -234,6 +246,9 @@ export default function OpsEvaluationsPage() {
         {refresh.error && (
           <p className="text-accent-red text-sm">{(refresh.error as Error).message}</p>
         )}
+        {jobs.data?.next_evaluation && (
+          <NextEvaluationPanel next={jobs.data.next_evaluation} />
+        )}
         {jobs.error && <p className="text-accent-red text-sm">Could not load job history</p>}
         {jobs.data && jobs.data.jobs.length === 0 && (
           <p className="text-sm text-accent-red">
@@ -300,6 +315,45 @@ export default function OpsEvaluationsPage() {
           )}
         </div>
       </section>
+    </div>
+  );
+}
+
+/**
+ * The evaluation cycle, from the operator's side.
+ *
+ * `target` and `runs_on` are shown separately because they legitimately
+ * differ: the scheduler fires every weekday of an evaluation week and runs on
+ * the last session on or before the target Friday, so a holiday Friday moves
+ * the cycle EARLIER. Showing only the Friday makes a correctly-early run look
+ * like a missed cycle, which is the one reading that would prompt a needless
+ * manual trigger.
+ */
+function NextEvaluationPanel({ next }: { next: NextEvaluation }) {
+  const last = next.last_run;
+  return (
+    <div className="data-panel px-4 py-3 space-y-2">
+      <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
+        <span className="panel-label panel-label-mint">Next evaluation</span>
+        <span className="font-mono text-sm text-text">{next.target}</span>
+        {next.moved_for_holiday && (
+          <span className="font-mono text-xs text-accent-yellow">
+            runs {next.runs_on} — target Friday is a market holiday
+          </span>
+        )}
+      </div>
+      <p className="text-xs text-text-dim">
+        {last
+          ? `Last biweekly_evaluate: ${last.status}${
+              last.started_at
+                ? ` at ${new Date(last.started_at).toLocaleString()}`
+                : ""
+            }`
+          : "biweekly_evaluate has never run."}
+      </p>
+      {last?.detail && (
+        <p className="font-mono text-xs text-text-dim break-all">{last.detail}</p>
+      )}
     </div>
   );
 }

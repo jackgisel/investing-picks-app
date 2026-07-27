@@ -23,7 +23,12 @@ from app.services.portfolio import (
     ranked_candidates,
     run_evaluation,
 )
-from outpick_strategy import evaluate, grade_meets_minimum, RUN118_PARAMS
+from outpick_strategy import (
+    evaluate,
+    grade_meets_minimum,
+    next_evaluation_friday,
+    RUN118_PARAMS,
+)
 
 # Refuse to start when the ops key would fail open. This module is imported by
 # app.main, so a misconfigured deployment never comes up at all.
@@ -678,7 +683,48 @@ def list_jobs(db: Session = Depends(get_db), limit: int = 30):
                 "finished_at": j.finished_at.isoformat() if j.finished_at else None,
             }
             for j in rows
-        ]
+        ],
+        "next_evaluation": _next_evaluation(db),
+    }
+
+
+def _next_evaluation(db: Session) -> dict:
+    """Operator view of the evaluation cycle.
+
+    `target` is the nominal Friday and is what subscribers are shown. `runs_on`
+    is the session it will actually execute on, which moves EARLIER when the
+    Friday is a market holiday — the scheduler fires all week and
+    `is_effective_run_day` picks the day. Reporting only the Friday would make a
+    correctly-early run look like a missed cycle.
+    """
+    from worker.services.market_calendar import last_trading_day_on_or_before
+
+    today = date.today()
+    target = next_evaluation_friday(today)
+    runs_on = last_trading_day_on_or_before(target)
+    if runs_on < today:
+        # This cycle's session has already passed; the next one is the
+        # following Friday's.
+        target = next_evaluation_friday(target + timedelta(days=1))
+        runs_on = last_trading_day_on_or_before(target)
+
+    last = (
+        db.query(JobRun)
+        .filter(JobRun.job_name == "biweekly_evaluate")
+        .order_by(JobRun.started_at.desc())
+        .first()
+    )
+    return {
+        "target": target.isoformat(),
+        "runs_on": runs_on.isoformat(),
+        "moved_for_holiday": runs_on != target,
+        "last_run": {
+            "status": last.status,
+            "detail": last.detail,
+            "started_at": last.started_at.isoformat() if last.started_at else None,
+        }
+        if last
+        else None,
     }
 
 

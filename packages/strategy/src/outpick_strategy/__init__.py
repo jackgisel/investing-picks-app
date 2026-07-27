@@ -10,6 +10,11 @@ from outpick_strategy.types import (
     RuleCheck,
 )
 from outpick_strategy.signals import evaluate, evaluate_sells_only
+from outpick_strategy.cadence import (
+    evaluation_fridays_between,
+    is_evaluation_friday,
+    next_evaluation_friday,
+)
 from outpick_strategy.grades import (
     grade_meets_minimum,
     percentile_to_grade,
@@ -28,6 +33,9 @@ __all__ = [
     "RuleCheck",
     "evaluate",
     "evaluate_sells_only",
+    "evaluation_fridays_between",
+    "is_evaluation_friday",
+    "next_evaluation_friday",
     "grade_meets_minimum",
     "percentile_to_grade",
     "quant_to_signal",

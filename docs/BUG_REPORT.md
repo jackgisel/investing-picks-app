@@ -81,8 +81,22 @@ fallen below `hold_removal_rating`. A gets both a TRIM and a FULL_SELL.
 full-size buy of B; the executor funds only part of it. B enters at the wrong
 weight and no record says so.
 
-**Severity: high.** Also note S1 independently writes two trade rows for one
-exit, inflating any published metric derived from trade counts.
+**Severity: high** for the sizing consequence above.
+
+**CORRECTION (2026-07-27).** An earlier revision of this entry also claimed S1
+writes two trade rows for one exit and inflates trade counts. **That was
+wrong.** `apply_signals` sorts `FULL_SELL` ahead of `TRIM`
+(`apps/api/app/services/portfolio.py:372-383`), executes the full sell first,
+and `pop`s the position — so the TRIM finds nothing and writes no trade.
+Exactly one trade row is written, with the correct share count. Nothing derived
+from trade counts or realized notionals is affected.
+
+What survives is only the planner-side `sim_cash` over-count described above,
+which happens in `packages/strategy` before execution and is unaffected by the
+executor's ordering.
+
+The ledger *is* wrong here, but for a different reason — see **BUG-A5**: the
+suppressed TRIM is still recorded as `executed: true`.
 
 ---
 
@@ -275,3 +289,112 @@ reasons:
 1. Run 118's underlying record does not exist in any reachable location.
 2. The new scoring model computes different inputs, so it is a different model.
 3. There is no backtester, and BUG-P4 would invalidate one if written today.
+
+---
+
+# PART 3 — API and published-number audit
+
+Added 2026-07-27. Full per-field table of every published figure is in the
+audit agent's report; the defects follow. **VERIFIED** = re-checked by hand.
+
+## BUG-A1 — an admin position edit fabricates a return
+`apps/api/app/routes/ops.py:290-332` — **CRITICAL**
+
+`PATCH /api/ops/positions/{ticker}` rewrites shares/avg_cost and settles cash
+but writes **no `Trade` row**. `picks_return`'s denominator is built from trade
+notionals while its numerator is live market value, so the two diverge
+permanently.
+
+Reproduced by the audit: post AAA 10sh @ $100 (deployed $1,000, return 0.00%),
+then correct the count to 20 — cash pays the extra $1,000, nothing is earned —
+and the published picks return becomes **+100.00%**. The CAGR annualizes it.
+
+## BUG-A2 — closed-pick P&L uses the last buy, not average cost
+`apps/api/app/routes/public_v1.py:281-291` — **HIGH — VERIFIED**
+
+The exit is compared against `ORDER BY timestamp DESC LIMIT 1` of prior buys.
+Every earlier lot is discarded. Confirmed by reading.
+
+Buy 100 @ $10, add 100 @ $30 (avg $20), sell 200 @ $25. Truth **+25%**.
+Published: **−16.67%** — a winner reported as a loser.
+
+Not an edge case: `allow_double_buy` is True in Run 118 and `DOUBLE_BUY` is an
+explicit engine action, so multi-lot positions are routine.
+
+**This is also the input to `closedWinRate()`** (`apps/web/src/lib/portfolio.ts`),
+the WIN RATE tile added in `013bf09`. That tile inherits the defect: a real
+winner is counted as a loss. Fixing the tile is not the fix — the API field is.
+
+## BUG-A3 — the picks chart's final point drops every closed pick
+`apps/api/app/services/benchmarks.py:249-255` — **HIGH**
+
+The block anchoring the final point to the live book divides **open** market
+value by capital deployed into **all** picks, closed included. Realized
+proceeds leave the numerator while their capital stays in the denominator. The
+per-session loop above it is correct; only the anchor is wrong.
+
+Reproduced: one open pick ($1,000→$1,100), one closed ($1,000→$1,200).
+Headline `picks_return_pct` **+15.0**; anchored final chart point **−45.0**. A
++15% headline sitting directly above a chart ending at −45%.
+
+## BUG-A8 — evaluations are not idempotent
+`apps/api/app/services/portfolio.py:512-547`, `apps/api/app/routes/ops.py:441-445`
+— **HIGH**
+
+Nothing records that an executed evaluation already ran for a cycle. Sells and
+trims converge on re-run; **buys do not** — the second run buys the next-ranked
+candidate. Reproduced: two runs the same day put two positions on the book with
+`max_adds_per_evaluation = 1`.
+
+`max_adds_per_evaluation` is in `PUBLIC_FIELDS` — a published claim about how
+fast the book deploys capital. Triggers: a double-click on
+`POST /api/ops/evaluate?dry_run=false` (no guard), a scheduler retry, or a
+redeploy replaying `job_biweekly_evaluate`.
+
+## BUG-A4 / A4b — unknown and total-loss P&L both publish as 0.00%
+`apps/api/app/routes/public_v1.py:109-112` — **HIGH**
+
+`_pnl_pct(...) or 0`. An unrecoverable `avg_cost` yields `None` → published as
+a confident **0.00%** — the very state `_recover_avg_cost_from_trades` logs as
+"its P&L will read as unavailable". Separately, `if not entry or not current`
+rejects a **$0 mark**, so a delisted holding worth nothing publishes 0.00%
+instead of −100%.
+
+## BUG-A6 — `/performance` annualizes a different number than it publishes
+`apps/api/app/routes/public_v1.py:358-362, 413-425` — **MEDIUM-HIGH**
+
+`summary.total_return_pct` is the equity return; `summary.annualized_return_pct`
+is derived from `picks_return`. Both sit in one object with nothing naming the
+base. Reproduced: `total_return_pct: -6.5` beside `annualized_return_pct: 109.59`.
+
+## BUG-A5 — the decision ledger marks skipped signals as executed
+`apps/api/app/services/portfolio.py:330-341` — **MEDIUM**
+
+`persist_evaluation` stamps `executed = (not dry_run)` **before**
+`apply_signals` runs, and nothing corrects it afterwards. Every skip path lies:
+the TRIM suppressed behind a FULL_SELL, a BUY with no mark, a cash-clamped
+fill. The ledger is the artifact that makes a published track record checkable.
+
+## BUG-A9 — `picks_return` counts recycled dollars twice
+`apps/api/app/services/portfolio.py:170-207` — **MEDIUM**
+
+`deployed` is gross buy notional across all time, so a dollar recycled into a
+second pick is counted again; the published return is damped toward zero as the
+book turns over. $1,000 → sold $1,200 → recycled into a pick now worth $1,300
+is **+30%** to the investor and publishes as **+13.64%**. Symmetric on losses.
+Whether gross or money-weighted is correct is a design call — pinned by a
+characterization test, not an xfail.
+
+## BUG-A7 / A10 — lower severity
+- `base = snaps[0].total_value or 1` invents a $1 base from a $0 first
+  snapshot, publishing `return_pct: 9999900.0` (`public_v1.py:381`).
+- `closed_count` is distinct tickers, not closed positions — a re-bought name
+  reports 0 (`portfolio.py:186-188`).
+
+## Audited and CLEAN
+Cash conservation and no-overdraw; partial-sell/house-money accounting
+(including the `_position_to_state` basis boundary — the prior defect there is
+genuinely fixed); transaction boundary (a crash mid-evaluation leaves no torn
+state); dry-run writes nothing; **paywall and model leakage — `public_dict()`
+everywhere public, no factor weights exposed**; CAGR denominator; benchmark
+series construction.

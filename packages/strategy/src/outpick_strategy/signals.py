@@ -5,6 +5,7 @@ Hard rule: no I/O. Callers supply PortfolioState + scores.
 
 from __future__ import annotations
 
+import logging
 from datetime import date
 
 from outpick_strategy.grades import grade_meets_minimum
@@ -17,6 +18,8 @@ from outpick_strategy.types import (
     ScoreSnapshot,
     Signal,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def meets_buy_criteria(score: ScoreSnapshot, params: StrategyParams) -> tuple[bool, list[RuleCheck]]:
@@ -245,13 +248,45 @@ def _removal_signals(
                         )
                     )
                     continue
+            # A NULL initial_investment means "we do not know the stake", not
+            # "the stake was zero". `is_house_money` is False for None, so such a
+            # position cleared the `not is_house_money` guard and was then
+            # dropped by the truthiness test on the line below — the Winners
+            # Circle silently never ran and the winner was fully liquidated
+            # instead of having its original stake taken off the table. The
+            # executor backfills this on its own buys, so the rows that carry
+            # NULL are exactly the hand-entered ones (ops create_position,
+            # seeding). Recover the stake from the cost basis we do have, and say
+            # so — the same class of failure as the market_cap bug, made loud.
+            stake = pos.initial_investment
+            if stake is None and is_winner and not pos.is_house_money:
+                if pos.shares > 0 and pos.avg_cost and pos.avg_cost > 0:
+                    stake = pos.shares * pos.avg_cost
+                    logger.warning(
+                        "%s has a NULL initial_investment; recovering the Winners "
+                        "Circle stake from cost basis (%.4f sh x %.2f = %.2f). "
+                        "Backfill initial_investment on this position.",
+                        pos.ticker,
+                        pos.shares,
+                        pos.avg_cost,
+                        stake,
+                    )
+                else:
+                    logger.error(
+                        "%s has a NULL initial_investment and no usable cost "
+                        "basis; the Winners Circle cannot run and the position "
+                        "will be fully exited instead of held as house money.",
+                        pos.ticker,
+                    )
+
             if (
                 is_winner
                 and not pos.is_house_money
-                and pos.initial_investment
+                and stake is not None
+                and stake > 0
                 and pos.current_price > 0
             ):
-                initial_shares = pos.initial_investment / pos.current_price
+                initial_shares = stake / pos.current_price
                 keep_shares = pos.shares - initial_shares
                 if keep_shares > 0 and initial_shares > 0:
                     signals.append(
@@ -368,7 +403,12 @@ def _plan_recycle_trims(
     if not candidates:
         return []
 
-    candidates.sort(key=lambda x: x[1])
+    # Ticker breaks the tie. Sorting on quant_rating alone left equally-weak
+    # names in `portfolio.positions` insertion order, so the same book loaded by
+    # a different query ordering recycled a different holding — the live book and
+    # a backtest can then diverge on identical inputs, which is fatal to any
+    # reproducibility claim.
+    candidates.sort(key=lambda x: (x[1], x[0]))
     ticker, qr, price = candidates[0]
     pos = portfolio.positions[ticker]
     trim_amount = shortfall * 1.1
@@ -411,14 +451,6 @@ def _buy_signals(
     signals: list[Signal] = []
     max_buys = params.max_adds_per_evaluation
 
-    limit_rule = RuleCheck(
-        rule_id="max_adds_per_evaluation",
-        passed=True,
-        inputs={"limit": max_buys, "attempted": 0},
-        threshold={"max_adds_per_evaluation": max_buys},
-        message="Exactly 1 buy per eval (Run 118) — no adaptive filler",
-    )
-
     if drawdown_halted:
         return signals
 
@@ -433,22 +465,38 @@ def _buy_signals(
         if s.action in (Action.TRIM, Action.RECYCLE_TRIM, Action.PARTIAL_SELL)
     }
     held = set(portfolio.positions.keys()) - exiting
-    position_count = len(held)
-    open_slots = params.max_positions - position_count
-    if open_slots <= 0:
-        return signals
+    # A full book no longer returns early here. `max_positions` caps how many
+    # *names* are held, and a conviction add to a name already held consumes no
+    # slot — bailing out at this point silently disabled DOUBLE_BUY in exactly
+    # the steady state the strategy is designed to run in (fully deployed). Only
+    # a genuinely new name is gated now, inside the loop, against the live count.
 
     buys = 0
     equity = portfolio.equity
     target_notional = params.target_notional(equity)
     reserve = params.cash_reserve_buys * target_notional
-    # Simulate cash freed by pending sells / weight trims
-    sim_cash = portfolio.cash
+    # Simulate cash freed by pending sells / weight trims.
+    #
+    # Accumulate per ticker and cap at that position's market value. One holding
+    # can appear in more than one selling signal — a weight TRIM alongside a
+    # Winners-Circle PARTIAL_SELL — and adding each signal's proceeds
+    # independently invents cash the book will never have. The executor cannot
+    # overdraw, so the damage is silent: it truncates the buy to whatever cash
+    # actually exists, and an entry that was meant to be one equal-weighted
+    # `position_size_usd` slug enters at an arbitrary size with nothing in the
+    # signal or the ledger recording that it was under-filled.
+    freed: dict[str, float] = {}
     for s in prior_signals:
-        if s.action == Action.FULL_SELL and s.ticker in portfolio.positions:
-            sim_cash += portfolio.positions[s.ticker].market_value
-        elif s.sell_shares and s.ticker in portfolio.positions:
-            sim_cash += s.sell_shares * portfolio.positions[s.ticker].current_price
+        pos = portfolio.positions.get(s.ticker)
+        if not pos:
+            continue
+        if s.action == Action.FULL_SELL:
+            freed[s.ticker] = freed.get(s.ticker, 0.0) + pos.market_value
+        elif s.sell_shares:
+            freed[s.ticker] = freed.get(s.ticker, 0.0) + s.sell_shares * pos.current_price
+    sim_cash = portfolio.cash + sum(
+        min(proceeds, portfolio.positions[t].market_value) for t, proceeds in freed.items()
+    )
 
     for ticker in ranked_tickers:
         if buys >= max_buys:
@@ -468,6 +516,14 @@ def _buy_signals(
             pos = portfolio.positions.get(ticker)
             if not pos:
                 continue
+            # Never add to a name this same evaluation just cut back. The weight
+            # cap has already ruled the position too large; buying it straight
+            # back is churn against the rule that just fired, and a subscriber
+            # mirroring the book by hand sees "Trim BIG" and "Add to BIG" side by
+            # side. `already_trimmed` was collected but only consulted when
+            # picking recycle candidates.
+            if ticker in already_trimmed:
+                continue
             if pos.gain_pct < params.double_buy_min_gain:
                 continue
             shortfall = max(0.0, target_notional + reserve - sim_cash)
@@ -486,6 +542,14 @@ def _buy_signals(
                     signals.append(r)
                     already_trimmed.add(r.ticker)
 
+            # Same minimum-funding floor as a first buy. Without it the conviction
+            # add was published whenever *any* recycle trim could be planned, no
+            # matter how small: $10 of cash plus a $10 trim authorised a $3,000
+            # add, which the executor then filled at whatever cash existed. The
+            # identical position on a new name was already being rejected here.
+            if sim_cash < target_notional * 0.5:
+                continue
+
             signals.append(
                 Signal(
                     action=Action.DOUBLE_BUY,
@@ -497,7 +561,17 @@ def _buy_signals(
                     ),
                     score=score,
                     rules=[
-                        limit_rule,
+                        # Built here rather than shared with the BUY path: the
+                        # module-level rule object was frozen at attempted=0, so
+                        # every conviction add's audit row claimed no buy had
+                        # been attempted on the evaluation that emitted it.
+                        RuleCheck(
+                            rule_id="max_adds_per_evaluation",
+                            passed=True,
+                            inputs={"limit": max_buys, "attempted": buys + 1},
+                            threshold={"max_adds_per_evaluation": max_buys},
+                            message="Exactly 1 buy per eval (Run 118) — no adaptive filler",
+                        ),
                         RuleCheck(
                             rule_id="double_buy",
                             passed=True,
@@ -511,6 +585,11 @@ def _buy_signals(
             )
             buys += 1
             sim_cash -= target_notional
+            continue
+
+        # A new name needs a free slot; counted live, because a buy earlier in
+        # this same loop has already been added to `held`.
+        if len(held) >= params.max_positions:
             continue
 
         if _would_exceed_sector_cap(
@@ -580,8 +659,19 @@ def evaluate(
 
     signals: list[Signal] = []
     weight_trims = _weight_trim_signals(portfolio, params)
-    signals.extend(weight_trims)
     removals = _removal_signals(portfolio, scores, params, as_of)
+
+    # One ticker, one exit instruction. `_weight_trim_signals` and
+    # `_removal_signals` do not know about each other, so a holding that is both
+    # over its weight cap and below the exit rating used to be published with a
+    # TRIM *and* a FULL_SELL. The TRIM was already a no-op at execution —
+    # `apply_signals` sorts FULL_SELL first and pops the position — so dropping
+    # it here changes no fill. What it does fix is everything downstream of the
+    # extra signal: contradictory instructions to anyone mirroring the book, a
+    # ledger row stamped `executed` for a trade that never happened (BUG-A5),
+    # and the sale being counted twice as available cash by `_buy_signals`.
+    exiting_now = {s.ticker for s in removals if s.action == Action.FULL_SELL}
+    signals.extend(t for t in weight_trims if t.ticker not in exiting_now)
     signals.extend(removals)
 
     halted, dd_rules = _drawdown_halted(portfolio, params)
@@ -589,19 +679,29 @@ def evaluate(
         portfolio, scores, ranked_tickers, params, signals, halted
     )
     if halted and not buys:
-        # Record that buys were blocked
+        # Record that buys were blocked.
+        #
+        # This used to be a zero-share TRIM carrying metadata={"skip_execution":
+        # True}, and the return statement filtered on exactly that key — so the
+        # placeholder was built and immediately thrown away. A halted evaluation
+        # returned an empty list, indistinguishable from one where nothing
+        # qualified, and the one state you most need to be able to see left no
+        # trace in the ledger or the ops UI.
+        #
+        # Action.HOLD is the existing "a rule fired, no trade" carrier:
+        # `apply_signals` dispatches on an explicit allow-list of buy and sell
+        # actions, so a HOLD is inert at execution by construction rather than by
+        # a flag that something else has to remember to honour.
         signals.append(
             Signal(
-                action=Action.TRIM,  # placeholder won't execute (0 shares)
+                action=Action.HOLD,
                 ticker="__DRAWDOWN__",
-                sell_shares=0,
                 reason="Buys halted by drawdown circuit breaker",
                 rules=dd_rules,
-                metadata={"skip_execution": True},
             )
         )
     signals.extend(buys)
-    return [s for s in signals if not s.metadata.get("skip_execution")]
+    return signals
 
 
 def evaluate_sells_only(

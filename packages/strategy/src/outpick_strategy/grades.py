@@ -1,5 +1,9 @@
 """Grade utilities shared by scoring and selection."""
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 GRADE_THRESHOLDS = [
     (95, "A+"),
     (85, "A"),
@@ -48,7 +52,31 @@ def percentile_to_grade(pct: float) -> str:
 
 
 def grade_meets_minimum(grade: str | None, min_grade: str) -> bool:
-    return GRADE_ORDER.get(grade or "F", 0) >= GRADE_ORDER.get(min_grade, 0)
+    """Does `grade` clear the `min_grade` bar? An unknown bar rejects everything.
+
+    The threshold side must fail CLOSED. `GRADE_ORDER.get(min_grade, 0)` resolved
+    an unrecognised minimum to F's rank, so `>= 0` was true for every grade and
+    the gate silently disappeared — a lower-cased "b+" or a stray space in one
+    `params_json` row was enough to stop `min_revisions_grade` (weight 0.30,
+    gates every buy) from filtering anything, while the ledger still recorded the
+    rule as passed. `params_from_portfolio` splices free-form JSON from the
+    database over the defaults, so this is reachable from data, not just code.
+
+    Rejecting rather than raising is deliberate: this runs inside a scheduled
+    evaluation, and a bad config row should make the strategy decline to buy —
+    loudly — not take the whole run down. The stock side (`grade or "F"`) already
+    fails closed and is left alone.
+    """
+    min_rank = GRADE_ORDER.get(min_grade)
+    if min_rank is None:
+        logger.error(
+            "Unrecognised minimum grade %r — rejecting every candidate on this "
+            "criterion. Valid grades: %s. Check params_json.",
+            min_grade,
+            ", ".join(GRADE_ORDER),
+        )
+        return False
+    return GRADE_ORDER.get(grade or "F", 0) >= min_rank
 
 
 def quant_to_signal(qr: float) -> str:

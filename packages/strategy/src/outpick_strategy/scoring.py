@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from math import isnan
+
 from outpick_strategy.grades import percentile_to_grade
 from outpick_strategy.params import StrategyParams
 
@@ -18,7 +20,15 @@ def factor_percentile_score(
     at 0.0% change, which would otherwise be dealt arbitrary grades — and
     revisions carries weight 0.30 and gates every buy.
     """
-    indexed = [(i, v) for i, v in enumerate(values) if v is not None]
+    # NaN counts as missing. `v is not None` alone let one through: the worker
+    # does float(raw) on FMP payloads, so a NaN survives as a genuine float, and
+    # every comparison against it is False — it lands wherever the sort happens
+    # to leave it, takes a percentile it has no claim to, and then satisfies
+    # min_factor_coverage, so the ticker is scored and buyable on data that does
+    # not exist. Ordering also stops being reproducible. NaN != NaN is the test.
+    indexed = [
+        (i, v) for i, v in enumerate(values) if v is not None and not isnan(v)
+    ]
     if not indexed:
         return [None] * len(values)
 

@@ -132,11 +132,6 @@ def test_trim_and_partial_sell_never_oversell_a_position():
     )
 
 
-@pytest.mark.xfail(
-    reason="BUG-S1: a position marked for FULL_SELL is still weight-trimmed in "
-    "the same evaluation",
-    strict=True,
-)
 def test_a_position_being_fully_exited_is_not_also_trimmed():
     """A subscriber must never see 'Trim X to 12%' and 'Sell all X' together.
 
@@ -152,11 +147,6 @@ def test_a_position_being_fully_exited_is_not_also_trimmed():
     assert len(selling) == 1, f"two exit instructions for one ticker: {selling}"
 
 
-@pytest.mark.xfail(
-    reason="BUG-S3: _buy_signals' sim_cash adds a ticker's full market value for "
-    "its FULL_SELL and again for its TRIM",
-    strict=True,
-)
 def test_buy_is_not_authorised_against_double_counted_sale_proceeds():
     """Cash freed by a sale must be counted once, not once per selling signal.
 
@@ -181,11 +171,6 @@ def test_buy_is_not_authorised_against_double_counted_sale_proceeds():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    reason="BUG-S2: _buy_signals only excludes tickers in `exiting` (FULL_SELL); "
-    "a weight-capped TRIM does not block a conviction add on the same name",
-    strict=True,
-)
 def test_a_trimmed_name_is_not_conviction_added_in_the_same_evaluation():
     """The weight cap and the conviction add must not fight over one ticker.
 
@@ -212,11 +197,6 @@ def test_a_trimmed_name_is_not_conviction_added_in_the_same_evaluation():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    reason="BUG-S4: the BUY path gates on sim_cash >= 0.5 * target_notional; the "
-    "DOUBLE_BUY path has no such check",
-    strict=True,
-)
 def test_conviction_add_needs_the_same_cash_floor_as_a_first_buy():
     """A conviction add must not be published when there is no cash to fund it.
 
@@ -299,11 +279,6 @@ def test_holdings_with_no_sector_do_not_count_toward_the_cap():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    reason="BUG-S6: GRADE_ORDER.get(min_grade, 0) makes any unrecognised minimum "
-    "grade equivalent to 'F', i.e. no gate at all",
-    strict=True,
-)
 def test_unrecognised_minimum_grade_does_not_silently_disable_the_gate():
     """A typo'd or lower-cased threshold must not open the gate to everything.
 
@@ -315,10 +290,6 @@ def test_unrecognised_minimum_grade_does_not_silently_disable_the_gate():
     assert grade_meets_minimum("F", "b+") is False
 
 
-@pytest.mark.xfail(
-    reason="BUG-S6: an unrecognised min grade reaches meets_buy_criteria unvalidated",
-    strict=True,
-)
 def test_case_slipped_buy_criteria_still_rejects_an_f_grade():
     """The end-to-end consequence of BUG-S6 inside meets_buy_criteria."""
     params = RUN118_PARAMS.with_overrides(buy_criteria=BuyCriteria(min_revisions_grade="a+"))
@@ -382,11 +353,6 @@ def test_sector_cap_boundary_at_the_default_fifty_slot_book():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    reason="BUG-S8: `pos.initial_investment` is truthiness-tested, so a NULL "
-    "initial_investment skips the Winners Circle and full-sells the winner",
-    strict=True,
-)
 def test_winners_circle_survives_a_null_initial_investment():
     """A +100% winner must not be liquidated just because its cost basis is NULL.
 
@@ -421,11 +387,6 @@ def test_winners_circle_recovers_exactly_the_initial_dollars():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    reason="BUG-S9: evaluate() builds the drawdown placeholder then strips it via "
-    "the skip_execution filter on the return statement",
-    strict=True,
-)
 def test_a_drawdown_halt_is_recorded_in_the_returned_signals():
     """A halted evaluation must say so, not return an empty list.
 
@@ -488,11 +449,6 @@ def _recycle_book(order: tuple[str, str]) -> tuple[PortfolioState, dict]:
     return portfolio, scores
 
 
-@pytest.mark.xfail(
-    reason="BUG-S10: _plan_recycle_trims sorts on quant_rating alone, so ties are "
-    "broken by portfolio.positions insertion order",
-    strict=True,
-)
 def test_recycle_choice_is_reproducible_when_ratings_tie():
     """Two identically-weak holdings must not resolve by dict insertion order.
 
@@ -573,11 +529,6 @@ def test_recycle_never_sells_more_shares_than_are_held():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    reason="BUG-S11: _buy_signals returns early on open_slots <= 0, which also "
-    "kills DOUBLE_BUY even though an add consumes no slot",
-    strict=True,
-)
 def test_a_full_book_can_still_add_to_an_existing_winner():
     """Adding to a name already held does not need a free position slot.
 
@@ -674,11 +625,6 @@ def test_z_filter_boundary_when_it_is_supplied():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    reason="BUG-S13: factor_percentile_score only filters None, so a NaN is "
-    "ranked as a real value",
-    strict=True,
-)
 def test_nan_factor_values_are_treated_as_missing():
     """A NaN must be unscoreable, not handed a middling percentile.
 
@@ -691,11 +637,6 @@ def test_nan_factor_values_are_treated_as_missing():
     assert out[0] is None
 
 
-@pytest.mark.xfail(
-    reason="BUG-S14: the DOUBLE_BUY path reuses the module-level `limit_rule` "
-    "built with attempted=0 instead of building its own",
-    strict=True,
-)
 def test_double_buy_audit_row_reports_a_real_attempt_count():
     """The audit trail must not claim zero buys were attempted on a buy signal."""
     positions = {"C": position("C", shares=10, avg_cost=50, price=100,

@@ -25,7 +25,14 @@ from worker.services.ingest import (
     refresh_universe,
     upsert_price_bar,
 )
-from worker.services.scoring import _momentum_12m, compute_scores, score_universe
+from worker.services.scoring import (
+    MIN_SECTOR_POPULATION,
+    MOMENTUM_LATEST_MAX_AGE_DAYS,
+    Z_SCORE_UNAVAILABLE,
+    _momentum_12m,
+    compute_scores,
+    score_universe,
+)
 
 TODAY = date.today()
 
@@ -92,6 +99,27 @@ def _momentum_bars(db, ticker, latest_close, anchor_close=100.0, latest_age_days
         )
     )
     db.add(PriceBar(ticker=ticker, date=TODAY - timedelta(days=365), close=anchor_close))
+
+
+def _pad_sector(db, sector="Technology", n=MIN_SECTOR_POPULATION, prefix="PAD"):
+    """Fill `sector` up to `n` fully-scoreable filler names.
+
+    A sector below MIN_SECTOR_POPULATION is not ranked at all, so any test about
+    what a percentile MEANS needs a realistic population underneath it. The
+    fillers carry complete fundamentals and a fresh 12-month price history, and
+    each gets a distinct PE so they do not collapse into one tie block.
+    """
+    for i in range(n):
+        ticker = f"{prefix}{i:02d}"
+        _stock(db, ticker, sector=sector)
+        db.add(
+            Fundamentals(
+                ticker=ticker,
+                as_of=TODAY,
+                data=_full_fundamentals(priceToEarningsRatioTTM=15.0 + i),
+            )
+        )
+        _momentum_bars(db, ticker, 120.0 + i)
 
 
 def _quarters(n=8, revenue=100.0, net_income=10.0, shares=1000.0, growth=1.0):
@@ -173,13 +201,6 @@ class FundamentalsFMP:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    reason=(
-        "BUG-W1: refresh_marks orders candidates by CompositeScore.id DESC, not "
-        "by quant_rating, so the highest-rated names never get a fresh quote"
-    ),
-    strict=True,
-)
 def test_refresh_marks_quotes_the_highest_rated_candidates(db):
     """The picks the product publishes must be the ones that get a fresh price.
 
@@ -213,18 +234,49 @@ def test_refresh_marks_quotes_the_highest_rated_candidates(db):
     assert "T000" in fmp.requested
 
 
+def test_refresh_marks_ignores_scores_from_an_earlier_date(db):
+    """Without an as_of bound one ticker occupies several of the 100 slots.
+
+    score_universe writes one row per (ticker, as_of) and keeps history, so a
+    query with no date filter ranks across every scoring run ever made: a name
+    scored 4.9 on ten past dates consumes ten slots, and a name whose rating was
+    high last week but which is unscoreable today still displaces a name that is
+    actually top-rated now. Only the latest scoring date is current.
+    """
+    for i in range(100):
+        ticker = f"T{i:03d}"
+        _stock(db, ticker)
+        db.add(
+            CompositeScore(
+                ticker=ticker, as_of=TODAY, quant_rating=1.0, sector="Technology"
+            )
+        )
+    # Rated 5.0, but a week ago — today's run did not stand behind it.
+    _stock(db, "YESTERDAY")
+    for age in range(1, 8):
+        db.add(
+            CompositeScore(
+                ticker="YESTERDAY",
+                as_of=TODAY - timedelta(days=age),
+                quant_rating=5.0,
+                sector="Technology",
+            )
+        )
+    db.commit()
+
+    fmp = RecordingQuoteFMP()
+    refresh_marks(db, fmp)
+
+    assert "YESTERDAY" not in fmp.requested
+    # 100 current candidates + SPY, with no duplicate slots consumed.
+    assert len(fmp.requested) == 101
+
+
 # ---------------------------------------------------------------------------
 # BUG-W2 — momentum is computed off a stale "latest" bar
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    reason=(
-        "BUG-W2: _momentum_12m accepts any newest bar as 'today', so a ticker "
-        "whose price feed stopped months ago reports a stale 12-month return"
-    ),
-    strict=True,
-)
 def test_momentum_refuses_a_stale_latest_bar():
     """A months-old close must not be ranked as a current 12-month return.
 
@@ -253,6 +305,25 @@ def test_momentum_accepts_a_current_latest_bar():
         "FRESH": [(TODAY, 200.0), (TODAY - timedelta(days=365), 100.0)],
     }
     assert _momentum_12m(history, "FRESH", TODAY) == pytest.approx(1.0)
+
+
+def test_momentum_tolerates_a_bar_up_to_the_documented_staleness_bound():
+    """The bound must be wide enough to survive normal gaps, and no wider.
+
+    Momentum is 15% of the composite and, under min_factor_coverage 1.0, a null
+    momentum makes the ticker unscoreable outright — so a bound set too tight
+    silently empties the buyable universe (and freezes the sell rules on any
+    holding it catches). It is deliberately the same magnitude as the anchor
+    tolerance: both bound how far the measured window may drift from 365 days.
+    """
+    at_bound = TODAY - timedelta(days=MOMENTUM_LATEST_MAX_AGE_DAYS)
+    past_bound = TODAY - timedelta(days=MOMENTUM_LATEST_MAX_AGE_DAYS + 1)
+    anchor = (TODAY - timedelta(days=365), 100.0)
+
+    assert _momentum_12m({"OK": [(at_bound, 200.0), anchor]}, "OK", TODAY) == pytest.approx(
+        1.0
+    )
+    assert _momentum_12m({"NO": [(past_bound, 200.0), anchor]}, "NO", TODAY) is None
 
 
 # ---------------------------------------------------------------------------
@@ -307,14 +378,6 @@ def test_a_stock_with_a_sector_is_considered(db):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    reason=(
-        "BUG-W4: no minimum sector population, so with n=2 the better name "
-        "scores 100th percentile on all five factors -> quant_rating 5.0 and "
-        "A+ on every buy gate, regardless of absolute quality"
-    ),
-    strict=True,
-)
 def test_a_two_ticker_sector_cannot_manufacture_a_perfect_rating(db):
     """Rank within a population of two is not evidence, but it grades like it.
 
@@ -364,13 +427,19 @@ def test_a_two_ticker_sector_cannot_manufacture_a_perfect_rating(db):
     assert top is None or top.quant_rating < 5.0
 
 
-def test_a_one_ticker_sector_gets_the_neutral_midpoint(db):
-    """Documents the n=1 case, which is safe and must stay safe.
+def test_a_one_ticker_sector_is_counted_but_never_ranked(db):
+    """n=1 is below the population floor, so it is not rated at all.
 
-    A lone name in its sector is given 50.0 on every factor -> composite 50 ->
-    quant_rating 3.0, below min_quant_rating 4.0, so it cannot be bought. If
-    someone "fixes" the n=1 tie handling to award 100.0 the way n=2 does, every
-    sector-of-one becomes an automatic buy.
+    This used to rely on an accident: factor_percentile_score hands a lone value
+    50.0, which composites to 50 -> quant_rating 3.0, under min_quant_rating
+    4.0. That made n=1 safe and n=2 (100.0 on every factor -> QR 5.0) a cliff.
+    MIN_SECTOR_POPULATION removes the cliff by refusing to rank either, so the
+    n=1 safety no longer depends on where the tie-handling midpoint happens to
+    land.
+
+    `considered` must still move. A ticker that is dropped without being counted
+    is BUG-W3's failure mode: invisible to every count and every log line, so
+    nothing anywhere says it exists.
     """
     _stock(db, "LONE", sector="Energy")
     db.add(Fundamentals(ticker="LONE", as_of=TODAY, data=_full_fundamentals()))
@@ -380,10 +449,23 @@ def test_a_one_ticker_sector_gets_the_neutral_midpoint(db):
     scored, _missing, considered = compute_scores(db, RUN118_PARAMS, TODAY)
 
     assert considered == 1
-    assert len(scored) == 1
-    assert scored[0].composite == pytest.approx(50.0)
-    assert scored[0].quant_rating == pytest.approx(3.0)
-    assert scored[0].quant_rating < RUN118_PARAMS.buy_criteria.min_quant_rating
+    assert scored == []
+
+
+def test_a_sector_at_exactly_the_minimum_population_is_ranked(db):
+    """The boundary is >=, not >; the floor must not swallow a real sector.
+
+    Paired with the n=1 and n=2 tests above: those pin what is refused, this
+    pins that the refusal stops at the documented threshold rather than
+    quietly removing most of the universe.
+    """
+    _pad_sector(db, "Utilities", n=MIN_SECTOR_POPULATION)
+    db.commit()
+
+    scored, _missing, considered = compute_scores(db, RUN118_PARAMS, TODAY)
+
+    assert considered == MIN_SECTOR_POPULATION
+    assert len(scored) == MIN_SECTOR_POPULATION
 
 
 # ---------------------------------------------------------------------------
@@ -431,13 +513,6 @@ def test_a_degraded_rerun_does_not_erase_stored_growth(db):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    reason=(
-        "BUG-W6: `if price and price < min_share_price` — a missing or zero "
-        "screener price is falsy, so the sub-$5 filter never fires"
-    ),
-    strict=True,
-)
 def test_a_screener_row_with_no_price_is_not_admitted_to_the_universe(db):
     """min_share_price is enforced in exactly one place, and None defeats it.
 
@@ -478,6 +553,27 @@ def test_a_screener_row_with_no_price_is_not_admitted_to_the_universe(db):
     assert db.get(Stock, "PENNY") is None
 
 
+def test_a_screener_row_priced_at_zero_is_not_admitted_to_the_universe(db):
+    """0 is the other falsy price, and it is the one FMP actually sends.
+
+    A halted or non-quoting name reports price 0. Under `price or 0` followed by
+    `if price and ...` that was indistinguishable from "no opinion" and the
+    ticker was admitted permanently.
+    """
+
+    class ScreenerFMP:
+        def stock_screener(self, min_market_cap, limit):
+            return [
+                {"symbol": "HALTED", "sector": "Technology", "marketCap": 4e8, "price": 0},
+                {"symbol": "GOOD", "sector": "Technology", "marketCap": 9e9, "price": 42.0},
+            ]
+
+    refresh_universe(db, ScreenerFMP())
+
+    assert db.get(Stock, "HALTED") is None
+    assert db.get(Stock, "GOOD") is not None
+
+
 def test_a_screener_row_priced_below_the_floor_is_rejected(db):
     """Control: a *known* sub-$5 price is correctly excluded."""
 
@@ -509,14 +605,6 @@ def test_a_screener_row_priced_below_the_floor_is_rejected(db):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    reason=(
-        "BUG-W7: backfill_price_history uses row.get('adjClose', row.get('close')), "
-        "so a row where FMP sends adjClose: null drops the bar entirely instead "
-        "of using the unadjusted close that is right there"
-    ),
-    strict=True,
-)
 def test_a_null_adjclose_falls_back_to_the_unadjusted_close(db):
     """A present-but-null key silently defeats the fallback.
 
@@ -548,15 +636,6 @@ def test_a_null_adjclose_falls_back_to_the_unadjusted_close(db):
     assert db.query(PriceBar).filter(PriceBar.ticker == "AAA").count() == 1
 
 
-@pytest.mark.xfail(
-    reason=(
-        "BUG-W8: the two writers of price_bars disagree on which FMP close "
-        "wins — backfill_price_history prefers adjClose, backfill._parse_series "
-        "prefers close — so the same day can hold either an adjusted or an "
-        "unadjusted price depending on which job wrote last"
-    ),
-    strict=True,
-)
 def test_both_price_writers_agree_on_which_close_field_wins(db):
     """One table, two parsers, opposite field priority.
 
@@ -587,6 +666,59 @@ def test_both_price_writers_agree_on_which_close_field_wins(db):
     series = _parse_series("AAA", [dict(row)])
 
     assert bar.close == series.at(day)
+
+
+def test_adjclose_is_the_field_that_wins(db):
+    """Agreement is necessary but not sufficient — they must agree on adjClose.
+
+    adjClose is stated in TODAY's share terms, which is the only basis
+    consistent with the two things a stored bar is compared against: the live
+    unadjusted quote refresh_marks writes for today, and the CURRENT
+    Position.shares count the equity-curve reconstruction multiplies it by.
+    Standardising on the raw `close` instead would satisfy the agreement test
+    above while reintroducing the split discontinuity it exists to prevent, one
+    year deep in the momentum window.
+    """
+    from worker.services.backfill import _parse_series
+
+    day = TODAY - timedelta(days=10)
+    row = {"date": day.isoformat(), "close": 300.0, "adjClose": 100.0}  # 3-for-1
+
+    _stock(db, "AAA")
+    db.commit()
+
+    class HistoryFMP:
+        def historical_prices(self, ticker, from_date=None):
+            return [dict(row)]
+
+    backfill_price_history(db, HistoryFMP())
+
+    assert db.query(PriceBar).filter(PriceBar.ticker == "AAA").one().close == 100.0
+    assert _parse_series("AAA", [dict(row)]).at(day) == 100.0
+
+
+def test_forward_estimate_ignores_a_present_but_null_stable_field():
+    """The `.get(a, .get(b))` shape again, on the field that gates every buy.
+
+    A row carrying `"epsAvg": null` beside a usable `estimatedEpsAvg` left
+    epsEstimateAvg None, and a null estimate makes compute_estimate_revisions
+    return {} — nulling the revisions factor, which carries weight 0.30 and
+    gates every buy via min_revisions_grade.
+    """
+    picked = _forward_estimate(
+        [
+            {
+                "date": "2099-12-31",
+                "epsAvg": None,
+                "estimatedEpsAvg": 3.0,
+                "revenueAvg": None,
+                "estimatedRevenueAvg": 300.0,
+            }
+        ],
+        TODAY,
+    )
+    assert picked["epsEstimateAvg"] == 3.0
+    assert picked["revenueEstimateAvg"] == 300.0
 
 
 def test_an_absent_adjclose_falls_back_to_the_unadjusted_close(db):
@@ -673,6 +805,9 @@ def test_score_universe_rerun_in_one_day_updates_in_place(db):
     and before the index existed a duplicate row made load_latest_scores treat
     today as its own "prior", disabling the rating-drop exits.
     """
+    # Padded to the sector-population floor: below it nothing is ranked, so the
+    # idempotency this test exists to pin would be vacuous.
+    _pad_sector(db)
     for ticker, pe in (("AAA", 10.0), ("BBB", 20.0), ("CCC", 30.0)):
         _stock(db, ticker)
         db.add(
@@ -685,11 +820,14 @@ def test_score_universe_rerun_in_one_day_updates_in_place(db):
         _momentum_bars(db, ticker, 100.0 + pe)
     db.commit()
 
+    expected = MIN_SECTOR_POPULATION + 3
     first = score_universe(db)
     second = score_universe(db)
 
-    assert first == second == 3
-    assert db.query(CompositeScore).filter(CompositeScore.as_of == TODAY).count() == 3
+    assert first == second == expected
+    assert (
+        db.query(CompositeScore).filter(CompositeScore.as_of == TODAY).count() == expected
+    )
 
 
 def test_score_universe_with_nothing_to_score_leaves_prior_rows_alone(db):
@@ -747,6 +885,7 @@ def test_valuation_falls_back_to_the_legacy_field_name(db):
     legacy["enterpriseValueOverEBITDATTM"] = legacy.pop("evToEBITDATTM")
     legacy["pegRatioTTM"] = legacy.pop("priceToEarningsGrowthRatioTTM")
 
+    _pad_sector(db)  # a sector under MIN_SECTOR_POPULATION is not ranked at all
     for ticker, data in (
         ("OLD", legacy),
         ("NEW", _full_fundamentals()),
@@ -760,7 +899,7 @@ def test_valuation_falls_back_to_the_legacy_field_name(db):
     scored, _missing, _considered = compute_scores(db, RUN118_PARAMS, TODAY)
     by_ticker = {s.ticker: s for s in scored}
 
-    assert set(by_ticker) == {"OLD", "NEW", "MID"}
+    assert {"OLD", "NEW", "MID"} <= set(by_ticker)
     assert by_ticker["OLD"].factor_pcts["valuation"] is not None
 
 
@@ -784,6 +923,7 @@ def test_an_unknown_valuation_field_name_makes_the_ticker_unscoreable(db):
     ):
         renamed[f"{key}V2"] = renamed.pop(key)
 
+    _pad_sector(db)  # a sector under MIN_SECTOR_POPULATION is not ranked at all
     _stock(db, "RENAMED")
     db.add(Fundamentals(ticker="RENAMED", as_of=TODAY, data=renamed))
     _momentum_bars(db, "RENAMED", 150.0)
@@ -791,8 +931,8 @@ def test_an_unknown_valuation_field_name_makes_the_ticker_unscoreable(db):
 
     scored, missing, considered = compute_scores(db, RUN118_PARAMS, TODAY)
 
-    assert considered == 1
-    assert scored == []
+    assert considered == MIN_SECTOR_POPULATION + 1
+    assert "RENAMED" not in {s.ticker for s in scored}
     assert missing["valuation"] == 1
 
 
@@ -891,3 +1031,82 @@ def test_refresh_marks_reads_the_quote_price_field(db):
     assert db.get(Stock, "AAA").last_price == 11.0
     assert db.get(Stock, "BBB").last_price == 22.0
     assert db.get(Stock, "CCC").last_price is None
+
+
+# ---------------------------------------------------------------------------
+# BUG-P4 — fundamentals must be bounded point-in-time, like prices already are
+# ---------------------------------------------------------------------------
+
+
+def test_fundamentals_published_after_the_as_of_date_are_not_visible(db):
+    """Prices are bounded on both sides; fundamentals had only a lower bound.
+
+    Live scoring never noticed, because `as_of` is always today and there are no
+    future snapshots. The moment anyone passes a historical `as_of` — i.e.
+    builds the backtester this project needs for its published claims — prices
+    would be honest and fundamentals clairvoyant, and the look-ahead would show
+    up in the results as skill. That is why this is fixed before a backtester
+    exists rather than after.
+    """
+    as_of = TODAY - timedelta(days=10)
+    for i in range(MIN_SECTOR_POPULATION):
+        ticker = f"PIT{i:02d}"
+        _stock(db, ticker)
+        # Published after the simulated date.
+        db.add(Fundamentals(ticker=ticker, as_of=TODAY, data=_full_fundamentals()))
+        db.add(PriceBar(ticker=ticker, date=as_of, close=150.0))
+        db.add(PriceBar(ticker=ticker, date=as_of - timedelta(days=365), close=100.0))
+    db.commit()
+
+    _scored, _missing, considered = compute_scores(db, RUN118_PARAMS, as_of)
+    assert considered == 0
+
+    # Control: the same snapshots ARE in scope for a run dated today.
+    _scored, _missing, considered_today = compute_scores(db, RUN118_PARAMS, TODAY)
+    assert considered_today == MIN_SECTOR_POPULATION
+
+
+# ---------------------------------------------------------------------------
+# BUG-P3 — the Z-score bankruptcy filter has no input, and must say so
+# ---------------------------------------------------------------------------
+
+
+def test_the_z_score_filter_is_passed_explicitly_rather_than_omitted(db):
+    """A dead parameter must be visibly dead, not silently absent.
+
+    `composite_from_factor_pcts` rejects a ticker below `z_score_floor` (1.8),
+    but `z_score` defaults to None and None means "skip the check" — so a caller
+    that simply omits the argument disables a bankruptcy filter with no error
+    anywhere, and distressed names the backtest excluded become buyable.
+
+    No FMP endpoint on this client supplies a Z-score (an Altman Z needs
+    balance-sheet inputs the client cannot fetch), and inventing one from what
+    IS available would be worse than not having one. So the argument is passed
+    explicitly as Z_SCORE_UNAVAILABLE. This test pins the plumbing: if a real
+    Z-score is sourced later, wiring it in is a one-line change at a call site
+    that already exists, rather than a rediscovery of the whole defect.
+    """
+    import worker.services.scoring as scoring_module
+
+    seen: list[dict] = []
+    real = scoring_module.composite_from_factor_pcts
+
+    def spy(factor_pcts, params, **kwargs):
+        seen.append(kwargs)
+        return real(factor_pcts, params, **kwargs)
+
+    _pad_sector(db)
+    db.commit()
+
+    scoring_module.composite_from_factor_pcts = spy
+    try:
+        scored, _missing, _considered = compute_scores(db, RUN118_PARAMS, TODAY)
+    finally:
+        scoring_module.composite_from_factor_pcts = real
+
+    assert len(scored) == MIN_SECTOR_POPULATION
+    assert seen, "precondition: the scorer was actually called"
+    assert all("z_score" in kwargs for kwargs in seen)
+    assert all(kwargs["z_score"] is Z_SCORE_UNAVAILABLE for kwargs in seen)
+    # Documents the consequence rather than hiding it: nothing is rejected.
+    assert Z_SCORE_UNAVAILABLE is None

@@ -245,12 +245,17 @@ def picks_series(db: Session, portfolio_id: int = 1) -> list[dict]:
             )
 
     # Anchor the final point to the live book so the chart's last value agrees
-    # with the headline instead of drifting from it.
+    # with the headline instead of drifting from it. That means the headline
+    # itself: dividing the market value of OPEN positions by capital deployed
+    # into ALL picks dropped every closed pick's proceeds from the numerator
+    # while leaving its capital in the denominator, so one open pick at +10%
+    # beside one closed at +20% put a -45% final point under a +15% headline.
     if rows and positions:
-        live_deployed = sum(f.amount for f in flows)
-        live_value = sum(p.market_value for p in positions.values())
-        if live_deployed > 0:
-            rows[-1]["return_pct"] = round(
-                (live_value / live_deployed - 1) * 100, 2
-            )
+        from app.db.models import Portfolio
+        from app.services.portfolio import picks_return_pct
+
+        portfolio = db.get(Portfolio, portfolio_id)
+        headline = picks_return_pct(db, portfolio) if portfolio else None
+        if headline is not None:
+            rows[-1]["return_pct"] = headline
     return rows

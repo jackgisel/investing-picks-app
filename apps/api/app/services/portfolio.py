@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import func, inspect as sa_inspect, text
 from sqlalchemy.orm import Session
@@ -145,10 +145,84 @@ def initial_capital(db: Session, portfolio: Portfolio) -> float | None:
 
 
 #: Admin corrections, not investment outcomes. A manual removal refunds the
-#: position's cost basis, so it is backed out of deployed capital rather than
-#: counted as a sale — otherwise deleting a mistyped entry would land in the
-#: track record as a flat trade and drag the average toward zero.
-CORRECTION_ACTIONS = ("manual_remove",)
+#: position's cost basis and a manual edit settles the difference in cash, so
+#: both are backed out of (or added to) deployed capital rather than counted as
+#: a sale — otherwise deleting a mistyped entry would land in the track record
+#: as a flat trade and drag the average toward zero.
+CORRECTION_ACTIONS = ("manual_remove", "manual_adjust")
+
+#: Share counts are floats derived from notional/price, so "flat" is a tolerance
+#: rather than an equality.
+SHARE_EPSILON = 1e-9
+
+
+def _trade_order_key(t: Trade) -> tuple[datetime, int]:
+    """Chronological order for one ticker's trades, id as the tie-break.
+
+    Timestamps arrive both naive (SQLite's CURRENT_TIMESTAMP) and tz-aware
+    (Postgres' now(), and the explicit entry-dated stamps ops writes), and
+    sorting a mixed list raises. Normalise to UTC so the two can be compared.
+    """
+    stamped = t.timestamp
+    if stamped is None:
+        stamped = datetime.min
+    if stamped.tzinfo is None:
+        stamped = stamped.replace(tzinfo=timezone.utc)
+    return (stamped, t.id or 0)
+
+
+def exit_basis(trades: list[Trade]) -> dict[int, dict]:
+    """Average cost and opening date behind every position-reducing sell.
+
+    Keyed by the exiting trade's id. Each ticker's trades are walked oldest
+    first under average-cost accounting, so an exit is measured against the cost
+    of EVERY lot that was open. Pricing it off the most recent buy alone reports
+    a genuine winner as a loser whenever the last lot was added higher — buy 100
+    at $10, add 100 at $30, sell 200 at $25 is +25% and used to publish as
+    -16.67%. `allow_double_buy` is on in Run 118, so multi-lot positions are
+    routine, not an edge case.
+
+    The basis resets whenever the position goes flat, so a name that was closed
+    and later re-bought starts a fresh round trip instead of averaging the new
+    lot against the old one's cost.
+    """
+    grouped: dict[str, list[Trade]] = {}
+    for t in trades:
+        grouped.setdefault(t.ticker, []).append(t)
+
+    out: dict[int, dict] = {}
+    for rows in grouped.values():
+        shares = 0.0
+        basis = 0.0
+        opened: datetime | None = None
+        for t in sorted(rows, key=_trade_order_key):
+            qty = t.shares or 0.0
+            notional = t.notional or 0.0
+            avg = basis / shares if shares > SHARE_EPSILON else None
+            correction = t.action in CORRECTION_ACTIONS
+            if t.side == "buy":
+                if shares <= SHARE_EPSILON:
+                    opened = t.timestamp
+                shares += qty
+                basis += notional
+            elif correction:
+                # A correction restates the book: its notional IS the change in
+                # cost basis, not a fill at the average price.
+                shares -= qty
+                basis -= notional
+            else:
+                shares -= qty
+                basis -= (avg or 0.0) * qty
+                out[t.id] = {
+                    "avg_cost": avg,
+                    "opened": opened,
+                    "closes_position": shares <= SHARE_EPSILON,
+                }
+            if shares <= SHARE_EPSILON:
+                shares = 0.0
+                basis = 0.0
+                opened = None
+    return out
 
 
 def picks_return(db: Session, portfolio: Portfolio) -> dict[str, float | int | None]:
@@ -174,7 +248,13 @@ def picks_return(db: Session, portfolio: Portfolio) -> dict[str, float | int | N
     for t in trades:
         notional = t.notional or 0.0
         if t.action in CORRECTION_ACTIONS:
-            deployed -= notional
+            # Corrections move capital without any market outcome, so they move
+            # the denominator and never the numerator. An edit that adds shares
+            # must add its cash to `deployed`: without it the live market value
+            # doubles while the denominator stays at the original cost, and
+            # correcting a typed share count from 10 to 20 publishes +100% on a
+            # book that earned nothing.
+            deployed += notional if t.side == "buy" else -notional
         elif t.side == "buy":
             deployed += notional
         elif t.side == "sell":
@@ -183,9 +263,12 @@ def picks_return(db: Session, portfolio: Portfolio) -> dict[str, float | int | N
     positions = db.query(Position).filter(Position.portfolio_id == portfolio.id).all()
     open_value = sum(p.market_value for p in positions)
 
-    closed_tickers = {t.ticker for t in trades if t.side == "sell"} - {
-        p.ticker for p in positions
-    }
+    # Completed round trips, not distinct tickers. A set difference on ticker
+    # reported 0 closed picks for a name that was sold and later re-bought,
+    # because it is in the open book again.
+    closed_count = sum(
+        1 for e in exit_basis(trades).values() if e["closes_position"]
+    )
 
     if deployed <= 0:
         return {
@@ -194,7 +277,7 @@ def picks_return(db: Session, portfolio: Portfolio) -> dict[str, float | int | N
             "open_value": round(open_value, 2),
             "realized": round(realized, 2),
             "open_count": len(positions),
-            "closed_count": len(closed_tickers),
+            "closed_count": closed_count,
         }
 
     return {
@@ -203,7 +286,7 @@ def picks_return(db: Session, portfolio: Portfolio) -> dict[str, float | int | N
         "open_value": round(open_value, 2),
         "realized": round(realized, 2),
         "open_count": len(positions),
-        "closed_count": len(closed_tickers),
+        "closed_count": closed_count,
     }
 
 
@@ -337,7 +420,14 @@ def persist_evaluation(
             keep_shares=sig.keep_shares,
             score_json=sig.to_dict().get("score"),
             metadata_json=sig.metadata,
-            executed=executed,
+            # Never `executed` here: this runs BEFORE apply_signals, which skips
+            # a TRIM suppressed behind a FULL_SELL, a buy with no usable mark and
+            # a sell on a position that is already gone. Stamping the run's
+            # intent onto every row recorded those skips as trades that were
+            # made. apply_signals flips this to True per row as it fills, so the
+            # ledger — the artifact that makes a published record checkable —
+            # says what actually happened.
+            executed=False,
         )
         db.add(row)
         db.flush()
@@ -415,6 +505,8 @@ def apply_signals(
             )
             db.add(trade)
             trades.append(trade)
+            if srow:
+                srow.executed = True
 
             if sig.action == Action.FULL_SELL or shares >= pos.shares - 1e-9:
                 db.delete(pos)
@@ -467,6 +559,8 @@ def apply_signals(
             )
             db.add(trade)
             trades.append(trade)
+            if srow:
+                srow.executed = True
 
             if sig.ticker in positions:
                 pos = positions[sig.ticker]
@@ -509,6 +603,39 @@ def apply_signals(
     return trades
 
 
+def _recorded_on(ev: Evaluation) -> date | None:
+    """Local calendar date an evaluation was written on.
+
+    SQLite's CURRENT_TIMESTAMP is naive UTC while Postgres' now() is tz-aware;
+    both are normalised so this means the same thing as `date.today()` on either.
+    """
+    stamped = ev.created_at
+    if stamped is None:
+        return None
+    if stamped.tzinfo is None:
+        stamped = stamped.replace(tzinfo=timezone.utc)
+    return stamped.astimezone().date()
+
+
+def executed_evaluation_today(
+    db: Session, portfolio_id: int, mode: str
+) -> Evaluation | None:
+    """The executed evaluation already run for this portfolio, mode and day."""
+    latest = (
+        db.query(Evaluation)
+        .filter(
+            Evaluation.portfolio_id == portfolio_id,
+            Evaluation.mode == mode,
+            Evaluation.executed.is_(True),
+        )
+        .order_by(Evaluation.id.desc())
+        .first()
+    )
+    if latest is not None and _recorded_on(latest) == date.today():
+        return latest
+    return None
+
+
 def run_evaluation(
     db: Session,
     portfolio_id: int = 1,
@@ -518,6 +645,26 @@ def run_evaluation(
     portfolio = db.get(Portfolio, portfolio_id)
     if not portfolio:
         raise ValueError(f"Portfolio {portfolio_id} not found")
+
+    # An executed evaluation is not safe to replay. Sells and trims converge —
+    # the position is already gone the second time — but buys do not: the second
+    # run simply buys the next-ranked candidate, putting two adds in a cycle that
+    # `max_adds_per_evaluation = 1` publicly claims will only ever make one, and
+    # inflating `deployed` with it. A double-clicked POST /api/ops/evaluate, a
+    # scheduler retry and a redeploy replaying job_biweekly_evaluate all land
+    # here, and none of them carried a guard. Dry runs are untouched: they write
+    # no trades, so previewing a cycle again is always safe.
+    if not dry_run:
+        already = executed_evaluation_today(db, portfolio_id, mode)
+        if already is not None:
+            log.info(
+                "Evaluation %s already ran '%s' for portfolio %s today; "
+                "returning it rather than trading again",
+                already.id,
+                mode,
+                portfolio_id,
+            )
+            return already
 
     params = params_from_portfolio(portfolio)
     state = load_portfolio_state(db, portfolio)

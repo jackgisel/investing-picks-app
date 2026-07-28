@@ -309,7 +309,8 @@ def update_position(ticker: str, payload: PositionUpdate, db: Session = Depends(
     else:
         new_shares = _resolve_shares(payload.shares, payload.notional, new_price)
 
-    old_cost = pos.shares * (pos.avg_cost or 0.0)
+    old_shares = pos.shares
+    old_cost = old_shares * (pos.avg_cost or 0.0)
     new_cost = new_shares * new_price
     _spend_cash(portfolio, new_cost - old_cost)
 
@@ -324,6 +325,38 @@ def update_position(ticker: str, payload: PositionUpdate, db: Session = Depends(
         pos.current_price = payload.current_price
     elif not pos.current_price:
         pos.current_price = new_price
+
+    # An edit moves cash, so it must also move deployed capital. `picks_return`
+    # builds its denominator from trade notionals and its numerator from live
+    # market value; with no row here the two desynchronise permanently, and
+    # correcting a typed share count from 10 to 20 published +100% on a book
+    # that had earned nothing (the CAGR then annualized it). Written as a
+    # `manual_adjust` correction, not a buy or a sale: it restates the position
+    # rather than realizing anything, so it changes the denominator only.
+    delta_cost = new_cost - old_cost
+    if abs(delta_cost) > CASH_EPSILON:
+        # Keep shares * price == notional. A pure re-price moves no shares, so
+        # the adjustment is the per-share change in basis across the position.
+        qty = abs(new_shares - old_shares)
+        if qty <= CASH_EPSILON:
+            qty = new_shares
+        adjustment = Trade(
+            portfolio_id=portfolio.id,
+            ticker=symbol,
+            side="buy" if delta_cost > 0 else "sell",
+            shares=qty,
+            price=abs(delta_cost) / qty if qty else 0.0,
+            notional=abs(delta_cost),
+            reason="Manual edit (admin)",
+            action="manual_adjust",
+        )
+        if pos.entry_date:
+            # Dated to the position, like the manual buy it corrects, so the
+            # deployment schedule still commits this capital on the entry date.
+            adjustment.timestamp = datetime.combine(
+                pos.entry_date, time.min, tzinfo=timezone.utc
+            )
+        db.add(adjustment)
 
     db.flush()
     _bump_peak_equity(db, portfolio)

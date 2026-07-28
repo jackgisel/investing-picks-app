@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import date
 
 from fastapi import APIRouter, Depends, Query
@@ -21,13 +22,20 @@ from app.db.models import (
 from app.db.session import get_db
 from app.services.benchmarks import benchmark_series, picks_series
 from app.services.portfolio import (
+    exit_basis,
     params_from_portfolio,
     picks_return,
     portfolio_equity,
     total_return_pct,
 )
 
+log = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/v1", tags=["public"])
+
+#: What `/performance`'s `total_return_pct` — and the CAGR derived from it —
+#: measure. Published so the two figures cannot be read against the wrong base.
+RETURN_BASIS = "portfolio_equity"
 
 #: Shortest live window we will annualize. Below this, extrapolating to a year
 #: is arithmetic rather than evidence — a 26.81% return over one day annualizes
@@ -107,7 +115,14 @@ def _inception_date(portfolio: Portfolio | None, snaps: list[PortfolioSnapshot])
 
 
 def _pnl_pct(entry: float | None, current: float | None) -> float | None:
-    if not entry or not current or entry <= 0:
+    """Percent P&L, or None when it is genuinely unknown.
+
+    `current` is checked against None rather than tested for truth: a holding
+    marked at $0 is a real -100%, and rejecting it as falsy published a delisted
+    position worth nothing as a flat 0.00%. A missing basis still returns None,
+    and callers must publish that None — see the holdings table below.
+    """
+    if entry is None or current is None or entry <= 0:
         return None
     return round((current - entry) / entry * 100, 2)
 
@@ -152,7 +167,11 @@ def get_strategy(db: Session = Depends(get_db)):
             "entry_date": p.entry_date.isoformat() if p.entry_date else None,
             # avg_cost is preserved through Winners Circle partial sells now, so
             # house-money holdings report their real gain instead of a flat 0%.
-            "pnl_pct": _pnl_pct(p.avg_cost, p.current_price) or 0,
+            # Published as null when unknown, never coerced to 0: `or 0` turned
+            # a position whose basis could not be rebuilt — the case
+            # _recover_avg_cost_from_trades logs as "P&L will read as
+            # unavailable" — into a confident 0.00%, which is a claim.
+            "pnl_pct": _pnl_pct(p.avg_cost, p.current_price),
             "is_house_money": bool(p.is_house_money),
             "weight_pct": round(p.market_value / equity * 100, 2) if equity else 0,
             "sector": p.sector or sectors.get(p.ticker),
@@ -271,6 +290,15 @@ def get_picks(
                 }
             )
     if status in ("all", "closed"):
+        # Average cost of the WHOLE position at each exit, not the price of the
+        # single most recent buy before it. Pricing an exit off the last lot
+        # discarded every earlier one: buy 100 @ $10, add 100 @ $30, sell 200 @
+        # $25 is +25% and published as -16.67%. `allow_double_buy` is on in Run
+        # 118, and this field is what the web app's closedWinRate() classifies
+        # win/loss from — so a real winner was being counted as a loss.
+        basis = exit_basis(
+            db.query(Trade).filter(Trade.portfolio_id == portfolio.id).all()
+        )
         sells = (
             db.query(Trade)
             .filter(Trade.portfolio_id == portfolio.id, Trade.side == "sell", Trade.action == "full_sell")
@@ -278,23 +306,16 @@ def get_picks(
             .all()
         )
         for t in sells:
-            buy = (
-                db.query(Trade)
-                .filter(
-                    Trade.portfolio_id == portfolio.id,
-                    Trade.ticker == t.ticker,
-                    Trade.side == "buy",
-                    Trade.timestamp < t.timestamp,
-                )
-                .order_by(Trade.timestamp.desc())
-                .first()
-            )
+            lot = basis.get(t.id) or {}
+            opened = lot.get("opened")
             picks.append(
                 {
                     "ticker": t.ticker,
                     "status": "closed",
-                    "entry_date": buy.timestamp.date().isoformat() if buy and buy.timestamp else None,
-                    "pnl_pct": _pnl_pct(buy.price if buy else None, t.price),
+                    # When the round trip was OPENED, for the same reason: the
+                    # last buy is the second lot, not the entry.
+                    "entry_date": opened.date().isoformat() if opened else None,
+                    "pnl_pct": _pnl_pct(lot.get("avg_cost"), t.price),
                     "exit_date": t.timestamp.date().isoformat() if t.timestamp else None,
                     "exit_reason": t.reason,
                     "blog_slug": None,
@@ -349,18 +370,6 @@ def get_performance(db: Session = Depends(get_db)):
     # with it instead of contradicting it.
     live_return = total_return_pct(db, portfolio) if portfolio else None
 
-    # The CAGR must annualize whatever the site actually headlines, which is the
-    # return on capital deployed into picks — not the equity return. Annualizing
-    # a different base than the one displayed put "+26.81% total return" beside
-    # a CAGR derived from 2.14%, two numbers that cannot both describe the same
-    # book. Outpick sells research, so the picks return is the headline and the
-    # CAGR follows it.
-    annualized_base = (
-        picks_return(db, portfolio).get("return_pct") if portfolio else None
-    )
-    if annualized_base is None:
-        annualized_base = live_return
-
     today = date.today()
     inception = _inception_date(portfolio, snaps)
     days_live = (today - inception).days if inception else None
@@ -372,25 +381,37 @@ def get_performance(db: Session = Depends(get_db)):
             "summary": {
                 "position_count": len(positions),
                 "total_return_pct": live_return,
+                "return_basis": RETURN_BASIS,
                 "inception_date": inception.isoformat() if inception else None,
                 "snapshots": 0,
-                **annualize_return(annualized_base, days_live, 0),
+                **annualize_return(live_return, days_live, 0),
             },
         }
 
-    base = snaps[0].total_value or 1
+    # A $0 first snapshot is no base at all. `or 1` turned it into a $1 book and
+    # published every later point as a multi-million-percent return (a $100k
+    # second day read as +9,999,900%). Withhold the series instead of inventing
+    # a base for it.
+    base = snaps[0].total_value
+    if not base or base <= 0:
+        log.warning(
+            "First snapshot for portfolio 1 (%s) has no value; withholding the "
+            "indexed equity curve rather than publishing a return off a $0 base.",
+            snaps[0].date,
+        )
+        base = None
     spy_base = snaps[0].spy_value
     series = []
     for s in snaps:
-        ret = (s.total_value / base - 1) * 100 if base else 0
+        ret = (s.total_value / base - 1) * 100 if base else None
         spy_ret = None
         if s.spy_value and spy_base:
             spy_ret = (s.spy_value / spy_base - 1) * 100
         series.append(
             {
                 "date": s.date.isoformat(),
-                "return_pct": round(ret, 2),
-                "portfolio_pct": round(ret, 4),
+                "return_pct": round(ret, 2) if ret is not None else None,
+                "portfolio_pct": round(ret, 4) if ret is not None else None,
                 "spy_return_pct": round(spy_ret, 2) if spy_ret is not None else None,
                 "benchmark_pct": round(spy_ret, 4) if spy_ret is not None else None,
             }
@@ -418,10 +439,19 @@ def get_performance(db: Session = Depends(get_db)):
             # annualize a since-inception return — see `annualize_return`.
             "inception_date": inception.isoformat() if inception else None,
             "total_return_pct": headline,
+            # Names the base of BOTH numbers below. `total_return_pct` is the
+            # whole-book equity return and `annualized_return_pct` is now that
+            # same number annualized — previously the CAGR came off
+            # `picks_return`, a different base entirely, so the summary could
+            # publish total_return_pct -6.5 beside annualized_return_pct 109.59
+            # with nothing in the payload saying they measured different things.
+            # The picks return is published on /api/v1/strategy, where it sits
+            # beside its own chart.
+            "return_basis": RETURN_BASIS,
             "snapshot_return_pct": last,
             "position_count": snaps[-1].position_count if snaps else len(positions),
             "snapshots": len(snaps),
-            **annualize_return(annualized_base, days_live, days_recorded),
+            **annualize_return(headline, days_live, days_recorded),
         },
     }
 

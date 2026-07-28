@@ -115,16 +115,6 @@ def ops_client(db, portfolio):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    reason=(
-        "BUG-A1: PATCH /api/ops/positions/{ticker} changes shares and cost basis "
-        "and settles cash, but writes no Trade row. picks_return's denominator "
-        "is built from trade notionals while its numerator is the live position "
-        "market value, so any admin edit inflates (or deflates) the published "
-        "picks return."
-    ),
-    strict=True,
-)
 def test_editing_a_position_does_not_invent_a_return(ops_client, db, portfolio):
     # Prevents: the site publishing "+100%" on a book that has gained nothing,
     # purely because an operator corrected a share count in the ops UI.
@@ -153,15 +143,6 @@ def test_editing_a_position_does_not_invent_a_return(ops_client, db, portfolio):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    reason=(
-        "BUG-A2: /api/v1/picks?status=closed computes pnl_pct against the price "
-        "of the single most recent buy before the exit, ignoring every earlier "
-        "buy. A position built in two lots reports the wrong return, and the "
-        "web app's closedWinRate() classifies win/loss off this field."
-    ),
-    strict=True,
-)
 def test_closed_pick_pnl_uses_the_average_cost_of_the_whole_position(db, portfolio):
     # Prevents: a genuine +25% winner being published as a -17% loser, which
     # also drags the published win rate down (or, with the signs reversed, up).
@@ -195,16 +176,6 @@ def test_closed_pick_win_rate_input_is_the_field_the_web_app_reads(db, portfolio
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    reason=(
-        "BUG-A3: picks_series() overwrites the last chart point with "
-        "(market value of OPEN positions) / (capital deployed into ALL picks). "
-        "Capital committed to closed picks stays in the denominator while its "
-        "proceeds vanish from the numerator, so the chart's final point "
-        "collapses and contradicts the headline sitting above it."
-    ),
-    strict=True,
-)
 def test_the_picks_chart_ends_where_the_headline_says_it_does(db, portfolio):
     # Prevents: a +15% headline plotted above a chart whose last point reads
     # -45%, purely because one pick was sold.
@@ -259,14 +230,6 @@ def test_the_picks_chart_shares_the_benchmark_denominator_before_the_anchor(db, 
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    reason=(
-        "BUG-A4: /api/v1/strategy builds pnl_pct as `_pnl_pct(...) or 0`. When "
-        "the cost basis is unrecoverable _pnl_pct returns None and the `or` "
-        "coerces it to 0, so an unknown return is published as a flat 0.00%."
-    ),
-    strict=True,
-)
 def test_unknown_holding_pnl_is_published_as_null_not_zero(db, portfolio):
     # Prevents: a position whose basis could not be rebuilt (the case
     # _recover_avg_cost_from_trades logs as "P&L will read as unavailable")
@@ -278,14 +241,6 @@ def test_unknown_holding_pnl_is_published_as_null_not_zero(db, portfolio):
     assert holding["pnl_pct"] is None  # today: 0
 
 
-@pytest.mark.xfail(
-    reason=(
-        "BUG-A4b: _pnl_pct() rejects a falsy `current`, so a holding marked to "
-        "zero returns None, which the `or 0` in /api/v1/strategy then publishes "
-        "as 0.00%. A total loss is published as flat."
-    ),
-    strict=True,
-)
 def test_a_holding_marked_to_zero_publishes_minus_one_hundred_not_zero(db, portfolio):
     # Prevents: a delisted/halted holding marked at $0 showing 0.00% on the
     # public holdings table instead of -100%.
@@ -331,16 +286,6 @@ def test_a_trim_and_a_full_sell_on_one_ticker_write_exactly_one_trade(db, portfo
     assert db.query(Position).filter(Position.ticker == "AAA").count() == 0
 
 
-@pytest.mark.xfail(
-    reason=(
-        "BUG-A5: persist_evaluation() stamps every SignalRow with "
-        "executed = (not dry_run) before apply_signals runs, so a signal that "
-        "was skipped — the suppressed TRIM behind a FULL_SELL, a buy with no "
-        "mark, a sell on a position that no longer exists — is recorded in the "
-        "decision ledger as having been executed."
-    ),
-    strict=True,
-)
 def test_a_skipped_signal_is_not_recorded_as_executed(db, portfolio):
     # Prevents: the audit trail at /api/ops/evaluations/{id} claiming a trade
     # was made that never was — the ledger is the thing that makes a published
@@ -360,13 +305,6 @@ def test_a_skipped_signal_is_not_recorded_as_executed(db, portfolio):
     assert rows["trim"].executed is False  # today: True
 
 
-@pytest.mark.xfail(
-    reason=(
-        "BUG-A5b: same root cause — a BUY with no usable mark is skipped by "
-        "apply_signals but its SignalRow still reads executed=True."
-    ),
-    strict=True,
-)
 def test_an_unfillable_buy_is_not_recorded_as_executed(db, portfolio):
     # Prevents the ledger showing a purchase the book never made because no
     # price was available to fill it at.
@@ -386,16 +324,6 @@ def test_an_unfillable_buy_is_not_recorded_as_executed(db, portfolio):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    reason=(
-        "BUG-A6: /api/v1/performance publishes summary.total_return_pct (the "
-        "equity return) alongside summary.annualized_return_pct, which is "
-        "derived from picks_return — a different base entirely. The two fields "
-        "sit in one object and cannot both describe the same book, and nothing "
-        "in the payload says which base was annualized."
-    ),
-    strict=True,
-)
 def test_the_annualized_figure_matches_the_return_published_beside_it(db, portfolio):
     # Prevents: a summary reading total_return_pct = -6.5 next to
     # annualized_return_pct = +109.6, with no field naming the base.
@@ -438,14 +366,6 @@ def test_the_two_return_bases_really_are_different_numbers(db, portfolio):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    reason=(
-        "BUG-A7: get_performance() uses `base = snaps[0].total_value or 1`. A "
-        "first snapshot worth $0 becomes a $1 base, so every later point is "
-        "published as a multi-million-percent return instead of being withheld."
-    ),
-    strict=True,
-)
 def test_a_zero_first_snapshot_withholds_the_series_rather_than_inventing_it(db, portfolio):
     # Prevents: the equity curve publishing +9,999,900% because the first
     # recorded day had no value to index off.
@@ -478,17 +398,18 @@ def test_picks_return_counts_recycled_dollars_twice_in_its_denominator(db, portf
     assert r["return_pct"] == 13.64
 
 
-def test_closed_count_is_distinct_tickers_not_closed_positions(db, portfolio):
-    # Pins a documented weakness of the published `picks.closed_count`: it is
-    # a set difference on ticker, so a name that was closed and later re-bought
-    # is not counted as closed at all.
+def test_closed_count_counts_round_trips_not_distinct_tickers(db, portfolio):
+    # BUG-A10: `picks.closed_count` used to be a set difference on ticker, so a
+    # name that was closed and later re-bought reported 0 closed picks — the
+    # completed round trip vanished from the published record because the name
+    # happens to be in the open book again.
     _trade(db, portfolio, "AAA", "buy", 10.0, 100.0, "buy")
     _trade(db, portfolio, "AAA", "sell", 10.0, 150.0, "full_sell")
     _trade(db, portfolio, "AAA", "buy", 10.0, 150.0, "buy")
     make_position(db, portfolio, "AAA", shares=10.0, avg_cost=150.0, current_price=150.0)
 
     r = picks_return(db, portfolio)
-    assert r["closed_count"] == 0
+    assert r["closed_count"] == 1  # was: 0
     assert r["open_count"] == 1
 
 
@@ -671,18 +592,6 @@ def _scored_universe(db):
     db.commit()
 
 
-@pytest.mark.xfail(
-    reason=(
-        "BUG-A8: run_evaluation() is not idempotent. Nothing records that an "
-        "executed evaluation already happened for this cycle, so a second run "
-        "on the same day performs ANOTHER round of buys — defeating "
-        "max_adds_per_evaluation=1, which is itself a PUBLISHED parameter "
-        "(StrategyParams.PUBLIC_FIELDS) and therefore a claim about how fast "
-        "the book deploys capital. Neither POST /api/ops/evaluate?dry_run=false "
-        "nor job_biweekly_evaluate guards against a retry or a double click."
-    ),
-    strict=True,
-)
 def test_re_running_an_evaluation_the_same_day_does_not_re_trade(db, portfolio):
     # Prevents double-buying — and so inflating `deployed` — when the scheduler
     # retries, a redeploy replays the job, or an operator presses the ops

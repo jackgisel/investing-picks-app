@@ -25,6 +25,41 @@ log = logging.getLogger(__name__)
 # stale row against freshly-refreshed peers ranks it on out-of-date inputs.
 FUNDAMENTALS_MAX_AGE_DAYS = 45
 
+# Fewest names a sector must contain before a percentile rank within it means
+# anything. The previous system of record (Run 118) required 15; this matches it.
+#
+# `factor_percentile_score` maps the better of two values to 100.0 and the worse
+# to 0.0. With five factors that hands the better of a two-name sector a
+# composite of 100 -> quant_rating 5.0 with A+ on valuation, growth,
+# profitability, momentum AND revisions, clearing min_quant_rating 4.0 and every
+# grade floor in BuyCriteria at once — on no information, from being marginally
+# the less bad of two mediocre names. n=1 is accidentally safe (50.0 -> QR 3.0,
+# under the buy gate), which is what makes n=2 a cliff rather than a slope.
+# min_factor_coverage = 1.0 shrinks the covered population of every sector, so
+# small sectors are ordinary rather than exotic.
+#
+# Below this the sector is not ranked at all: its tickers are counted in
+# `considered` and named in a warning, never scored. Ranking them anyway is the
+# bug; dropping them silently is BUG-W3's failure mode.
+MIN_SECTOR_POPULATION = 15
+
+# BUG-P3. `composite_from_factor_pcts` takes a `z_score` and rejects anything
+# below `params.z_score_floor` (1.8 in Run 118) as a bankruptcy-risk name — but
+# the parameter defaults to None and None means "skip the check", so a caller
+# that simply omits it disables the filter with no error anywhere. This caller
+# is the only production caller.
+#
+# We pass it EXPLICITLY as None because the input genuinely cannot be sourced
+# today, not because the check is unwanted: an Altman Z needs working capital,
+# retained earnings, EBIT, market cap, total liabilities, sales and total
+# assets, and `FMPClient` exposes no balance-sheet or financial-scores endpoint
+# at all. `Fundamentals.data` is `{**key_metrics_ttm, **ratios_ttm}` plus
+# derived growth/revisions, and no field in it carries a Z-score. Deriving one
+# from what IS there would be inventing a solvency number, which is worse than
+# not having one. `score_universe` warns every run so the gap stays visible
+# instead of reading as a filter that passes everything.
+Z_SCORE_UNAVAILABLE = None
+
 # Each entry is (aliases, higher_is_better). Aliases are tried in order and
 # collapse to ONE percentile column: listing an old and new name as separate
 # metrics would percentile-rank two disjoint populations (snapshots written
@@ -71,6 +106,24 @@ REVISION_KEYS = [
 # beyond this the window is a different measurement.
 MOMENTUM_ANCHOR_TOLERANCE_DAYS = 25
 
+# How stale the NEWEST bar may be and still be treated as "the price now".
+#
+# Only held positions, the top-rated candidate slice and SPY get a fresh bar
+# from `refresh_marks`; `backfill_price_history` is unscheduled and skips any
+# ticker that already has 200 bars. So for much of the universe the newest bar
+# is frozen at the backfill date while the `as_of - 365d` anchor keeps
+# advancing, and dividing a months-old close by that anchor is not a 12-month
+# return — it is a return over some shorter, unknown window, percentile-ranked
+# against candidates whose newest bar really is today. A name that doubled into
+# its last recorded close and has since halved reports +100% and tops its sector
+# on momentum.
+#
+# Same magnitude as the anchor tolerance, and for the same reason: it bounds how
+# far the measured window may drift from 365 days, which is a property of the
+# measurement rather than of the job schedule. Symmetric drift at both ends
+# keeps the window within roughly +/- 7% of a year.
+MOMENTUM_LATEST_MAX_AGE_DAYS = 25
+
 
 def load_price_history(
     db: Session, tickers: list[str], as_of: date
@@ -114,7 +167,13 @@ def _momentum_12m(
     bars = history.get(ticker) or []
     if len(bars) < 2:
         return None
-    latest = bars[0][1]
+    latest_date, latest = bars[0]
+    # Both ends of the window must be real. Refusing here makes the ticker
+    # unscoreable under min_factor_coverage = 1.0 rather than scored on a
+    # fabricated return — and an unscoreable ticker is neither bought nor, for a
+    # holding, exited, so this is the conservative direction on both sides.
+    if (as_of - latest_date).days > MOMENTUM_LATEST_MAX_AGE_DAYS:
+        return None
     target = as_of - timedelta(days=365)
     earliest_ok = target - timedelta(days=MOMENTUM_ANCHOR_TOLERANCE_DAYS)
     past = None
@@ -161,7 +220,15 @@ def compute_scores(
     oldest_allowed = as_of - timedelta(days=FUNDAMENTALS_MAX_AGE_DAYS)
     latest_ids = (
         db.query(func.max(Fundamentals.id))
-        .filter(Fundamentals.as_of >= oldest_allowed)
+        # BUG-P4. The upper bound is the point-in-time half. Prices are already
+        # bounded on both sides (`PriceBar.date <= as_of` in
+        # load_price_history); fundamentals had only the lower bound, so a call
+        # with a historical `as_of` would rank honest prices against
+        # fundamentals published after the date being simulated. Live scoring
+        # never noticed because `as_of` is always today — which is exactly why
+        # this had to be fixed BEFORE a backtester exists rather than after,
+        # since the look-ahead would show up as skill.
+        .filter(Fundamentals.as_of >= oldest_allowed, Fundamentals.as_of <= as_of)
         .group_by(Fundamentals.ticker)
         .subquery()
     )
@@ -178,8 +245,16 @@ def compute_scores(
     scored: list[ScoredTicker] = []
     missing_factor: dict[str, int] = defaultdict(int)
     considered = 0
+    thin_sectors: dict[str, int] = {}
 
     for sector, tickers in by_sector.items():
+        if len(tickers) < MIN_SECTOR_POPULATION:
+            # Counted, named, and not ranked. `considered` still moves so these
+            # tickers show up in score_universe's unscoreable arithmetic instead
+            # of vanishing the way a NULL sector used to (BUG-W3).
+            considered += len(tickers)
+            thin_sectors[sector] = len(tickers)
+            continue
 
         def col(keys) -> dict[str, list[float | None]]:
             out = {aliases[0]: [] for aliases, _ in keys}
@@ -229,7 +304,13 @@ def compute_scores(
                 "revisions": rev_pcts[i],
             }
             composite, grades = composite_from_factor_pcts(
-                factor_pcts, params, momentum_12m=mom_raw[i]
+                factor_pcts,
+                params,
+                momentum_12m=mom_raw[i],
+                # Explicit, not omitted — see Z_SCORE_UNAVAILABLE. Passing the
+                # argument by name is what stops this reading as an oversight
+                # the next person "fixes" by deleting the parameter.
+                z_score=Z_SCORE_UNAVAILABLE,
             )
             if composite is None:
                 for name, pct in factor_pcts.items():
@@ -247,6 +328,17 @@ def compute_scores(
                     momentum_12m=mom_raw[i],
                 )
             )
+
+    if thin_sectors:
+        log.warning(
+            "%s tickers were not ranked: their sector holds fewer than %s names "
+            "with usable fundamentals, and a percentile within a population that "
+            "small is not evidence. Sectors: %s. These tickers cannot be bought, "
+            "and any held position among them is skipped by the sell rules too.",
+            sum(thin_sectors.values()),
+            MIN_SECTOR_POPULATION,
+            dict(sorted(thin_sectors.items(), key=lambda kv: -kv[1])),
+        )
     return scored, dict(missing_factor), considered
 
 
@@ -335,6 +427,17 @@ def score_universe(db: Session, params: StrategyParams | None = None) -> int:
             unscoreable + written,
             params.min_factor_coverage * 100,
             dict(sorted(missing_factor.items(), key=lambda kv: -kv[1])),
+        )
+    if written:
+        # BUG-P3, stated every run rather than left to be rediscovered. A
+        # configured floor that never rejects anything is indistinguishable, in
+        # the params and in the ops UI, from one that passes every name.
+        log.warning(
+            "The z_score_floor=%.2f bankruptcy filter did NOT run on any of the "
+            "%s scored tickers: no FMP endpoint on this client supplies a "
+            "Z-score, so distressed names the backtest excluded are buyable.",
+            params.z_score_floor,
+            written,
         )
     if not written:
         log.error(

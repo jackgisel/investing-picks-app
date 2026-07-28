@@ -133,22 +133,34 @@ def test_diagnosis_names_the_absent_factor_instead_of_the_worker_log(db, portfol
     from app.db.session import get_db
     from app.routes import ops
 
+    from worker.services.scoring import MIN_SECTOR_POPULATION
+
     today = date.today()
-    db.add(
-        Stock(
-            ticker="AAA",
-            sector="Technology",
-            is_active=True,
-            is_etf=False,
-            # Below min_universe_market_cap the ticker is not even CONSIDERED,
-            # so the breakdown would be empty for a reason unrelated to factors.
-            market_cap=5_000_000_000,
+    # A sector below MIN_SECTOR_POPULATION is not ranked at all, and its tickers
+    # never reach the coverage floor — so the diagnosis under test needs a
+    # realistically-populated sector, not a single name.
+    for i in range(MIN_SECTOR_POPULATION):
+        ticker = f"A{i:02d}"
+        db.add(
+            Stock(
+                ticker=ticker,
+                sector="Technology",
+                is_active=True,
+                is_etf=False,
+                # Below min_universe_market_cap the ticker is not even
+                # CONSIDERED, so the breakdown would be empty for a reason
+                # unrelated to factors.
+                market_cap=5_000_000_000,
+            )
         )
-    )
-    db.add(Fundamentals(ticker="AAA", as_of=today, data={"peRatioTTM": 10}))
-    db.add(
-        Fundamentals(ticker="AAA", as_of=today - timedelta(days=30), data={"peRatioTTM": 12})
-    )
+        db.add(Fundamentals(ticker=ticker, as_of=today, data={"peRatioTTM": 10 + i}))
+        db.add(
+            Fundamentals(
+                ticker=ticker,
+                as_of=today - timedelta(days=30),
+                data={"peRatioTTM": 12 + i},
+            )
+        )
     db.commit()
 
     app = FastAPI()

@@ -48,8 +48,12 @@ Known limits, stated rather than hidden:
 * **Admin corrections** (`manual_remove`) are not sales. Tickers whose only exit
   is a correction are dropped entirely — they were never really held.
 * **Cash is assumed flat between events.** No interest is accrued on idle cash.
-* Prices are FMP's split/dividend-adjusted closes, so the curve is a total
-  return series for splits but not for cash dividends.
+* Prices are FMP's `adjClose` where the endpoint supplies it and the raw
+  `close` otherwise (`ingest.CLOSE_FIELDS`). Under adjClose the curve is a
+  total-return series for splits but not for cash dividends; if FMP turns out
+  to omit adjClose on this endpoint the series is unadjusted and a split
+  inside the window would step the reconstructed market value by the split
+  ratio. `backfill_price_history` logs which of the two you actually got.
 """
 
 from __future__ import annotations
@@ -63,7 +67,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Portfolio, PortfolioSnapshot, Position, Trade
 
-from worker.services.ingest import upsert_price_bar
+from worker.services.ingest import CLOSE_FIELDS, first_present, upsert_price_bar
 
 log = logging.getLogger(__name__)
 
@@ -272,16 +276,25 @@ class PriceSeries:
 def _parse_series(ticker: str, rows: list[dict]) -> PriceSeries:
     """Normalise FMP `/stable/historical-price-eod/full` rows.
 
-    `/stable` returns a bare list of `{"symbol", "date", "close", ...}`; the
-    retired `/api/v3` nested them under `"historical"` (already unwrapped by
-    `FMPClient.historical_prices`).
+    `/stable` returns a bare list whose rows include at least
+    `{"symbol", "date", "close"}`; the retired `/api/v3` nested them under
+    `"historical"` (already unwrapped by `FMPClient.historical_prices`). That
+    sentence is about the LIST vs NESTED shape only — it is not a statement that
+    adjClose is absent, and nothing in this repo records a real payload either
+    way, so both fields are handled.
+
+    Field priority is `ingest.CLOSE_FIELDS`, imported rather than restated.
+    This function used to read `close` first while `backfill_price_history` read
+    `adjClose` first, and both write the same `price_bars` table through
+    `upsert_price_bar`, which OVERWRITES on conflict — so a split-affected
+    ticker's series jumped by the split ratio wherever the two jobs' date ranges
+    met. Sharing the constant is what makes them agree; two independent
+    ordered-lookup expressions would just drift apart again.
     """
     closes: dict[date, float] = {}
     for row in rows or []:
         raw_date = row.get("date")
-        raw_close = row.get("close")
-        if raw_close is None:
-            raw_close = row.get("adjClose")
+        raw_close = first_present(row, *CLOSE_FIELDS)
         if not raw_date or raw_close is None:
             continue
         try:

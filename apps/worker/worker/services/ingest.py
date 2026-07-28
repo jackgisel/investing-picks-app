@@ -31,6 +31,42 @@ REVISION_LOOKBACK_DAYS = 21
 MIN_REVISION_LOOKBACK_DAYS = 5
 
 
+def first_present(row: dict, *keys):
+    """First key in `keys` carrying a non-None value, else None.
+
+    `row.get(a, row.get(b))` is NOT this: the default is only consulted when `a`
+    is ABSENT, so a payload that sends `a` explicitly as null returns None and
+    never looks at `b`. FMP does send explicit nulls for fields it has no value
+    for, so every such row was discarded even though a usable value sat beside
+    it — a hole in the price history at the 12-month anchor makes `_momentum_12m`
+    return None, which under `min_factor_coverage = 1.0` makes the whole ticker
+    unscoreable, hence neither buyable NOR sellable.
+    """
+    for key in keys:
+        value = row.get(key)
+        if value is not None:
+            return value
+    return None
+
+
+#: Field priority for a daily close, shared by BOTH writers of `price_bars`
+#: (`backfill_price_history` here and `backfill._parse_series`). They used to
+#: disagree — ingest read adjClose first, _parse_series read close first — and
+#: `upsert_price_bar` overwrites on conflict, so for a ticker that split, the
+#: series jumped by the split ratio at whatever date boundary the two jobs
+#: happened to divide, which `_momentum_12m` reads as a fabricated -67%/+200%
+#: annual return on a stock whose price never moved.
+#:
+#: adjClose wins where FMP supplies it. It is expressed in TODAY's share terms,
+#: which is the only basis consistent with the two things it is compared
+#: against: the live unadjusted quote `refresh_marks` writes for today, and the
+#: CURRENT `Position.shares` count `backfill` multiplies it by. An unadjusted
+#: pre-split close is neither. Where FMP omits adjClose (or sends it null) this
+#: degrades to `close`, which is exactly the previous behaviour — so this is
+#: safe whether or not `/stable/historical-price-eod/full` carries the field.
+CLOSE_FIELDS = ("adjClose", "close")
+
+
 def upsert_price_bar(db: Session, ticker: str, bar_date: date, close: float) -> PriceBar:
     """Insert-or-update one daily bar.
 
@@ -106,8 +142,21 @@ def refresh_universe(db: Session, fmp: FMPClient, limit: int = 800) -> int:
         ticker = (row.get("symbol") or "").upper()
         if not ticker or "." in ticker:
             continue
-        price = row.get("price") or 0
-        if price and price < params.min_share_price:
+        # An unverifiable price is not an acceptable one. This was
+        # `price = row.get("price") or 0` followed by
+        # `if price and price < min_share_price` — a missing or zero price
+        # (halted names, thinly-traded shells) is falsy, so the $5 floor was
+        # skipped entirely and the ticker was admitted. `refresh_universe` is
+        # the ONLY code path in the repo that reads `min_share_price` and
+        # nothing ever re-applies it to an existing Stock row, so that
+        # admission was permanent: the name then collected fundamentals, got
+        # scored, and was buyable at $0.80.
+        raw_price = row.get("price")
+        try:
+            price = float(raw_price) if raw_price is not None else None
+        except (TypeError, ValueError):
+            price = None
+        if price is None or price < params.min_share_price:
             continue
         stock = db.get(Stock, ticker)
         if not stock:
@@ -152,9 +201,14 @@ def _forward_estimate(estimates: list[dict], as_of: date) -> dict | None:
         "estimatePeriod": period.isoformat(),
         # `/stable` dropped the `estimated` prefix the legacy API used; accept
         # both so stored snapshots taken under either shape stay comparable.
-        "epsEstimateAvg": row.get("epsAvg", row.get("estimatedEpsAvg")),
-        "revenueEstimateAvg": row.get(
-            "revenueAvg", row.get("estimatedRevenueAvg")
+        # `first_present`, not `row.get(a, row.get(b))`: an explicit
+        # `"epsAvg": null` would otherwise shadow a usable `estimatedEpsAvg` in
+        # the same row, leaving epsEstimateAvg None — and a null estimate makes
+        # compute_estimate_revisions return {}, which nulls the revisions factor
+        # (weight 0.30, gates every buy via min_revisions_grade).
+        "epsEstimateAvg": first_present(row, "epsAvg", "estimatedEpsAvg"),
+        "revenueEstimateAvg": first_present(
+            row, "revenueAvg", "estimatedRevenueAvg"
         ),
     }
 
@@ -461,6 +515,8 @@ def backfill_price_history(
 
     fetched = 0
     inserted = 0
+    rows_seen = 0
+    rows_adjusted = 0
     for ticker in tickers:
         try:
             rows = fmp.historical_prices(ticker, start)
@@ -470,7 +526,15 @@ def backfill_price_history(
         bars: list[dict] = []
         for row in rows or []:
             raw_date = row.get("date")
-            close = row.get("adjClose", row.get("close"))
+            # CLOSE_FIELDS, resolved with first_present rather than
+            # `row.get("adjClose", row.get("close"))`: the latter returns None
+            # for a row that carries `"adjClose": null` alongside a perfectly
+            # usable `close`, and the `close is None` guard below then drops the
+            # bar outright.
+            close = first_present(row, *CLOSE_FIELDS)
+            rows_seen += 1
+            if row.get("adjClose") is not None:
+                rows_adjusted += 1
             if not raw_date or close is None:
                 continue
             try:
@@ -491,7 +555,28 @@ def backfill_price_history(
             log.info("Price backfill progress: %s/%s tickers", fetched, len(tickers))
 
     log.info("Price backfill: %s tickers, %s bars attempted", fetched, inserted)
-    return {"tickers": fetched, "bars": inserted, "candidates": len(tickers)}
+    # Settles, from live data, a question the code cannot answer offline: does
+    # `/stable/historical-price-eod/full` actually carry adjClose? If it does
+    # not, the whole series is unadjusted and EVERY recent split fabricates a
+    # large negative 12-month return for the affected ticker. Momentum is 15% of
+    # the composite and drags a further momentum_penalty when negative, so this
+    # is not a rounding concern. Log it either way rather than assuming.
+    if rows_seen and not rows_adjusted:
+        log.warning(
+            "Price backfill: 0/%s FMP rows carried adjClose — the stored series "
+            "is UNADJUSTED, so any split in the last 12 months fabricates a "
+            "large negative momentum reading for that ticker",
+            rows_seen,
+        )
+    else:
+        log.info("Price backfill: %s/%s rows carried adjClose", rows_adjusted, rows_seen)
+    return {
+        "tickers": fetched,
+        "bars": inserted,
+        "candidates": len(tickers),
+        "rows_seen": rows_seen,
+        "rows_adjusted": rows_adjusted,
+    }
 
 
 def refresh_marks(db: Session, fmp: FMPClient) -> int:
@@ -501,14 +586,32 @@ def refresh_marks(db: Session, fmp: FMPClient) -> int:
         p.ticker
         for p in db.query(Position).filter(Position.portfolio_id == portfolio.id).all()
     ]
-    # Top scored candidates
+    # Top scored candidates, by RATING, from the latest scoring date.
+    #
+    # This was `ORDER BY composite_scores.id DESC LIMIT 100` with no as_of
+    # filter, which is neither. `score_universe` UPDATEs rows in place and only
+    # INSERTs for tickers it has never seen, so ids are frozen at first sight:
+    # the 100 rows selected were whichever tickers happened to be written last
+    # on the very FIRST scoring run, permanently. With no as_of bound one
+    # ticker's rows from several dates could also occupy several of the 100
+    # slots, shrinking the set further. The #1-rated name — the one on the
+    # dashboard, the one evaluate() buys — could sit outside that slice forever,
+    # so its Stock.last_price and its daily PriceBar simply stopped updating,
+    # feeding a stale mark into momentum and into the published price.
+    #
+    # Ticker is the tie-break so the cut is deterministic across runs rather
+    # than dependent on row order.
     from app.db.models import CompositeScore
 
+    latest_as_of = db.query(func.max(CompositeScore.as_of)).scalar()
     candidates = (
         db.query(CompositeScore.ticker)
-        .order_by(CompositeScore.id.desc())
+        .filter(CompositeScore.as_of == latest_as_of)
+        .order_by(CompositeScore.quant_rating.desc().nullslast(), CompositeScore.ticker.asc())
         .limit(100)
         .all()
+        if latest_as_of is not None
+        else []
     )
     held_tickers = set(pos_tickers)
     tickers = list({*pos_tickers, *[c[0] for c in candidates], "SPY"})

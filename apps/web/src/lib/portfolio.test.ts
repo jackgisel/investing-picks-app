@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   closedWinRate,
+  comparePnl,
   computeAnnualizedReturn,
   computeBookReturnPct,
   computePortfolioReturnPct,
@@ -362,5 +363,49 @@ describe("closedWinRate", () => {
       total: 1,
       pct: 0,
     });
+  });
+});
+
+describe("comparePnl", () => {
+  // The API now sends null for an unrecoverable cost basis instead of a
+  // confident 0.00%. `a.pnl_pct - b.pnl_pct` against a null is NaN, and a NaN
+  // comparator makes the entire sort arbitrary — which would seed the "top
+  // performers" and "worst performers" lists with positions nobody knows the
+  // return of.
+  it("sorts an unknown last in both directions", () => {
+    const vals = [5, null, -3, 12];
+    expect([...vals].sort((a, b) => comparePnl(a, b, "desc"))).toEqual([
+      12, 5, -3, null,
+    ]);
+    expect([...vals].sort((a, b) => comparePnl(a, b, "asc"))).toEqual([
+      -3, 5, 12, null,
+    ]);
+  });
+
+  it("treats NaN as unknown rather than as a value", () => {
+    expect(comparePnl(Number.NaN, 5, "desc")).toBeGreaterThan(0);
+    expect(comparePnl(5, Number.NaN, "desc")).toBeLessThan(0);
+  });
+
+  it("is stable when both are unknown", () => {
+    expect(comparePnl(null, undefined)).toBe(0);
+  });
+
+  it("keeps a real zero ordered as a value, not as unknown", () => {
+    expect([5, 0, null].sort((a, b) => comparePnl(a, b, "desc"))).toEqual([
+      5, 0, null,
+    ]);
+  });
+});
+
+describe("counters exclude an unknown return", () => {
+  it("does not count an unknown as a winner or a doubled winner", () => {
+    const holdings = [
+      { pnl_pct: 150 },
+      { pnl_pct: null },
+      { pnl_pct: 5 },
+    ] as never;
+    expect(countWinningPositions(holdings)).toBe(2);
+    expect(countDoubledWinners(holdings)).toBe(1);
   });
 });

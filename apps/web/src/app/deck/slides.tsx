@@ -6,6 +6,7 @@ import {
   PicksBenchmarkLegend,
   formatChartPct,
 } from "@/components/ui/picks-benchmark-chart";
+import { comparePnl, formatPctOrDash, pnlClass } from "@/lib/portfolio";
 import type { PicksComparison } from "@/lib/hooks/use-chart";
 import type { Holding } from "@/lib/hooks/use-strategy";
 import type { Trade } from "@/lib/hooks/use-trades";
@@ -267,12 +268,16 @@ export function HoldingsSlide({
                 {h.entry_date ?? ""}
               </span>
             </div>
+            {/* `>= 0` is false for null, which rendered an UNKNOWN return in
+                loss red. pnlClass distinguishes unknown from flat from a real
+                loss; the deck is shown to prospects, so a fabricated red is
+                the worst possible direction to be wrong in. */}
             <span
-              className={`font-mono text-[28px] font-bold shrink-0 ${
-                h.pnl_pct >= 0 ? "text-accent-green" : "text-accent-red"
-              }`}
+              className={`font-mono text-[28px] font-bold shrink-0 ${pnlClass(
+                h.pnl_pct,
+              )}`}
             >
-              {pct(h.pnl_pct)}
+              {formatPctOrDash(h.pnl_pct)}
             </span>
           </div>
         ))}
@@ -282,7 +287,9 @@ export function HoldingsSlide({
 }
 
 export function WinnersLaggardsSlide({ holdings }: { holdings: Holding[] }) {
-  const sorted = [...holdings].sort((a, b) => b.pnl_pct - a.pnl_pct);
+  const sorted = [...holdings].sort((a, b) =>
+    comparePnl(a.pnl_pct, b.pnl_pct, "desc"),
+  );
   const winners = sorted.slice(0, 5);
   const laggards = sorted.slice(-5).reverse();
 
@@ -310,18 +317,16 @@ export function WinnersLaggardsSlide({ holdings }: { holdings: Holding[] }) {
   );
 }
 
-function Row({ ticker, value }: { ticker: string; value: number }) {
+function Row({ ticker, value }: { ticker: string; value: number | null }) {
   return (
     <div className="flex items-baseline justify-between border-b border-border py-[19px]">
       <span className="font-mono text-[30px] font-bold tracking-tight">
         {ticker}
       </span>
-      <span
-        className={`font-mono text-[30px] font-bold ${
-          value >= 0 ? "text-accent-green" : "text-accent-red"
-        }`}
-      >
-        {pct(value)}
+      {/* Same trap as the holdings slide: `value >= 0` is false for null, so an
+          unknown return rendered as a loss. */}
+      <span className={`font-mono text-[30px] font-bold ${pnlClass(value)}`}>
+        {formatPctOrDash(value)}
       </span>
     </div>
   );

@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/data-state";
 import {
   closedWinRate,
+  comparePnl,
   computePortfolioReturnPct,
   daysSinceInception,
   formatPct,
@@ -92,12 +93,12 @@ export default function DashboardPage() {
 
   // Top 5 holdings by P&L
   const topHoldings = holdings
-    ? [...holdings].sort((a, b) => b.pnl_pct - a.pnl_pct).slice(0, 5)
+    ? [...holdings].sort((a, b) => comparePnl(a.pnl_pct, b.pnl_pct, "desc")).slice(0, 5)
     : undefined;
 
   // Bottom 5 holdings by P&L
   const bottomHoldings = holdings
-    ? [...holdings].sort((a, b) => a.pnl_pct - b.pnl_pct).slice(0, 5)
+    ? [...holdings].sort((a, b) => comparePnl(a.pnl_pct, b.pnl_pct, "asc")).slice(0, 5)
     : undefined;
 
   const days = daysSinceInception(inceptionISO);
@@ -296,7 +297,7 @@ function HoldingsCard({
 }: {
   title: string;
   holdings:
-    | { ticker: string | null; pnl_pct: number; entry_date: string | null }[]
+    | { ticker: string | null; pnl_pct: number | null; entry_date: string | null }[]
     | undefined;
   state: DataStateKind | null;
 }) {

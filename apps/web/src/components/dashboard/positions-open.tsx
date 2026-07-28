@@ -17,7 +17,12 @@ import {
   type Column,
   type SortDir,
 } from "@/components/dashboard/data-table";
-import { formatDayMonth, formatPctOrDash, pnlClass } from "@/lib/portfolio";
+import {
+  comparePnl,
+  formatDayMonth,
+  formatPctOrDash,
+  pnlClass,
+} from "@/lib/portfolio";
 import { getInsightByTicker } from "@/lib/insight-index";
 
 type SortKey = "ticker" | "sector" | "weight_pct" | "entry_date" | "pnl_pct";
@@ -85,10 +90,13 @@ export function PositionsOpen() {
 
   const sorted = holdings
     ? [...holdings].sort((a, b) => {
+        // Unknowns sort last regardless of direction, so the flip below must
+        // not touch them.
+        if (sortKey === "pnl_pct")
+          return comparePnl(a.pnl_pct, b.pnl_pct, sortDir);
         let cmp = 0;
         if (sortKey === "ticker")
           cmp = (a.ticker ?? "").localeCompare(b.ticker ?? "");
-        else if (sortKey === "pnl_pct") cmp = a.pnl_pct - b.pnl_pct;
         else if (sortKey === "weight_pct")
           cmp = (a.weight_pct ?? 0) - (b.weight_pct ?? 0);
         else if (sortKey === "sector")

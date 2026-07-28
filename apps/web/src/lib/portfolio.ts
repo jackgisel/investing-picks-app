@@ -127,6 +127,28 @@ export function formatWeekdayDate(iso: string | null | undefined): string | null
     : null;
 }
 
+/**
+ * Sort comparator for a P&L that may be unknown.
+ *
+ * An unknown always sorts LAST, in both directions — it is not a big number or
+ * a small one. Plain `a.pnl_pct - b.pnl_pct` yields NaN against a null, and a
+ * NaN comparator makes the whole sort order arbitrary, which quietly seeds the
+ * "top performers" and "worst performers" lists with positions whose return
+ * nobody knows.
+ */
+export function comparePnl(
+  a: number | null | undefined,
+  b: number | null | undefined,
+  dir: "asc" | "desc" = "desc",
+): number {
+  const aKnown = typeof a === "number" && !Number.isNaN(a);
+  const bKnown = typeof b === "number" && !Number.isNaN(b);
+  if (!aKnown && !bKnown) return 0;
+  if (!aKnown) return 1;
+  if (!bKnown) return -1;
+  return dir === "desc" ? (b as number) - (a as number) : (a as number) - (b as number);
+}
+
 /** Whole days between two ISO dates (end - start). */
 export function daysBetweenISO(startISO: string, endISO: string): number {
   const start = new Date(startISO).getTime();
@@ -314,7 +336,11 @@ export function countDoubledWinners(
   minPct = 100
 ): number {
   if (!holdings?.length) return 0;
-  return holdings.filter((h) => h.pnl_pct >= minPct).length;
+  // A holding whose return is unknown is not a doubled winner. Stated rather
+  // than relying on `null >= 100` evaluating false by coercion.
+  return holdings.filter(
+    (h) => typeof h.pnl_pct === "number" && h.pnl_pct >= minPct,
+  ).length;
 }
 
 /**
@@ -329,7 +355,10 @@ export function countWinningPositions(
   holdings: Holding[] | undefined
 ): number {
   if (!holdings?.length) return 0;
-  return holdings.filter((h) => h.pnl_pct > 0).length;
+  // Unknown is not "above cost". Excluded explicitly for the same reason as
+  // countDoubledWinners.
+  return holdings.filter((h) => typeof h.pnl_pct === "number" && h.pnl_pct > 0)
+    .length;
 }
 
 export interface ClosedWinRate {

@@ -10,8 +10,16 @@ export interface Holding {
    */
   ticker: string | null;
   entry_date: string | null;
-  /** Gain vs. cost basis. Real for house-money holdings now, not a flat 0%. */
-  pnl_pct: number;
+  /**
+   * Gain vs. cost basis. Real for house-money holdings now, not a flat 0%.
+   *
+   * Nullable: the API used to publish `_pnl_pct(...) or 0`, so an unrecoverable
+   * cost basis reached the UI as a confident 0.00%. It now sends null for
+   * "unknown" and reserves 0 for a genuinely flat position. Anything reading
+   * this must distinguish the two — `formatPctOrDash` and `pnlClass` already
+   * do, and `comparePnl` keeps unknowns out of the top/bottom performer lists.
+   */
+  pnl_pct: number | null;
   weight_pct?: number;
   /** Original stake already recovered via a Winners Circle partial sell. */
   is_house_money?: boolean;

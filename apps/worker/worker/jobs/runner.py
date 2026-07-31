@@ -143,9 +143,19 @@ def job_backfill_prices():
         ensure_default_portfolio(db, get_settings().initial_cash)
         fmp = _fmp()
         try:
-            return backfill_price_history(db, fmp)
+            result = backfill_price_history(db, fmp)
         finally:
             fmp.close()
+        # Score immediately rather than leaving it to the next daily_marks.
+        # This job is the only thing that can turn an unscoreable ticker into a
+        # scoreable one — momentum needs a bar near as_of - 365d, and under
+        # min_factor_coverage = 1.0 a missing momentum value makes the whole
+        # ticker unrated. weekly_refresh scores at 10:00, four hours before this
+        # runs, so without this the bars land Saturday and the ratings they
+        # unblock do not appear until Monday evening. Pure DB compute — no FMP
+        # quota, same reasoning as the re-score in daily_marks.
+        result["scores"] = score_universe(db)
+        return result
 
     return _track("backfill_prices", _run)
 

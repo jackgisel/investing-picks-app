@@ -126,12 +126,17 @@ def job_backfill_snapshots():
 
 
 def job_backfill_prices():
-    """One-shot price-history load so momentum can be computed. Not scheduled.
+    """Price-history load and weekly top-up so momentum can be computed.
 
-    Deliberately separate from weekly_refresh: it is a repair, not a weekly
-    need, it must not run inside the API process behind the ops button, and
-    padding the weekly job's runtime widens the window in which a redeploy can
-    kill it. Idempotent — re-run it freely.
+    Runs Saturday 14:00 ET, and on demand via RUN_JOB_ONCE for the initial load.
+    It became scheduled because the two are the same operation: a series that is
+    never topped up goes stale under a moving 365d anchor, which is exactly the
+    condition BUG-W2 describes.
+
+    Deliberately a separate job from weekly_refresh rather than a step inside it:
+    it must not run in the API process behind the ops button, and padding the
+    weekly job's runtime widens the window in which a redeploy can kill it.
+    Idempotent — re-run it freely.
     """
 
     def _run(db: Session):

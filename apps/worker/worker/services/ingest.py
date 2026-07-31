@@ -478,6 +478,8 @@ def backfill_price_history(
     fmp: FMPClient,
     lookback_days: int = 430,
     min_bars: int = 200,
+    max_stale_days: int = 5,
+    overlap_days: int = 10,
     max_tickers: int | None = None,
 ) -> dict:
     """Fetch daily closes so the 12-month momentum factor can be computed.
@@ -486,16 +488,37 @@ def backfill_price_history(
     lands the first bar *after* the target once weekends and holidays are
     accounted for, so the lookup finds nothing — hence 430.
 
-    Tickers that already have `min_bars` are skipped, which makes this cheap to
-    re-run and lets it double as top-up for names that entered the universe
-    later. Today is excluded so this never contends with `refresh_marks`.
+    A ticker is fetched when its series is **short** (< `min_bars`) OR **stale**
+    (newest bar older than `max_stale_days`). Bar count alone was the original
+    condition and it only covered the first case: a name with a full year of
+    history frozen at the date of the last backfill looked well covered forever,
+    so it was never topped up while the `as_of - 365d` anchor kept moving under
+    it (BUG-W2). Freshness alone would be the mirror mistake — a held position
+    gets a daily bar from `refresh_marks`, so it is never stale but may hold only
+    a few months of history. Both conditions are needed.
+
+    Stale-but-long tickers are re-fetched from `overlap_days` before their newest
+    bar rather than from the full lookback: that is the difference between a
+    weekly top-up and re-downloading 14 months for the entire universe every
+    Saturday. Short tickers still get the full window. Today is excluded so this
+    never contends with `refresh_marks`.
     """
     start = date.today() - timedelta(days=lookback_days)
     cutoff = date.today()
+    stale_before = date.today() - timedelta(days=max_stale_days)
 
-    counts = dict(
-        db.query(PriceBar.ticker, func.count(PriceBar.id)).group_by(PriceBar.ticker).all()
-    )
+    # func.max over a Date needs an explicit type_ or SQLite hands back the
+    # stored string and every comparison below is against the wrong type.
+    coverage = {
+        ticker: (int(n or 0), newest)
+        for ticker, n, newest in db.query(
+            PriceBar.ticker,
+            func.count(PriceBar.id),
+            func.max(PriceBar.date, type_=PriceBar.date.type),
+        )
+        .group_by(PriceBar.ticker)
+        .all()
+    }
     universe = (
         db.query(Stock.ticker)
         .filter(Stock.is_active == True)  # noqa: E712
@@ -506,12 +529,27 @@ def backfill_price_history(
         row[0]
         for row in db.query(Position.ticker).filter(Position.portfolio_id == 1).all()
     }
-    tickers = [t for (t,) in universe if counts.get(t, 0) < min_bars]
+
+    def _is_short(ticker: str) -> bool:
+        return coverage.get(ticker, (0, None))[0] < min_bars
+
+    def _is_stale(ticker: str) -> bool:
+        newest = coverage.get(ticker, (0, None))[1]
+        return newest is None or newest < stale_before
+
+    def _fetch_from(ticker: str) -> date:
+        """Full window for a short series, incremental top-up for a stale one."""
+        n, newest = coverage.get(ticker, (0, None))
+        if n < min_bars or newest is None:
+            return start
+        return max(start, newest - timedelta(days=overlap_days))
+
+    candidates = [t for (t,) in universe if _is_short(t) or _is_stale(t)]
     for ticker in sorted(held):
-        if ticker not in tickers and counts.get(ticker, 0) < min_bars:
-            tickers.append(ticker)
-    if max_tickers is not None:
-        tickers = tickers[:max_tickers]
+        if ticker not in candidates and (_is_short(ticker) or _is_stale(ticker)):
+            candidates.append(ticker)
+    tickers = candidates[:max_tickers] if max_tickers is not None else candidates
+    short = sum(1 for t in tickers if _is_short(t))
 
     fetched = 0
     inserted = 0
@@ -519,7 +557,7 @@ def backfill_price_history(
     rows_adjusted = 0
     for ticker in tickers:
         try:
-            rows = fmp.historical_prices(ticker, start)
+            rows = fmp.historical_prices(ticker, _fetch_from(ticker))
         except FMPAccessError:
             log.exception("historical prices unavailable on this plan; stopping")
             break
@@ -554,7 +592,13 @@ def backfill_price_history(
         if fetched % 25 == 0:
             log.info("Price backfill progress: %s/%s tickers", fetched, len(tickers))
 
-    log.info("Price backfill: %s tickers, %s bars attempted", fetched, inserted)
+    log.info(
+        "Price backfill: %s tickers (%s short, %s stale top-up), %s bars attempted",
+        fetched,
+        short,
+        len(tickers) - short,
+        inserted,
+    )
     # Settles, from live data, a question the code cannot answer offline: does
     # `/stable/historical-price-eod/full` actually carry adjClose? If it does
     # not, the whole series is unadjusted and EVERY recent split fabricates a
@@ -574,6 +618,8 @@ def backfill_price_history(
         "tickers": fetched,
         "bars": inserted,
         "candidates": len(tickers),
+        "short": short,
+        "stale": len(tickers) - short,
         "rows_seen": rows_seen,
         "rows_adjusted": rows_adjusted,
     }

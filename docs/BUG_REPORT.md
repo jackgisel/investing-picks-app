@@ -442,7 +442,7 @@ A top-rated pick inserted early never gets a fresh quote — its mark and its
 daily bar stop updating, feeding a stale price into momentum and into the price
 shown beside the pick.
 
-## BUG-W2 — momentum accepts an arbitrarily stale latest bar
+## BUG-W2 — momentum accepts an arbitrarily stale latest bar (HALF FIXED)
 `apps/worker/worker/services/scoring.py:104-127` — **HIGH**
 
 `_momentum_12m` imposes no recency requirement on the newest bar. Only held
@@ -452,6 +452,22 @@ bar frozen at the backfill date while the `as_of − 365d` anchor keeps moving.
 
 A stock whose last bar is three months old at 200, against 100 a year before,
 reports **+100% momentum** and tops its sector — while actually trading at 80.
+
+**Supply side fixed.** `backfill_price_history` now runs Saturday 14:00 ET, and
+its skip condition is short (`< min_bars`) **OR** stale (newest bar older than
+`max_stale_days`, default 5) rather than bar count alone. Bar count alone was
+what made this self-reinforcing: a series with a full year of frozen history
+looked permanently well covered. Stale tickers are re-fetched from
+`overlap_days` before their newest bar, so the weekly run is a top-up rather
+than a full-universe re-download.
+
+**Consumer side still open.** `_momentum_12m` itself still has no recency
+guard, so the fabricated +100% above is still what scoring would compute if the
+top-up ever fails to run (a wedged worker, an FMP outage, a ticker FMP has no
+history for). The supply fix makes that unlikely, not impossible, and nothing
+downstream would say so. Worth a `max_bar_age` check that returns None — but
+that changes which tickers are scoreable at all under
+`min_factor_coverage = 1.0`, so it belongs with the momentum port, not here.
 
 ## BUG-W4 — a two-ticker sector manufactures a perfect rating
 `apps/worker/worker/services/scoring.py:213-220` — **HIGH**

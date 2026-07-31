@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
+from conftest import make_position
+
 from app.db.models import PriceBar, Stock
 from worker.services.ingest import backfill_price_history, bulk_insert_price_bars
 
@@ -72,20 +74,30 @@ def test_empty_input_is_a_noop(db):
 class _StubFMP:
     def __init__(self):
         self.asked: list[str] = []
+        self.asked_from: dict[str, date] = {}
 
     def historical_prices(self, ticker, from_date=None):
         self.asked.append(ticker)
+        self.asked_from[ticker] = from_date
         return [
             {"date": (TODAY - timedelta(days=i)).isoformat(), "close": 50.0 + i}
             for i in range(0, 10)  # includes TODAY, which must be filtered out
         ]
 
 
+def _bars(ticker: str, *, count: int, newest_days_ago: int):
+    """`count` daily bars ending `newest_days_ago` days before today."""
+    return [
+        PriceBar(ticker=ticker, date=TODAY - timedelta(days=newest_days_ago + i), close=5.0)
+        for i in range(count)
+    ]
+
+
 def test_backfill_skips_today_and_well_covered_tickers(db, portfolio):
     db.add(Stock(ticker="THIN", market_cap=1e9, is_active=True))
     db.add(Stock(ticker="FULL", market_cap=2e9, is_active=True))
-    for i in range(1, 30):
-        db.add(PriceBar(ticker="FULL", date=TODAY - timedelta(days=i), close=5.0))
+    for bar in _bars("FULL", count=29, newest_days_ago=1):
+        db.add(bar)
     db.commit()
 
     fmp = _StubFMP()
@@ -102,3 +114,68 @@ def test_backfill_skips_today_and_well_covered_tickers(db, portfolio):
         .count()
         == 0
     )
+
+
+def test_a_long_but_stale_series_is_topped_up(db, portfolio):
+    """BUG-W2: bar count alone let a frozen series look covered forever.
+
+    30 bars against min_bars=20 clears the old condition, but the newest is 40
+    days old — while the `as_of - 365d` momentum anchor keeps moving.
+    """
+    db.add(Stock(ticker="STALE", market_cap=1e9, is_active=True))
+    for bar in _bars("STALE", count=30, newest_days_ago=40):
+        db.add(bar)
+    db.commit()
+
+    fmp = _StubFMP()
+    result = backfill_price_history(db, fmp, min_bars=20, max_stale_days=5)
+
+    assert "STALE" in fmp.asked, "a long-but-frozen series was never topped up"
+    assert result["stale"] == 1 and result["short"] == 0
+
+
+def test_a_stale_top_up_fetches_incrementally(db, portfolio):
+    """A weekly top-up must not re-download the full lookback every run."""
+    db.add(Stock(ticker="STALE", market_cap=1e9, is_active=True))
+    for bar in _bars("STALE", count=30, newest_days_ago=40):
+        db.add(bar)
+    db.commit()
+
+    fmp = _StubFMP()
+    backfill_price_history(db, fmp, min_bars=20, max_stale_days=5, overlap_days=10)
+
+    # Newest bar is 40 days back, so the fetch starts ~50 days back — not at the
+    # 430-day lookback floor.
+    assert fmp.asked_from["STALE"] == TODAY - timedelta(days=50)
+
+
+def test_a_fresh_but_short_series_still_gets_full_history(db, portfolio):
+    """The holdings case: refresh_marks keeps them fresh but only ~70 bars deep.
+
+    Freshness must not be allowed to mask a series too short to carry a momentum
+    anchor, and the top-up window would not reach one either.
+    """
+    db.add(Stock(ticker="SHORT", market_cap=1e9, is_active=True))
+    for bar in _bars("SHORT", count=10, newest_days_ago=1):
+        db.add(bar)
+    db.commit()
+
+    fmp = _StubFMP()
+    result = backfill_price_history(db, fmp, min_bars=20, lookback_days=430)
+
+    assert "SHORT" in fmp.asked, "a fresh but too-short series was skipped"
+    assert fmp.asked_from["SHORT"] == TODAY - timedelta(days=430)
+    assert result["short"] == 1
+
+
+def test_a_held_ticker_outside_the_universe_is_still_covered(db, portfolio):
+    """Positions are appended explicitly; the staleness check must reach them."""
+    make_position(db, portfolio, "HELD", shares=10, avg_cost=10.0, current_price=12.0)
+    for bar in _bars("HELD", count=30, newest_days_ago=40):
+        db.add(bar)
+    db.commit()
+
+    fmp = _StubFMP()
+    backfill_price_history(db, fmp, min_bars=20, max_stale_days=5)
+
+    assert "HELD" in fmp.asked

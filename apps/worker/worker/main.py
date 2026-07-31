@@ -42,6 +42,18 @@ def main():
         id="weekly_refresh",
         replace_existing=True,
     )
+    # Saturday 14:00 ET — after weekly_refresh (10:00) has admitted the week's
+    # new universe names, so they get history on the same day they appear. Kept
+    # a separate job rather than a step inside weekly_refresh: it is the long
+    # pole (a full-universe fetch), and folding it in would widen the window in
+    # which a redeploy kills the refresh half-done. Monday's daily_marks
+    # re-scores, so new bars reach ratings within a day.
+    scheduler.add_job(
+        job_backfill_prices,
+        CronTrigger(day_of_week="sat", hour=14, minute=0),
+        id="backfill_prices",
+        replace_existing=True,
+    )
     # 1st and 3rd Friday 11:00 ET — but the market is shut on some Fridays
     # (Good Friday, Juneteenth, an observed 4th of July), and an evaluation
     # cycle that silently vanishes is worse than one that runs a day early.
@@ -66,8 +78,8 @@ def main():
             # Not on any schedule — a one-shot repair, dry run unless
             # BACKFILL_COMMIT is set.
             "backfill_snapshots": job_backfill_snapshots,
-            # Also unscheduled: loads ~14 months of daily closes so the
-            # 12-month momentum factor can be computed. Idempotent.
+            # Scheduled weekly (above); also runnable on demand for the
+            # first load, which is much larger than a weekly top-up.
             "backfill_prices": job_backfill_prices,
         }[name]()
         return

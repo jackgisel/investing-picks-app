@@ -1,10 +1,10 @@
 import Link from "next/link";
 
-import { insights, type Insight } from "@/lib/insights";
+import { listInsights } from "@/lib/insights-db";
+import type { InsightMeta } from "@/lib/insights";
 
 function formatDate(iso: string): string {
-  const d = new Date(`${iso}T12:00:00Z`);
-  return d.toLocaleDateString("en-US", {
+  return new Date(iso).toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -12,19 +12,18 @@ function formatDate(iso: string): string {
   });
 }
 
-function categoryLabel(insight: Insight): string {
-  if (insight.meta.postType === "quarterly_review") return "Quarterly review";
-  return insight.meta.ticker ? `Pick · ${insight.meta.ticker}` : "Pick";
+function categoryLabel(meta: InsightMeta): string {
+  if (meta.postType === "quarterly_review") return "Quarterly review";
+  return meta.ticker ? `Pick · ${meta.ticker}` : "Pick";
 }
 
 function InsightCard({
-  insight,
+  meta,
   featured = false,
 }: {
-  insight: Insight;
+  meta: InsightMeta;
   featured?: boolean;
 }) {
-  const { meta } = insight;
   const tone =
     meta.postType === "quarterly_review"
       ? "bg-accent-lilac/15"
@@ -38,7 +37,7 @@ function InsightCard({
       <span
         className={`inline-flex items-center rounded-lg px-2.5 py-1 font-sans text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted ${tone}`}
       >
-        {categoryLabel(insight)}
+        {categoryLabel(meta)}
       </span>
       <h2
         className={`mt-3.5 font-sans font-bold tracking-tight text-text transition-opacity group-hover:opacity-70 ${
@@ -57,14 +56,17 @@ function InsightCard({
         {meta.description}
       </p>
       <p className="mt-4 font-mono text-[11px] text-text-dim">
-        {formatDate(meta.publishedAt)}
+        {formatDate(meta.publishedAt ?? meta.createdAt)}
         {meta.readingTime ? ` · ${meta.readingTime} min read` : ""}
       </p>
     </Link>
   );
 }
 
-export default function InsightsIndexPage() {
+export default async function InsightsIndexPage() {
+  // Published only. Drafts are reachable by direct URL for admins, but they
+  // must never appear in a list a subscriber can browse.
+  const insights = await listInsights();
   const [featured, ...rest] = insights;
 
   return (
@@ -92,7 +94,7 @@ export default function InsightsIndexPage() {
           {featured && (
             <section className="space-y-3">
               <p className="panel-label panel-label-lilac">Latest</p>
-              <InsightCard insight={featured} featured />
+              <InsightCard meta={featured} featured />
             </section>
           )}
 
@@ -100,8 +102,8 @@ export default function InsightsIndexPage() {
             <section className="space-y-3">
               <p className="panel-label panel-label-lilac">All research</p>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {rest.map((insight) => (
-                  <InsightCard key={insight.meta.slug} insight={insight} />
+                {rest.map((meta) => (
+                  <InsightCard key={meta.slug} meta={meta} />
                 ))}
               </div>
             </section>

@@ -23,7 +23,8 @@ import {
   formatPctOrDash,
   pnlClass,
 } from "@/lib/portfolio";
-import { getInsightByTicker } from "@/lib/insight-index";
+import { insightForTicker } from "@/lib/insights";
+import { useInsights } from "@/lib/hooks/use-insights";
 
 type SortKey = "ticker" | "sector" | "weight_pct" | "entry_date" | "pnl_pct";
 
@@ -63,6 +64,10 @@ function signalBadgeClass(signal: string): string {
 export function PositionsOpen() {
   const strategyQuery = useStrategy();
   const picksQuery = usePicks("active");
+  // Note links resolve a beat after the table paints now that the metadata is
+  // fetched rather than bundled. Defaulting to [] keeps the row rendering
+  // instead of waiting on it.
+  const insights = useInsights().data?.insights ?? [];
   const { data: strategy, isPending, isError, error } = strategyQuery;
   const holdings = strategy?.holdings;
 
@@ -155,7 +160,7 @@ export function PositionsOpen() {
                 />
               ) : (
                 sorted?.map((h) => {
-                  const slug = getInsightByTicker(h.ticker)?.slug;
+                  const slug = insightForTicker(insights, h.ticker)?.slug;
                   const signal = h.ticker
                     ? signalByTicker.get(h.ticker)
                     : undefined;

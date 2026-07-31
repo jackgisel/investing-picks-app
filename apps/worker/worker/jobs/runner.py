@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 from datetime import date, datetime, timedelta, timezone
 
+import httpx
+
 from sqlalchemy.orm import Session
 
 from outpick_strategy.cadence import is_evaluation_friday
@@ -29,6 +31,45 @@ log = logging.getLogger(__name__)
 def _fmp() -> FMPClient:
     s = get_settings()
     return FMPClient(s.fmp_api_key, s.fmp_base_url, rate_limit=s.fmp_rate_limit)
+
+
+def sync_insight_drafts() -> dict:
+    """Ask the web app to open and draft research notes for any unwritten pick.
+
+    The only outbound call this service makes to the web app. Everything else
+    between the two goes through the shared Postgres, but research notes are
+    web-owned — the content, the editor, the renderer and the Anthropic client
+    all live there — and reaching across to write them from here would put a
+    second writer on a table with no shared model.
+
+    Best-effort by design. The endpoint it calls is a reconciliation sweep, so a
+    firing that never lands is picked up by the next one; failing the whole
+    evaluation job because a draft could not be written would be much worse
+    than a note arriving a day late.
+
+    The timeout is minutes because the sweep drafts sequentially and each note
+    is a model call.
+    """
+    settings = get_settings()
+    base = (getattr(settings, "web_app_url", "") or "").rstrip("/")
+    secret = getattr(settings, "internal_api_secret", "") or ""
+    if not base or not secret:
+        log.info("WEB_APP_URL or INTERNAL_API_SECRET unset; skipping draft sync")
+        return {"skipped": "not_configured"}
+
+    try:
+        with httpx.Client(timeout=httpx.Timeout(600.0, connect=10.0)) as client:
+            res = client.post(
+                f"{base}/api/internal/insights/sync",
+                headers={"Authorization": f"Bearer {secret}"},
+            )
+            res.raise_for_status()
+            body = res.json()
+            log.info("Insight draft sync: %s", body)
+            return body
+    except Exception as e:
+        log.exception("Insight draft sync failed")
+        return {"error": str(e)}
 
 
 def _track(job_name: str, fn):
@@ -87,7 +128,13 @@ def job_daily_marks():
             s = score_universe(db)
             # Optional daily sells if enabled in params
             run_evaluation(db, mode="daily", dry_run=False)
-            return {"marks": n, "scores": s}
+            # Backstop. Manual buys go through the ops form, which opens the
+            # placeholder row itself but deliberately does not draft — and a
+            # push that never landed leaves nothing behind to notice. This
+            # sweep is what makes the pipeline self-healing rather than
+            # dependent on every trigger having fired.
+            drafts = sync_insight_drafts()
+            return {"marks": n, "scores": s, "drafts": drafts}
         finally:
             fmp.close()
 
@@ -193,11 +240,17 @@ def job_biweekly_evaluate():
         try:
             refresh_marks(db, fmp)
             ev = run_evaluation(db, mode="biweekly", dry_run=False)
+            # Open and draft a research note for anything just bought. Last,
+            # and outside the transaction that matters: a pick that lands in
+            # the book without a draft is a nuisance, but an evaluation that
+            # fails because the web app was slow is a missed cycle.
+            drafts = sync_insight_drafts()
             return {
                 "evaluation_id": ev.id,
                 "signal_count": len(ev.signals),
                 "target": str(target),
                 "ran_on": str(today),
+                "drafts": drafts,
             }
         finally:
             fmp.close()

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { ensureMigrations } from "@/lib/auth";
-import { getInsightByTicker, getInsightBySlugFromIndex } from "@/lib/insight-index";
+import { getInsightBySlug, getInsightByTicker } from "@/lib/insights-db";
 import { getOptedInRecipients } from "@/lib/preferences";
 import { sendNewPickEmail } from "@/lib/email";
 
@@ -9,14 +9,15 @@ import { sendNewPickEmail } from "@/lib/email";
  *
  * Auth: shared secret in `Authorization: Bearer <INTERNAL_API_SECRET>`.
  *
- * The research note is resolved from the TICKER, against the insight index.
- * This used to require a `slug` naming a post in lib/blog.ts, which no pick has
- * ever had — /blog is the public educational archive, and pick notes live in
- * src/content/insights. Announcing a pick therefore 404'd unless you handed it
- * the slug of an unrelated marketing article.
+ * The research note is resolved from the TICKER, against the `insight` table,
+ * and only an APPROVED note counts. That is the guard this route exists for:
+ * it makes it impossible to mail a "new pick" announcement whose research is
+ * still a draft, or does not exist at all.
  *
- * Requiring the insight to exist is the useful guard: it makes it impossible to
- * mail a "new pick" announcement whose research has not been published yet.
+ * Note this is the manual path. The normal way a pick gets announced is the
+ * approve button in /dashboard/ops/insights, which claims the send atomically
+ * before dispatching. This route does NOT set `email_sent_at`, so it can send
+ * the same announcement twice — reach for it only to re-issue deliberately.
  *
  * Body:
  *   {
@@ -70,9 +71,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing 'ticker'" }, { status: 400 });
   }
 
+  // Published notes only, on both branches. An announcement whose link lands
+  // on a draft — or on a note the admin has not approved — is the one failure
+  // this route exists to prevent.
   const insight = slug
-    ? getInsightBySlugFromIndex(slug)
-    : getInsightByTicker(ticker);
+    ? await getInsightBySlug(slug)
+    : await getInsightByTicker(ticker);
   if (!insight) {
     return NextResponse.json(
       {
@@ -92,6 +96,18 @@ export async function POST(req: Request) {
     typeof body.description === "string" && body.description.trim()
       ? body.description.trim()
       : insight.description;
+
+  // An approved note always has both, so this only fires on a row that was
+  // published in some way that skipped the editor. Refuse rather than mail the
+  // list a message with an empty subject line.
+  if (!articleTitle || !articleDescription) {
+    return NextResponse.json(
+      {
+        error: `Insight '${insight.slug}' is published but has no title or description.`,
+      },
+      { status: 409 }
+    );
+  }
 
   await ensureMigrations();
   const recipients = await getOptedInRecipients("newPicks");

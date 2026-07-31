@@ -68,6 +68,11 @@ const NAV_GROUPS: readonly NavGroup[] = [
         icon: Wallet,
         owns: ["/dashboard/ops/positions"],
       },
+      {
+        label: "Research notes",
+        href: "/dashboard/ops/insights",
+        icon: FileText,
+      },
     ],
   },
 ];

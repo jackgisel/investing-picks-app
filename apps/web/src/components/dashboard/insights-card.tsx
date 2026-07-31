@@ -2,17 +2,14 @@
 
 import Link from "next/link";
 import { ArrowUpRight, FileText } from "lucide-react";
-import {
-  INSIGHT_INDEX,
-  getInsightsForTickers,
-  type InsightIndexEntry,
-} from "@/lib/insight-index";
+import { insightsForTickers, type InsightMeta } from "@/lib/insights";
+import { useInsights } from "@/lib/hooks/use-insights";
 import type { Holding } from "@/lib/hooks/use-strategy";
 
 const MAX_ROWS = 5;
 
 function formatDate(iso: string): string {
-  const d = new Date(`${iso}T00:00:00Z`);
+  const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleDateString("en-US", {
     month: "short",
@@ -21,7 +18,7 @@ function formatDate(iso: string): string {
   });
 }
 
-function InsightRow({ insight }: { insight: InsightIndexEntry }) {
+function InsightRow({ insight }: { insight: InsightMeta }) {
   return (
     <Link
       href={`/dashboard/insights/${insight.slug}`}
@@ -37,7 +34,8 @@ function InsightRow({ insight }: { insight: InsightIndexEntry }) {
           {insight.title}
         </span>
         <span className="mt-0.5 block font-mono text-[10px] text-text-dim">
-          {formatDate(insight.publishedAt)} · {insight.readingTime} min read
+          {formatDate(insight.publishedAt ?? insight.createdAt)} ·{" "}
+          {insight.readingTime} min read
         </span>
       </span>
       <ArrowUpRight
@@ -60,19 +58,20 @@ function InsightRow({ insight }: { insight: InsightIndexEntry }) {
  * from a blog into a per-position annotation, which is what a subscriber
  * holding the name actually wants. Everything else falls back to latest.
  *
- * Reads lib/insight-index (plain metadata) rather than lib/insights, which
- * statically imports every article body and would ship all of them into this
- * client bundle.
+ * Fetches metadata from /api/data/insights rather than importing it. Notes are
+ * database rows now, and the generated module this used to read existed only
+ * to keep every article body out of this bundle.
  */
 export function InsightsCard({ holdings }: { holdings?: readonly Holding[] }) {
-  const owned = getInsightsForTickers(
+  const insights = useInsights().data?.insights ?? [];
+
+  const owned = insightsForTickers(
+    insights,
     (holdings ?? []).map((h) => h.ticker),
   ).slice(0, MAX_ROWS);
 
   const onHoldings = owned.length > 0;
-  const rows = onHoldings
-    ? owned
-    : INSIGHT_INDEX.slice(0, MAX_ROWS);
+  const rows = onHoldings ? owned : insights.slice(0, MAX_ROWS);
 
   if (rows.length === 0) return null;
 

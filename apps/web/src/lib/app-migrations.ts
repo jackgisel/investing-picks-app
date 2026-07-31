@@ -89,10 +89,13 @@ export async function runAppMigrations() {
 
   // Comments on blog posts and research notes.
   //
-  // (subject_type, subject_slug) rather than a FK: posts and insights are
-  // filesystem content (lib/blog.ts, lib/insights.ts), not database rows, so
-  // there is nothing to reference. subject_type is constrained because a typo
-  // would silently create a second, invisible thread on the same page.
+  // (subject_type, subject_slug) rather than a FK: blog posts are filesystem
+  // content (lib/blog.ts) with nothing to reference, and insights addressed the
+  // same way when they were too. Insights are rows now — but the slugs did not
+  // change in that migration precisely so these threads stayed attached, and a
+  // FK on one subject_type but not the other buys nothing. subject_type is
+  // constrained because a typo would silently create a second, invisible thread
+  // on the same page.
   //
   // deleted_at rather than DELETE: a removed comment in the middle of a thread
   // still has replies hanging off it, and cascading them away deletes other
@@ -119,5 +122,62 @@ export async function runAppMigrations() {
   await pool.query(`
     CREATE INDEX IF NOT EXISTS post_comment_parent_idx
       ON post_comment(parent_id)
+  `);
+
+  // Research notes. Previously .tsx modules under src/content/insights, which
+  // meant publishing one was a code change and a deploy — so nothing that
+  // notices a new pick could ever write the note for it.
+  //
+  // lede / tldr / key_takeaway are columns rather than markdown because the
+  // Prose components they map to (<Lede>, <TLDR>, <KeyTakeaway>) have no
+  // markdown equivalent and would not survive a round trip. body_md carries
+  // the part markdown does represent faithfully — headings, paragraphs, lists,
+  // emphasis, links — and MarkdownProse renders it onto the same primitives the
+  // hand-written articles used. The educational disclaimer is a fixed template
+  // in the route, deliberately not model output.
+  //
+  // email_sent_at is the double-send guard. Approving claims it in the same
+  // UPDATE that publishes, so a double-click, a retry, or two admins racing
+  // cannot mail the list twice. There is no un-send.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS insight (
+      id BIGSERIAL PRIMARY KEY,
+      slug TEXT NOT NULL UNIQUE,
+      ticker TEXT,
+      post_type TEXT NOT NULL DEFAULT 'pick'
+        CHECK (post_type IN ('pick', 'quarterly_review')),
+      status TEXT NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'draft', 'failed', 'approved')),
+      title TEXT,
+      description TEXT,
+      lede TEXT,
+      tldr JSONB,
+      body_md TEXT,
+      key_takeaway TEXT,
+      tags JSONB,
+      reading_time INT,
+      author TEXT,
+      quarter TEXT,
+      generation_error TEXT,
+      source_facts JSONB,
+      published_at TIMESTAMPTZ,
+      email_sent_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  // One pick note per ticker. Partial, because quarterly reviews have no ticker
+  // and several of them would otherwise collide on NULL.
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS insight_pick_ticker_idx
+      ON insight(ticker)
+      WHERE post_type = 'pick' AND ticker IS NOT NULL
+  `);
+
+  // The index page and the ops queue both sort by this.
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS insight_status_published_idx
+      ON insight(status, published_at DESC)
   `);
 }

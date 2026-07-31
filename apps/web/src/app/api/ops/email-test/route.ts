@@ -3,7 +3,7 @@ import { requireAdmin } from "@/lib/admin";
 import { PUBLIC_API_BASE } from "@/lib/api-config";
 import { SITE_URL } from "@/lib/constants";
 import type { PickStat } from "@/lib/email-templates";
-import { getInsightByTicker } from "@/lib/insight-index";
+import { getInsightByTicker } from "@/lib/insights-db";
 import {
   sendDeleteAccountEmail,
   sendMarketNoteWelcomeEmail,
@@ -110,7 +110,7 @@ async function sendOne(
     case "new-pick": {
       // The real insight for the real pick, so the CTA in the test message
       // lands where a subscriber's would.
-      const insight = getInsightByTicker(pick?.ticker);
+      const insight = await getInsightByTicker(pick?.ticker);
       return sendNewPickEmail({
         to,
         // A real token: unsubscribing from a test must actually work, or the

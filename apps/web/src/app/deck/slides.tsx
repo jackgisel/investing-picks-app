@@ -10,7 +10,7 @@ import { comparePnl, formatPctOrDash, pnlClass } from "@/lib/portfolio";
 import type { PicksComparison } from "@/lib/hooks/use-chart";
 import type { Holding } from "@/lib/hooks/use-strategy";
 import type { Trade } from "@/lib/hooks/use-trades";
-import type { InsightIndexEntry } from "@/lib/insight-index";
+import type { InsightMeta } from "@/lib/insights";
 import { formatPct } from "@/lib/portfolio";
 import { BACKTEST, SITE_URL } from "@/lib/constants";
 
@@ -372,7 +372,7 @@ export function TradesSlide({ trades }: { trades: Trade[] }) {
   );
 }
 
-export function ResearchSlide({ insight }: { insight: InsightIndexEntry }) {
+export function ResearchSlide({ insight }: { insight: InsightMeta }) {
   return (
     <Slide eyebrow="Research note" title={insight.ticker ?? "Latest research"}>
       <div className="h-full flex flex-col justify-center max-w-[1180px]">

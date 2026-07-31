@@ -1,12 +1,49 @@
+import { Children, isValidElement, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { A, Callout, H2, H3, LI, OL, P, Prose, Strong, UL } from "./prose";
 
 /**
- * Render Haiku-generated markdown using the same Prose primitives the
- * hand-written TSX articles use, so dynamic posts at /insights look
- * identical to static articles at /blog.
+ * A blockquote whose first paragraph is nothing but bold text is an aside with
+ * a heading — `> **What we are not arguing**` — so lift that line into the
+ * Callout's title instead of rendering it as a bold paragraph inside the box.
+ *
+ * This is what lets a titled `<Callout>` survive the trip through markdown.
+ * Without it the mapping is lossy in one direction only: the component takes a
+ * title, markdown has nowhere to put one, and every migrated aside would come
+ * back as an untitled grey box.
+ */
+function splitCalloutTitle(children: ReactNode): {
+  title?: string;
+  body: ReactNode;
+} {
+  const nodes = Children.toArray(children).filter(
+    (n) => typeof n !== "string" || n.trim() !== "",
+  );
+  const [first, ...rest] = nodes;
+  if (!isValidElement<{ children?: ReactNode }>(first)) return { body: children };
+
+  const inner = Children.toArray(first.props.children).filter(
+    (n) => typeof n !== "string" || n.trim() !== "",
+  );
+  if (inner.length !== 1) return { body: children };
+
+  const only = inner[0];
+  if (!isValidElement<{ children?: ReactNode }>(only) || only.type !== Strong) {
+    return { body: children };
+  }
+
+  const title = Children.toArray(only.props.children)
+    .filter((n) => typeof n === "string")
+    .join("");
+  return title ? { title, body: rest } : { body: children };
+}
+
+/**
+ * Render markdown using the same Prose primitives the articles used before
+ * research notes moved into the database, so a stored note is visually
+ * indistinguishable from the hand-written ones it replaced.
  */
 export function MarkdownProse({ markdown }: { markdown: string }) {
   return (
@@ -25,7 +62,14 @@ export function MarkdownProse({ markdown }: { markdown: string }) {
           strong: ({ children }) => <Strong>{children}</Strong>,
           em: ({ children }) => <em className="italic text-text">{children}</em>,
           a: ({ href, children }) => <A href={href || "#"}>{children}</A>,
-          blockquote: ({ children }) => <Callout variant="info">{children}</Callout>,
+          blockquote: ({ children }) => {
+            const { title, body } = splitCalloutTitle(children);
+            return (
+              <Callout variant="info" title={title}>
+                {body}
+              </Callout>
+            );
+          },
           code: ({ children }) => (
             <code className="font-mono text-[13px] text-accent-green bg-bg-secondary px-1.5 py-0.5">
               {children}

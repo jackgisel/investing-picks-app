@@ -15,7 +15,7 @@ import {
 import { useStrategy } from "@/lib/hooks/use-strategy";
 import { useChart, buildPicksComparison } from "@/lib/hooks/use-chart";
 import { useTrades } from "@/lib/hooks/use-trades";
-import { INSIGHT_INDEX } from "@/lib/insight-index";
+import { useInsights } from "@/lib/hooks/use-insights";
 import { computePortfolioReturnPct } from "@/lib/portfolio";
 
 /** Positions per holdings slide — two columns of seven fills the frame. */
@@ -29,6 +29,7 @@ export default function DeckPage() {
   const { data: strategy } = useStrategy();
   const { data: chart } = useChart();
   const { data: tradesData } = useTrades(MAX_TRADES);
+  const insights = useInsights().data?.insights ?? [];
 
   const comparison = useMemo(() => buildPicksComparison(chart), [chart]);
 
@@ -55,9 +56,9 @@ export default function DeckPage() {
       holdingPages.push(holdings.slice(i, i + HOLDINGS_PER_SLIDE));
     }
 
-    const research = INSIGHT_INDEX.filter(
-      (i) => i.postType === "pick",
-    ).slice(0, MAX_RESEARCH_SLIDES);
+    const research = insights
+      .filter((i) => i.postType === "pick")
+      .slice(0, MAX_RESEARCH_SLIDES);
 
     return [
       <CoverSlide key="cover" reviewDate={reviewDate} />,

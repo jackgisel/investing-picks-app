@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000"
     # Set APP_ENV=production (or ENVIRONMENT=production) on real deployments.
     app_env: str = "development"
+    # Where the worker reaches the Next.js app to ask it to draft research
+    # notes. Both of these unset means the drafting sweep is skipped and logged
+    # rather than erroring — the API itself never calls the web app, so a
+    # deployment without them is a perfectly valid one.
+    web_app_url: str = ""
+    internal_api_secret: str = ""
 
     @property
     def is_local_dev(self) -> bool:

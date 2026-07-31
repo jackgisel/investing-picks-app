@@ -6,7 +6,42 @@ import {
   UNCLASSIFIED,
 } from "./sector-model";
 import { actionMeta } from "./trade-action";
-import { getInsightByTicker, getInsightsForTickers } from "@/lib/insight-index";
+import {
+  insightForTicker,
+  insightsForTickers,
+  type InsightMeta,
+} from "@/lib/insights";
+
+/**
+ * Notes are database rows now, so these fixtures stand in for what
+ * /api/data/insights returns. The lookups stayed pure precisely so the
+ * matching rules could still be tested without a database.
+ */
+function note(ticker: string | null, publishedAt: string): InsightMeta {
+  return {
+    id: `${ticker ?? "q"}-id`,
+    slug: `${(ticker ?? "quarterly").toLowerCase()}-note`,
+    ticker,
+    postType: ticker ? "pick" : "quarterly_review",
+    status: "approved",
+    title: `${ticker ?? "Quarterly"} note`,
+    description: "d",
+    readingTime: 7,
+    tags: [],
+    author: null,
+    quarter: null,
+    publishedAt,
+    createdAt: publishedAt,
+    updatedAt: publishedAt,
+  };
+}
+
+// Newest first, the order listInsights returns.
+const NOTES: InsightMeta[] = [
+  note("WDC", "2026-07-17T00:00:00.000Z"),
+  note("SOFI", "2026-06-05T00:00:00.000Z"),
+  note("SEZL", "2026-04-10T00:00:00.000Z"),
+];
 
 const ALL = flatten(visibleGroups(true));
 
@@ -93,6 +128,7 @@ describe("visibleGroups", () => {
     expect(groups[1].items.map((i) => i.href)).toEqual([
       "/dashboard/ops",
       "/dashboard/ops/book",
+      "/dashboard/ops/insights",
     ]);
   });
 });
@@ -203,29 +239,40 @@ describe("actionMeta", () => {
   });
 });
 
-describe("insight index lookups", () => {
+describe("insight lookups", () => {
   it("matches a ticker regardless of case", () => {
-    expect(getInsightByTicker("wdc")?.ticker).toBe("WDC");
-    expect(getInsightByTicker("WDC")?.ticker).toBe("WDC");
+    expect(insightForTicker(NOTES, "wdc")?.ticker).toBe("WDC");
+    expect(insightForTicker(NOTES, "WDC")?.ticker).toBe("WDC");
   });
 
   it("returns nothing for a ticker with no published note", () => {
-    expect(getInsightByTicker("ZZZZ")).toBeUndefined();
+    expect(insightForTicker(NOTES, "ZZZZ")).toBeUndefined();
   });
 
-  it("finds every insight covering a set of holdings", () => {
-    const found = getInsightsForTickers(["wdc", "sofi", "ZZZZ"]);
+  it("ignores a quarterly review when matching a ticker", () => {
+    const withQuarterly = [...NOTES, note(null, "2026-07-01T00:00:00.000Z")];
+    expect(insightForTicker(withQuarterly, "WDC")?.ticker).toBe("WDC");
+  });
+
+  it("finds every note covering a set of holdings", () => {
+    const found = insightsForTickers(NOTES, ["wdc", "sofi", "ZZZZ"]);
     expect(found.map((i) => i.ticker).sort()).toEqual(["SOFI", "WDC"]);
   });
 
   it("returns nothing for an empty holdings list", () => {
-    expect(getInsightsForTickers([])).toEqual([]);
+    expect(insightsForTickers(NOTES, [])).toEqual([]);
   });
 
-  it("returns results newest first, matching the generated order", () => {
-    const found = getInsightsForTickers(["wdc", "sofi", "sezl"]);
-    const dates = found.map((i) => i.publishedAt);
-    expect([...dates].sort().reverse()).toEqual(dates);
+  it("preserves the newest-first order it was given", () => {
+    const found = insightsForTickers(NOTES, ["sezl", "wdc", "sofi"]);
+    expect(found.map((i) => i.ticker)).toEqual(["WDC", "SOFI", "SEZL"]);
+  });
+
+  it("returns nothing when the list has not loaded yet", () => {
+    // The metadata arrives over the wire now, so every caller renders at
+    // least once against an empty array before it lands.
+    expect(insightForTicker([], "WDC")).toBeUndefined();
+    expect(insightsForTickers([], ["WDC"])).toEqual([]);
   });
 });
 
@@ -237,21 +284,23 @@ describe("anonymised payload safety", () => {
   // the whole shell with a client-side exception. TypeScript missed it
   // because Holding.ticker was declared non-optional: the type described the
   // entitled payload only.
-  it("getInsightByTicker survives a missing ticker", () => {
-    expect(() => getInsightByTicker(undefined as never)).not.toThrow();
-    expect(getInsightByTicker(undefined as never)).toBeUndefined();
-    expect(getInsightByTicker("" as never)).toBeUndefined();
+  it("insightForTicker survives a missing ticker", () => {
+    expect(() => insightForTicker(NOTES, undefined)).not.toThrow();
+    expect(insightForTicker(NOTES, undefined)).toBeUndefined();
+    expect(insightForTicker(NOTES, "")).toBeUndefined();
   });
 
-  it("getInsightsForTickers survives holdings with no tickers", () => {
-    const anonymised = [undefined, null, ""] as never as string[];
-    expect(() => getInsightsForTickers(anonymised)).not.toThrow();
-    expect(getInsightsForTickers(anonymised)).toEqual([]);
+  it("insightsForTickers survives holdings with no tickers", () => {
+    const anonymised = [undefined, null, ""];
+    expect(() => insightsForTickers(NOTES, anonymised)).not.toThrow();
+    expect(insightsForTickers(NOTES, anonymised)).toEqual([]);
   });
 
-  it("getInsightsForTickers still matches around missing entries", () => {
-    const mixed = [undefined, "wdc", null] as never as string[];
-    expect(getInsightsForTickers(mixed).map((i) => i.ticker)).toEqual(["WDC"]);
+  it("insightsForTickers still matches around missing entries", () => {
+    const mixed = [undefined, "wdc", null];
+    expect(insightsForTickers(NOTES, mixed).map((i) => i.ticker)).toEqual([
+      "WDC",
+    ]);
   });
 });
 

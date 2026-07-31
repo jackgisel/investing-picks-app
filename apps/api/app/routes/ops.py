@@ -13,7 +13,17 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session, joinedload
 
 from app.config import assert_ops_key_configured, get_settings
-from app.db.models import Evaluation, JobRun, Portfolio, Position, SignalRow, Stock, Trade
+from app.db.models import (
+    CompositeScore,
+    Evaluation,
+    Fundamentals,
+    JobRun,
+    Portfolio,
+    Position,
+    SignalRow,
+    Stock,
+    Trade,
+)
 from app.db.session import get_db
 from app.services.portfolio import (
     ensure_default_portfolio,
@@ -795,6 +805,166 @@ def _next_evaluation(db: Session) -> dict:
             "started_at": last.started_at.isoformat() if last.started_at else None,
         }
         if last
+        else None,
+    }
+
+
+@router.get("/research-facts/{ticker}", dependencies=[Depends(require_ops_key)])
+def research_facts(ticker: str, db: Session = Depends(get_db)):
+    """Everything known about one holding, for drafting its research note.
+
+    The web app writes the note (that is where the content, the editor and the
+    renderer live) but it must not reach into these tables to do it — nothing
+    in apps/web reads an API-owned table, and the two services have separate
+    migration systems with no shared model. So the facts are assembled here and
+    handed over.
+
+    `missing` is the load-bearing field. A manual buy has no Evaluation, so it
+    has no rule checks and no target notional; a ticker scored before the
+    momentum backfill may have no rating at all. Naming the gaps explicitly is
+    what stops the drafting prompt from inventing values for them — an absent
+    key and a null one are indistinguishable to a model unless you say so.
+    """
+    symbol = ticker.strip().upper()
+    missing: list[str] = []
+
+    stock = db.query(Stock).filter(Stock.ticker == symbol).first()
+    if stock is None:
+        missing.append("stock_profile")
+
+    position = (
+        db.query(Position)
+        .filter(Position.portfolio_id == 1, Position.ticker == symbol)
+        .first()
+    )
+    if position is None:
+        missing.append("open_position")
+
+    score = (
+        db.query(CompositeScore)
+        .filter(CompositeScore.ticker == symbol)
+        .order_by(CompositeScore.as_of.desc())
+        .first()
+    )
+    if score is None:
+        missing.append("composite_score")
+
+    fundamentals = (
+        db.query(Fundamentals)
+        .filter(Fundamentals.ticker == symbol)
+        .order_by(Fundamentals.as_of.desc())
+        .first()
+    )
+    if fundamentals is None:
+        missing.append("fundamentals")
+
+    # The buy that opened the position, with the rule checks that fired. Absent
+    # for a manual entry, which is how every current holding was added.
+    signal = (
+        db.query(SignalRow)
+        .options(joinedload(SignalRow.reasons))
+        .join(Evaluation, Evaluation.id == SignalRow.evaluation_id)
+        .filter(
+            SignalRow.ticker == symbol,
+            SignalRow.action.in_(("buy", "double_buy")),
+            SignalRow.executed == True,  # noqa: E712
+        )
+        .order_by(Evaluation.created_at.desc())
+        .first()
+    )
+    if signal is None:
+        missing.append("buy_signal_and_rule_checks")
+
+    entry_trade = (
+        db.query(Trade)
+        .filter(
+            Trade.portfolio_id == 1,
+            Trade.ticker == symbol,
+            Trade.side == "buy",
+        )
+        .order_by(Trade.timestamp.asc())
+        .first()
+    )
+    if entry_trade is None:
+        missing.append("entry_trade")
+
+    return {
+        "ticker": symbol,
+        "missing": missing,
+        "stock": {
+            "name": stock.name,
+            "sector": stock.sector,
+            "industry": stock.industry,
+            "market_cap": stock.market_cap,
+            "last_price": stock.last_price,
+        }
+        if stock
+        else None,
+        "position": {
+            "shares": position.shares,
+            "avg_cost": position.avg_cost,
+            "current_price": position.current_price,
+            "entry_date": position.entry_date.isoformat()
+            if position.entry_date
+            else None,
+            "sector": position.sector,
+            # Percentages only, never dollars — the published surface expresses
+            # everything as a return, and a draft must not be the one place a
+            # position size leaks out.
+            "return_pct": round(
+                (position.current_price - position.avg_cost) / position.avg_cost * 100,
+                2,
+            )
+            if position.avg_cost
+            else None,
+        }
+        if position
+        else None,
+        "score": {
+            "as_of": score.as_of.isoformat() if score.as_of else None,
+            "quant_rating": score.quant_rating,
+            "composite": score.composite,
+            "valuation_grade": score.valuation_grade,
+            "growth_grade": score.growth_grade,
+            "profitability_grade": score.profitability_grade,
+            "momentum_grade": score.momentum_grade,
+            "revisions_grade": score.revisions_grade,
+            "sector": score.sector,
+        }
+        if score
+        else None,
+        "fundamentals": {
+            "as_of": fundamentals.as_of.isoformat() if fundamentals.as_of else None,
+            "data": fundamentals.data,
+        }
+        if fundamentals
+        else None,
+        "buy_signal": {
+            "action": signal.action,
+            "reason": signal.reason,
+            "score_json": signal.score_json,
+            "metadata_json": signal.metadata_json,
+            "rule_checks": [
+                {
+                    "rule_id": r.rule_id,
+                    "passed": r.passed,
+                    "inputs": r.inputs,
+                    "threshold": r.threshold,
+                    "message": r.message,
+                }
+                for r in signal.reasons
+            ],
+        }
+        if signal
+        else None,
+        "entry": {
+            "date": entry_trade.timestamp.date().isoformat()
+            if entry_trade.timestamp
+            else None,
+            "action": entry_trade.action,
+            "reason": entry_trade.reason,
+        }
+        if entry_trade
         else None,
     }
 

@@ -16,7 +16,8 @@ import {
   type SortDir,
 } from "@/components/dashboard/data-table";
 import { formatPctOrDash, pnlClass } from "@/lib/portfolio";
-import { getInsightByTicker } from "@/lib/insight-index";
+import { insightForTicker } from "@/lib/insights";
+import { useInsights } from "@/lib/hooks/use-insights";
 
 type SortKey = "ticker" | "entry_date" | "exit_date" | "pnl_pct";
 
@@ -39,6 +40,7 @@ function heldFor(entry: string | null, exit: string | null): string {
 
 export function PositionsClosed() {
   const query = usePicks("closed");
+  const insights = useInsights().data?.insights ?? [];
   const { data, isPending, isError, error } = query;
   const picks = data?.picks;
 
@@ -104,7 +106,7 @@ export function PositionsClosed() {
               ) : (
                 sorted?.map((p, i) => {
                   const slug =
-                    p.blog_slug ?? getInsightByTicker(p.ticker)?.slug;
+                    p.blog_slug ?? insightForTicker(insights, p.ticker)?.slug;
                   return (
                     <tr
                       key={`${p.ticker}-${p.entry_date}-${i}`}

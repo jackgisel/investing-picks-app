@@ -111,6 +111,13 @@ export function getInsightByTicker(
   );
 }
 
+/** Metadata-only slug lookup, for server code that must not import article bodies. */
+export function getInsightBySlugFromIndex(
+  slug: string,
+): InsightIndexEntry | undefined {
+  return INSIGHT_INDEX.find((i) => i.slug === slug);
+}
+
 /** Insights covering any of these tickers, newest first. */
 export function getInsightsForTickers(
   tickers: readonly (string | null | undefined)[],

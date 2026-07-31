@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { ensureMigrations } from "@/lib/auth";
-import { getArticleBySlug } from "@/lib/blog";
+import { getInsightByTicker, getInsightBySlugFromIndex } from "@/lib/insight-index";
 import { getOptedInRecipients } from "@/lib/preferences";
 import { sendNewPickEmail } from "@/lib/email";
 
@@ -9,19 +9,28 @@ import { sendNewPickEmail } from "@/lib/email";
  *
  * Auth: shared secret in `Authorization: Bearer <INTERNAL_API_SECRET>`.
  *
+ * The research note is resolved from the TICKER, against the insight index.
+ * This used to require a `slug` naming a post in lib/blog.ts, which no pick has
+ * ever had — /blog is the public educational archive, and pick notes live in
+ * src/content/insights. Announcing a pick therefore 404'd unless you handed it
+ * the slug of an unrelated marketing article.
+ *
+ * Requiring the insight to exist is the useful guard: it makes it impossible to
+ * mail a "new pick" announcement whose research has not been published yet.
+ *
  * Body:
  *   {
- *     "slug": "blog-article-slug",   // required — must exist in src/lib/blog.ts
- *     "ticker": "ABCD",              // required
- *     "title": "Optional override",  // optional — defaults to article.meta.title
- *     "description": "Optional"      // optional — defaults to article.meta.description
+ *     "ticker": "ABCD",              // required — must have a pick insight
+ *     "slug": "insight-slug",        // optional — override, e.g. a re-issue
+ *     "title": "Optional override",  // optional — defaults to insight.title
+ *     "description": "Optional"      // optional — defaults to insight.description
  *   }
  *
  * Example:
  *   curl -X POST https://outpick.xyz/api/internal/notify-pick \
  *     -H "Authorization: Bearer $INTERNAL_API_SECRET" \
  *     -H "Content-Type: application/json" \
- *     -d '{"slug":"new-pick-abcd","ticker":"ABCD"}'
+ *     -d '{"ticker":"WDC"}'
  */
 export async function POST(req: Request) {
   const secret = process.env.INTERNAL_API_SECRET;
@@ -57,17 +66,20 @@ export async function POST(req: Request) {
   const slug = typeof body.slug === "string" ? body.slug.trim() : "";
   const ticker = typeof body.ticker === "string" ? body.ticker.trim().toUpperCase() : "";
 
-  if (!slug) {
-    return NextResponse.json({ error: "Missing 'slug'" }, { status: 400 });
-  }
   if (!ticker) {
     return NextResponse.json({ error: "Missing 'ticker'" }, { status: 400 });
   }
 
-  const article = getArticleBySlug(slug);
-  if (!article) {
+  const insight = slug
+    ? getInsightBySlugFromIndex(slug)
+    : getInsightByTicker(ticker);
+  if (!insight) {
     return NextResponse.json(
-      { error: `No article found for slug '${slug}'` },
+      {
+        error: slug
+          ? `No insight found for slug '${slug}'`
+          : `No published insight for ${ticker}. Write and deploy the research note before announcing the pick.`,
+      },
       { status: 404 }
     );
   }
@@ -75,11 +87,11 @@ export async function POST(req: Request) {
   const articleTitle =
     typeof body.title === "string" && body.title.trim()
       ? body.title.trim()
-      : article.meta.title;
+      : insight.title;
   const articleDescription =
     typeof body.description === "string" && body.description.trim()
       ? body.description.trim()
-      : article.meta.description;
+      : insight.description;
 
   await ensureMigrations();
   const recipients = await getOptedInRecipients("newPicks");
@@ -111,7 +123,7 @@ export async function POST(req: Request) {
           ticker,
           articleTitle,
           articleDescription,
-          articleSlug: slug,
+          insightSlug: insight.slug,
         }).then((res) => ({ email: r.email, ...res }))
       )
     );

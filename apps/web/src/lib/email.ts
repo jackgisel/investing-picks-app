@@ -86,11 +86,15 @@ export async function sendNewPickEmail(args: {
   stats?: PickStat[];
   articleTitle: string;
   articleDescription: string;
-  articleSlug: string;
+  /** Slug of the /dashboard/insights research note for this pick. */
+  insightSlug: string;
   /** Test-send marker; omitted on real sends. */
   banner?: string;
 }): Promise<SendResult> {
-  const articleUrl = `${SITE_URL}/blog/${args.articleSlug}`;
+  // Picks link to the insight, not to /blog. Insights are the research notes
+  // written per pick and live behind the member dashboard; /blog is the public
+  // educational archive and has never held a pick note.
+  const articleUrl = `${SITE_URL}/dashboard/insights/${args.insightSlug}`;
   const html = renderNewPickEmail({
     recipientName: args.recipientName,
     ticker: args.ticker,

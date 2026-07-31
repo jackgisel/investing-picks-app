@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/admin";
 import { PUBLIC_API_BASE } from "@/lib/api-config";
 import { SITE_URL } from "@/lib/constants";
 import type { PickStat } from "@/lib/email-templates";
+import { getInsightByTicker } from "@/lib/insight-index";
 import {
   sendDeleteAccountEmail,
   sendMarketNoteWelcomeEmail,
@@ -106,7 +107,10 @@ async function sendOne(
         verifyUrl: `${SITE_URL}/verify-email?token=test-token-not-valid`,
         banner: BANNER,
       });
-    case "new-pick":
+    case "new-pick": {
+      // The real insight for the real pick, so the CTA in the test message
+      // lands where a subscriber's would.
+      const insight = getInsightByTicker(pick?.ticker);
       return sendNewPickEmail({
         to,
         // A real token: unsubscribing from a test must actually work, or the
@@ -115,17 +119,15 @@ async function sendOne(
         recipientName: name,
         ticker: pick?.ticker ?? "TEST",
         stats: pickStats(pick),
-        articleTitle: pick
-          ? `Why ${pick.ticker} cleared every gate`
-          : "This is a test of the new pick email",
-        articleDescription: pick
-          ? `${pick.ticker} is the most recent addition to the live portfolio. The full note covers the thesis, the entry reasoning, and the fundamentals behind the decision.`
-          : "Sent from /api/ops/email-test. The upstream API was unreachable, so this fell back to placeholder content.",
-        // Picks have no blog slug yet, so this resolves to the blog index
-        // rather than a 404 — the layout is what is under test, not the link.
-        articleSlug: pick?.blog_slug ?? "",
+        articleTitle:
+          insight?.title ?? "This is a test of the new pick email",
+        articleDescription:
+          insight?.description ??
+          "Sent from /api/ops/email-test. No published insight matched the most recent pick, so this fell back to placeholder copy.",
+        insightSlug: insight?.slug ?? "",
         banner: BANNER,
       });
+    }
     case "delete-account":
       return sendDeleteAccountEmail({
         to,

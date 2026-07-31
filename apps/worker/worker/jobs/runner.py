@@ -51,11 +51,18 @@ def sync_insight_drafts() -> dict:
     is a model call.
     """
     settings = get_settings()
-    base = (getattr(settings, "web_app_url", "") or "").rstrip("/")
+    base = (getattr(settings, "web_app_url", "") or "").strip().rstrip("/")
     secret = getattr(settings, "internal_api_secret", "") or ""
     if not base or not secret:
         log.info("WEB_APP_URL or INTERNAL_API_SECRET unset; skipping draft sync")
         return {"skipped": "not_configured"}
+
+    # Railway's UI hands you a bare hostname ("web.railway.internal"), and httpx
+    # rejects a URL with no scheme outright. Internal traffic is plain HTTP, so
+    # filling it in is unambiguous — and this is exactly the value someone will
+    # paste next time.
+    if "://" not in base:
+        base = f"http://{base}"
 
     try:
         with httpx.Client(timeout=httpx.Timeout(600.0, connect=10.0)) as client:

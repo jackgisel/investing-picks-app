@@ -7,10 +7,12 @@
  * Outpick site: black background, accent green, Outfit for text and IBM Plex
  * Mono for numerals.
  *
- * No web font is linked here on purpose — most clients strip @import and
- * <link>, so the brand faces are named first for the few that have them
- * installed and every stack falls through to a system face that will not
- * reflow the layout.
+ * The @import in `shell()` is best-effort: most clients strip @import and
+ * <link>, so it only reaches the few that honour it (Apple Mail). Every stack
+ * therefore names the brand face first and falls through to a system face that
+ * will not reflow the layout, and the import must match what those stacks
+ * actually name — it previously pulled IBM Plex Sans, which no stack here
+ * references, while Outfit was never imported at all.
  */
 
 import { SITE_NAME } from "@/lib/constants";
@@ -58,7 +60,7 @@ function shell(args: {
   <meta name="supported-color-schemes" content="dark only">
   <title>${escapeHtml(SITE_NAME)}</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;700&family=Outfit:wght@400;500;600;700&display=swap');
     body { margin: 0; padding: 0; background: ${COLOR_BG}; }
     a { text-decoration: none; }
     .btn:hover { background: ${COLOR_GREEN_HOVER} !important; }

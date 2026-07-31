@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Database, FlaskConical, RefreshCw } from "lucide-react";
+import { Database, FlaskConical, Mail, RefreshCw } from "lucide-react";
 
 type JobRun = {
   id: number;
@@ -284,6 +284,8 @@ export default function OpsEvaluationsPage() {
         </div>
       </section>
 
+      <EmailTestPanel />
+
       <section className="space-y-3">
         <h2 className="panel-label panel-label-coral">HISTORY</h2>
         {isLoading && <p className="text-text-muted text-sm">Loading…</p>}
@@ -316,6 +318,108 @@ export default function OpsEvaluationsPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+const EMAIL_TEMPLATES = [
+  { id: "", label: "All four" },
+  { id: "verify", label: "Verify address" },
+  { id: "new-pick", label: "New pick" },
+  { id: "delete-account", label: "Delete account" },
+  { id: "market-note", label: "Market note welcome" },
+] as const;
+
+type EmailTestResult = {
+  ok: boolean;
+  to: string;
+  sent: number;
+  failed: number;
+  results: { template: string; ok: boolean; error?: string }[];
+};
+
+/**
+ * Send a template to your own address to check Resend and the rendering.
+ *
+ * There is deliberately no recipient field — the API sends to the signed-in
+ * admin's address and nowhere else. Subscriber sends go through
+ * /api/internal/notify-pick, which is a different route with a different guard.
+ */
+function EmailTestPanel() {
+  const [template, setTemplate] = useState<string>("");
+
+  const send = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/ops/email-test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(template ? { template } : {}),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || "Send failed");
+      return body as EmailTestResult;
+    },
+  });
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <h2 className="panel-label panel-label-coral">EMAIL TEST</h2>
+        <div className="flex items-center gap-3">
+          <select
+            value={template}
+            onChange={(e) => setTemplate(e.target.value)}
+            className="bg-bg-secondary border border-border rounded-soft px-3 py-2 font-mono text-[11px] text-text"
+          >
+            {EMAIL_TEMPLATES.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => send.mutate()}
+            disabled={send.isPending}
+            className="btn-outline !py-2 !px-4 !text-[11px] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Mail size={13} />
+            {send.isPending ? "Sending…" : "Send to me"}
+          </button>
+        </div>
+      </div>
+      <p className="text-xs text-text-dim max-w-xl">
+        Sends to your own address only — the route takes no recipient. Payloads are
+        obvious placeholders (ticker TEST, links that do not resolve), so nothing
+        that lands can be mistaken for a real alert.
+      </p>
+      {send.error && (
+        <p className="text-accent-red text-sm">{(send.error as Error).message}</p>
+      )}
+      {send.data && (
+        <div className="data-panel px-4 py-3 space-y-1">
+          <p className="text-sm text-text-muted">
+            Sent <span className="font-mono text-text">{send.data.sent}</span> to{" "}
+            <span className="font-mono text-text">{send.data.to}</span>
+            {send.data.failed > 0 && (
+              <>
+                {" · "}
+                <span className="font-mono text-accent-red">
+                  {send.data.failed} failed
+                </span>
+              </>
+            )}
+          </p>
+          {send.data.results.map((r) => (
+            <p key={r.template} className="font-mono text-xs text-text-dim">
+              {r.template}{" "}
+              <span className={r.ok ? "text-accent-green" : "text-accent-red"}>
+                {r.ok ? "ok" : (r.error ?? "failed")}
+              </span>
+            </p>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 

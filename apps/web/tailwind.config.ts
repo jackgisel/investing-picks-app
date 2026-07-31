@@ -63,7 +63,8 @@ const config: Config = {
       // silently rendered as italic sans and read as a bug at every call site.
       fontFamily: {
         mono: ["IBM Plex Mono", "monospace"],
-        sans: ["Outfit", "sans-serif"],
+        sans: ["Manrope", "Avenir Next", "sans-serif"],
+        display: ["Instrument Serif", "Iowan Old Style", "Baskerville", "serif"],
       },
       borderRadius: {
         pill: "9999px",

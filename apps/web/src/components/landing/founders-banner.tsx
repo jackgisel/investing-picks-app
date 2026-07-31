@@ -23,7 +23,7 @@ export function FoundersBanner() {
   return (
     // Inverted in light mode, but the same bar in dark is a glaring white
     // slab above the fold — so it takes the house yellow there instead.
-    <div className="bg-inverse text-inverse-fg dark:bg-accent-yellow dark:text-on-accent">
+    <div className="founders-banner bg-inverse text-inverse-fg dark:bg-accent-yellow dark:text-on-accent">
       <div className="container-op py-2.5 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-3 text-center">
         <span className="font-sans text-[11px] sm:text-[12px] font-medium">
           Founders deal — {PRICING.foundersLabel} through Day{" "}

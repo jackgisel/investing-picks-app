@@ -37,12 +37,7 @@ export function OutpickLogo({ size = 24, className }: LogoProps) {
       className={cn("text-text", className)}
       aria-hidden
     >
-      {/* The ring is `currentColor`, not a literal ink hex, so it inverts with
-          the theme (near-black on light, near-white on dark) instead of
-          disappearing into a dark background. `text-text` on the <svg> sets
-          the default; any ancestor with its own text color (e.g. the
-          wordmark's text-text span) will already match, so this is a no-op
-          there and only matters when the mark is used on its own. */}
+      {/* currentColor keeps the research ring legible in both themes. */}
       <path
         d="M21.2 5.4A11 11 0 1 0 26.6 11.2"
         stroke="currentColor"

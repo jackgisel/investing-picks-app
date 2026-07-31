@@ -44,7 +44,7 @@ export default function LoginPage() {
   }
 
   const inputClass =
-    "w-full bg-bg-secondary border border-border rounded-pill px-5 py-3.5 font-sans text-[14px] text-text placeholder:text-text-dim focus:outline-none focus:border-border-strong transition-colors";
+    "w-full bg-bg-secondary border border-border rounded-pill px-5 py-3.5 font-sans text-[14px] text-text placeholder:text-text-dim focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan focus-visible:ring-offset-2 focus-visible:ring-offset-bg transition-colors";
 
   return (
     <div className="min-h-[calc(100vh-72px)] flex items-center justify-center px-4 py-16">
@@ -90,11 +90,14 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           {mode === "signup" && (
             <div>
-              <label className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim block mb-2">
+              <label htmlFor="name" className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim block mb-2">
                 Name
               </label>
               <input
                 type="text"
+                id="name"
+                name="name"
+                autoComplete="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required={mode === "signup"}
@@ -105,11 +108,14 @@ export default function LoginPage() {
           )}
 
           <div>
-            <label className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim block mb-2">
+            <label htmlFor="email" className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim block mb-2">
               Email
             </label>
             <input
               type="email"
+              id="email"
+              name="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -119,11 +125,14 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim block mb-2">
+            <label htmlFor="password" className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim block mb-2">
               Password
             </label>
             <input
               type="password"
+              id="password"
+              name="password"
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -134,7 +143,7 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <div className="bg-accent-red-soft rounded-2xl px-4 py-3">
+            <div className="bg-accent-red-soft rounded-2xl px-4 py-3" role="alert" aria-live="polite">
               <p className="font-sans text-[13px] text-accent-red">{error}</p>
             </div>
           )}
@@ -145,7 +154,7 @@ export default function LoginPage() {
             className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading
-              ? "Loading..."
+              ? "Loading…"
               : mode === "login"
                 ? "Sign in"
                 : "Create account"}

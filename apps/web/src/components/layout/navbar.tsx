@@ -25,7 +25,7 @@ const MOBILE_EXTRA_LINKS = [
 const MOBILE_LINKS = [...NAV_LINKS, ...MOBILE_EXTRA_LINKS] as const;
 
 const linkClassName =
-  "font-sans text-[12px] font-bold tracking-[0.14em] uppercase text-text hover:opacity-60 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 rounded-sm";
+  "font-sans text-[14px] font-medium tracking-[-0.01em] text-text hover:opacity-60 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 rounded-sm";
 
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -41,13 +41,13 @@ export function Navbar() {
   }
 
   return (
-    <nav className="border-b border-border sticky top-0 z-50 bg-bg/95 backdrop-blur-sm">
+    <nav className="site-navbar border-b border-border sticky top-0 z-50 bg-bg/95 backdrop-blur-sm">
       {/* The marketing container is 1120px centered; the dashboard sidebar is
           flush left. Sharing it put the wordmark ~180px right of the sidebar
           on a wide display, so nothing lined up down the left edge. On app
           routes the bar goes full-bleed at the sidebar's own inset instead. */}
       <div
-        className={`flex items-center justify-between h-[72px] ${
+        className={`site-navbar__inner flex items-center justify-between h-[72px] ${
           isDashboard ? "px-6" : "container-op"
         }`}
       >
@@ -100,13 +100,15 @@ export function Navbar() {
           onClick={() => setMobileOpen(!mobileOpen)}
           className="md:hidden text-text shrink-0"
           aria-label={mobileOpen ? "Close menu" : "Open menu"}
+          aria-expanded={mobileOpen}
+          aria-controls="mobile-navigation"
         >
           {mobileOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
       </div>
 
       {mobileOpen && (
-        <div className="md:hidden border-t border-border bg-bg px-6 py-5 space-y-1">
+        <div id="mobile-navigation" className="md:hidden border-t border-border bg-bg px-6 py-5 space-y-1">
           {!isDashboard &&
             MOBILE_LINKS.map((link) => (
               <Link

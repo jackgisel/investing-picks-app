@@ -3,7 +3,7 @@ import { OutpickWordmark } from "@/components/ui/outpick-logo";
 
 export function Footer() {
   return (
-    <footer className="border-t border-border bg-bg">
+    <footer className="site-footer border-t border-border bg-bg">
       <div className="container-op py-14">
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-10">
           <div>

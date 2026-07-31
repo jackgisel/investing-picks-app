@@ -28,7 +28,7 @@ export default function BlogIndexPage() {
       <section className="border-b border-border">
         <div className="container-op pt-20 pb-14">
           <p className="section-label mb-5">Outpick research</p>
-          <h1 className="font-sans text-[40px] sm:text-[48px] font-extrabold leading-[1.1] tracking-tight mb-6 max-w-[780px] uppercase">
+          <h1 className="marketing-display text-[48px] sm:text-[64px] font-normal leading-[1] tracking-tight mb-7 max-w-[820px]">
             Research for investors who outgrew the index.
           </h1>
           <p className="font-sans text-[17px] text-text-muted leading-relaxed max-w-[640px]">

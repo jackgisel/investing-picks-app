@@ -122,7 +122,7 @@ export function MarketNoteSignup({
         <button
           type="submit"
           disabled={status === "working"}
-          className="shrink-0 inline-flex items-center justify-center gap-2 rounded-pill border border-transparent bg-inverse px-5 py-2.5 font-sans text-xs sm:text-sm font-semibold uppercase tracking-[0.08em] text-inverse-fg transition-all duration-200 hover:bg-inverse/90 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+          className="shrink-0 inline-flex items-center justify-center gap-2 rounded-pill border border-transparent bg-inverse px-5 py-2.5 font-sans text-xs sm:text-sm font-semibold uppercase tracking-[0.08em] text-inverse-fg transition-[color,background-color,border-color,transform] duration-200 hover:bg-inverse/90 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
         >
           {status === "working" ? "Sending…" : "Get the note"}
         </button>

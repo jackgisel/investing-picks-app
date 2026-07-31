@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "@/styles/globals.css";
+import "@/styles/brand-heritage.css";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL, SITE_TAGLINE } from "@/lib/constants";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
@@ -8,6 +9,7 @@ import { CookieBanner } from "@/components/layout/cookie-banner";
 import { FoundersBanner } from "@/components/landing/founders-banner";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
+import { SITE_BRAND } from "@/lib/brand";
 
 // Stamps the resolved theme class onto <html> before first paint so there is
 // no light->dark flash. Reads the persisted choice (or falls back to the OS
@@ -86,16 +88,24 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="bg-bg" suppressHydrationWarning>
+    <html
+      lang="en"
+      className="bg-bg"
+      data-brand={SITE_BRAND}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className="font-sans antialiased text-text bg-bg min-h-screen selection:bg-accent-yellow/50">
+        <a href="#main-content" className="skip-link">
+          Skip to content
+        </a>
         <ThemeProvider>
           <QueryProvider>
             <FoundersBanner />
             <Navbar />
-            <main>{children}</main>
+            <main id="main-content">{children}</main>
             <MarketingOnly>
               <Footer />
             </MarketingOnly>

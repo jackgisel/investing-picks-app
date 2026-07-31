@@ -21,7 +21,7 @@ export function StatsBar() {
   const liveDoubled = countDoubledWinners(strategy?.holdings);
 
   return (
-      <section className="relative border-y border-border overflow-hidden">
+      <section className="proof-rail relative border-y border-border overflow-hidden">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_120%_at_15%_50%,rgba(245,215,110,0.07),transparent_60%)]"

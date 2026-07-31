@@ -6,6 +6,7 @@ import {
   renderDeleteAccountEmail,
   renderVerifyEmail,
   renderMarketNoteWelcomeEmail,
+  type PickStat,
 } from "@/lib/email-templates";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
@@ -81,18 +82,25 @@ export async function sendNewPickEmail(args: {
   userId: string;
   recipientName: string | null;
   ticker: string;
+  companyName?: string | null;
+  stats?: PickStat[];
   articleTitle: string;
   articleDescription: string;
   articleSlug: string;
+  /** Test-send marker; omitted on real sends. */
+  banner?: string;
 }): Promise<SendResult> {
   const articleUrl = `${SITE_URL}/blog/${args.articleSlug}`;
   const html = renderNewPickEmail({
     recipientName: args.recipientName,
     ticker: args.ticker,
+    companyName: args.companyName,
+    stats: args.stats,
     articleTitle: args.articleTitle,
     articleDescription: args.articleDescription,
     articleUrl,
     siteUrl: SITE_URL,
+    banner: args.banner,
   });
   const text = `New ${SITE_NAME} pick — ${args.ticker}\n\n${args.articleTitle}\n\n${args.articleDescription}\n\nRead the full research: ${articleUrl}\n\nYou're receiving this because you opted in to new pick alerts. Manage your preferences: ${SITE_URL}/dashboard/settings`;
 
@@ -120,11 +128,13 @@ export async function sendDeleteAccountEmail(args: {
   to: string;
   name: string | null;
   confirmUrl: string;
-}): Promise<{ ok: boolean; error?: string }> {
+  banner?: string;
+}): Promise<SendResult> {
   const html = renderDeleteAccountEmail({
     name: args.name,
     confirmUrl: args.confirmUrl,
     siteUrl: SITE_URL,
+    banner: args.banner,
   });
   const text = `Confirm account deletion\n\nWe received a request to delete your ${SITE_NAME} account. To confirm, click the link below within the next hour:\n\n${args.confirmUrl}\n\nIf you didn't request this, you can ignore this email — your account is safe.`;
 
@@ -142,11 +152,13 @@ export async function sendVerifyEmail(args: {
   to: string;
   name: string | null;
   verifyUrl: string;
-}): Promise<{ ok: boolean; error?: string }> {
+  banner?: string;
+}): Promise<SendResult> {
   const html = renderVerifyEmail({
     name: args.name,
     verifyUrl: args.verifyUrl,
     siteUrl: SITE_URL,
+    banner: args.banner,
   });
   const text = `Verify your email\n\nConfirm this address to finish setting up your ${SITE_NAME} account:\n\n${args.verifyUrl}\n\nIf you didn't sign up, you can ignore this email.`;
 
@@ -182,9 +194,14 @@ export function marketNoteOneClickUrl(token: string): string {
 export async function sendMarketNoteWelcomeEmail(args: {
   to: string;
   token: string;
-}): Promise<{ ok: boolean; error?: string }> {
+  banner?: string;
+}): Promise<SendResult> {
   const unsubscribeUrl = marketNoteUnsubscribeUrl(args.token);
-  const html = renderMarketNoteWelcomeEmail({ unsubscribeUrl, siteUrl: SITE_URL });
+  const html = renderMarketNoteWelcomeEmail({
+    unsubscribeUrl,
+    siteUrl: SITE_URL,
+    banner: args.banner,
+  });
   const text = `You're on the list.\n\nEvery week we send one short read: what the model is seeing across ~3,600 US-listed stocks, which sectors are scoring, and what we make of it.\n\nTo be clear about what this is: the note is market commentary, not our picks. Published picks, the live portfolio, and the full research archive are for members only.\n\nOur track record is published in full: ${SITE_URL}/#track-record\n\nUnsubscribe any time: ${unsubscribeUrl}`;
 
   return send({

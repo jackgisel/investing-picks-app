@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
+import { PUBLIC_API_BASE } from "@/lib/api-config";
 import { SITE_URL } from "@/lib/constants";
+import type { PickStat } from "@/lib/email-templates";
 import {
   sendDeleteAccountEmail,
   sendMarketNoteWelcomeEmail,
@@ -21,13 +23,70 @@ export const dynamic = "force-dynamic";
  * from being the same thing with less review. This route cannot reach anyone
  * but the person holding the admin session.
  *
- * The payloads below are obvious fakes (TEST ticker, a token that unsubscribes
- * nothing) so that a message which escapes into a real inbox cannot be mistaken
- * for a real pick alert.
+ * Every message carries a TEST SEND banner. The pick alert is rendered against
+ * the REAL most recent position, because a layout built around a four-letter
+ * placeholder tells you nothing about how a real symbol and a real headline sit
+ * on the page — and the banner is what keeps that from reading as a live alert.
  *
  * POST /api/ops/email-test          → sends all templates
  * POST /api/ops/email-test {"template":"verify"}
  */
+
+const BANNER = "Test send — not a live alert";
+
+type Pick = {
+  ticker: string;
+  entry_date?: string | null;
+  pnl_pct?: number | null;
+  status?: string | null;
+  blog_slug?: string | null;
+};
+
+/**
+ * The newest open position, or null if the API is unreachable.
+ *
+ * Never throws: a test send that dies because the upstream is down tells you
+ * nothing about the thing you were testing, which is Resend.
+ */
+async function latestPick(): Promise<Pick | null> {
+  try {
+    const res = await fetch(`${PUBLIC_API_BASE}/picks`, { cache: "no-store" });
+    if (!res.ok) return null;
+    const body = (await res.json()) as { picks?: Pick[] };
+    const active = (body.picks ?? []).filter(
+      (p) => p.ticker && p.status === "active" && p.entry_date
+    );
+    if (active.length === 0) return null;
+    return active.sort((a, b) =>
+      String(b.entry_date).localeCompare(String(a.entry_date))
+    )[0];
+  } catch {
+    return null;
+  }
+}
+
+function pickStats(pick: Pick | null): PickStat[] {
+  if (!pick) return [];
+  const stats: PickStat[] = [];
+  if (pick.entry_date) {
+    stats.push({
+      label: "Entry date",
+      value: new Date(`${pick.entry_date}T00:00:00Z`).toLocaleDateString(
+        "en-US",
+        { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }
+      ),
+    });
+  }
+  if (typeof pick.pnl_pct === "number") {
+    stats.push({
+      label: "Since entry",
+      value: `${pick.pnl_pct >= 0 ? "+" : ""}${pick.pnl_pct.toFixed(2)}%`,
+      direction: pick.pnl_pct >= 0 ? "up" : "down",
+    });
+  }
+  stats.push({ label: "Status", value: "Open position" });
+  return stats;
+}
 
 const TEMPLATES = ["verify", "new-pick", "delete-account", "market-note"] as const;
 type Template = (typeof TEMPLATES)[number];
@@ -36,7 +95,8 @@ async function sendOne(
   template: Template,
   to: string,
   userId: string,
-  name: string | null
+  name: string | null,
+  pick: Pick | null
 ): Promise<SendResult> {
   switch (template) {
     case "verify":
@@ -44,6 +104,7 @@ async function sendOne(
         to,
         name,
         verifyUrl: `${SITE_URL}/verify-email?token=test-token-not-valid`,
+        banner: BANNER,
       });
     case "new-pick":
       return sendNewPickEmail({
@@ -52,23 +113,35 @@ async function sendOne(
         // one-click header is untested exactly where it matters.
         userId,
         recipientName: name,
-        ticker: "TEST",
-        articleTitle: "This is a test of the new pick email",
-        articleDescription:
-          "Sent from /api/ops/email-test. Nothing here is a real pick and the link below does not resolve to a real article.",
-        articleSlug: "test-not-a-real-article",
+        ticker: pick?.ticker ?? "TEST",
+        stats: pickStats(pick),
+        articleTitle: pick
+          ? `Why ${pick.ticker} cleared every gate`
+          : "This is a test of the new pick email",
+        articleDescription: pick
+          ? `${pick.ticker} is the most recent addition to the live portfolio. The full note covers the thesis, the entry reasoning, and the fundamentals behind the decision.`
+          : "Sent from /api/ops/email-test. The upstream API was unreachable, so this fell back to placeholder content.",
+        // Picks have no blog slug yet, so this resolves to the blog index
+        // rather than a 404 — the layout is what is under test, not the link.
+        articleSlug: pick?.blog_slug ?? "",
+        banner: BANNER,
       });
     case "delete-account":
       return sendDeleteAccountEmail({
         to,
         name,
         confirmUrl: `${SITE_URL}/account/delete?token=test-token-not-valid`,
+        banner: BANNER,
       });
     case "market-note":
       // A token that matches no subscriber row: the unsubscribe links render
       // and are clickable, and clicking one is a no-op rather than removing a
       // real address.
-      return sendMarketNoteWelcomeEmail({ to, token: "test-token-not-valid" });
+      return sendMarketNoteWelcomeEmail({
+        to,
+        token: "test-token-not-valid",
+        banner: BANNER,
+      });
   }
 }
 
@@ -100,9 +173,11 @@ export async function POST(req: Request) {
     ? [requested as Template]
     : [...TEMPLATES];
 
+  const pick = selected.includes("new-pick") ? await latestPick() : null;
+
   const results: (SendResult & { template: Template })[] = [];
   for (const template of selected) {
-    const res = await sendOne(template, to, guard.user.id, name);
+    const res = await sendOne(template, to, guard.user.id, name, pick);
     results.push({ template, ...res });
   }
 

@@ -6,6 +6,7 @@ import {
   sendMarketNoteWelcomeEmail,
   sendNewPickEmail,
   sendVerifyEmail,
+  type SendResult,
 } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
@@ -34,8 +35,9 @@ type Template = (typeof TEMPLATES)[number];
 async function sendOne(
   template: Template,
   to: string,
+  userId: string,
   name: string | null
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<SendResult> {
   switch (template) {
     case "verify":
       return sendVerifyEmail({
@@ -46,6 +48,9 @@ async function sendOne(
     case "new-pick":
       return sendNewPickEmail({
         to,
+        // A real token: unsubscribing from a test must actually work, or the
+        // one-click header is untested exactly where it matters.
+        userId,
         recipientName: name,
         ticker: "TEST",
         articleTitle: "This is a test of the new pick email",
@@ -95,9 +100,9 @@ export async function POST(req: Request) {
     ? [requested as Template]
     : [...TEMPLATES];
 
-  const results: { template: Template; ok: boolean; error?: string }[] = [];
+  const results: (SendResult & { template: Template })[] = [];
   for (const template of selected) {
-    const res = await sendOne(template, to, name);
+    const res = await sendOne(template, to, guard.user.id, name);
     results.push({ template, ...res });
   }
 

@@ -334,7 +334,7 @@ type EmailTestResult = {
   to: string;
   sent: number;
   failed: number;
-  results: { template: string; ok: boolean; error?: string }[];
+  results: { template: string; ok: boolean; error?: string; id?: string }[];
 };
 
 /**
@@ -410,11 +410,14 @@ function EmailTestPanel() {
             )}
           </p>
           {send.data.results.map((r) => (
-            <p key={r.template} className="font-mono text-xs text-text-dim">
+            <p key={r.template} className="font-mono text-xs text-text-dim break-all">
               {r.template}{" "}
               <span className={r.ok ? "text-accent-green" : "text-accent-red"}>
                 {r.ok ? "ok" : (r.error ?? "failed")}
               </span>
+              {/* Resend's id. "It said ok and never arrived" is only
+                  answerable by looking this up in the Resend dashboard. */}
+              {r.id && <span className="text-text-dim"> · {r.id}</span>}
             </p>
           ))}
         </div>

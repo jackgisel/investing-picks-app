@@ -106,6 +106,7 @@ export async function POST(req: Request) {
       chunk.map((r) =>
         sendNewPickEmail({
           to: r.email,
+          userId: r.id,
           recipientName: r.name,
           ticker,
           articleTitle,

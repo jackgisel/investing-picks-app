@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
+import { pickAlertToken } from "@/lib/pick-alerts";
 import {
   renderNewPickEmail,
   renderDeleteAccountEmail,
@@ -31,7 +32,9 @@ type SendArgs = {
   headers?: Record<string, string>;
 };
 
-async function send(args: SendArgs): Promise<{ ok: boolean; error?: string }> {
+export type SendResult = { ok: boolean; error?: string; id?: string };
+
+async function send(args: SendArgs): Promise<SendResult> {
   const client = getClient();
   if (!client) {
     console.warn(
@@ -55,7 +58,10 @@ async function send(args: SendArgs): Promise<{ ok: boolean; error?: string }> {
       console.error("[email] Resend error:", result.error);
       return { ok: false, error: result.error.message ?? "send failed" };
     }
-    return { ok: true };
+    // Return the Resend message id. Without it, "Resend accepted this and it
+    // never arrived" is unanswerable — the id is what you look up to find out
+    // whether it was delivered, bounced, or filtered.
+    return { ok: true, id: result.data?.id };
   } catch (e) {
     const message = e instanceof Error ? e.message : "send failed";
     console.error("[email] Resend exception:", e);
@@ -65,14 +71,20 @@ async function send(args: SendArgs): Promise<{ ok: boolean; error?: string }> {
 
 /* -------------------------- New pick announcement -------------------------- */
 
+export function pickAlertOneClickUrl(token: string): string {
+  return `${SITE_URL}/api/preferences/unsubscribe?token=${encodeURIComponent(token)}`;
+}
+
 export async function sendNewPickEmail(args: {
   to: string;
+  /** Recipient's user id — signs the one-click unsubscribe token. */
+  userId: string;
   recipientName: string | null;
   ticker: string;
   articleTitle: string;
   articleDescription: string;
   articleSlug: string;
-}): Promise<{ ok: boolean; error?: string }> {
+}): Promise<SendResult> {
   const articleUrl = `${SITE_URL}/blog/${args.articleSlug}`;
   const html = renderNewPickEmail({
     recipientName: args.recipientName,
@@ -84,11 +96,21 @@ export async function sendNewPickEmail(args: {
   });
   const text = `New ${SITE_NAME} pick — ${args.ticker}\n\n${args.articleTitle}\n\n${args.articleDescription}\n\nRead the full research: ${articleUrl}\n\nYou're receiving this because you opted in to new pick alerts. Manage your preferences: ${SITE_URL}/dashboard/settings`;
 
+  // This is a BULK send — notify-pick fans it out to every opted-in member — so
+  // it carries the same List-Unsubscribe pair as the market note. It shipped
+  // without them, which is the one thing on this file's own documented list of
+  // what gets a bulk sender throttled or spam-foldered by Gmail and Yahoo.
+  const oneClick = pickAlertOneClickUrl(pickAlertToken(args.userId));
+
   return send({
     to: args.to,
     subject: `New pick: ${args.ticker} — ${args.articleTitle}`,
     html,
     text,
+    headers: {
+      "List-Unsubscribe": `<${oneClick}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    },
   });
 }
 

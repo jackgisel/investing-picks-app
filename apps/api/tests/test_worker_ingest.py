@@ -6,10 +6,12 @@ from datetime import date, timedelta
 
 import pytest
 
-from app.db.models import CompositeScore, Fundamentals, PriceBar, Stock
+from app.db.models import CompositeScore, Fundamentals, Position, PriceBar, Stock
 from app.services.portfolio import load_latest_scores
 from worker.services.ingest import (
     _forward_estimate,
+    _latest_reported_earnings,
+    backfill_holding_earnings,
     compute_estimate_revisions,
     refresh_marks,
     upsert_price_bar,
@@ -197,6 +199,117 @@ def test_forward_estimate_picks_the_next_fiscal_period():
 def test_forward_estimate_handles_empty_and_malformed():
     assert _forward_estimate([], date(2026, 7, 24)) is None
     assert _forward_estimate([{"estimatedEpsAvg": 1.0}], date(2026, 7, 24)) is None
+
+
+def test_latest_reported_earnings_ignores_upcoming_and_malformed_rows():
+    reports = [
+        {
+            "date": "2026-08-15",
+            "epsActual": None,
+            "epsEstimated": 2.2,
+            "revenueActual": None,
+            "revenueEstimated": 1_200,
+        },
+        {"date": "not-a-date", "epsActual": 9.9},
+        {
+            "date": "2026-07-20",
+            "epsActual": 2.4,
+            "epsEstimated": 2.0,
+            "revenueActual": 1_100,
+            "revenueEstimated": 1_000,
+        },
+        {"date": "2026-04-20", "epsActual": 1.8, "epsEstimated": 1.7},
+    ]
+    assert _latest_reported_earnings(reports, date(2026, 7, 31)) == {
+        "earningsReportDate": "2026-07-20",
+        "epsActual": 2.4,
+        "epsEstimated": 2.0,
+        "revenueActual": 1_100,
+        "revenueEstimated": 1_000,
+    }
+
+
+def test_latest_reported_earnings_requires_an_actual():
+    assert _latest_reported_earnings(
+        [{"date": "2026-07-20", "epsActual": None, "epsEstimated": 2.0}],
+        date(2026, 7, 31),
+    ) == {}
+
+
+class FakeEarningsFMP:
+    def __init__(self, reports):
+        self.reports = reports
+        self.calls = []
+
+    def earnings(self, ticker):
+        self.calls.append(ticker)
+        return self.reports.get(ticker, [])
+
+
+def test_backfill_holding_earnings_updates_latest_snapshot_only(db, portfolio):
+    db.add(Position(portfolio_id=1, ticker="AAA", shares=10, avg_cost=5.0))
+    db.add(
+        Fundamentals(
+            ticker="AAA",
+            as_of=date(2026, 7, 1),
+            data={"revenueGrowthTTM": 0.2},
+        )
+    )
+    latest = Fundamentals(
+        ticker="AAA",
+        as_of=date(2026, 7, 31),
+        data={"revenueGrowthTTM": 0.3},
+    )
+    db.add(latest)
+    db.commit()
+    fmp = FakeEarningsFMP(
+        {
+            "AAA": [
+                {
+                    "date": "2026-07-20",
+                    "epsActual": 1.2,
+                    "epsEstimated": 1.0,
+                    "revenueActual": 120,
+                    "revenueEstimated": 100,
+                }
+            ]
+        }
+    )
+
+    result = backfill_holding_earnings(db, fmp, as_of=date(2026, 7, 31))
+
+    assert result == {
+        "holdings": 1,
+        "updated": 1,
+        "unchanged": 0,
+        "missing_report": 0,
+        "missing_snapshot": 0,
+    }
+    assert fmp.calls == ["AAA"]
+    assert latest.data["epsActual"] == 1.2
+    assert latest.data["revenueGrowthTTM"] == 0.3
+    older = (
+        db.query(Fundamentals)
+        .filter(Fundamentals.ticker == "AAA", Fundamentals.as_of == date(2026, 7, 1))
+        .one()
+    )
+    assert "epsActual" not in older.data
+
+
+def test_backfill_holding_earnings_is_idempotent(db, portfolio):
+    db.add(Position(portfolio_id=1, ticker="AAA", shares=10, avg_cost=5.0))
+    db.add(Fundamentals(ticker="AAA", as_of=date(2026, 7, 31), data={}))
+    db.commit()
+    fmp = FakeEarningsFMP(
+        {"AAA": [{"date": "2026-07-20", "epsActual": 1.2, "epsEstimated": 1.0}]}
+    )
+
+    first = backfill_holding_earnings(db, fmp, as_of=date(2026, 7, 31))
+    second = backfill_holding_earnings(db, fmp, as_of=date(2026, 7, 31))
+
+    assert first["updated"] == 1
+    assert second["updated"] == 0
+    assert second["unchanged"] == 1
 
 
 def _store(db, ticker, as_of, period, eps, revenue):

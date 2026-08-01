@@ -15,6 +15,7 @@ import {
   PanelHeader,
 } from "@/components/dashboard/data-table";
 import { actionMeta } from "./trade-action";
+import { CompanyLogo } from "@/components/ui/company-logo";
 
 type SideFilter = "all" | "buy" | "sell";
 
@@ -113,8 +114,9 @@ export function PositionsActivity() {
                         {t.date.slice(0, 10)}
                       </td>
                       <td className="px-5 py-3">
-                        <span className="font-mono text-[14px] font-semibold">
-                          {t.ticker}
+                        <span className="flex items-center gap-2.5 font-mono text-[14px] font-semibold">
+                          <CompanyLogo ticker={t.ticker} size="xs" />
+                          <span>{t.ticker}</span>
                         </span>
                       </td>
                       <td className="whitespace-nowrap px-5 py-3">

@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { listInsights } from "@/lib/insights-db";
 import type { InsightMeta } from "@/lib/insights";
+import { CompanyLogo } from "@/components/ui/company-logo";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
@@ -34,10 +35,15 @@ function InsightCard({
       href={`/dashboard/insights/${meta.slug}`}
       className="group block h-full data-card transition-colors hover:bg-bg-tertiary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
     >
-      <span
-        className={`inline-flex items-center rounded-lg px-2.5 py-1 font-sans text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted ${tone}`}
-      >
-        {categoryLabel(meta)}
+      <span className="flex items-start justify-between gap-4">
+        <span
+          className={`inline-flex items-center rounded-lg px-2.5 py-1 font-sans text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted ${tone}`}
+        >
+          {categoryLabel(meta)}
+        </span>
+        {meta.ticker ? (
+          <CompanyLogo ticker={meta.ticker} size={featured ? "lg" : "md"} />
+        ) : null}
       </span>
       <h2
         className={`mt-3.5 font-sans font-bold tracking-tight text-text transition-opacity group-hover:opacity-70 ${

@@ -213,6 +213,104 @@ def _forward_estimate(estimates: list[dict], as_of: date) -> dict | None:
     }
 
 
+def _latest_reported_earnings(reports: list[dict], as_of: date) -> dict:
+    """Newest announced actual-versus-estimate print on or before `as_of`.
+
+    Upcoming calendar rows carry null actuals. They are useful elsewhere, but
+    they cannot be called a beat or miss, so this projection ignores them.
+    """
+    candidates: list[tuple[date, dict]] = []
+    for report in reports or []:
+        raw_date = report.get("date")
+        if not raw_date:
+            continue
+        try:
+            announced = date.fromisoformat(str(raw_date)[:10])
+        except ValueError:
+            continue
+        if announced > as_of:
+            continue
+        has_actual = any(
+            report.get(key) is not None for key in ("epsActual", "revenueActual")
+        )
+        if has_actual:
+            candidates.append((announced, report))
+    if not candidates:
+        return {}
+
+    announced, report = max(candidates, key=lambda item: item[0])
+    return {
+        "earningsReportDate": announced.isoformat(),
+        "epsActual": report.get("epsActual"),
+        "epsEstimated": report.get("epsEstimated"),
+        "revenueActual": report.get("revenueActual"),
+        "revenueEstimated": report.get("revenueEstimated"),
+    }
+
+
+def backfill_holding_earnings(
+    db: Session, fmp: FMPClient, *, as_of: date | None = None, commit: bool = True
+) -> dict[str, int]:
+    """Attach the latest reported earnings to each current holding snapshot.
+
+    The earnings display was introduced after existing fundamentals snapshots
+    had already been written. Re-running the full 400-name fundamentals job is
+    unnecessary for that repair, so this fetches only current holdings and
+    updates their newest existing JSON snapshot in place.
+
+    No new dated snapshot is created: doing so from otherwise copied data would
+    manufacture a new point-in-time observation and could distort estimate
+    revision calculations used by the strategy. The operation is idempotent.
+    """
+    effective_as_of = as_of or date.today()
+    tickers = sorted(
+        {
+            row[0]
+            for row in db.query(Position.ticker)
+            .filter(Position.portfolio_id == 1)
+            .all()
+        }
+    )
+    result = {
+        "holdings": len(tickers),
+        "updated": 0,
+        "unchanged": 0,
+        "missing_report": 0,
+        "missing_snapshot": 0,
+    }
+
+    for ticker in tickers:
+        snapshot = (
+            db.query(Fundamentals)
+            .filter(Fundamentals.ticker == ticker)
+            .order_by(Fundamentals.as_of.desc(), Fundamentals.id.desc())
+            .first()
+        )
+        if snapshot is None:
+            result["missing_snapshot"] += 1
+            continue
+
+        earnings = _latest_reported_earnings(fmp.earnings(ticker), effective_as_of)
+        if not earnings:
+            result["missing_report"] += 1
+            continue
+
+        current = dict(snapshot.data or {})
+        if all(current.get(key) == value for key, value in earnings.items()):
+            result["unchanged"] += 1
+            continue
+
+        current.update(earnings)
+        snapshot.data = current
+        result["updated"] += 1
+
+    if commit:
+        db.commit()
+    else:
+        db.rollback()
+    return result
+
+
 def _prior_estimate_snapshot(db: Session, ticker: str, as_of: date) -> Fundamentals | None:
     """Most recent stored fundamentals at least REVISION_LOOKBACK_DAYS old.
 
@@ -387,6 +485,7 @@ def refresh_fundamentals(db: Session, fmp: FMPClient, max_tickers: int = 400) ->
     n = 0
     revisions_available = 0
     growth_available = 0
+    earnings_supported = True
     # Growth is one endpoint among several here. `_get` raises FMPAccessError on
     # 401/402/403 so a plan restriction can never masquerade as "no data" — but
     # unhandled that would abort refresh_fundamentals and take the rest of
@@ -419,6 +518,18 @@ def refresh_fundamentals(db: Session, fmp: FMPClient, max_tickers: int = 400) ->
             if revision:
                 revisions_available += 1
             data.update(revision)
+        # Earnings actuals are a subscriber-facing holding annotation, not a
+        # scoring factor. Restrict this endpoint to held names so adding the
+        # display does not make hundreds of extra calls per weekly refresh.
+        if earnings_supported and s.ticker in held:
+            try:
+                data.update(_latest_reported_earnings(fmp.earnings(s.ticker), as_of))
+            except FMPAccessError:
+                log.exception(
+                    "earnings is not available on this FMP plan; latest "
+                    "actual-versus-estimate data will remain unavailable"
+                )
+                earnings_supported = False
         if not data:
             continue
         # Update in place: (ticker, as_of) is unique, so a second run on the

@@ -3,16 +3,18 @@
 from __future__ import annotations
 
 import logging
+import math
 from datetime import date
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func
+from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
 from outpick_strategy import next_evaluation_friday, quant_to_signal
 
 from app.db.models import (
     CompositeScore,
+    Fundamentals,
     Portfolio,
     PortfolioSnapshot,
     Position,
@@ -127,6 +129,85 @@ def _pnl_pct(entry: float | None, current: float | None) -> float | None:
     return round((current - entry) / entry * 100, 2)
 
 
+def _finite_number(value) -> float | None:
+    """A JSON-safe finite float, or null for absent/malformed provider data."""
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return None
+    number = float(value)
+    return number if math.isfinite(number) else None
+
+
+def _latest_fundamentals_by_ticker(
+    db: Session, tickers: list[str]
+) -> dict[str, dict]:
+    """Public company facts from the newest point-in-time row per ticker.
+
+    The worker stores decimals (0.12 == 12%); this API names and returns actual
+    percentage values so every consumer formats the same number. Only reported
+    growth and consensus facts cross this boundary — no factor grades, weights,
+    thresholds, or other strategy rules.
+    """
+    if not tickers:
+        return {}
+
+    latest = (
+        db.query(
+            Fundamentals.ticker.label("ticker"),
+            func.max(Fundamentals.as_of).label("as_of"),
+        )
+        .filter(Fundamentals.ticker.in_(tickers))
+        .group_by(Fundamentals.ticker)
+        .subquery()
+    )
+    rows = (
+        db.query(Fundamentals)
+        .join(
+            latest,
+            and_(
+                Fundamentals.ticker == latest.c.ticker,
+                Fundamentals.as_of == latest.c.as_of,
+            ),
+        )
+        .all()
+    )
+
+    def pct(data: dict, key: str) -> float | None:
+        value = _finite_number(data.get(key))
+        return round(value * 100, 2) if value is not None else None
+
+    def surprise(data: dict, actual_key: str, estimate_key: str) -> float | None:
+        actual = _finite_number(data.get(actual_key))
+        estimate = _finite_number(data.get(estimate_key))
+        if actual is None or estimate is None or estimate == 0:
+            return None
+        return round((actual - estimate) / abs(estimate) * 100, 2)
+
+    result: dict[str, dict] = {}
+    for row in rows:
+        data = row.data or {}
+        result[row.ticker] = {
+            "as_of": row.as_of.isoformat(),
+            "growth_basis_period": data.get("growthBasisPeriod"),
+            "estimate_period": data.get("estimatePeriod"),
+            "revenue_growth_ttm_pct": pct(data, "revenueGrowthTTM"),
+            "eps_growth_ttm_pct": pct(data, "epsGrowthTTM"),
+            "revenue_estimate": _finite_number(data.get("revenueEstimateAvg")),
+            "eps_estimate": _finite_number(data.get("epsEstimateAvg")),
+            "revenue_revision_pct": pct(data, "revenueRevisionPct"),
+            "eps_revision_pct": pct(data, "epsRevisionPct"),
+            "earnings_report_date": data.get("earningsReportDate"),
+            "revenue_actual": _finite_number(data.get("revenueActual")),
+            "revenue_report_estimate": _finite_number(data.get("revenueEstimated")),
+            "revenue_surprise_pct": surprise(
+                data, "revenueActual", "revenueEstimated"
+            ),
+            "eps_actual": _finite_number(data.get("epsActual")),
+            "eps_report_estimate": _finite_number(data.get("epsEstimated")),
+            "eps_surprise_pct": surprise(data, "epsActual", "epsEstimated"),
+        }
+    return result
+
+
 @router.get("/strategy")
 def get_strategy(db: Session = Depends(get_db)):
     portfolio = db.get(Portfolio, 1)
@@ -161,6 +242,9 @@ def get_strategy(db: Session = Depends(get_db)):
     total_return = total_return_pct(db, portfolio)
     picks = picks_return(db, portfolio)
     sectors = _sector_by_ticker(db, [p.ticker for p in positions])
+    fundamentals = _latest_fundamentals_by_ticker(
+        db, [p.ticker for p in positions]
+    )
     holdings = [
         {
             "ticker": p.ticker,
@@ -175,6 +259,7 @@ def get_strategy(db: Session = Depends(get_db)):
             "is_house_money": bool(p.is_house_money),
             "weight_pct": round(p.market_value / equity * 100, 2) if equity else 0,
             "sector": p.sector or sectors.get(p.ticker),
+            "fundamentals": fundamentals.get(p.ticker),
         }
         for p in positions
     ]

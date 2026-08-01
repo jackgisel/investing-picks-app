@@ -211,5 +211,10 @@ class FMPClient:
         )
         return data if isinstance(data, list) else []
 
+    def earnings(self, ticker: str, limit: int = 8) -> list[dict]:
+        """Recent actual-versus-estimate earnings reports for one company."""
+        data = self._get("earnings", {"symbol": ticker, "limit": limit})
+        return data if isinstance(data, list) else []
+
     def close(self):
         self._client.close()

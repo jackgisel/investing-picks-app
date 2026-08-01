@@ -8,8 +8,10 @@ import { Tabs, TabPanel, type TabDef } from "@/components/dashboard/tabs";
 import { PositionsOpen } from "@/components/dashboard/positions-open";
 import { PositionsClosed } from "@/components/dashboard/positions-closed";
 import { PositionsActivity } from "@/components/dashboard/positions-activity";
+import { PositionsFundamentals } from "@/components/dashboard/positions-fundamentals";
+import { resolvePageAccessState } from "@/components/dashboard/access-state";
 
-type TabId = "open" | "closed" | "activity";
+type TabId = "open" | "fundamentals" | "closed" | "activity";
 
 /**
  * One surface for the book.
@@ -45,19 +47,20 @@ export default function PositionsPage() {
       error: q.error,
       isEmpty: false,
     });
-  const isGate = (s: string | null) =>
-    s === "unauthenticated" || s === "subscription";
-
   const strategyGate = gateFrom(strategyQuery);
   const closedGate = gateFrom(closedQuery);
-  const gate = isGate(strategyGate)
-    ? (strategyGate as "unauthenticated" | "subscription")
-    : isGate(closedGate)
-      ? (closedGate as "unauthenticated" | "subscription")
-      : null;
+  const pageState = resolvePageAccessState(closedGate, strategyGate);
+
+  let subtitle =
+    "Holdings, company fundamentals, closed positions, and every trade";
+  if (pageState === "subscription") subtitle = "Subscription required";
+  else if (pageState === "unauthenticated") subtitle = "Sign in to continue";
+  else if (pageState === "loading") subtitle = "Checking access...";
+  else if (pageState === "error") subtitle = "Live data unavailable";
 
   const tabs: readonly TabDef<TabId>[] = [
     { id: "open", label: "Open", badge: openCount?.toString() },
+    { id: "fundamentals", label: "Fundamentals" },
     { id: "closed", label: "Closed", badge: closedCount?.toString() },
     { id: "activity", label: "Activity" },
   ];
@@ -67,16 +70,15 @@ export default function PositionsPage() {
       <div>
         <h1 className="page-title">Positions</h1>
         <p className="mt-1 font-sans text-[13px] text-text-dim">
-          {gate
-            ? gate === "subscription"
-              ? "Subscription required"
-              : "Sign in to continue"
-            : "What the book holds, what it closed, and every trade behind it"}
+          {subtitle}
         </p>
       </div>
 
-      {gate ? (
-        <DataStateCard state={gate} error={strategyQuery.error} />
+      {pageState ? (
+        <DataStateCard
+          state={pageState}
+          error={closedQuery.error ?? strategyQuery.error}
+        />
       ) : (
         <div>
           <Tabs
@@ -93,6 +95,11 @@ export default function PositionsPage() {
           {tab === "closed" && (
             <TabPanel id="closed">
               <PositionsClosed />
+            </TabPanel>
+          )}
+          {tab === "fundamentals" && (
+            <TabPanel id="fundamentals">
+              <PositionsFundamentals />
             </TabPanel>
           )}
           {tab === "activity" && (

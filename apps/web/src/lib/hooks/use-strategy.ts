@@ -24,6 +24,24 @@ export interface Holding {
   /** Original stake already recovered via a Winners Circle partial sell. */
   is_house_money?: boolean;
   sector?: string | null;
+  fundamentals?: {
+    as_of: string;
+    growth_basis_period: string | null;
+    estimate_period: string | null;
+    revenue_growth_ttm_pct: number | null;
+    eps_growth_ttm_pct: number | null;
+    revenue_estimate: number | null;
+    eps_estimate: number | null;
+    revenue_revision_pct: number | null;
+    eps_revision_pct: number | null;
+    earnings_report_date: string | null;
+    revenue_actual: number | null;
+    revenue_report_estimate: number | null;
+    revenue_surprise_pct: number | null;
+    eps_actual: number | null;
+    eps_report_estimate: number | null;
+    eps_surprise_pct: number | null;
+  } | null;
 }
 
 export interface StrategyData {

@@ -24,6 +24,7 @@ import {
   resolveLiveCagr,
   formatPct,
 } from "@/lib/portfolio";
+import { CompanyLogo } from "@/components/ui/company-logo";
 
 const backtestSecondary = [
   { label: "Win rate", value: BACKTEST.winRate, green: true },
@@ -343,7 +344,10 @@ export function TrackRecord() {
                   key={`${w.ticker}-${i}`}
                   className="snap-start shrink-0 min-w-[160px] rounded-soft border border-border bg-bg px-5 py-4"
                 >
-                  <p className="font-mono text-[15px] font-bold mb-1">{w.ticker}</p>
+                  <div className="mb-3 flex items-center gap-2.5">
+                    <CompanyLogo ticker={w.ticker} size="sm" />
+                    <p className="font-mono text-[15px] font-bold">{w.ticker}</p>
+                  </div>
                   <p className="font-mono text-[18px] font-bold text-accent-green leading-none">
                     {w.ret}
                   </p>

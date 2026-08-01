@@ -10,6 +10,7 @@ import { getAdminUser } from "@/lib/admin";
 import { getAccess } from "@/lib/api-gate";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
 import { getInsightBySlug } from "@/lib/insights-db";
+import { CompanyLogo } from "@/components/ui/company-logo";
 
 type Params = { slug: string };
 
@@ -132,15 +133,22 @@ export default async function InsightDetailPage({
           </span>
         </div>
 
-        <h1 className="font-sans text-[28px] font-bold leading-[1.2] tracking-tight text-text sm:text-[32px]">
-          {insight.title ?? insight.slug}
-        </h1>
+        <div className="flex items-start gap-4 sm:gap-5">
+          {insight.ticker ? (
+            <CompanyLogo ticker={insight.ticker} size="lg" priority />
+          ) : null}
+          <div className="min-w-0 flex-1">
+            <h1 className="font-sans text-[28px] font-bold leading-[1.2] tracking-tight text-text sm:text-[32px]">
+              {insight.title ?? insight.slug}
+            </h1>
 
-        {insight.description && (
-          <p className="mt-4 font-sans text-[16px] leading-[1.6] text-text-muted">
-            {insight.description}
-          </p>
-        )}
+            {insight.description && (
+              <p className="mt-4 font-sans text-[16px] leading-[1.6] text-text-muted">
+                {insight.description}
+              </p>
+            )}
+          </div>
+        </div>
       </header>
 
       <div className="pt-10">

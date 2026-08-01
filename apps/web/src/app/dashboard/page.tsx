@@ -7,6 +7,8 @@ import { LiveStatus } from "@/components/dashboard/live-status";
 import { PerformanceChart } from "@/components/dashboard/performance-chart";
 import { StatTile } from "@/components/dashboard/stat-tile";
 import { InsightsCard } from "@/components/dashboard/insights-card";
+import { resolvePageAccessState } from "@/components/dashboard/access-state";
+import { CompanyLogo } from "@/components/ui/company-logo";
 import {
   DataState,
   DataStateCard,
@@ -69,13 +71,11 @@ export default function DashboardPage() {
     isEmpty: (picksData?.picks?.length ?? 0) === 0,
   });
 
-  // Both surfaces sit behind the same paywall, so either one reporting a gate
-  // means the whole page is gated.
-  const gate = isGate(strategyState)
-    ? strategyState
-    : isGate(picksState)
-      ? picksState
-      : null;
+  // `/strategy` deliberately answers 200 with ticker-less holdings for public
+  // surfaces. Picks is the authoritative entitlement check, so do not render
+  // those anonymized rows while it is pending or failed.
+  const pageState = resolvePageAccessState(picksState, strategyState);
+  const gate = isGate(pageState) ? pageState : null;
 
   const strategyFailed = strategyState === "error";
 
@@ -110,17 +110,19 @@ export default function DashboardPage() {
         .slice(0, 4)
     : undefined;
 
-  const subtitle = gate
-    ? gate === "subscription"
-      ? "Subscription required"
-      : "Sign in to continue"
-    : strategyFailed
-      ? "Live data unavailable"
-      : strategyMeta
-        ? // Deliberately not strategyMeta.name — that is the internal
-          // portfolio label ("AP Strategy") and means nothing to a subscriber.
-          `Live portfolio · ${strategyMeta.evaluation_frequency} evaluation`
-        : "Loading...";
+  let subtitle = "Loading...";
+  if (gate) {
+    subtitle =
+      gate === "subscription" ? "Subscription required" : "Sign in to continue";
+  } else if (pageState === "loading") {
+    subtitle = "Checking access...";
+  } else if (pageState === "error" || strategyFailed) {
+    subtitle = "Live data unavailable";
+  } else if (strategyMeta) {
+    // Deliberately not strategyMeta.name — that is the internal portfolio
+    // label ("AP Strategy") and means nothing to a subscriber.
+    subtitle = `Live portfolio · ${strategyMeta.evaluation_frequency} evaluation`;
+  }
 
   return (
     <div className="space-y-5">
@@ -129,10 +131,10 @@ export default function DashboardPage() {
         <p className="font-sans text-[13px] text-text-dim mt-1">{subtitle}</p>
       </div>
 
-      {gate ? (
+      {pageState ? (
         <DataStateCard
-          state={gate}
-          error={strategyQuery.error ?? picksQuery.error}
+          state={pageState}
+          error={picksQuery.error ?? strategyQuery.error}
         />
       ) : (
         <>
@@ -323,12 +325,16 @@ function HoldingsCard({
             emptyMessage="The book is empty right now."
           />
         ) : (
-          holdings?.map((h) => (
+          holdings?.map((h, index) => (
             <div
-              key={h.ticker}
+              // Index is only the defensive fallback for identity-stripped
+              // public rows; resolvePageAccessState prevents those rows from
+              // rendering on this paid surface in normal operation.
+              key={h.ticker ?? `anonymous-holding-${index}`}
               className="flex items-center justify-between px-5 py-3 hover:bg-bg-tertiary/50 transition-colors"
             >
               <div className="flex items-center gap-3">
+                <CompanyLogo ticker={h.ticker} size="sm" />
                 <span className="font-mono text-[14px] font-semibold w-14">
                   {h.ticker}
                 </span>

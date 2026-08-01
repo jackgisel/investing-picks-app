@@ -18,6 +18,7 @@ import {
 import { formatPctOrDash, pnlClass } from "@/lib/portfolio";
 import { insightForTicker } from "@/lib/insights";
 import { useInsights } from "@/lib/hooks/use-insights";
+import { CompanyLogo } from "@/components/ui/company-logo";
 
 type SortKey = "ticker" | "entry_date" | "exit_date" | "pnl_pct";
 
@@ -113,20 +114,23 @@ export function PositionsClosed() {
                       className="border-b border-border transition-colors last:border-b-0 hover:bg-bg-tertiary/50"
                     >
                       <td className="px-5 py-3.5">
-                        {slug ? (
-                          <Link
-                            href={`/dashboard/insights/${slug}`}
-                            title="Read the research note"
-                            className="inline-flex items-center gap-1.5 font-mono text-[14px] font-semibold text-text underline underline-offset-4 hover:opacity-70"
-                          >
-                            {p.ticker}
-                            <FileText size={11} className="text-accent-lilac" />
-                          </Link>
-                        ) : (
-                          <span className="font-mono text-[14px] font-semibold">
-                            {p.ticker}
-                          </span>
-                        )}
+                        <span className="flex items-center gap-2.5">
+                          <CompanyLogo ticker={p.ticker} size="sm" />
+                          {slug ? (
+                            <Link
+                              href={`/dashboard/insights/${slug}`}
+                              title="Read the research note"
+                              className="inline-flex items-center gap-1.5 font-mono text-[14px] font-semibold text-text underline underline-offset-4 hover:opacity-70"
+                            >
+                              {p.ticker}
+                              <FileText size={11} className="text-accent-lilac" />
+                            </Link>
+                          ) : (
+                            <span className="font-mono text-[14px] font-semibold">
+                              {p.ticker}
+                            </span>
+                          )}
+                        </span>
                       </td>
                       <td className="px-5 py-3.5 font-mono text-[12px] text-text-muted">
                         {p.entry_date}

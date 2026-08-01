@@ -150,7 +150,17 @@ describe("paywallResponse", () => {
 describe("anonymiseStrategy", () => {
   const payload = {
     holdings: [
-      { ticker: "WDC", entry_date: "2026-01-02", pnl_pct: 12.5, weight_pct: 8.1, sector: "Technology" },
+      {
+        ticker: "WDC",
+        entry_date: "2026-01-02",
+        pnl_pct: 12.5,
+        weight_pct: 8.1,
+        sector: "Technology",
+        fundamentals: {
+          revenue_actual: 12_345_678_901,
+          eps_actual: 4.2,
+        },
+      },
     ],
     portfolio: {
       position_count: 1,
@@ -185,6 +195,7 @@ describe("anonymiseStrategy", () => {
     const serialised = JSON.stringify(anonymiseStrategy(payload));
     expect(serialised).not.toContain("WDC");
     expect(serialised).not.toContain("2026-01-02");
+    expect(serialised).not.toContain("12345678901");
   });
 
   it("strips the ticker list and every dollar figure", () => {

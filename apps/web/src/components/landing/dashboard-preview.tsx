@@ -3,6 +3,7 @@
 import { BACKTEST, FINAL_HOLDINGS, WINNERS_CIRCLE } from "@/lib/constants";
 import { PillButton } from "@/components/ui/pill-button";
 import { useSession } from "@/lib/auth-client";
+import { CompanyLogo } from "@/components/ui/company-logo";
 
 const visibleHoldings = 3;
 const visibleWinners = 3;
@@ -103,8 +104,11 @@ export function DashboardPreview() {
                         <td className="px-6 py-3.5 font-mono text-[11px] text-text-dim">
                           {String(i + 1).padStart(2, "0")}
                         </td>
-                        <td className="px-6 py-3.5 font-mono text-[14px] font-semibold">
-                          {h.ticker}
+                        <td className="px-6 py-3.5">
+                          <span className="flex items-center gap-2.5 font-mono text-[14px] font-semibold">
+                            <CompanyLogo ticker={h.ticker} size="xs" />
+                            <span>{h.ticker}</span>
+                          </span>
                         </td>
                         <td className="px-6 py-3.5 font-mono text-[12px] text-text-muted">
                           {h.entry}
@@ -149,6 +153,7 @@ export function DashboardPreview() {
                           : ""
                       }`}
                     >
+                      <CompanyLogo ticker={w.ticker} size="xxs" />
                       <span className="font-mono text-[12px] font-bold">
                         {w.ticker}
                       </span>

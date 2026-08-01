@@ -25,6 +25,7 @@ import {
 } from "@/lib/portfolio";
 import { insightForTicker } from "@/lib/insights";
 import { useInsights } from "@/lib/hooks/use-insights";
+import { CompanyLogo } from "@/components/ui/company-logo";
 
 type SortKey = "ticker" | "sector" | "weight_pct" | "entry_date" | "pnl_pct";
 
@@ -159,43 +160,50 @@ export function PositionsOpen() {
                   emptyMessage="The book has no open positions right now. New positions appear here as soon as they are opened."
                 />
               ) : (
-                sorted?.map((h) => {
+                sorted?.map((h, index) => {
                   const slug = insightForTicker(insights, h.ticker)?.slug;
                   const signal = h.ticker
                     ? signalByTicker.get(h.ticker)
                     : undefined;
                   return (
                     <tr
-                      key={h.ticker ?? h.entry_date ?? "row"}
+                      key={
+                        h.ticker ??
+                        h.entry_date ??
+                        `anonymous-holding-${index}`
+                      }
                       className="border-b border-border transition-colors last:border-b-0 hover:bg-bg-tertiary/50"
                     >
                       <td className="px-5 py-3.5">
-                        <span className="flex items-center gap-2">
-                          {slug ? (
-                            <Link
-                              href={`/dashboard/insights/${slug}`}
-                              title="Read the research note"
-                              className="inline-flex items-center gap-1.5 font-mono text-[14px] font-semibold text-text underline underline-offset-4 hover:opacity-70"
-                            >
-                              {h.ticker}
-                              <FileText
-                                size={11}
-                                className="text-accent-lilac"
-                              />
-                            </Link>
-                          ) : (
-                            <span className="font-mono text-[14px] font-semibold">
-                              {h.ticker ?? "—"}
-                            </span>
-                          )}
-                          {h.is_house_money && (
-                            <span
-                              className="badge badge-buy !px-2 !text-[9px]"
-                              title="The original stake has already been recovered via a Winners Circle partial sell — this position is running on profit."
-                            >
-                              House
-                            </span>
-                          )}
+                        <span className="flex items-center gap-2.5">
+                          <CompanyLogo ticker={h.ticker} size="sm" />
+                          <span className="flex items-center gap-2">
+                            {slug ? (
+                              <Link
+                                href={`/dashboard/insights/${slug}`}
+                                title="Read the research note"
+                                className="inline-flex items-center gap-1.5 font-mono text-[14px] font-semibold text-text underline underline-offset-4 hover:opacity-70"
+                              >
+                                {h.ticker}
+                                <FileText
+                                  size={11}
+                                  className="text-accent-lilac"
+                                />
+                              </Link>
+                            ) : (
+                              <span className="font-mono text-[14px] font-semibold">
+                                {h.ticker ?? "—"}
+                              </span>
+                            )}
+                            {h.is_house_money && (
+                              <span
+                                className="badge badge-buy !px-2 !text-[9px]"
+                                title="The original stake has already been recovered via a Winners Circle partial sell — this position is running on profit."
+                              >
+                                House
+                              </span>
+                            )}
+                          </span>
                         </span>
                       </td>
                       <td className="whitespace-nowrap px-5 py-3.5 font-sans text-[12px] text-text-muted">

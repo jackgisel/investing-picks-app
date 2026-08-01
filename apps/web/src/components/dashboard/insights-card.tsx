@@ -5,6 +5,7 @@ import { ArrowUpRight, FileText } from "lucide-react";
 import { insightsForTickers, type InsightMeta } from "@/lib/insights";
 import { useInsights } from "@/lib/hooks/use-insights";
 import type { Holding } from "@/lib/hooks/use-strategy";
+import { CompanyLogo } from "@/components/ui/company-logo";
 
 const MAX_ROWS = 5;
 
@@ -25,8 +26,9 @@ function InsightRow({ insight }: { insight: InsightMeta }) {
       className="group flex items-start gap-3 px-5 py-3.5 transition-colors hover:bg-bg-tertiary/50 focus-visible:outline-none focus-visible:bg-bg-tertiary/50"
     >
       {insight.ticker && (
-        <span className="mt-px w-12 shrink-0 font-mono text-[13px] font-semibold">
-          {insight.ticker}
+        <span className="mt-px flex w-[82px] shrink-0 items-center gap-2 font-mono text-[12px] font-semibold">
+          <CompanyLogo ticker={insight.ticker} size="xs" />
+          <span>{insight.ticker}</span>
         </span>
       )}
       <span className="min-w-0 flex-1">

@@ -35,6 +35,19 @@ log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["public"])
 
+_INTERNAL_TRADE_REASON_LABELS = {
+    "Manual entry (admin)": "Added to the live portfolio",
+    "Manual edit (admin)": "Position record adjusted",
+    "Manual removal (admin)": "Removed from the live portfolio",
+}
+
+
+def _public_trade_reason(reason: str | None) -> str | None:
+    """Keep operational ledger labels out of the subscriber-facing API."""
+    if reason is None:
+        return None
+    return _INTERNAL_TRADE_REASON_LABELS.get(reason, reason)
+
 #: What `/performance`'s `total_return_pct` — and the CAGR derived from it —
 #: measure. Published so the two figures cannot be read against the wrong base.
 RETURN_BASIS = "portfolio_equity"
@@ -433,7 +446,7 @@ def get_trades(db: Session = Depends(get_db), limit: int = 100):
                 "side": t.side,
                 "action": t.action,
                 "date": t.timestamp.date().isoformat() if t.timestamp else None,
-                "reason": t.reason,
+                "reason": _public_trade_reason(t.reason),
                 "evaluation_id": t.evaluation_id,
             }
             for t in rows

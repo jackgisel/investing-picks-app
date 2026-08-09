@@ -36,8 +36,8 @@ export default function PrivacyPage() {
           <p className="mb-3">
             <strong className="text-text">Account information:</strong> When you
             create an account, we collect your email address and name. We do not
-            store payment card details — all payment processing is handled by
-            Paddle, our merchant of record.
+            store payment card details. Stripe processes payments for Outpick
+            and may collect your billing address and tax-related location data.
           </p>
           <p className="mb-3">
             <strong className="text-text">Usage data:</strong> We may collect
@@ -76,16 +76,17 @@ export default function PrivacyPage() {
             data:
           </p>
           <p className="mb-2">
-            <strong className="text-text">Paddle</strong> — Payment processing
-            and merchant of record. Paddle processes your payment information
-            and handles tax compliance. See{" "}
+            <strong className="text-text">Stripe</strong> — Payment processing,
+            hosted billing pages, invoices, and tax calculation. We share your
+            account identifier, email, name, billing address, subscription, and
+            transaction details with Stripe as needed to provide billing. See{" "}
             <a
-              href="https://www.paddle.com/legal/privacy"
+              href="https://stripe.com/privacy"
               className="text-accent-green hover:underline"
               target="_blank"
               rel="noopener noreferrer"
             >
-              Paddle&apos;s Privacy Policy
+              Stripe&apos;s Privacy Policy
             </a>
             .
           </p>

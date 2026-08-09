@@ -43,11 +43,11 @@ export function PricingPlanCard() {
         </p>
         {active && (
           <p className="font-sans text-[13px] text-text-dim mt-3">
-            Standard {PRICING.label} after founders window
+            Then {PRICING.label} from your second year
           </p>
         )}
         <p className="font-sans text-[14px] text-text-muted mt-5 leading-relaxed">
-          Billed annually via Paddle. Cancel anytime.
+          Billed annually via Stripe, plus applicable taxes. Cancel anytime.
           {active && (
             <>
               {" "}
@@ -78,7 +78,7 @@ export function PricingPlanCard() {
       </ul>
 
       <div className="px-8 sm:px-10 py-8">
-        <PillButton href="/dashboard" arrow className="w-full">
+        <PillButton href="/subscribe" arrow className="w-full">
           {active ? "Start at founders rate" : "Start membership"}
         </PillButton>
       </div>

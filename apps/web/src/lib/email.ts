@@ -5,6 +5,7 @@ import {
   renderNewPickEmail,
   renderDeleteAccountEmail,
   renderVerifyEmail,
+  renderMembershipWelcomeEmail,
   renderMarketNoteWelcomeEmail,
   type PickStat,
 } from "@/lib/email-templates";
@@ -31,6 +32,8 @@ type SendArgs = {
    * bulk senders that omit them, regardless of what the message body says.
    */
   headers?: Record<string, string>;
+  /** Stable provider-level deduplication key for retried transactional sends. */
+  idempotencyKey?: string;
 };
 
 export type SendResult = { ok: boolean; error?: string; id?: string };
@@ -47,14 +50,19 @@ async function send(args: SendArgs): Promise<SendResult> {
   }
 
   try {
-    const result = await client.emails.send({
+    const payload = {
       from: FROM_ADDRESS,
       to: args.to,
       subject: args.subject,
       html: args.html,
       text: args.text,
       headers: args.headers,
-    });
+    };
+    const result = args.idempotencyKey
+      ? await client.emails.send(payload, {
+          idempotencyKey: args.idempotencyKey,
+        })
+      : await client.emails.send(payload);
     if (result.error) {
       console.error("[email] Resend error:", result.error);
       return { ok: false, error: result.error.message ?? "send failed" };
@@ -164,13 +172,39 @@ export async function sendVerifyEmail(args: {
     siteUrl: SITE_URL,
     banner: args.banner,
   });
-  const text = `Verify your email\n\nConfirm this address to finish setting up your ${SITE_NAME} account:\n\n${args.verifyUrl}\n\nIf you didn't sign up, you can ignore this email.`;
+  const text = `Welcome to ${SITE_NAME}.\n\nConfirm this address to finish setting up your account and continue to secure membership checkout:\n\n${args.verifyUrl}\n\nIf you didn't sign up, you can ignore this email.`;
 
   return send({
     to: args.to,
-    subject: `Verify your ${SITE_NAME} email address`,
+    subject: `Welcome to ${SITE_NAME} — verify your email`,
     html,
     text,
+  });
+}
+
+/* -------------------------- Membership welcome -------------------------- */
+
+export async function sendMembershipWelcomeEmail(args: {
+  to: string;
+  name: string | null;
+  stripeSubscriptionId: string;
+  banner?: string;
+}): Promise<SendResult> {
+  const welcomeUrl = `${SITE_URL}/welcome`;
+  const html = renderMembershipWelcomeEmail({
+    name: args.name,
+    welcomeUrl,
+    siteUrl: SITE_URL,
+    banner: args.banner,
+  });
+  const text = `Your ${SITE_NAME} membership is active.\n\nStart with the live portfolio, read the research behind every published pick, and choose which updates reach your inbox.\n\nGet oriented: ${welcomeUrl}\n\nManage billing or email preferences: ${SITE_URL}/dashboard/settings`;
+
+  return send({
+    to: args.to,
+    subject: `Your ${SITE_NAME} membership is active`,
+    html,
+    text,
+    idempotencyKey: `outpick-membership-${args.stripeSubscriptionId}`,
   });
 }
 

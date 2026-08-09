@@ -14,10 +14,10 @@ export function PriceLine({ className = "" }: { className?: string }) {
     <p className={`font-sans text-[13px] text-text-dim ${className}`}>
       {active ? (
         <>
-          Founders: {PRICING.foundersLabel} · then {PRICING.label}
+          Founders: {PRICING.foundersLabel} · then {PRICING.label} · plus tax
         </>
       ) : (
-        <>{PRICING.label} · billed annually</>
+        <>{PRICING.label} · billed annually · plus applicable taxes</>
       )}
     </p>
   );

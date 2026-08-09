@@ -39,7 +39,7 @@ export function Hero() {
             </p>
 
             <div className="hero-reveal hero-reveal-5">
-              <PillButton href="/dashboard" arrow>
+              <PillButton href="/subscribe" arrow>
                 Start your membership
               </PillButton>
               <PriceLine className="mt-4" />

@@ -23,6 +23,8 @@ from datetime import date
 
 import httpx
 
+from worker.jobs.deadline import JobDeadline
+
 log = logging.getLogger(__name__)
 
 # httpx logs every request's full URL at INFO, and FMP takes the credential as
@@ -55,6 +57,7 @@ class FMPClient:
         base_url: str = DEFAULT_BASE_URL,
         rate_limit: int = 60,
         max_retries: int = 4,
+        deadline: JobDeadline | None = None,
     ):
         self.api_key = api_key
         base = (base_url or DEFAULT_BASE_URL).rstrip("/")
@@ -70,12 +73,20 @@ class FMPClient:
         self._min_interval = 60.0 / max(rate_limit, 1)
         self._last_call = 0.0
         self._max_retries = max(max_retries, 0)
+        self._deadline = deadline
         self._client = httpx.Client(timeout=30.0)
 
+    def _check_deadline(self) -> float | None:
+        return self._deadline.remaining_seconds() if self._deadline else None
+
     def _throttle(self) -> None:
+        self._check_deadline()
         wait = self._min_interval - (time.monotonic() - self._last_call)
         if wait > 0:
-            time.sleep(wait)
+            if self._deadline:
+                self._deadline.sleep(wait)
+            else:
+                time.sleep(wait)
 
     def _get(self, path: str, params: dict | None = None) -> list | dict | None:
         if not self.api_key:
@@ -90,8 +101,14 @@ class FMPClient:
             self._throttle()
             self._last_call = time.monotonic()
             try:
-                r = self._client.get(url, params=params)
+                remaining = self._check_deadline()
+                # The request itself must not outlive the total job budget.
+                request_timeout = min(30.0, remaining) if remaining else 30.0
+                r = self._client.get(url, params=params, timeout=request_timeout)
             except Exception as e:
+                # A request timeout at the edge of the total budget is a job
+                # timeout, not an ordinary missing FMP response.
+                self._check_deadline()
                 # Never interpolate the response/URL directly — it carries the
                 # api key as a query parameter and would land in the logs.
                 log.error("FMP %s failed: %s", path, type(e).__name__)
@@ -110,7 +127,10 @@ class FMPClient:
                         attempt + 1,
                         self._max_retries,
                     )
-                    time.sleep(backoff)
+                    if self._deadline:
+                        self._deadline.sleep(backoff)
+                    else:
+                        time.sleep(backoff)
                     continue
                 log.error("FMP %s rate limited; giving up", path)
                 return None

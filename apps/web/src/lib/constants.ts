@@ -115,11 +115,3 @@ export const FINAL_HOLDINGS = [
   { ticker: "NUTX", entry: "2025-08-18", ret: "-7.51%",   fromPeak: "-46.7%" },
   { ticker: "SEZL", entry: "2025-02-03", ret: "-42.91%",  fromPeak: "-62.0%" },
 ];
-
-
-export const PADDLE_CLIENT_TOKEN = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN || "";
-export const PADDLE_PRICE_ID = process.env.NEXT_PUBLIC_PADDLE_PRICE_ID || "";
-// Founders price ($250/yr) — used at checkout while the founders deal is active.
-// Falls back to the standard price ID if not configured.
-export const PADDLE_FOUNDERS_PRICE_ID =
-  process.env.NEXT_PUBLIC_PADDLE_FOUNDERS_PRICE_ID || "";

@@ -1,4 +1,5 @@
 import { pool } from "@/lib/db";
+import { reviewWindowHours } from "@/lib/review-window";
 import type {
   Insight,
   InsightDraftFields,
@@ -34,12 +35,14 @@ interface DbInsightRow {
   generation_error: string | null;
   published_at: Date | null;
   email_sent_at: Date | null;
+  auto_publish_at: Date | null;
   created_at: Date;
   updated_at: Date;
 }
 
 const META_COLUMNS = `id, slug, ticker, post_type, status, title, description,
-  reading_time, tags, author, quarter, published_at, created_at, updated_at`;
+  reading_time, tags, author, quarter, published_at, auto_publish_at,
+  created_at, updated_at`;
 
 const FULL_COLUMNS = `${META_COLUMNS}, lede, tldr, body_md, key_takeaway,
   generation_error, email_sent_at`;
@@ -59,6 +62,7 @@ function toMeta(r: DbInsightRow): InsightMeta {
     author: r.author,
     quarter: r.quarter,
     publishedAt: r.published_at ? r.published_at.toISOString() : null,
+    autoPublishAt: r.auto_publish_at ? r.auto_publish_at.toISOString() : null,
     createdAt: r.created_at.toISOString(),
     updatedAt: r.updated_at.toISOString(),
   };
@@ -183,12 +187,21 @@ export async function listPendingInsights(): Promise<InsightMeta[]> {
  * A slug collision is survivable and silently ignored (the note keeps the one
  * it had). Two notes wanting the same URL is a naming coincidence, not a
  * reason to throw away a draft that just cost a model call.
+ *
+ * This is also where the auto-publish clock starts. Every path that produces a
+ * body goes through here, so stamping `auto_publish_at` in this statement is
+ * what guarantees no draft can exist without a deadline — including one that
+ * was rejected and then regenerated, which gets a fresh window because the
+ * text an admin rejected is no longer the text that would go out.
+ *
+ * @param windowHours  Hours before the sweep may announce it.
  */
 export async function saveDraft(
   id: string,
   fields: InsightDraftFields,
   sourceFacts: unknown,
   slug?: string,
+  windowHours: number = reviewWindowHours(),
 ): Promise<Insight | null> {
   const { rows } = await pool.query<DbInsightRow>(
     `UPDATE insight
@@ -203,7 +216,8 @@ export async function saveDraft(
                      ) THEN slug
                      ELSE $11::text
                    END,
-            status = 'draft', generation_error = NULL, updated_at = NOW()
+            status = 'draft', generation_error = NULL, updated_at = NOW(),
+            auto_publish_at = NOW() + ($12::numeric * INTERVAL '1 hour')
       WHERE id = $1
         -- An approved note is immutable through this path. Regenerating one
         -- would silently rewrite something subscribers were already mailed.
@@ -221,6 +235,7 @@ export async function saveDraft(
       fields.readingTime,
       JSON.stringify(sourceFacts ?? null),
       slug ?? null,
+      windowHours,
     ],
   );
   return rows[0] ? toInsight(rows[0]) : null;
@@ -301,6 +316,65 @@ export async function claimForPublish(id: string): Promise<Insight | null> {
       WHERE id = $1
         AND email_sent_at IS NULL
         AND status = 'draft'
+      RETURNING ${FULL_COLUMNS}`,
+    [id],
+  );
+  return rows[0] ? toInsight(rows[0]) : null;
+}
+
+/**
+ * Drafts whose review window has expired, oldest deadline first.
+ *
+ * `status = 'draft'` is what excludes a rejected note: rejecting moves the row
+ * out of `draft`, so it can never match here no matter what its deadline says.
+ *
+ * The completeness checks are in the WHERE clause rather than in the caller so
+ * a half-written row cannot be selected and then skipped — the auto-publisher
+ * has no human reading its output, and a draft missing a body must simply sit
+ * there being visibly overdue in the ops queue.
+ */
+export async function listDraftsDueForPublish(
+  limit = 25,
+): Promise<InsightMeta[]> {
+  const { rows } = await pool.query<DbInsightRow>(
+    `SELECT ${META_COLUMNS}
+       FROM insight
+      WHERE status = 'draft'
+        AND email_sent_at IS NULL
+        AND auto_publish_at IS NOT NULL
+        AND auto_publish_at <= NOW()
+        AND post_type = 'pick'
+        AND ticker IS NOT NULL
+        AND title IS NOT NULL
+        AND description IS NOT NULL
+        AND body_md IS NOT NULL
+      ORDER BY auto_publish_at ASC
+      LIMIT $1`,
+    [limit],
+  );
+  return rows.map(toMeta);
+}
+
+/**
+ * Stop a draft from publishing itself.
+ *
+ * Clears `auto_publish_at` as well as moving the status: leaving a stale
+ * deadline on the row would make the ops queue claim a rejected note is still
+ * counting down. Regenerating stamps a fresh one.
+ *
+ * Returns null when the row is not a draft — most importantly when it is
+ * already approved, which is the race this is designed to lose safely. The
+ * sweep claims and rejection fails, rather than both appearing to succeed.
+ */
+export async function rejectInsight(id: string): Promise<Insight | null> {
+  const { rows } = await pool.query<DbInsightRow>(
+    `UPDATE insight
+        SET status = 'rejected',
+            auto_publish_at = NULL,
+            updated_at = NOW()
+      WHERE id = $1
+        AND status = 'draft'
+        AND email_sent_at IS NULL
       RETURNING ${FULL_COLUMNS}`,
     [id],
   );

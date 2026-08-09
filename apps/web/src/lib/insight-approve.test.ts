@@ -38,6 +38,7 @@ const DRAFT: Insight = {
   author: null,
   quarter: null,
   publishedAt: null,
+  autoPublishAt: "2026-07-18T00:00:00.000Z",
   createdAt: "2026-07-17T00:00:00.000Z",
   updatedAt: "2026-07-17T00:00:00.000Z",
   lede: "A lede.",

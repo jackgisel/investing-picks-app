@@ -17,7 +17,7 @@ export function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
   const active = activeHref(pathname, flatten(groups));
 
   return (
-    <aside className="w-60 shrink-0 border-r border-border bg-bg min-h-[calc(100vh-72px)] hidden lg:flex lg:flex-col">
+    <aside className="hidden w-60 shrink-0 border-r border-border bg-bg lg:sticky lg:top-[72px] lg:flex lg:h-[calc(100vh-72px)] lg:self-start lg:flex-col lg:overflow-y-auto">
       <nav aria-label="Dashboard" className="py-6 px-3">
         {groups.map((group) => (
           <div

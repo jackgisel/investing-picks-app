@@ -33,6 +33,7 @@ from app.services.portfolio import (
     ranked_candidates,
     run_evaluation,
 )
+from app.services.job_runs import reap_stale_job_runs
 from outpick_strategy import (
     evaluate,
     grade_meets_minimum,
@@ -47,11 +48,6 @@ assert_ops_key_configured()
 log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/ops", tags=["ops"])
-
-# A weekly_refresh that died mid-flight leaves its JobRun on "running" forever.
-# Without an expiry that row would block every future manual refresh, so treat
-# anything older than this as dead rather than in progress.
-STALE_JOB_AFTER = timedelta(hours=2)
 
 # Rounding tolerance for cash comparisons (floats).
 CASH_EPSILON = 1e-6
@@ -729,7 +725,12 @@ def trigger_refresh(background: BackgroundTasks, db: Session = Depends(get_db)):
     than a request should live, so this returns 202 immediately and the caller
     watches /jobs for the outcome.
     """
-    cutoff = datetime.now(timezone.utc) - STALE_JOB_AFTER
+    timeout = timedelta(minutes=get_settings().weekly_refresh_timeout_minutes)
+    reap_stale_job_runs(
+        db,
+        job_name="weekly_refresh",
+        stale_after=timeout,
+    )
     running = (
         db.query(JobRun)
         .filter(JobRun.job_name == "weekly_refresh", JobRun.status == "running")
@@ -737,14 +738,10 @@ def trigger_refresh(background: BackgroundTasks, db: Session = Depends(get_db)):
         .first()
     )
     if running is not None:
-        started = running.started_at
-        if started is not None and started.tzinfo is None:
-            started = started.replace(tzinfo=timezone.utc)
-        if started is None or started > cutoff:
-            raise HTTPException(
-                status_code=409,
-                detail="A refresh is already running; watch /api/ops/jobs.",
-            )
+        raise HTTPException(
+            status_code=409,
+            detail="A refresh is already running; watch /api/ops/jobs.",
+        )
 
     background.add_task(_run_weekly_refresh_task)
     return {"started": True, "job_name": "weekly_refresh"}

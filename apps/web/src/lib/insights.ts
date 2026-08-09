@@ -13,17 +13,26 @@ export type InsightPostType = "pick" | "quarterly_review";
 
 /**
  * `pending` — the row exists because a pick does, but has no body yet.
- * `draft`   — Claude wrote one; awaiting review.
+ * `draft`   — Claude wrote one. Publishes itself once `autoPublishAt` passes
+ *             unless an admin rejects it first; see `lib/insight-auto-publish`.
  * `failed`  — generation errored; see `generationError`.
  * `approved`— published and announced. Terminal.
+ * `rejected`— an admin stopped it inside the review window. Terminal for the
+ *             auto-publisher; regenerating moves it back to `draft`.
  */
-export type InsightStatus = "pending" | "draft" | "failed" | "approved";
+export type InsightStatus =
+  | "pending"
+  | "draft"
+  | "failed"
+  | "approved"
+  | "rejected";
 
 export const INSIGHT_STATUSES: readonly InsightStatus[] = [
   "pending",
   "draft",
   "failed",
   "approved",
+  "rejected",
 ] as const;
 
 /** Everything a card or a link needs. No article body — see `Insight`. */
@@ -40,6 +49,12 @@ export type InsightMeta = {
   author: string | null;
   quarter: string | null;
   publishedAt: string | null;
+  /**
+   * When the auto-publisher will announce this draft. Null on rows that are not
+   * awaiting a window (pending, failed, rejected, already approved). Shown in
+   * the ops queue so the deadline is never a surprise.
+   */
+  autoPublishAt: string | null;
   createdAt: string;
   updatedAt: string;
 };

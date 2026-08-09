@@ -109,8 +109,8 @@ export function DataState({
           Your account is signed in but does not have an active subscription.
         </Body>
         <div className="flex flex-wrap items-center justify-center gap-3 mt-1">
-          <Link href="/#pricing" className="btn-primary !text-xs !px-6 !py-3">
-            View membership
+          <Link href="/subscribe" className="btn-primary !text-xs !px-6 !py-3">
+            Start membership
           </Link>
           <Link
             href="/dashboard/settings"

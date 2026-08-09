@@ -31,6 +31,8 @@ function note(ticker: string | null, publishedAt: string): InsightMeta {
     author: null,
     quarter: null,
     publishedAt,
+    // Approved notes have no pending deadline — the send already happened.
+    autoPublishAt: null,
     createdAt: publishedAt,
     updatedAt: publishedAt,
   };

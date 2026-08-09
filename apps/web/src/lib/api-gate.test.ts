@@ -67,12 +67,19 @@ describe("decideAccess", () => {
     },
   );
 
-  it.each(["canceled", "paused"])("does not entitle %s", async (status) => {
+  it.each([
+    "inactive",
+    "incomplete",
+    "incomplete_expired",
+    "canceled",
+    "unpaid",
+    "paused",
+  ])("does not entitle %s", async (status) => {
     const { d } = deps({ status });
     expect(await decideAccess(d)).toMatchObject({ entitled: false });
   });
 
-  // past_due is deliberate: Paddle retries for days, and locking a paying
+  // past_due is deliberate: Stripe retries for days, and locking a paying
   // customer out mid-dunning churns them.
   it("keeps past_due entitled", async () => {
     const { d } = deps({ status: "past_due" });

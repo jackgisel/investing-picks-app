@@ -131,21 +131,22 @@ export default function TermsPage() {
             6. Subscription and Payment
           </h2>
           <p className="mb-3">
-            Access to the Service requires a paid annual subscription. Payment is
-            processed through Paddle.com Market Limited (&quot;Paddle&quot;), our
-            merchant of record. Paddle handles billing, sales tax, VAT,
-            invoicing, and payment processing on our behalf. Your contractual
-            relationship for payment purposes is with Paddle, and their terms of
-            service apply to all transactions.
+            Access to the Service requires a paid annual subscription. Outpick
+            is the seller of the Service. Stripe is our payment processor and
+            provides hosted checkout, billing, and invoicing. Stripe Tax
+            calculates applicable sales tax, VAT, or similar taxes based on the
+            information provided at checkout and our registered jurisdictions.
           </p>
           <p className="mb-3">
             By subscribing, you authorize recurring annual charges to your
-            chosen payment method. The subscription fee is $1,000 USD per year,
-            billed annually.
+            chosen payment method. The standard subscription fee is $1,000 USD
+            per year, billed annually, plus applicable taxes. Eligible founders
+            accounts pay $250 USD for the first annual period only and $1,000
+            USD per year thereafter, plus applicable taxes.
           </p>
           <p>
             You may cancel your subscription at any time through your account
-            settings or by contacting Paddle directly. Cancellation takes effect
+            settings through the Stripe Customer Portal. Cancellation takes effect
             at the end of your current billing period. We do not offer prorated
             refunds for partial subscription periods.
           </p>
@@ -160,8 +161,7 @@ export default function TermsPage() {
             research and portfolio data), all sales are final. We do not offer
             refunds except where required by applicable law or at our sole
             discretion in exceptional circumstances. Refund requests may be
-            directed to Paddle as our merchant of record, or to us at{" "}
-            hello@outpick.xyz.
+            directed to us at hello@outpick.xyz.
           </p>
         </section>
 

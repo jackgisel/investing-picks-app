@@ -17,7 +17,9 @@ export function StatsBar() {
   const hasReturn = totalReturnPct !== null;
   // Same resolver the track-record card uses, so the two sections can never
   // disagree about whether the live window is long enough to annualize.
-  const cagr = resolveLiveCagr(totalReturnPct, chart?.summary);
+  // "picks" because the figure beside it is the picks return — annualizing the
+  // equity return here put +6.43% next to a +21.36% headline.
+  const cagr = resolveLiveCagr(totalReturnPct, chart?.summary, "picks");
   const liveDoubled = countDoubledWinners(strategy?.holdings);
 
   return (

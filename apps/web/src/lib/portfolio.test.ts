@@ -125,81 +125,176 @@ describe("computeAnnualizedReturn", () => {
 describe("resolveLiveCagr", () => {
   // The one gate on a published performance claim.
   it("prefers the API verdict so backend and marketing cannot drift", () => {
-    const r = resolveLiveCagr(10, {
-      annualized_status: "ok",
-      annualized_return_pct: 42,
-      days_live: 400,
-      days_recorded: 400,
-    });
+    const r = resolveLiveCagr(
+      10,
+      {
+        annualized_status: "ok",
+        annualized_return_pct: 42,
+        days_live: 400,
+        days_recorded: 400,
+      },
+      "equity",
+    );
     expect(r).toMatchObject({ status: "ok", value: 42 });
   });
 
   it("downgrades an 'ok' verdict that carries no number", () => {
-    const r = resolveLiveCagr(10, {
-      annualized_status: "ok",
-      annualized_return_pct: null,
-      days_live: 400,
-      days_recorded: 400,
-    });
+    const r = resolveLiveCagr(
+      10,
+      {
+        annualized_status: "ok",
+        annualized_return_pct: null,
+        days_live: 400,
+        days_recorded: 400,
+      },
+      "equity",
+    );
     expect(r).toMatchObject({ status: "unavailable", value: null });
   });
 
   it("blanks the value for any non-ok API verdict", () => {
-    const r = resolveLiveCagr(10, {
-      annualized_status: "window_too_short",
-      annualized_return_pct: 999,
-      days_live: 5,
-      days_recorded: 5,
-    });
+    const r = resolveLiveCagr(
+      10,
+      {
+        annualized_status: "window_too_short",
+        annualized_return_pct: 999,
+        days_live: 5,
+        days_recorded: 5,
+      },
+      "equity",
+    );
     expect(r).toMatchObject({ status: "window_too_short", value: null });
   });
 
   it("falls back to the local rule for an unrecognised API status", () => {
-    const r = resolveLiveCagr(10, {
-      annualized_status: "something_new",
-      days_live: 5,
-      days_recorded: 5,
-      min_window_days: 30,
-    });
+    const r = resolveLiveCagr(
+      10,
+      {
+        annualized_status: "something_new",
+        days_live: 5,
+        days_recorded: 5,
+        min_window_days: 30,
+      },
+      "equity",
+    );
     expect(r.status).toBe("window_too_short");
   });
 
   it("is unavailable with no return at all", () => {
-    const r = resolveLiveCagr(null, { days_live: 400, days_recorded: 400 });
+    const r = resolveLiveCagr(
+      null,
+      { days_live: 400, days_recorded: 400 },
+      "equity",
+    );
     expect(r).toMatchObject({ status: "unavailable", value: null });
   });
 
   it("is unavailable on day zero", () => {
-    const r = resolveLiveCagr(10, { days_live: 0, days_recorded: 0 });
+    const r = resolveLiveCagr(10, { days_live: 0, days_recorded: 0 }, "equity");
     expect(r).toMatchObject({ status: "unavailable" });
   });
 
   it("refuses to annualize before the minimum window", () => {
-    const r = resolveLiveCagr(10, {
-      days_live: 10,
-      days_recorded: 10,
-      min_window_days: 30,
-    });
+    const r = resolveLiveCagr(
+      10,
+      { days_live: 10, days_recorded: 10, min_window_days: 30 },
+      "equity",
+    );
     expect(r.status).toBe("window_too_short");
   });
 
   // The chart must be able to back up the claim.
   it("refuses when recorded history does not cover the days claimed", () => {
-    const r = resolveLiveCagr(10, {
-      days_live: 400,
-      days_recorded: 10,
-      min_window_days: 30,
-    });
+    const r = resolveLiveCagr(
+      10,
+      { days_live: 400, days_recorded: 10, min_window_days: 30 },
+      "equity",
+    );
     expect(r.status).toBe("insufficient_history");
   });
 
   it("reports not_meaningful for a total loss", () => {
-    const r = resolveLiveCagr(-100, {
-      days_live: 400,
-      days_recorded: 400,
-      min_window_days: 30,
-    });
+    const r = resolveLiveCagr(
+      -100,
+      { days_live: 400, days_recorded: 400, min_window_days: 30 },
+      "equity",
+    );
     expect(r.status).toBe("not_meaningful");
+  });
+
+  /**
+   * The regression this argument exists for.
+   *
+   * Production on 2026-08-09 carried exactly this summary: the picks were up
+   * 21.36% while the whole book was up 2.14%, because under 12% of the capital
+   * was deployed. The landing page rendered the picks return as its headline
+   * and then took `annualized_return_pct` — 6.43%, the *equity* return
+   * annualized — as the figure beside it.
+   */
+  describe("basis selection (the +21.36% beside +6.43% bug)", () => {
+    const PROD = {
+      annualized_status: "ok",
+      annualized_return_pct: 6.43,
+      picks_annualized_status: "ok",
+      picks_annualized_return_pct: 76.78,
+      days_live: 124,
+      days_recorded: 122,
+      min_window_days: 90,
+    };
+
+    it("returns the picks CAGR beside a picks headline", () => {
+      expect(resolveLiveCagr(21.36, PROD, "picks")).toMatchObject({
+        status: "ok",
+        value: 76.78,
+      });
+    });
+
+    it("returns the equity CAGR beside an equity headline", () => {
+      expect(resolveLiveCagr(2.14, PROD, "equity")).toMatchObject({
+        status: "ok",
+        value: 6.43,
+      });
+    });
+
+    it("never reads the equity figure for a picks caller", () => {
+      // The literal old behaviour: same call, wrong number.
+      expect(resolveLiveCagr(21.36, PROD, "picks").value).not.toBe(6.43);
+    });
+
+    it("honours a per-basis refusal independently", () => {
+      // The picks return can be annualizable while the equity one is not —
+      // a wiped-out book beside picks that made money. Each basis carries its
+      // own verdict and must not inherit the other's.
+      const mixed = {
+        ...PROD,
+        annualized_status: "not_meaningful",
+        annualized_return_pct: null,
+      };
+      expect(resolveLiveCagr(2.14, mixed, "equity").status).toBe(
+        "not_meaningful",
+      );
+      expect(resolveLiveCagr(21.36, mixed, "picks")).toMatchObject({
+        status: "ok",
+        value: 76.78,
+      });
+    });
+
+    it("falls back to the local rule when the picks pair is absent", () => {
+      // An older API deploy publishes only the equity pair. A picks caller must
+      // compute locally from the number it was given rather than silently
+      // borrowing the equity figure.
+      const equityOnly = {
+        annualized_status: "ok",
+        annualized_return_pct: 6.43,
+        days_live: 124,
+        days_recorded: 122,
+        min_window_days: 90,
+      };
+      const r = resolveLiveCagr(21.36, equityOnly, "picks");
+      expect(r.status).toBe("ok");
+      expect(r.value).toBeCloseTo(76.78, 1);
+      expect(r.value).not.toBe(6.43);
+    });
   });
 });
 

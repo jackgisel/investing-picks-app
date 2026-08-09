@@ -56,7 +56,8 @@ export function TrackRecord() {
   const hasReturn = totalReturnPct !== null;
   // One elapsed-time notion for both the "Day N" badge and the CAGR window, so
   // the card cannot claim a long track record beside a one-day annualization.
-  const cagr = resolveLiveCagr(totalReturnPct, chart?.summary);
+  // "picks" to match `totalReturnPct` above, which is the picks return.
+  const cagr = resolveLiveCagr(totalReturnPct, chart?.summary, "picks");
   const days = cagr.daysLive;
   const cagrNote = describeLiveCagr(cagr);
   const liveDoubled = countDoubledWinners(strategy?.holdings);

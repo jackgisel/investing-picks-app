@@ -71,6 +71,7 @@ def annualize_return(
     total_return_pct_value: float | None,
     days_live: int | None,
     days_recorded: int | None,
+    prefix: str = "",
 ) -> dict:
     """Annualize a since-inception return, or explain why we won't.
 
@@ -86,10 +87,17 @@ def annualize_return(
 
     Always returns a `status`, never a bare null, so the UI can say *why* the
     number is missing rather than rendering an unexplained em-dash.
+
+    `prefix` namespaces the output keys so one payload can carry the same
+    calculation on two different bases without either overwriting the other.
+    The window fields (`days_live`, `days_recorded`, the thresholds) describe
+    the book rather than the base and are deliberately NOT prefixed — they are
+    identical for every basis, and duplicating them would invite the two copies
+    to drift.
     """
     out = {
-        "annualized_return_pct": None,
-        "annualized_status": "unavailable",
+        f"{prefix}annualized_return_pct": None,
+        f"{prefix}annualized_status": "unavailable",
         "days_live": days_live,
         "days_recorded": days_recorded,
         "min_window_days": MIN_CAGR_WINDOW_DAYS,
@@ -99,21 +107,23 @@ def annualize_return(
         return out
 
     if days_live < MIN_CAGR_WINDOW_DAYS:
-        out["annualized_status"] = "window_too_short"
+        out[f"{prefix}annualized_status"] = "window_too_short"
         return out
 
     if days_recorded is None or days_recorded < MIN_HISTORY_COVERAGE * days_live:
-        out["annualized_status"] = "insufficient_history"
+        out[f"{prefix}annualized_status"] = "insufficient_history"
         return out
 
     multiple = 1 + total_return_pct_value / 100
     if multiple <= 0:
         # A total wipeout has no finite annualized rate.
-        out["annualized_status"] = "not_meaningful"
+        out[f"{prefix}annualized_status"] = "not_meaningful"
         return out
 
-    out["annualized_return_pct"] = round((multiple ** (365 / days_live) - 1) * 100, 2)
-    out["annualized_status"] = "ok"
+    out[f"{prefix}annualized_return_pct"] = round(
+        (multiple ** (365 / days_live) - 1) * 100, 2
+    )
+    out[f"{prefix}annualized_status"] = "ok"
     return out
 
 
@@ -467,6 +477,13 @@ def get_performance(db: Session = Depends(get_db)):
     # Same equity-based number as /strategy, so the chart's own series agrees
     # with it instead of contradicting it.
     live_return = total_return_pct(db, portfolio) if portfolio else None
+    # And the same picks number /strategy publishes, so a surface leading with
+    # the picks return can annualize the figure it actually shows.
+    picks_headline = (
+        picks_return(db, portfolio).get("return_pct") if portfolio else None
+    )
+    if not isinstance(picks_headline, (int, float)):
+        picks_headline = None
 
     today = date.today()
     inception = _inception_date(portfolio, snaps)
@@ -483,6 +500,8 @@ def get_performance(db: Session = Depends(get_db)):
                 "inception_date": inception.isoformat() if inception else None,
                 "snapshots": 0,
                 **annualize_return(live_return, days_live, 0),
+                "picks_return_pct": picks_headline,
+                **annualize_return(picks_headline, days_live, 0, prefix="picks_"),
             },
         }
 
@@ -550,6 +569,16 @@ def get_performance(db: Session = Depends(get_db)):
             "position_count": snaps[-1].position_count if snaps else len(positions),
             "snapshots": len(snaps),
             **annualize_return(headline, days_live, days_recorded),
+            # The picks basis, carried alongside so a surface that leads with
+            # the picks return can annualize the SAME number it displays.
+            # Publishing only the equity pair is what let the landing page show
+            # a picks total return beside an equity-derived CAGR — the same
+            # class of mismatch the comment above describes, one layer up.
+            # Both pairs are self-consistent; a caller must not mix them.
+            "picks_return_pct": picks_headline,
+            **annualize_return(
+                picks_headline, days_live, days_recorded, prefix="picks_"
+            ),
         },
     }
 

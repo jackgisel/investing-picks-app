@@ -245,12 +245,26 @@ export interface PerformanceSummaryWindow {
   start_date?: string | null;
   latest_date?: string | null;
   inception_date?: string | null;
+  /** Annualized WHOLE-BOOK EQUITY return — the pair for `total_return_pct`. */
   annualized_return_pct?: number | null;
   annualized_status?: string | null;
+  /** Annualized PICKS return — the pair for `picks_return_pct`. */
+  picks_annualized_return_pct?: number | null;
+  picks_annualized_status?: string | null;
   days_live?: number | null;
   days_recorded?: number | null;
   min_window_days?: number | null;
 }
+
+/**
+ * Which return a caller is annualizing.
+ *
+ * Explicit because the two bases diverge enormously on a partly-invested book —
+ * 21% on the picks against 2% on the book when a tenth of the capital is
+ * deployed — and the summary carries both. A caller that takes the wrong one
+ * publishes a real number computed from a quantity it is not displaying.
+ */
+export type ReturnBasis = "picks" | "equity";
 
 const KNOWN_STATUSES: LiveCagrStatus[] = [
   "ok",
@@ -273,10 +287,20 @@ const KNOWN_STATUSES: LiveCagrStatus[] = [
  *
  * Prefers the API's own verdict when present so the marketing page and the
  * backend cannot drift apart; falls back to the identical local rule otherwise.
+ *
+ * `basis` decides WHICH of the summary's two annualized figures is read, and it
+ * must name the same return the caller is rendering as its headline. The
+ * landing page used to pass the picks return here and get back the equity
+ * return annualized, because the API only published the equity pair and this
+ * function reached for it unconditionally — so the stats bar showed +21.36%
+ * total beside +6.43% annualized, two bases with nothing saying so. Passing the
+ * number and the basis separately is what makes that mistake impossible to
+ * repeat silently: the argument is required, so a caller must state its basis.
  */
 export function resolveLiveCagr(
   totalReturnPct: number | null,
-  summary?: PerformanceSummaryWindow
+  summary: PerformanceSummaryWindow | undefined,
+  basis: ReturnBasis
 ): LiveCagr {
   const minWindowDays = summary?.min_window_days ?? MIN_CAGR_WINDOW_DAYS;
   const daysLive = summary?.days_live ?? daysSinceInception();
@@ -284,11 +308,18 @@ export function resolveLiveCagr(
 
   const base = { daysLive, daysRecorded, minWindowDays };
 
-  const apiStatus = summary?.annualized_status;
+  const apiStatus =
+    basis === "picks"
+      ? summary?.picks_annualized_status
+      : summary?.annualized_status;
+  const apiValue =
+    basis === "picks"
+      ? summary?.picks_annualized_return_pct
+      : summary?.annualized_return_pct;
+
   if (apiStatus && (KNOWN_STATUSES as string[]).includes(apiStatus)) {
     const status = apiStatus as LiveCagrStatus;
-    const value =
-      status === "ok" ? summary?.annualized_return_pct ?? null : null;
+    const value = status === "ok" ? apiValue ?? null : null;
     // An "ok" verdict with no number is not a claim we can render.
     return { ...base, status: value === null && status === "ok" ? "unavailable" : status, value };
   }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ensureMigrations } from "@/lib/auth";
+import { ensureMigrations, requireEmailVerification } from "@/lib/auth";
 import {
   isFoundersOfferEligible,
   isSubscriptionEntitled,
@@ -42,9 +42,27 @@ export async function POST(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  if (!user.emailVerified) {
+  /*
+   * Verification gate, tied to the SAME setting that governs sign-in.
+   *
+   * This used to demand `emailVerified` unconditionally while
+   * `requireEmailVerification()` decided whether anyone was ever asked to
+   * verify. With that setting off — explicitly, or because RESEND_API_KEY is
+   * absent so `sendVerifyEmail` no-ops — accounts can sign up and sign in but
+   * `emailVerified` never becomes true for anybody, and checkout is
+   * unreachable for the entire userbase with no way to clear it.
+   *
+   * Two independent settings governing one requirement is what made an
+   * ordinary account permanently unable to pay. One rule now governs both: if
+   * an unverified user may sign in, they may also subscribe.
+   */
+  if (requireEmailVerification() && !user.emailVerified) {
     return NextResponse.json(
-      { error: "Verify your email before starting a membership" },
+      {
+        error: "Verify your email before starting a membership",
+        reason: "email_unverified",
+        email: user.email,
+      },
       { status: 403 },
     );
   }

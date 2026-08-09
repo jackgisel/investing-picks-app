@@ -2,10 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 const state = vi.hoisted(() => ({
+  // `data.object` is annotated loosely on purpose: each test swaps in the
+  // shape its own event type carries (a status, a subscription ref, an invoice
+  // parent). Inferring from this initial literal would narrow it to `{ id }`
+  // and reject every one of them.
   event: {
     id: "evt_123",
     type: "customer.subscription.updated",
-    data: { object: { id: "sub_123" } },
+    data: { object: { id: "sub_123" } as Record<string, unknown> },
   },
   signatureError: false,
   mapped: true,

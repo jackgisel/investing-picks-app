@@ -16,7 +16,7 @@ import { sendDeleteAccountEmail, sendVerifyEmail } from "@/lib/email";
  * promotion requires either a verified address or the one-time bootstrap
  * token, so turning this off does not make the ops surface claimable.
  */
-function requireEmailVerification(): boolean {
+export function requireEmailVerification(): boolean {
   const explicit = process.env.REQUIRE_EMAIL_VERIFICATION;
   if (explicit) return explicit.toLowerCase() === "true";
   return Boolean(process.env.RESEND_API_KEY);
@@ -34,6 +34,12 @@ const authConfig = {
 
   emailVerification: {
     sendOnSignUp: true,
+    // Re-send when a blocked sign-in proves the address is still unverified.
+    // Without this, better-auth throws EMAIL_NOT_VERIFIED and sends nothing
+    // (see `api/routes/sign-in`), so anyone whose original link was lost or
+    // spam-foldered can neither sign in nor obtain a new one — a permanent
+    // dead end reached by doing nothing wrong.
+    sendOnSignIn: true,
     autoSignInAfterVerification: true,
     sendVerificationEmail: async ({ user, url }) => {
       // Never let a mail failure break sign-up. With no provider configured

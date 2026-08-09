@@ -528,6 +528,8 @@ function SubscriptionPanel() {
   const [loaded, setLoaded] = useState(false);
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingError, setBillingError] = useState<string | null>(null);
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
+  const [verifySent, setVerifySent] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -572,8 +574,18 @@ function SubscriptionPanel() {
     setBillingError(null);
     try {
       const response = await fetch(path, { method: "POST" });
-      const body = (await response.json()) as { url?: string; error?: string };
+      const body = (await response.json()) as {
+        url?: string;
+        error?: string;
+        reason?: string;
+        email?: string;
+      };
       if (!response.ok || !body.url) {
+        // The one billing refusal the user can clear themselves. Everything
+        // else here is a server-side problem and only gets a message.
+        setUnverifiedEmail(
+          body.reason === "email_unverified" ? body.email ?? "" : null,
+        );
         throw new Error(body.error || "Billing could not be opened");
       }
       window.location.assign(body.url);
@@ -718,6 +730,26 @@ function SubscriptionPanel() {
             <span className="font-sans text-[12px] text-accent-red">
               {billingError}
             </span>
+          )}
+          {unverifiedEmail !== null && (
+            <button
+              type="button"
+              onClick={() => {
+                void authClient
+                  .sendVerificationEmail({
+                    email: unverifiedEmail,
+                    callbackURL: "/subscribe",
+                  })
+                  .catch(() => {
+                    /* reported identically either way */
+                  })
+                  .finally(() => setVerifySent(true));
+              }}
+              disabled={verifySent}
+              className="btn-outline !py-2 !px-4 !text-[11px] disabled:opacity-60"
+            >
+              {verifySent ? "Sent — check your inbox" : "Resend verification"}
+            </button>
           )}
         </div>
       </div>

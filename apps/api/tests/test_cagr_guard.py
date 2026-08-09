@@ -8,11 +8,11 @@ rendered as a bare em-dash beside the text "Day 115".
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
-from app.db.models import PortfolioSnapshot
+from app.db.models import PortfolioSnapshot, Trade
 from app.routes.public_v1 import (
     MIN_CAGR_WINDOW_DAYS,
     MIN_HISTORY_COVERAGE,
@@ -224,3 +224,65 @@ def test_a_young_book_says_the_window_is_too_short(db, portfolio):
     assert summary["days_recorded"] == 10
     assert summary["annualized_status"] == "window_too_short"
     assert summary["annualized_return_pct"] is None
+
+
+def test_the_summary_carries_both_bases_and_they_do_not_mix(db, portfolio):
+    """The landing page's +21.36%-beside-+6.43% bug, at its source.
+
+    A partly-invested book makes the picks return and the equity return diverge
+    by an order of magnitude. The summary has to publish both, each with its own
+    annualization, so a caller leading with one cannot pick up the other's CAGR
+    without saying so.
+    """
+    today = date.today()
+    inception = today - timedelta(days=200)
+    portfolio.inception_date = inception
+    db.commit()
+
+    # Deploy a tenth of the book into one position that then doubles, leaving
+    # the rest in cash: picks +100%, whole book far less. The buy trade is what
+    # `picks_return` measures against — it divides by capital actually deployed,
+    # so a position with no trade behind it has no picks return at all.
+    make_position(db, portfolio, "AAA", shares=100.0, avg_cost=100.0, current_price=200.0)
+    db.add(
+        Trade(
+            portfolio_id=portfolio.id,
+            ticker="AAA",
+            side="buy",
+            shares=100.0,
+            price=100.0,
+            notional=10_000.0,
+            action="manual_buy",
+            timestamp=datetime(
+                inception.year, inception.month, inception.day, tzinfo=timezone.utc
+            ),
+        )
+    )
+    db.commit()
+    for i in range(201):
+        _snapshot(db, portfolio, inception + timedelta(days=i), 100_000.0 + 50.0 * i)
+
+    summary = get_performance(db)["summary"]
+
+    assert summary["return_basis"] == "portfolio_equity"
+    # Both pairs present, both "ok" on a 200-day book with full coverage.
+    assert summary["annualized_status"] == "ok"
+    assert summary["picks_annualized_status"] == "ok"
+
+    # Each annualized figure must be its OWN base annualized — never the other.
+    for total_key, cagr_key in (
+        ("total_return_pct", "annualized_return_pct"),
+        ("picks_return_pct", "picks_annualized_return_pct"),
+    ):
+        base = summary[total_key]
+        expected = round(((1 + base / 100) ** (365 / summary["days_live"]) - 1) * 100, 2)
+        assert summary[cagr_key] == pytest.approx(expected, abs=0.01), (
+            f"{cagr_key} is not {total_key} annualized"
+        )
+
+    # And the two bases really are different here, so the check above has teeth.
+    assert summary["picks_return_pct"] > summary["total_return_pct"] * 2
+
+    # The window fields describe the book, not a base, and are not duplicated.
+    assert summary["days_live"] == 200
+    assert "picks_days_live" not in summary

@@ -7,6 +7,7 @@ import { getInsightByTicker } from "@/lib/insights-db";
 import {
   sendDeleteAccountEmail,
   sendMarketNoteWelcomeEmail,
+  sendMembershipWelcomeEmail,
   sendNewPickEmail,
   sendVerifyEmail,
   type SendResult,
@@ -89,7 +90,13 @@ function pickStats(pick: Pick | null): PickStat[] {
   return stats;
 }
 
-const TEMPLATES = ["verify", "new-pick", "delete-account", "market-note"] as const;
+const TEMPLATES = [
+  "verify",
+  "membership-welcome",
+  "new-pick",
+  "delete-account",
+  "market-note",
+] as const;
 type Template = (typeof TEMPLATES)[number];
 
 async function sendOne(
@@ -105,6 +112,13 @@ async function sendOne(
         to,
         name,
         verifyUrl: `${SITE_URL}/verify-email?token=test-token-not-valid`,
+        banner: BANNER,
+      });
+    case "membership-welcome":
+      return sendMembershipWelcomeEmail({
+        to,
+        name,
+        stripeSubscriptionId: `test-${userId}-${Date.now()}`,
         banner: BANNER,
       });
     case "new-pick": {

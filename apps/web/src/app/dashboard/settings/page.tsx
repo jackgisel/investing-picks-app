@@ -35,17 +35,19 @@ const DEFAULT_PREFS: NotificationPrefs = {
 
 type SubscriptionStatus =
   | "inactive"
+  | "incomplete"
+  | "incomplete_expired"
   | "trialing"
   | "active"
   | "past_due"
   | "paused"
-  | "canceled";
+  | "canceled"
+  | "unpaid";
 
 type Subscription = {
   status: SubscriptionStatus;
-  paddleCustomerId: string | null;
-  paddleSubscriptionId: string | null;
   currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
   canceledAt: string | null;
 };
 
@@ -524,15 +526,35 @@ function Toggle({
 function SubscriptionPanel() {
   const [sub, setSub] = useState<Subscription | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingError, setBillingError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    let timeout: ReturnType<typeof setTimeout> | null = null;
     (async () => {
       try {
-        const res = await fetch("/api/me/subscription", { cache: "no-store" });
-        if (!res.ok) throw new Error("fetch failed");
-        const data = (await res.json()) as { subscription: Subscription };
-        if (!cancelled) setSub(data.subscription);
+        const checkoutSucceeded =
+          new URLSearchParams(window.location.search).get("checkout") ===
+          "success";
+        const attempts = checkoutSucceeded ? 10 : 1;
+        for (let attempt = 0; attempt < attempts && !cancelled; attempt++) {
+          const res = await fetch("/api/me/subscription", { cache: "no-store" });
+          if (!res.ok) throw new Error("fetch failed");
+          const data = (await res.json()) as { subscription: Subscription };
+          if (!cancelled) setSub(data.subscription);
+          if (
+            data.subscription.status === "active" ||
+            data.subscription.status === "trialing" ||
+            data.subscription.status === "past_due" ||
+            !checkoutSucceeded
+          ) {
+            break;
+          }
+          await new Promise<void>((resolve) => {
+            timeout = setTimeout(resolve, 1000);
+          });
+        }
       } catch {
         if (!cancelled) setSub(null);
       } finally {
@@ -541,15 +563,35 @@ function SubscriptionPanel() {
     })();
     return () => {
       cancelled = true;
+      if (timeout) clearTimeout(timeout);
     };
   }, []);
+
+  async function openBilling(path: "/api/billing/checkout" | "/api/billing/portal") {
+    setBillingLoading(true);
+    setBillingError(null);
+    try {
+      const response = await fetch(path, { method: "POST" });
+      const body = (await response.json()) as { url?: string; error?: string };
+      if (!response.ok || !body.url) {
+        throw new Error(body.error || "Billing could not be opened");
+      }
+      window.location.assign(body.url);
+    } catch (error) {
+      setBillingError(
+        error instanceof Error ? error.message : "Billing could not be opened",
+      );
+      setBillingLoading(false);
+    }
+  }
 
   const status = sub?.status ?? "inactive";
   const renewal = sub?.currentPeriodEnd
     ? formatDate(sub.currentPeriodEnd)
     : null;
   const canceledAt = sub?.canceledAt ? formatDate(sub.canceledAt) : null;
-  const isActive = status === "active" || status === "trialing";
+  const isActive =
+    status === "active" || status === "trialing" || status === "past_due";
   const foundersActive = isFoundersDealActive();
 
   return (
@@ -563,19 +605,21 @@ function SubscriptionPanel() {
             Outpick Membership
           </p>
           <p className="font-sans text-[12px] text-text-muted mt-0.5">
-            Billed annually · cancel any time
+            Billed annually via Stripe · plus applicable taxes · cancel any time
             {foundersActive && !isActive && (
-              <> · Founders {PRICING.foundersLabel} available</>
+              <> · Founders offer applied at checkout if eligible</>
             )}
           </p>
         </div>
         <div className="text-right">
           <p className="font-mono text-[20px] font-bold text-accent-green">
-            {foundersActive && !isActive ? PRICING.foundersLabel : PRICING.label}
+            {foundersActive && !isActive
+              ? `From ${PRICING.foundersLabel}`
+              : PRICING.label}
           </p>
           {foundersActive && !isActive && (
-            <p className="font-sans text-[11px] text-text-dim line-through mt-0.5">
-              {PRICING.label}
+            <p className="font-sans text-[11px] text-text-dim mt-0.5">
+              First year if eligible · then {PRICING.label}
             </p>
           )}
         </div>
@@ -598,19 +642,34 @@ function SubscriptionPanel() {
         {loaded && renewal && (
           <div className="text-right">
             <p className="field-label mb-1.5">
-              {status === "canceled" ? "ACCESS UNTIL" : "RENEWS"}
+              {sub?.cancelAtPeriodEnd
+                ? "CANCELS ON"
+                : status === "canceled"
+                  ? "ENDED"
+                  : "RENEWS"}
             </p>
             <p className="font-mono text-[12px] font-semibold">{renewal}</p>
           </div>
         )}
       </div>
 
+      {loaded && sub?.cancelAtPeriodEnd && (
+        <div className="bg-accent-yellow/10 border border-accent-yellow/30 px-4 py-3">
+          <p className="font-sans text-[12px] text-text-muted">
+            Your membership is set to cancel on{" "}
+            <span className="text-text font-semibold">
+              {renewal ?? "the end of this billing period"}
+            </span>
+            . You keep full access until then.
+          </p>
+        </div>
+      )}
+
       {loaded && status === "canceled" && canceledAt && (
         <div className="bg-accent-red-soft/30 border border-accent-red/30 px-4 py-3">
           <p className="font-sans text-[12px] text-text-muted">
             Subscription canceled on{" "}
             <span className="text-text font-semibold">{canceledAt}</span>.
-            You&apos;ll keep access until {renewal ?? "your billing period ends"}.
           </p>
         </div>
       )}
@@ -618,7 +677,8 @@ function SubscriptionPanel() {
       {loaded && status === "past_due" && (
         <div className="bg-accent-red-soft/30 border border-accent-red/30 px-4 py-3">
           <p className="font-sans text-[12px] text-text-muted">
-            Your last payment failed. Update your billing method to keep access.
+            Your last payment failed. You still have access while Stripe retries
+            the payment. Open billing to update your payment method.
           </p>
         </div>
       )}
@@ -632,25 +692,32 @@ function SubscriptionPanel() {
 
       <div className="pt-5 border-t border-border space-y-3">
         <p className="font-sans text-[13px] text-text-muted leading-relaxed">
-          Need to update payment details, download an invoice, or cancel?
-          We&apos;ll handle it personally — just send us a note and
-          we&apos;ll get back to you the same business day.
+          {isActive
+            ? "Update your payment method, download invoices, or cancel at the end of the current period in Stripe."
+            : "Start an annual membership in secure Stripe Checkout."}
         </p>
         <div className="flex flex-wrap items-center gap-3">
-          <a
-            href="mailto:hello@outpick.xyz?subject=Subscription%20request"
+          <button
+            type="button"
+            onClick={() =>
+              void openBilling(
+                isActive ? "/api/billing/portal" : "/api/billing/checkout",
+              )
+            }
+            disabled={billingLoading}
             className="font-mono text-[11px] bg-accent-green text-on-accent px-5 py-2.5 font-semibold tracking-wider hover:bg-accent-green-hover transition-colors inline-flex items-center gap-2"
           >
-            <Mail size={12} />
-            CONTACT BILLING
-          </a>
-          {isActive && (
-            <a
-              href="mailto:hello@outpick.xyz?subject=Cancel%20subscription"
-              className="font-mono text-[11px] text-text-dim hover:text-accent-red transition-colors tracking-wider"
-            >
-              CANCEL SUBSCRIPTION
-            </a>
+            <CreditCard size={12} />
+            {billingLoading
+              ? "OPENING..."
+              : isActive
+                ? "MANAGE BILLING"
+                : "START MEMBERSHIP"}
+          </button>
+          {billingError && (
+            <span className="font-sans text-[12px] text-accent-red">
+              {billingError}
+            </span>
           )}
         </div>
       </div>
@@ -686,6 +753,18 @@ function StatusBadge({ status }: { status: SubscriptionStatus }) {
     inactive: {
       label: "NOT SUBSCRIBED",
       className: "bg-bg-tertiary text-text-muted border border-border",
+    },
+    incomplete: {
+      label: "INCOMPLETE",
+      className: "bg-bg-tertiary text-text-muted border border-border",
+    },
+    incomplete_expired: {
+      label: "INCOMPLETE",
+      className: "bg-bg-tertiary text-text-muted border border-border",
+    },
+    unpaid: {
+      label: "UNPAID",
+      className: "bg-accent-red-soft text-accent-red",
     },
   };
   const { label, className } = config[status];
@@ -785,7 +864,7 @@ function DeleteAccountPanel() {
         <p className="font-sans text-[13px] text-text leading-relaxed">
           <strong>This will permanently delete your account.</strong> Your
           subscription will continue to bill until you cancel it separately —
-          please contact billing first if you also want to cancel.
+          open Manage billing above first if you also want to cancel.
         </p>
       </div>
 

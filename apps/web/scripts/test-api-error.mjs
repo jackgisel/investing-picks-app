@@ -6,7 +6,7 @@
  * Compiles the REAL source into a temp dir and imports it, rather than
  * restating the logic here — so this cannot silently drift from what ships.
  * The web app has no JS test runner configured; see also
- * scripts/test-paddle-webhook.mjs and scripts/test-api-gate.mjs.
+ * the Vitest suite and the other scripts in this directory.
  */
 import { execFileSync } from "child_process";
 import { createRequire } from "module";

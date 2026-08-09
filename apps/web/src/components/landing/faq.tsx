@@ -28,11 +28,11 @@ const faqs = [
   },
   {
     q: "What is the founders deal?",
-    a: "Through Day 150 of our live example portfolio, new members can join at $250/year instead of the standard $1,000/year. After Day 150, standard pricing applies to new memberships.",
+    a: "Through Day 150 of our live example portfolio, eligible new members pay $250 for their first year, then $1,000 per year. The offer can be redeemed once per Outpick account. Applicable taxes are added at checkout.",
   },
   {
     q: "Can I cancel my subscription?",
-    a: "Yes. Billed annually through Paddle. Cancel anytime from account settings — no questions, no hassle.",
+    a: "Yes. Billing is annual through Stripe. Cancel anytime from account settings; you keep access through the end of your current billing period.",
   },
   {
     q: "Who runs Outpick?",

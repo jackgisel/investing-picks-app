@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     # made a full refresh take ~29 minutes instead of ~7, and every extra minute
     # is another minute a redeploy can kill the run mid-flight.
     fmp_rate_limit: int = 280
+    # A normal refresh is roughly seven minutes at the configured FMP rate.
+    # Bound pathological upstream slowness well before it can consume an
+    # entire worker day. The same value is the age at which a redeploy-orphaned
+    # JobRun is reaped, so WEEKLY_REFRESH_TIMEOUT_MINUTES is the single knob.
+    weekly_refresh_timeout_minutes: float = 60.0
     initial_cash: float = 100_000.0
     # No fail-open default. Local dev falls back to DEV_OPS_KEY via
     # `effective_ops_key`; anywhere else an unset key disables ops entirely.

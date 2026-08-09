@@ -8,6 +8,7 @@ import sys
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 # Ensure apps/api is importable for shared models/services
 _ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
@@ -16,11 +17,13 @@ if _API not in sys.path:
     sys.path.insert(0, _API)
 
 from worker.jobs.runner import (
+    job_auto_publish_insights,
     job_backfill_prices,
     job_backfill_snapshots,
     job_biweekly_evaluate,
     job_daily_marks,
     job_weekly_refresh,
+    reap_stale_weekly_refreshes,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -29,6 +32,28 @@ log = logging.getLogger("worker")
 
 def main():
     scheduler = BlockingScheduler(timezone="America/New_York")
+
+    # A deploy can kill a job between its initial "running" commit and its
+    # terminal update. Sweep on boot and periodically so that failure becomes
+    # visible without waiting for an operator to press the manual button.
+    reap_stale_weekly_refreshes()
+    scheduler.add_job(
+        reap_stale_weekly_refreshes,
+        IntervalTrigger(minutes=5),
+        id="stale_job_reaper",
+        replace_existing=True,
+    )
+
+    # Drafts publish themselves once their review window expires. Every 15
+    # minutes rather than hourly so the note lands close to the deadline an
+    # admin was shown in the ops queue; the sweep is a single indexed query and
+    # does nothing at all when no draft is due.
+    scheduler.add_job(
+        job_auto_publish_insights,
+        IntervalTrigger(minutes=15),
+        id="auto_publish_insights",
+        replace_existing=True,
+    )
 
     scheduler.add_job(
         job_daily_marks,
@@ -75,6 +100,9 @@ def main():
             "daily_marks": job_daily_marks,
             "weekly_refresh": job_weekly_refresh,
             "biweekly_evaluate": job_biweekly_evaluate,
+            # Scheduled every 15 min (above); on demand for when you have just
+            # shortened the review window and do not want to wait for the tick.
+            "auto_publish_insights": job_auto_publish_insights,
             # Not on any schedule — a one-shot repair, dry run unless
             # BACKFILL_COMMIT is set.
             "backfill_snapshots": job_backfill_snapshots,

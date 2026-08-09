@@ -7,6 +7,7 @@ from datetime import date, datetime, timedelta, timezone
 
 import httpx
 
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from outpick_strategy.cadence import is_evaluation_friday
@@ -15,6 +16,8 @@ from app.config import get_settings
 from app.db.models import JobRun
 from app.db.session import SessionLocal
 from app.services.portfolio import ensure_default_portfolio, run_evaluation
+from app.services.job_runs import reap_stale_job_runs
+from worker.jobs.deadline import JobDeadline, JobDeadlineExceeded
 from worker.services.fmp import FMPClient
 from worker.services.market_calendar import is_effective_run_day, is_trading_day
 from worker.services.ingest import (
@@ -28,33 +31,51 @@ from worker.services.scoring import score_universe
 log = logging.getLogger(__name__)
 
 
-def _fmp() -> FMPClient:
+def _fmp(deadline: JobDeadline | None = None) -> FMPClient:
     s = get_settings()
-    return FMPClient(s.fmp_api_key, s.fmp_base_url, rate_limit=s.fmp_rate_limit)
+    return FMPClient(
+        s.fmp_api_key,
+        s.fmp_base_url,
+        rate_limit=s.fmp_rate_limit,
+        deadline=deadline,
+    )
 
 
-def sync_insight_drafts() -> dict:
-    """Ask the web app to open and draft research notes for any unwritten pick.
+def reap_stale_weekly_refreshes() -> int:
+    """Expose refreshes orphaned by a process exit as terminal errors."""
+    db = SessionLocal()
+    try:
+        timeout = timedelta(minutes=get_settings().weekly_refresh_timeout_minutes)
+        count = reap_stale_job_runs(
+            db,
+            job_name="weekly_refresh",
+            stale_after=timeout,
+        )
+        if count:
+            log.error("Reaped %s stale weekly_refresh run(s)", count)
+        return count
+    finally:
+        db.close()
 
-    The only outbound call this service makes to the web app. Everything else
-    between the two goes through the shared Postgres, but research notes are
-    web-owned — the content, the editor, the renderer and the Anthropic client
-    all live there — and reaching across to write them from here would put a
-    second writer on a table with no shared model.
 
-    Best-effort by design. The endpoint it calls is a reconciliation sweep, so a
-    firing that never lands is picked up by the next one; failing the whole
-    evaluation job because a draft could not be written would be much worse
-    than a note arriving a day late.
+def _post_to_web_app(path: str, label: str, timeout: float) -> dict:
+    """POST to an internal endpoint on the web app, best-effort.
 
-    The timeout is minutes because the sweep drafts sequentially and each note
-    is a model call.
+    These are the only outbound calls this service makes to the web app.
+    Everything else between the two goes through the shared Postgres, but
+    research notes are web-owned — the content, the editor, the renderer and the
+    Anthropic client all live there — and reaching across to write them from
+    here would put a second writer on a table with no shared model.
+
+    Never raises. Every caller is either a scheduled sweep that will run again
+    or a step appended to a job whose real work is already committed, so an
+    exception here could only turn a recoverable miss into a failed cycle.
     """
     settings = get_settings()
     base = (getattr(settings, "web_app_url", "") or "").strip().rstrip("/")
     secret = getattr(settings, "internal_api_secret", "") or ""
     if not base or not secret:
-        log.info("WEB_APP_URL or INTERNAL_API_SECRET unset; skipping draft sync")
+        log.info("WEB_APP_URL or INTERNAL_API_SECRET unset; skipping %s", label)
         return {"skipped": "not_configured"}
 
     # Railway's UI hands you a bare hostname ("web.railway.internal"), and httpx
@@ -65,18 +86,52 @@ def sync_insight_drafts() -> dict:
         base = f"http://{base}"
 
     try:
-        with httpx.Client(timeout=httpx.Timeout(600.0, connect=10.0)) as client:
+        with httpx.Client(timeout=httpx.Timeout(timeout, connect=10.0)) as client:
             res = client.post(
-                f"{base}/api/internal/insights/sync",
+                f"{base}{path}",
                 headers={"Authorization": f"Bearer {secret}"},
             )
             res.raise_for_status()
             body = res.json()
-            log.info("Insight draft sync: %s", body)
+            log.info("%s: %s", label, body)
             return body
     except Exception as e:
-        log.exception("Insight draft sync failed")
+        log.exception("%s failed", label)
         return {"error": str(e)}
+
+
+def sync_insight_drafts() -> dict:
+    """Ask the web app to open and draft research notes for any unwritten pick.
+
+    Best-effort by design. The endpoint it calls is a reconciliation sweep, so a
+    firing that never lands is picked up by the next one; failing the whole
+    evaluation job because a draft could not be written would be much worse
+    than a note arriving a day late.
+
+    The timeout is minutes because the sweep drafts sequentially and each note
+    is a model call.
+    """
+    return _post_to_web_app(
+        "/api/internal/insights/sync", "Insight draft sync", 600.0
+    )
+
+
+def job_auto_publish_insights():
+    """Publish drafts whose review window has expired, and mail the list.
+
+    Deliberately its own scheduled job on a short interval rather than a step
+    appended to the evaluation. The deadline it enforces is hours after the
+    pick that created the draft, so nothing that runs at pick time could ever
+    be the thing that fires it, and an admin who edits or regenerates a note
+    moves the deadline — the schedule has to keep asking.
+
+    Untracked by `_track`: it fires many times a day and would bury the handful
+    of rows that say whether the real cycle jobs ran. What it does is visible in
+    the note itself, which is either announced or still sitting in the queue.
+    """
+    return _post_to_web_app(
+        "/api/internal/insights/auto-publish", "Insight auto-publish", 300.0
+    )
 
 
 def _track(job_name: str, fn):
@@ -85,12 +140,27 @@ def _track(job_name: str, fn):
     db.add(run)
     db.commit()
     db.refresh(run)
+    run_id = run.id
     try:
         result = fn(db)
-        run.status = "ok"
-        run.detail = str(result) if result is not None else None
-        run.finished_at = datetime.now(timezone.utc)
+        finished_at = datetime.now(timezone.utc)
+        updated = db.execute(
+            update(JobRun)
+            .where(JobRun.id == run_id, JobRun.status == "running")
+            .values(
+                status="ok",
+                detail=str(result) if result is not None else None,
+                finished_at=finished_at,
+            )
+        )
         db.commit()
+        if updated.rowcount != 1:
+            # The periodic reaper won the race. Never turn a run that exceeded
+            # its durable runtime limit green just because it eventually
+            # returned after being declared abandoned.
+            raise JobDeadlineExceeded(
+                f"{job_name} exceeded its runtime limit before completion"
+            )
         return result
     except Exception as e:
         log.exception("%s failed", job_name)
@@ -100,10 +170,15 @@ def _track(job_name: str, fn):
         # failure you most need to see would leave no trace. Roll back first.
         try:
             db.rollback()
-            run.status = "error"
-            run.detail = str(e)
-            run.finished_at = datetime.now(timezone.utc)
-            db.add(run)
+            db.execute(
+                update(JobRun)
+                .where(JobRun.id == run_id, JobRun.status == "running")
+                .values(
+                    status="error",
+                    detail=str(e),
+                    finished_at=datetime.now(timezone.utc),
+                )
+            )
             db.commit()
         except Exception:
             log.exception("Could not record failure for %s", job_name)
@@ -150,18 +225,25 @@ def job_daily_marks():
 
 def job_weekly_refresh():
     def _run(db: Session):
+        timeout_seconds = get_settings().weekly_refresh_timeout_minutes * 60
+        deadline = JobDeadline.after("weekly_refresh", timeout_seconds)
         # Schema upkeep FIRST. There is no Alembic here; ensure_schema is the
         # migration hook, and it previously only ran via refresh_marks — the
         # last step. Anything earlier in the job that depends on a new index
         # (the fundamentals (ticker, as_of) uniqueness) would run against a
         # table that had not been migrated yet.
         ensure_default_portfolio(db, get_settings().initial_cash)
-        fmp = _fmp()
+        deadline.check()
+        fmp = _fmp(deadline)
         try:
             u = refresh_universe(db, fmp)
+            deadline.check()
             f = refresh_fundamentals(db, fmp)
+            deadline.check()
             s = score_universe(db)
+            deadline.check()
             m = refresh_marks(db, fmp)
+            deadline.check()
             return {"universe": u, "fundamentals": f, "scores": s, "marks": m}
         finally:
             fmp.close()

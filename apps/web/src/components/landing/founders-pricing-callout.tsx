@@ -20,10 +20,10 @@ export function FoundersPricingCallout() {
         <span className="line-through text-text-dim">{PRICING.label}</span>
       </p>
       <p className="font-sans text-[13px] text-text-muted leading-relaxed mb-4">
-        Early members lock in founders pricing through Day{" "}
-        {FOUNDERS_DEAL_MAX_DAY} of our live example portfolio.
+        Join through Day {FOUNDERS_DEAL_MAX_DAY} for $250 in your first year,
+        then $1,000 per year, plus applicable taxes.
       </p>
-      <PillButton href="/dashboard" variant="outline" arrow className="text-[11px]">
+      <PillButton href="/subscribe" variant="outline" arrow className="text-[11px]">
         Start at founders rate
       </PillButton>
     </div>

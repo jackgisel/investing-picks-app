@@ -1,4 +1,5 @@
 import { pool } from "@/lib/db";
+import { reviewWindowHours } from "@/lib/review-window";
 
 /**
  * App-owned tables that aren't managed by BetterAuth.
@@ -20,28 +21,73 @@ export async function runAppMigrations() {
     )
   `);
 
-  // Paddle subscription state. Populated by the Paddle webhook handler.
-  // user_id is the FK; paddle_customer_id and paddle_subscription_id are
-  // looked up by the webhook (we identify the user by email at first sight).
+  // Stripe subscription state. Provider identifiers stay server-side.
   await pool.query(`
     CREATE TABLE IF NOT EXISTS user_subscription (
       user_id TEXT PRIMARY KEY REFERENCES "user"(id) ON DELETE CASCADE,
-      paddle_customer_id TEXT,
-      paddle_subscription_id TEXT,
+      stripe_customer_id TEXT UNIQUE,
+      stripe_subscription_id TEXT UNIQUE,
       status TEXT NOT NULL DEFAULT 'inactive',
       current_period_end TIMESTAMPTZ,
+      cancel_at_period_end BOOLEAN NOT NULL DEFAULT FALSE,
       canceled_at TIMESTAMPTZ,
+      founders_discount_redeemed_at TIMESTAMPTZ,
+      membership_welcome_email_claimed_at TIMESTAMPTZ,
+      membership_welcome_email_sent_at TIMESTAMPTZ,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
 
+  // One-time Paddle cutover. Only rows carrying Paddle identifiers are made
+  // inactive; manually seeded rows without provider IDs keep their status.
   await pool.query(`
-    CREATE INDEX IF NOT EXISTS user_subscription_paddle_customer_idx
-      ON user_subscription(paddle_customer_id)
+    ALTER TABLE user_subscription
+      ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT,
+      ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT,
+      ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN NOT NULL DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS founders_discount_redeemed_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS membership_welcome_email_claimed_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS membership_welcome_email_sent_at TIMESTAMPTZ
   `);
   await pool.query(`
-    CREATE INDEX IF NOT EXISTS user_subscription_paddle_subscription_idx
-      ON user_subscription(paddle_subscription_id)
+    DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+         WHERE table_schema = current_schema()
+           AND table_name = 'user_subscription'
+           AND column_name = 'paddle_customer_id'
+      ) THEN
+        UPDATE user_subscription
+           SET status = 'inactive', cancel_at_period_end = FALSE, updated_at = NOW()
+         WHERE paddle_customer_id IS NOT NULL
+            OR paddle_subscription_id IS NOT NULL;
+        DROP INDEX IF EXISTS user_subscription_paddle_customer_idx;
+        DROP INDEX IF EXISTS user_subscription_paddle_subscription_idx;
+        ALTER TABLE user_subscription
+          DROP COLUMN paddle_customer_id,
+          DROP COLUMN paddle_subscription_id;
+      END IF;
+    END $$
+  `);
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS user_subscription_stripe_customer_idx
+      ON user_subscription(stripe_customer_id)
+  `);
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS user_subscription_stripe_subscription_idx
+      ON user_subscription(stripe_subscription_id)
+  `);
+
+  // A success-only audit ledger for webhook deliveries. Subscription updates
+  // still retrieve Stripe's current snapshot, so duplicate and out-of-order
+  // events remain safe even when Stripe retries them concurrently.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS stripe_webhook_event (
+      event_id TEXT PRIMARY KEY,
+      event_type TEXT NOT NULL,
+      processed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
   `);
 
   // Admin flag on the BetterAuth user table. Gates /dashboard/ops and
@@ -147,7 +193,7 @@ export async function runAppMigrations() {
       post_type TEXT NOT NULL DEFAULT 'pick'
         CHECK (post_type IN ('pick', 'quarterly_review')),
       status TEXT NOT NULL DEFAULT 'pending'
-        CHECK (status IN ('pending', 'draft', 'failed', 'approved')),
+        CHECK (status IN ('pending', 'draft', 'failed', 'approved', 'rejected')),
       title TEXT,
       description TEXT,
       lede TEXT,
@@ -162,10 +208,50 @@ export async function runAppMigrations() {
       source_facts JSONB,
       published_at TIMESTAMPTZ,
       email_sent_at TIMESTAMPTZ,
+      auto_publish_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+
+  // Auto-publish. A draft carries its own deadline rather than the sweep
+  // deriving one from updated_at: editing a note must not silently push its
+  // send back, and regenerating one must reset it. Stamped by saveDraft.
+  await pool.query(`
+    ALTER TABLE insight
+      ADD COLUMN IF NOT EXISTS auto_publish_at TIMESTAMPTZ
+  `);
+
+  // 'rejected' postdates the original CHECK, and CREATE TABLE IF NOT EXISTS
+  // does not revisit an existing table's constraints. Drop and re-add rather
+  // than conditionally patching: the constraint is cheap to revalidate and the
+  // statement then states the full set of legal statuses in one place.
+  await pool.query(`
+    ALTER TABLE insight DROP CONSTRAINT IF EXISTS insight_status_check
+  `);
+  await pool.query(`
+    ALTER TABLE insight
+      ADD CONSTRAINT insight_status_check
+      CHECK (status IN ('pending', 'draft', 'failed', 'approved', 'rejected'))
+  `);
+
+  // Drafts written before auto-publish existed carry no deadline, and the sweep
+  // requires one — without this they would wait for a button forever, which is
+  // the exact failure the feature was built to end.
+  //
+  // The window is measured from now rather than from `updated_at`, so an old
+  // draft gets the full review period starting at the deploy that introduced
+  // the behaviour. Backdating would mail a note that has been sitting unread
+  // for days within fifteen minutes of this migration running, with nobody
+  // watching. Idempotent: it only ever fills a NULL.
+  await pool.query(
+    `UPDATE insight
+        SET auto_publish_at = NOW() + ($1::numeric * INTERVAL '1 hour')
+      WHERE status = 'draft'
+        AND email_sent_at IS NULL
+        AND auto_publish_at IS NULL`,
+    [reviewWindowHours()],
+  );
 
   // One pick note per ticker. Partial, because quarterly reviews have no ticker
   // and several of them would otherwise collide on NULL.
@@ -179,5 +265,14 @@ export async function runAppMigrations() {
   await pool.query(`
     CREATE INDEX IF NOT EXISTS insight_status_published_idx
       ON insight(status, published_at DESC)
+  `);
+
+  // The auto-publish sweep runs every few minutes and asks one question: which
+  // drafts are due? Partial, so the index holds only the handful of rows that
+  // are actually in the window rather than every note ever published.
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS insight_auto_publish_due_idx
+      ON insight(auto_publish_at)
+      WHERE status = 'draft' AND email_sent_at IS NULL
   `);
 }

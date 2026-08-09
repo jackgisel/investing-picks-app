@@ -370,11 +370,11 @@ export function renderVerifyEmail(args: {
     : "Hi there,";
 
   const body = `
-    ${eyebrow("Verify your email", "mint")}
-    ${heading("Confirm your email address")}
+    ${eyebrow("Welcome to Outpick", "mint")}
+    ${heading("One click, then you’re on your way")}
     ${paragraph(greeting, 14)}
     ${paragraph(
-      `Confirm this address to finish setting up your ${escapeHtml(SITE_NAME)} account.`,
+      `Thanks for creating an ${escapeHtml(SITE_NAME)} account. Confirm this address to continue to secure membership checkout.`,
       26
     )}
     ${pillButton(args.verifyUrl, "Verify email")}
@@ -385,7 +385,57 @@ export function renderVerifyEmail(args: {
   `;
 
   return shell({
-    preview: `Verify your ${SITE_NAME} email address`,
+    preview: `Welcome to ${SITE_NAME} — verify your email to continue.`,
+    bodyHtml: body,
+    siteUrl: args.siteUrl,
+    banner: args.banner,
+  });
+}
+
+/* ------------------------- Membership welcome email ------------------------- */
+
+export function renderMembershipWelcomeEmail(args: {
+  name: string | null;
+  welcomeUrl: string;
+  siteUrl: string;
+  banner?: string;
+}): string {
+  const greeting = args.name
+    ? `Hi ${escapeHtml(args.name.split(" ")[0])},`
+    : "Hi there,";
+
+  const body = `
+    ${eyebrow("Membership active", "mint")}
+    ${heading("You’re in. Here’s where to start.")}
+    ${paragraph(greeting, 14)}
+    ${paragraph(
+      `Your ${escapeHtml(SITE_NAME)} membership is active. We built the product to work like a transparent research desk, not a stream of trading alerts.`,
+      24
+    )}
+
+    ${card(`
+      ${fieldLabel("01 — Live book")}
+      <p class="dm-muted" style="margin:0 0 16px 0;font-family:${FONT_SANS};font-size:14px;color:${TEXT_MUTED};line-height:1.6;">
+        See every open position, the decision ledger, and performance against the S&amp;P 500.
+      </p>
+      ${fieldLabel("02 — Research")}
+      <p class="dm-muted" style="margin:0 0 16px 0;font-family:${FONT_SANS};font-size:14px;color:${TEXT_MUTED};line-height:1.6;">
+        Read the thesis, evidence, risks, and rules behind each published pick.
+      </p>
+      ${fieldLabel("03 — Cadence")}
+      <p class="dm-muted" style="margin:0;font-family:${FONT_SANS};font-size:14px;color:${TEXT_MUTED};line-height:1.6;">
+        New high-conviction picks arrive roughly every two weeks. You control which updates reach your inbox.
+      </p>`) }
+
+    ${pillButton(args.welcomeUrl, "See how Outpick works")}
+    ${fallbackLink(args.welcomeUrl)}
+    <p class="dm-dim" style="margin:0;font-family:${FONT_SANS};font-size:12px;color:${TEXT_DIM};line-height:1.6;">
+      Billing and email preferences live in <a href="${args.siteUrl}/dashboard/settings" class="dm-text" style="color:${TEXT};text-decoration:underline;">account settings</a>.
+    </p>
+  `;
+
+  return shell({
+    preview: `Your ${SITE_NAME} membership is active — start with the live book and research.`,
     bodyHtml: body,
     siteUrl: args.siteUrl,
     banner: args.banner,

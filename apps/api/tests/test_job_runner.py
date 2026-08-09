@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
+from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import create_engine
@@ -11,6 +12,8 @@ from sqlalchemy.orm import sessionmaker
 from app.db.models import CompositeScore, JobRun
 from app.db.session import Base
 from worker.jobs import runner
+from app.services.job_runs import reap_stale_job_runs
+from worker.jobs.deadline import JobDeadlineExceeded
 
 
 @pytest.fixture()
@@ -63,5 +66,100 @@ def test_successful_job_records_ok(sessions):
         run = check.query(JobRun).one()
         assert run.status == "ok"
         assert run.detail == "{'marks': 3}"
+    finally:
+        check.close()
+
+
+def test_weekly_refresh_timeout_is_recorded_as_error(sessions, monkeypatch):
+    settings = SimpleNamespace(
+        initial_cash=100_000,
+        weekly_refresh_timeout_minutes=0,
+    )
+    monkeypatch.setattr(runner, "get_settings", lambda: settings)
+
+    with pytest.raises(JobDeadlineExceeded, match="weekly_refresh timed out"):
+        runner.job_weekly_refresh()
+
+    check = sessions()
+    try:
+        run = check.query(JobRun).one()
+        assert run.status == "error"
+        assert "timed out" in run.detail
+        assert run.finished_at is not None
+    finally:
+        check.close()
+
+
+def test_stale_run_reaper_closes_only_expired_runs(sessions):
+    now = datetime(2026, 7, 31, 12, tzinfo=timezone.utc)
+    db = sessions()
+    try:
+        db.add_all(
+            [
+                JobRun(
+                    job_name="weekly_refresh",
+                    status="running",
+                    started_at=now - timedelta(minutes=61),
+                ),
+                JobRun(
+                    job_name="weekly_refresh",
+                    status="running",
+                    started_at=now - timedelta(minutes=59),
+                ),
+                JobRun(
+                    job_name="daily_marks",
+                    status="running",
+                    started_at=now - timedelta(days=1),
+                ),
+            ]
+        )
+        db.commit()
+
+        assert reap_stale_job_runs(
+            db,
+            job_name="weekly_refresh",
+            stale_after=timedelta(minutes=60),
+            now=now,
+        ) == 1
+
+        weekly = (
+            db.query(JobRun)
+            .filter(JobRun.job_name == "weekly_refresh")
+            .order_by(JobRun.started_at)
+            .all()
+        )
+        assert weekly[0].status == "error"
+        assert "Stale run reaped" in weekly[0].detail
+        assert weekly[0].finished_at is not None
+        assert weekly[1].status == "running"
+        daily = db.query(JobRun).filter(JobRun.job_name == "daily_marks").one()
+        assert daily.status == "running"
+    finally:
+        db.close()
+
+
+def test_reaped_run_cannot_later_overwrite_error_with_ok(sessions):
+    def finish_after_reaper(_db):
+        reaper_db = sessions()
+        try:
+            assert reap_stale_job_runs(
+                reaper_db,
+                job_name="weekly_refresh",
+                stale_after=timedelta(0),
+                now=datetime.now(timezone.utc) + timedelta(seconds=1),
+            ) == 1
+        finally:
+            reaper_db.close()
+        return {"too_late": True}
+
+    with pytest.raises(JobDeadlineExceeded, match="runtime limit"):
+        runner._track("weekly_refresh", finish_after_reaper)
+
+    check = sessions()
+    try:
+        run = check.query(JobRun).one()
+        assert run.status == "error"
+        assert "Stale run reaped" in run.detail
+        assert "too_late" not in run.detail
     finally:
         check.close()

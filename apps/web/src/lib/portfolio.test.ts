@@ -283,7 +283,7 @@ describe("daysSinceInception / daysBetweenISO", () => {
 });
 
 describe("isFoundersDealActive", () => {
-  // Gates the price shown on the landing page and the Paddle price id.
+  // Gates the price shown on the landing page and the server-side Stripe coupon.
   it("is active the day before the cutoff", () => {
     expect(isFoundersDealActive(FOUNDERS_DEAL_MAX_DAY - 1)).toBe(true);
   });

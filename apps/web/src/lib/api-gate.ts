@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAdminUser } from "@/lib/admin";
 import { getServerUser } from "@/lib/server-session";
 import { getSubscription } from "@/lib/subscription";
+import { isSubscriptionEntitled, type SubscriptionStatus } from "@/lib/billing";
 
 /**
  * Paywall for the /api/data/* surface.
@@ -14,15 +15,14 @@ import { getSubscription } from "@/lib/subscription";
  *  - SUBSCRIBER: anything that identifies a position (tickers, entry dates,
  *                trade history).
  *
- * Entitlement has two independent grants: a live Paddle subscription, or being
+ * Entitlement has two independent grants: a live Stripe subscription, or being
  * an admin. Admins own the product and must see exactly what a subscriber sees
  * — without a grant they were served the anonymised payload and their own
  * dashboard rendered blank tickers and "Entered —" for every row.
  */
 
 /** Statuses that still grant access. */
-const ENTITLED = new Set(["active", "trialing", "past_due"]);
-// `past_due` keeps access deliberately: Paddle retries failed payments for
+// `past_due` keeps access deliberately: Stripe retries failed payments for
 // several days, and locking a paying customer out mid-dunning causes more
 // churn than the few days of access costs. `paused` and `canceled` do not.
 
@@ -48,7 +48,7 @@ export type Access =
  */
 export async function decideAccess(deps: {
   getUser: () => Promise<{ id: string } | null>;
-  /** Resolves the Paddle status. Throwing is treated as "not entitled". */
+  /** Resolves the Stripe status. Throwing is treated as "not entitled". */
   getSubscriptionStatus: (userId: string) => Promise<string>;
   /** Resolves admin-ness for the current session. Throwing is "not admin". */
   isAdmin: () => Promise<boolean>;
@@ -58,7 +58,9 @@ export async function decideAccess(deps: {
 
   let subscribed = false;
   try {
-    subscribed = ENTITLED.has(await deps.getSubscriptionStatus(user.id));
+    subscribed = isSubscriptionEntitled(
+      (await deps.getSubscriptionStatus(user.id)) as SubscriptionStatus,
+    );
   } catch (e) {
     // Fail closed — a DB error must not hand out the paid product.
     console.error("Subscription lookup failed:", e);

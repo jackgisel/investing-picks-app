@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   renderDeleteAccountEmail,
   renderMarketNoteWelcomeEmail,
+  renderMembershipWelcomeEmail,
   renderNewPickEmail,
   renderVerifyEmail,
 } from "@/lib/email-templates";
@@ -27,6 +28,11 @@ const all = () => [
   renderVerifyEmail({ name: null, verifyUrl: `${SITE}/v`, siteUrl: SITE }),
   renderDeleteAccountEmail({ name: "Jack", confirmUrl: `${SITE}/d`, siteUrl: SITE }),
   renderMarketNoteWelcomeEmail({ unsubscribeUrl: `${SITE}/u`, siteUrl: SITE }),
+  renderMembershipWelcomeEmail({
+    name: "Jack",
+    welcomeUrl: `${SITE}/welcome`,
+    siteUrl: SITE,
+  }),
 ];
 
 describe("every template", () => {
@@ -57,6 +63,23 @@ describe("every template", () => {
       expect(html).toContain("family=Outfit");
       expect(html).not.toContain("IBM+Plex+Sans");
     }
+  });
+});
+
+describe("membership welcome email", () => {
+  it("orients the member without asserting a payment amount", () => {
+    const html = renderMembershipWelcomeEmail({
+      name: "Jack Gisel",
+      welcomeUrl: `${SITE}/welcome`,
+      siteUrl: SITE,
+    });
+    expect(html).toContain("Membership active");
+    expect(html).toContain("Live book");
+    expect(html).toContain("Research");
+    expect(html).toContain(`${SITE}/welcome`);
+    expect(html).not.toContain("$1");
+    expect(html).not.toContain("$250");
+    expect(html).not.toContain("$1,000");
   });
 });
 

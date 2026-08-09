@@ -322,8 +322,9 @@ export default function OpsEvaluationsPage() {
 }
 
 const EMAIL_TEMPLATES = [
-  { id: "", label: "All four" },
+  { id: "", label: "All five" },
   { id: "verify", label: "Verify address" },
+  { id: "membership-welcome", label: "Membership welcome" },
   { id: "new-pick", label: "New pick" },
   { id: "delete-account", label: "Delete account" },
   { id: "market-note", label: "Market note welcome" },

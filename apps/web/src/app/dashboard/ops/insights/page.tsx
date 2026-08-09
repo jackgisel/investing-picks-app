@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, RefreshCw, Send, Sparkles } from "lucide-react";
+import { Ban, ExternalLink, RefreshCw, Send, Sparkles } from "lucide-react";
 import type { Insight, InsightMeta, InsightStatus } from "@/lib/insights";
 
 const inputClass =
@@ -16,7 +16,27 @@ const STATUS_TONE: Record<InsightStatus, string> = {
   draft: "text-accent-yellow",
   failed: "text-accent-red",
   approved: "text-accent-green",
+  rejected: "text-text-dim",
 };
+
+/**
+ * How long until this draft mails itself, in words.
+ *
+ * Deliberately blunt about an overdue one: past the deadline the note goes out
+ * on the next 15-minute sweep, and "in 0 hours" would read as if there were
+ * still room to act.
+ */
+function countdown(autoPublishAt: string | null): string | null {
+  if (!autoPublishAt) return null;
+  const ms = new Date(autoPublishAt).getTime() - Date.now();
+  if (Number.isNaN(ms)) return null;
+  if (ms <= 0) return "sending shortly";
+  const minutes = Math.round(ms / 60000);
+  if (minutes < 60) return `sends in ${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `sends in ${hours}h ${minutes % 60}m`;
+  return `sends in ${Math.floor(hours / 24)}d ${hours % 24}h`;
+}
 
 async function errorMessage(res: Response): Promise<string> {
   try {
@@ -72,8 +92,9 @@ export default function OpsInsightsPage() {
         <p className="panel-label panel-label-lilac mb-2">OPS</p>
         <h1 className="page-title">Research notes</h1>
         <p className="text-text-muted mt-2 text-sm max-w-xl">
-          Every pick gets a drafted note. Nothing reaches a subscriber until you
-          approve it — and approving also emails the list, once.
+          Every pick gets a drafted note, and a drafted note publishes and emails
+          the list on its own once the review window runs out. Reject one to stop
+          it. Approving early does the same send, immediately.
         </p>
       </header>
 
@@ -204,6 +225,7 @@ export default function OpsInsightsPage() {
 }
 
 function Row({ meta, onEdit }: { meta: InsightMeta; onEdit: () => void }) {
+  const due = meta.status === "draft" ? countdown(meta.autoPublishAt) : null;
   return (
     <div className="data-card flex items-start justify-between gap-4">
       <div className="min-w-0">
@@ -216,6 +238,17 @@ function Row({ meta, onEdit }: { meta: InsightMeta; onEdit: () => void }) {
           >
             {meta.status}
           </span>
+          {due && (
+            <span
+              className={`font-mono text-xs ${
+                due === "sending shortly"
+                  ? "text-accent-red"
+                  : "text-text-muted"
+              }`}
+            >
+              {due}
+            </span>
+          )}
         </div>
         <p className="mt-1 text-sm text-text-muted">
           {meta.title ?? "No draft yet"}
@@ -303,6 +336,22 @@ function Editor({
     onError: (e: Error) => setError(e.message),
   });
 
+  const reject = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/ops/insights/${id}/reject`, {
+        method: "POST",
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? `Failed (${res.status})`);
+      return body as { insight: Insight };
+    },
+    onSuccess: () => {
+      invalidate();
+      onClose();
+    },
+    onError: (e: Error) => setError(e.message),
+  });
+
   const approve = useMutation({
     mutationFn: async () => {
       const res = await fetch(`/api/ops/insights/${id}/approve`, {
@@ -341,6 +390,28 @@ function Editor({
           CLOSE
         </button>
       </div>
+
+      {form.status === "draft" && form.autoPublishAt && (
+        <p
+          className={`text-xs ${
+            new Date(form.autoPublishAt).getTime() <= Date.now()
+              ? "text-accent-red"
+              : "text-accent-yellow"
+          }`}
+        >
+          Publishes itself and emails every opted-in subscriber{" "}
+          {countdown(form.autoPublishAt) === "sending shortly"
+            ? "on the next sweep — within about 15 minutes"
+            : `on ${new Date(form.autoPublishAt).toLocaleString()}`}
+          . Reject to stop it.
+        </p>
+      )}
+      {form.status === "rejected" && (
+        <p className="text-xs text-text-muted">
+          Rejected — this note will not be sent. Regenerate puts it back in the
+          queue with a fresh review window.
+        </p>
+      )}
 
       {form.generationError && (
         <p className="text-accent-red text-sm">{form.generationError}</p>
@@ -439,6 +510,18 @@ function Editor({
           {regenerate.isPending ? "Drafting…" : "Regenerate"}
         </button>
 
+        {form.status === "draft" && (
+          <button
+            type="button"
+            onClick={() => reject.mutate()}
+            disabled={reject.isPending}
+            className="btn-outline !py-2 !px-4 !text-[11px] !border-accent-red !text-accent-red hover:!bg-accent-red hover:!text-on-accent disabled:opacity-50"
+          >
+            <Ban size={12} />
+            {reject.isPending ? "Stopping…" : "Reject"}
+          </button>
+        )}
+
         <button
           type="button"
           onClick={() => {
@@ -454,7 +537,7 @@ function Editor({
           className="btn-primary !py-2.5 !px-5 !text-[11px] disabled:opacity-50 ml-auto"
         >
           <Send size={12} />
-          {approve.isPending ? "Sending…" : "Approve & send"}
+          {approve.isPending ? "Sending…" : "Approve & send now"}
         </button>
       </div>
 

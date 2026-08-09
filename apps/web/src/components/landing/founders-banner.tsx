@@ -34,7 +34,7 @@ export function FoundersBanner() {
           </span>
         </span>
         <Link
-          href="/#pricing"
+          href="/subscribe"
           className="font-sans text-[11px] font-bold tracking-[0.08em] uppercase underline underline-offset-2 hover:opacity-80"
         >
           Lock in founders rate →

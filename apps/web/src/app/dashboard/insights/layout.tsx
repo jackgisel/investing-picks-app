@@ -50,8 +50,8 @@ function MembersOnly() {
           not have an active subscription.
         </p>
         <div className="mt-1 flex flex-wrap items-center justify-center gap-4">
-          <Link href="/#pricing" className="btn-primary !px-6 !py-3 !text-xs">
-            View membership
+          <Link href="/subscribe" className="btn-primary !px-6 !py-3 !text-xs">
+            Start membership
           </Link>
           <Link
             href="/dashboard/settings"

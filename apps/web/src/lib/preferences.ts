@@ -70,12 +70,38 @@ export async function setPreferences(
 }
 
 /**
+ * Statuses that still grant access, mirroring `ENTITLED` in `lib/billing.ts`.
+ *
+ * Duplicated as SQL rather than imported because the filter has to run inside
+ * the query — pulling every user out to test them in TypeScript would mean
+ * loading the whole table to mail a fraction of it. `past_due` keeps access
+ * here for the same reason it does at the paywall: Stripe is still retrying,
+ * and cutting a paying customer off mid-dunning costs more than the few days.
+ */
+const ENTITLED_STATUSES = ["active", "trialing", "past_due"] as const;
+
+/**
  * Returns user IDs + emails for everyone who has opted in to a given prefs flag.
  * Users with no preference row use DEFAULT_PREFS, so a LEFT JOIN with COALESCE
  * ensures defaults are honored.
+ *
+ * `audience` decides who is eligible before preferences are consulted:
+ *
+ *  - `"subscribers"` — entitled members and admins only. Required for anything
+ *    carrying the paid product. A pick alert names the ticker in its subject
+ *    line, which is the entire thing a subscription buys; this used to go to
+ *    every registered account, so signing up for free got you the picks by
+ *    email while the site itself paywalled them.
+ *  - `"everyone"` — any account with the flag on. Only for mail that carries no
+ *    paid content, which today means product updates.
+ *
+ * Admins are included in `"subscribers"` deliberately, matching `decideAccess`:
+ * they own the product and must receive exactly what a member receives, or the
+ * only person able to notice a broken template never sees one.
  */
 export async function getOptedInRecipients(
-  flag: keyof NotificationPrefs
+  flag: keyof NotificationPrefs,
+  audience: "subscribers" | "everyone" = "subscribers"
 ): Promise<{ id: string; email: string; name: string | null }[]> {
   const columnMap: Record<keyof NotificationPrefs, string> = {
     newPicks: "new_picks",
@@ -92,6 +118,16 @@ export async function getOptedInRecipients(
   const column = columnMap[flag];
   const defaultValue = defaultMap[flag];
 
+  // Interpolated, never parameterised: `column` is looked up in `columnMap`
+  // above, so it can only ever be one of four literals this file wrote.
+  const entitlement =
+    audience === "subscribers"
+      ? `AND (
+             s.status = ANY($2::text[])
+             OR COALESCE(u.is_admin, FALSE) = TRUE
+           )`
+      : "";
+
   const result = await pool.query<{
     id: string;
     email: string;
@@ -100,9 +136,13 @@ export async function getOptedInRecipients(
     `SELECT u.id, u.email, u.name
        FROM "user" u
        LEFT JOIN user_preferences p ON p.user_id = u.id
+       LEFT JOIN user_subscription s ON s.user_id = u.id
       WHERE COALESCE(p.${column}, $1) = TRUE
-        AND u.email IS NOT NULL`,
-    [defaultValue]
+        AND u.email IS NOT NULL
+        ${entitlement}`,
+    audience === "subscribers"
+      ? [defaultValue, [...ENTITLED_STATUSES]]
+      : [defaultValue]
   );
   return result.rows;
 }

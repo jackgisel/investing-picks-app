@@ -59,31 +59,69 @@ export function verifyPickAlertToken(token: string): string | null {
 }
 
 /**
- * Turn off pick alerts for the holder of `token`.
+ * Which member list a one-click unsubscribe should switch off.
  *
- * Only `new_picks` is touched — an unsubscribe from one list must not silently
- * clear the others. The INSERT branch writes DEFAULT_PREFS for the rest, which
- * is what a user with no row was already receiving.
+ * The token identifies the person, not the list — it is an HMAC of the user id
+ * and nothing else — so the list has to travel separately, in the URL. Every
+ * bulk sender in `lib/email.ts` builds its header from the matching value here.
+ */
+export type MemberList = "picks" | "weekly" | "performance" | "product";
+
+const LIST_COLUMNS: Record<MemberList, string> = {
+  picks: "new_picks",
+  weekly: "weekly_summary",
+  performance: "performance_alerts",
+  product: "product_updates",
+};
+
+/** Parse the `list` query parameter. Unknown or absent means pick alerts. */
+export function parseMemberList(raw: string | null): MemberList {
+  return raw && raw in LIST_COLUMNS ? (raw as MemberList) : "picks";
+}
+
+/**
+ * Turn off ONE list for the holder of `token`.
+ *
+ * Exactly one column is touched — an unsubscribe from one list must not
+ * silently clear the others, which is the whole reason the list is a parameter
+ * rather than this function clearing everything. The INSERT branch writes
+ * DEFAULT_PREFS for the rest, which is what a user with no row was already
+ * receiving.
  */
 export async function unsubscribeFromPickAlerts(
-  token: string
+  token: string,
+  list: MemberList = "picks"
 ): Promise<{ ok: boolean }> {
   const userId = verifyPickAlertToken(token);
   if (!userId) return { ok: false };
 
+  // Safe to interpolate: the value comes from LIST_COLUMNS, so it can only be
+  // one of the four literals above — never anything the request supplied.
+  const column = LIST_COLUMNS[list];
+
   try {
     await pool.query(
+      // The INSERT branch is DEFAULT_PREFS with the one unsubscribed column
+      // forced false. `product_updates` defaults to false already, so it is a
+      // literal rather than a comparison.
       `INSERT INTO user_preferences
           (user_id, new_picks, weekly_summary, performance_alerts, product_updates, updated_at)
-        VALUES ($1, FALSE, TRUE, TRUE, FALSE, NOW())
+        VALUES (
+          $1,
+          $2 <> 'new_picks',
+          $2 <> 'weekly_summary',
+          $2 <> 'performance_alerts',
+          FALSE,
+          NOW()
+        )
         ON CONFLICT (user_id) DO UPDATE SET
-          new_picks = FALSE,
+          ${column} = FALSE,
           updated_at = NOW()`,
-      [userId]
+      [userId, column]
     );
     return { ok: true };
   } catch (e) {
-    console.error("Pick-alert unsubscribe failed:", e);
+    console.error(`Unsubscribe from ${list} failed:`, e);
     return { ok: false };
   }
 }

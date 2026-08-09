@@ -459,7 +459,7 @@ function NotificationsForm() {
       />
       <Toggle
         label="Performance alerts"
-        description="Heads-up when a position hits a major milestone or the portfolio enters a drawdown."
+        description="Heads-up when a position crosses +50%, +100% or +200%, or the book falls 10% or more from its high."
         enabled={prefs.performanceAlerts}
         onChange={(v) => update("performanceAlerts", v)}
         disabled={!loaded}

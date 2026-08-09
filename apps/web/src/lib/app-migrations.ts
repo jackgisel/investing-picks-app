@@ -275,4 +275,62 @@ export async function runAppMigrations() {
       ON insight(auto_publish_at)
       WHERE status = 'draft' AND email_sent_at IS NULL
   `);
+
+  // Drafting retries. A generation failure used to park the note in `failed`
+  // until a human noticed and pressed Regenerate — the same "gate with no
+  // doorbell" shape as the approval bug. The sweep now retries, and this is the
+  // stopper: a ticker whose facts genuinely cannot be drafted must not burn a
+  // model call on every pass forever.
+  await pool.query(`
+    ALTER TABLE insight
+      ADD COLUMN IF NOT EXISTS generation_attempts INT NOT NULL DEFAULT 0
+  `);
+
+  /*
+   * One ledger for "has this exact message already gone out?".
+   *
+   * The weekly digest, the performance alerts and anything added later all need
+   * the same guarantee the pick announcement gets from `email_sent_at`: a job
+   * that fires twice, a retried request, or two workers overlapping must not
+   * mail the list twice. A bespoke column per feature is how one of them ends
+   * up without the guard, so they share a claim table instead.
+   *
+   * `kind` is the feature, `dedupe_key` is whatever makes an instance unique to
+   * it — an ISO week for the digest, `TICKER:100` for a milestone. The primary
+   * key IS the lock: INSERT ... ON CONFLICT DO NOTHING has exactly one winner.
+   */
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS email_dispatch (
+      kind TEXT NOT NULL,
+      dedupe_key TEXT NOT NULL,
+      recipients INT NOT NULL DEFAULT 0,
+      sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (kind, dedupe_key)
+    )
+  `);
+
+  /*
+   * Product updates — the admin-composed announcement.
+   *
+   * A row, not a code deploy, for the same reason research notes became rows:
+   * writing one should not require shipping the app. `sent_at` is the claim,
+   * mirroring `insight.email_sent_at`, so approving twice cannot mail twice.
+   */
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS product_update (
+      id BIGSERIAL PRIMARY KEY,
+      subject TEXT NOT NULL,
+      body_md TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'draft'
+        CHECK (status IN ('draft', 'sent')),
+      sent_at TIMESTAMPTZ,
+      recipients INT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS product_update_status_idx
+      ON product_update(status, created_at DESC)
+  `);
 }

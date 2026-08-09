@@ -7,7 +7,13 @@ import {
   renderVerifyEmail,
   renderMembershipWelcomeEmail,
   renderMarketNoteWelcomeEmail,
+  renderWeeklySummaryEmail,
+  renderPerformanceAlertEmail,
+  renderProductUpdateEmail,
+  renderJobFailureEmail,
+  type PerformanceAlertKind,
   type PickStat,
+  type WeeklyMove,
 } from "@/lib/email-templates";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
@@ -251,5 +257,179 @@ export async function sendMarketNoteWelcomeEmail(args: {
       "List-Unsubscribe": `<${marketNoteOneClickUrl(args.token)}>`,
       "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
     },
+  });
+}
+
+/* ----------------------------- Weekly summary ----------------------------- */
+
+/**
+ * The Sunday digest.
+ *
+ * Bulk, so it carries the same List-Unsubscribe pair as the other fan-outs.
+ * The token is the pick-alert one because both are member-preference lists on
+ * the same user id — but the header points at the digest's own opt-out route,
+ * so unsubscribing here turns off the digest and leaves pick alerts alone.
+ */
+export async function sendWeeklySummaryEmail(args: {
+  to: string;
+  userId: string;
+  recipientName: string | null;
+  periodLabel: string;
+  stats: PickStat[];
+  moves: WeeklyMove[];
+  banner?: string;
+}): Promise<SendResult> {
+  const dashboardUrl = `${SITE_URL}/dashboard`;
+  const oneClick = weeklySummaryOneClickUrl(pickAlertToken(args.userId));
+  const html = renderWeeklySummaryEmail({
+    recipientName: args.recipientName,
+    periodLabel: args.periodLabel,
+    stats: args.stats,
+    moves: args.moves,
+    dashboardUrl,
+    siteUrl: SITE_URL,
+    unsubscribeUrl: `${SITE_URL}/dashboard/settings`,
+    banner: args.banner,
+  });
+  const movesText = args.moves.length
+    ? args.moves.map((m) => `  ${m.ticker} — ${m.action}${m.when ? ` (${m.when})` : ""}`).join("\n")
+    : "  No trades this week.";
+  const text = `Your ${SITE_NAME} week — ${args.periodLabel}\n\n${args.stats
+    .filter((s) => s.value)
+    .map((s) => `${s.label}: ${s.value}`)
+    .join("\n")}\n\nMoves this week:\n${movesText}\n\nOpen the dashboard: ${dashboardUrl}\n\nYou're receiving this because you opted in to the weekly summary. Manage your preferences: ${SITE_URL}/dashboard/settings`;
+
+  return send({
+    to: args.to,
+    subject: `Your ${SITE_NAME} week — ${args.periodLabel}`,
+    html,
+    text,
+    headers: {
+      "List-Unsubscribe": `<${oneClick}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    },
+  });
+}
+
+export function weeklySummaryOneClickUrl(token: string): string {
+  return `${SITE_URL}/api/preferences/unsubscribe?token=${encodeURIComponent(token)}&list=weekly`;
+}
+
+/* ---------------------------- Performance alert --------------------------- */
+
+export async function sendPerformanceAlertEmail(args: {
+  to: string;
+  userId: string;
+  recipientName: string | null;
+  kind: PerformanceAlertKind;
+  headline: string;
+  detail: string;
+  stats: PickStat[];
+  banner?: string;
+}): Promise<SendResult> {
+  const oneClick = performanceAlertOneClickUrl(pickAlertToken(args.userId));
+  const html = renderPerformanceAlertEmail({
+    recipientName: args.recipientName,
+    kind: args.kind,
+    headline: args.headline,
+    detail: args.detail,
+    stats: args.stats,
+    dashboardUrl: `${SITE_URL}/dashboard/positions`,
+    siteUrl: SITE_URL,
+    unsubscribeUrl: `${SITE_URL}/dashboard/settings`,
+    banner: args.banner,
+  });
+  const text = `${args.headline}\n\n${args.detail}\n\nThis is a notification, not a recommendation.\n\nSee the portfolio: ${SITE_URL}/dashboard/positions\n\nManage your preferences: ${SITE_URL}/dashboard/settings`;
+
+  return send({
+    to: args.to,
+    subject: args.headline,
+    html,
+    text,
+    headers: {
+      "List-Unsubscribe": `<${oneClick}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    },
+  });
+}
+
+export function performanceAlertOneClickUrl(token: string): string {
+  return `${SITE_URL}/api/preferences/unsubscribe?token=${encodeURIComponent(token)}&list=performance`;
+}
+
+/* ----------------------------- Product update ----------------------------- */
+
+export async function sendProductUpdateEmail(args: {
+  to: string;
+  userId: string;
+  recipientName: string | null;
+  subject: string;
+  /** Pre-rendered, already-sanitised HTML. See `lib/product-updates.ts`. */
+  bodyHtml: string;
+  bodyText: string;
+  banner?: string;
+}): Promise<SendResult> {
+  const oneClick = productUpdateOneClickUrl(pickAlertToken(args.userId));
+  const html = renderProductUpdateEmail({
+    recipientName: args.recipientName,
+    subject: args.subject,
+    bodyHtml: args.bodyHtml,
+    siteUrl: SITE_URL,
+    unsubscribeUrl: `${SITE_URL}/dashboard/settings`,
+    banner: args.banner,
+  });
+  const text = `${args.subject}\n\n${args.bodyText}\n\nManage your preferences: ${SITE_URL}/dashboard/settings`;
+
+  return send({
+    to: args.to,
+    subject: args.subject,
+    html,
+    text,
+    headers: {
+      "List-Unsubscribe": `<${oneClick}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    },
+  });
+}
+
+export function productUpdateOneClickUrl(token: string): string {
+  return `${SITE_URL}/api/preferences/unsubscribe?token=${encodeURIComponent(token)}&list=product`;
+}
+
+/* ------------------------------- Job failure ------------------------------ */
+
+/**
+ * Operational alert to the admin allowlist.
+ *
+ * No List-Unsubscribe: this is not a mailing list, it is the on-call channel,
+ * and it goes only to addresses the deployment itself names in ADMIN_EMAILS.
+ * `idempotencyKey` is the run id, so a retried delivery from the worker cannot
+ * produce a second copy of the same failure.
+ */
+export async function sendJobFailureEmail(args: {
+  to: string[];
+  jobName: string;
+  runId: string;
+  failedAt: string;
+  detail: string;
+  banner?: string;
+}): Promise<SendResult> {
+  const opsUrl = `${SITE_URL}/dashboard/ops`;
+  const html = renderJobFailureEmail({
+    jobName: args.jobName,
+    failedAt: args.failedAt,
+    detail: args.detail,
+    opsUrl,
+    siteUrl: SITE_URL,
+    banner: args.banner,
+  });
+  const text = `Scheduled job failed: ${args.jobName}\n\nFailed at: ${args.failedAt}\n\n${args.detail}\n\nOps: ${opsUrl}`;
+
+  return send({
+    to: args.to,
+    subject: `[${SITE_NAME}] ${args.jobName} failed`,
+    html,
+    text,
+    idempotencyKey: `outpick-jobfail-${args.runId}`,
   });
 }

@@ -222,3 +222,8 @@ class JobRun(Base):
     detail: Mapped[str | None] = mapped_column(Text, nullable=True)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    #: When the admins were mailed about this failure. NULL on every run that
+    #: has not been alerted — including successful ones, which never are. The
+    #: worker's alert sweep claims rows by setting it, so an alert that fails to
+    #: send is retried on the next pass instead of being lost.
+    alerted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

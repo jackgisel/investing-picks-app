@@ -164,13 +164,33 @@ export async function createPendingInsight(
   return rows[0] ? toMeta(rows[0]) : null;
 }
 
-/** Every note still waiting on a body, oldest first. */
+/**
+ * How many times the sweep will try to draft one note before giving up.
+ *
+ * A ticker whose facts genuinely cannot be drafted — the API has no profile for
+ * it, the model keeps refusing the schema — must not cost a model call on every
+ * sweep forever. Three is enough to ride out a transient upstream failure and
+ * cheap enough that a permanent one is not expensive.
+ */
+export const MAX_GENERATION_ATTEMPTS = 3;
+
+/**
+ * Every note still waiting on a body, oldest first.
+ *
+ * Includes rows that FAILED and still have attempts left. Selecting only
+ * `pending` is what left a generation error parked until a human noticed and
+ * pressed Regenerate — the same "gate with no doorbell" that left approved
+ * notes unsent. `failed` rows come last so a fresh pick is never stuck behind
+ * a retry of a broken one.
+ */
 export async function listPendingInsights(): Promise<InsightMeta[]> {
   const { rows } = await pool.query<DbInsightRow>(
     `SELECT ${META_COLUMNS}
        FROM insight
       WHERE status = 'pending'
-      ORDER BY created_at ASC`,
+         OR (status = 'failed' AND generation_attempts < $1)
+      ORDER BY (status = 'failed'), created_at ASC`,
+    [MAX_GENERATION_ATTEMPTS],
   );
   return rows.map(toMeta);
 }
@@ -217,6 +237,10 @@ export async function saveDraft(
                      ELSE $11::text
                    END,
             status = 'draft', generation_error = NULL, updated_at = NOW(),
+            -- Reset on success: the retry budget is three CONSECUTIVE
+            -- failures, so a note that eventually drafts starts clean if it is
+            -- ever regenerated later.
+            generation_attempts = 0,
             auto_publish_at = NOW() + ($12::numeric * INTERVAL '1 hour')
       WHERE id = $1
         -- An approved note is immutable through this path. Regenerating one
@@ -241,14 +265,23 @@ export async function saveDraft(
   return rows[0] ? toInsight(rows[0]) : null;
 }
 
-/** Record a generation failure so the row never sits wedged in `pending`. */
+/**
+ * Record a generation failure so the row never sits wedged in `pending`.
+ *
+ * Increments the attempt counter, which is what eventually stops the sweep
+ * retrying a note that cannot be drafted. A successful `saveDraft` resets it,
+ * so the budget is three consecutive failures rather than three ever.
+ */
 export async function markGenerationFailed(
   id: string,
   message: string,
 ): Promise<void> {
   await pool.query(
     `UPDATE insight
-        SET status = 'failed', generation_error = $2, updated_at = NOW()
+        SET status = 'failed',
+            generation_error = $2,
+            generation_attempts = generation_attempts + 1,
+            updated_at = NOW()
       WHERE id = $1 AND status <> 'approved'`,
     [id, message.slice(0, 2000)],
   );

@@ -58,7 +58,9 @@ def reap_stale_weekly_refreshes() -> int:
         db.close()
 
 
-def _post_to_web_app(path: str, label: str, timeout: float) -> dict:
+def _post_to_web_app(
+    path: str, label: str, timeout: float, json: dict | None = None
+) -> dict:
     """POST to an internal endpoint on the web app, best-effort.
 
     These are the only outbound calls this service makes to the web app.
@@ -90,6 +92,7 @@ def _post_to_web_app(path: str, label: str, timeout: float) -> dict:
             res = client.post(
                 f"{base}{path}",
                 headers={"Authorization": f"Bearer {secret}"},
+                json=json,
             )
             res.raise_for_status()
             body = res.json()
@@ -114,6 +117,98 @@ def sync_insight_drafts() -> dict:
     return _post_to_web_app(
         "/api/internal/insights/sync", "Insight draft sync", 600.0
     )
+
+
+def job_weekly_summary():
+    """Mail the Sunday digest.
+
+    One send per ISO week is enforced by a claim in the web app's
+    `email_dispatch`, not by this schedule — so a redeploy that fires the job
+    twice, or an operator running it by hand, still mails the list once.
+    """
+    return _post_to_web_app(
+        "/api/internal/email/weekly-summary", "Weekly summary", 300.0
+    )
+
+
+def job_performance_alerts():
+    """Check for position milestones and portfolio drawdowns.
+
+    Every alert is claimed by EVENT rather than by day, so a position sitting
+    above a threshold does not re-announce itself on every run.
+    """
+    return _post_to_web_app(
+        "/api/internal/email/performance-alerts", "Performance alerts", 300.0
+    )
+
+
+def alert_failed_job_runs(limit: int = 10) -> dict:
+    """Mail the admins about job failures nobody has been told about yet.
+
+    A sweep rather than an alert fired from `_track`'s except block, for the
+    reason the drafting pipeline is a sweep: a push that fails is a failure
+    nobody hears about, and the whole point of this is that a failure stops
+    being silent. `alerted_at` is claimed BEFORE the call and released if the
+    call fails, so a crash mid-alert retries rather than double-mails.
+
+    Never raises. It runs on the same tick as the stale-run reaper, and an
+    alerting problem must not take the reaper down with it.
+    """
+    db = SessionLocal()
+    try:
+        rows = (
+            db.query(JobRun)
+            .filter(JobRun.status == "error", JobRun.alerted_at.is_(None))
+            .order_by(JobRun.id.desc())
+            .limit(limit)
+            .all()
+        )
+        if not rows:
+            return {"alerted": 0}
+
+        alerted = 0
+        for run in rows:
+            claimed_at = datetime.now(timezone.utc)
+            # Claim first. Two workers overlapping must not both mail.
+            won = db.execute(
+                update(JobRun)
+                .where(JobRun.id == run.id, JobRun.alerted_at.is_(None))
+                .values(alerted_at=claimed_at)
+            )
+            db.commit()
+            if won.rowcount != 1:
+                continue
+
+            body = {
+                "job_name": run.job_name,
+                "run_id": str(run.id),
+                "failed_at": (run.finished_at or claimed_at).isoformat(),
+                "detail": run.detail or "",
+            }
+            res = _post_to_web_app(
+                "/api/internal/ops/job-failed",
+                f"Job failure alert ({run.job_name})",
+                60.0,
+                json=body,
+            )
+            if res.get("error") or res.get("skipped") == "not_configured":
+                # Give the claim back so the next sweep tries again. Losing the
+                # alert entirely is the bug being fixed here.
+                db.execute(
+                    update(JobRun)
+                    .where(JobRun.id == run.id)
+                    .values(alerted_at=None)
+                )
+                db.commit()
+            else:
+                alerted += 1
+
+        return {"alerted": alerted, "candidates": len(rows)}
+    except Exception as e:
+        log.exception("Job-failure alert sweep failed")
+        return {"error": str(e)}
+    finally:
+        db.close()
 
 
 def job_auto_publish_insights():

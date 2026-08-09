@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { signIn, signUp } from "@/lib/auth-client";
+import { sendVerificationEmail, signIn, signUp } from "@/lib/auth-client";
 import { OutpickWordmark } from "@/components/ui/outpick-logo";
 import Link from "next/link";
 import { MailCheck } from "lucide-react";
@@ -16,6 +16,29 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [verificationSentTo, setVerificationSentTo] = useState<string | null>(null);
+  const [resending, setResending] = useState(false);
+  const [resent, setResent] = useState(false);
+
+  /**
+   * Ask for a fresh verification link.
+   *
+   * Always reports success, even on failure. This endpoint takes a bare email
+   * address from an unauthenticated caller, so a truthful "no such account"
+   * would turn it into a membership oracle — anyone could test whether an
+   * address has an Outpick account. The user sees the same confirmation either
+   * way; a real failure is in the server log.
+   */
+  async function resendVerification(address: string) {
+    setResending(true);
+    try {
+      await sendVerificationEmail({ email: address, callbackURL: "/subscribe" });
+    } catch {
+      /* deliberately indistinguishable — see above */
+    }
+    setResending(false);
+    setResent(true);
+    setTimeout(() => setResent(false), 6000);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -26,6 +49,18 @@ export default function LoginPage() {
       if (mode === "login") {
         const result = await signIn.email({ email, password });
         if (result.error) {
+          // Correct credentials, unverified address. Better-auth has already
+          // re-sent the link (emailVerification.sendOnSignIn), so send the user
+          // to the same "check your inbox" screen rather than an error that
+          // reads like a wrong password and offers nothing to do about it.
+          if (
+            result.error.code === "EMAIL_NOT_VERIFIED" ||
+            result.error.status === 403
+          ) {
+            setVerificationSentTo(email.trim());
+            setLoading(false);
+            return;
+          }
           setError(result.error.message || "Invalid credentials");
           setLoading(false);
           return;
@@ -89,13 +124,30 @@ export default function LoginPage() {
               returns you to a short tour once Stripe confirms the subscription.
             </p>
           </div>
+          <div className="mt-7 flex flex-col items-center gap-3">
+            <button
+              type="button"
+              onClick={() => void resendVerification(verificationSentTo)}
+              disabled={resending || resent}
+              className="btn-primary disabled:opacity-60"
+            >
+              {resending
+                ? "Sending…"
+                : resent
+                  ? "Sent — check your inbox"
+                  : "Resend the link"}
+            </button>
+            <p className="font-sans text-[12px] text-text-dim">
+              Nothing after a minute? Check spam, then resend.
+            </p>
+          </div>
           <button
             type="button"
             onClick={() => {
               setVerificationSentTo(null);
               setEmail("");
             }}
-            className="btn-outline mt-7"
+            className="btn-outline mt-5"
           >
             Use a different email
           </button>

@@ -10,6 +10,10 @@ const state = vi.hoisted(() => ({
   } as
     | { id: string; email: string; name: string | null; emailVerified: boolean }
     | null,
+  // Annotated rather than inferred: the literals would narrow
+  // `stripeCustomerId` to `string` and `foundersDiscountRedeemedAt` to `null`,
+  // so the tests that swap them (no Customer yet; founders already redeemed)
+  // could not assign the value they exist to exercise.
   subscription: {
     status: "inactive",
     stripeCustomerId: "cus_existing",
@@ -18,8 +22,18 @@ const state = vi.hoisted(() => ({
     cancelAtPeriodEnd: false,
     canceledAt: null,
     foundersDiscountRedeemedAt: null,
+  } as {
+    status: string;
+    stripeCustomerId: string | null;
+    stripeSubscriptionId: string | null;
+    currentPeriodEnd: string | null;
+    cancelAtPeriodEnd: boolean;
+    canceledAt: string | null;
+    foundersDiscountRedeemedAt: string | null;
   },
   foundersActive: true,
+  /** Whether the deployment asks anyone to verify. See `requireEmailVerification`. */
+  verificationRequired: true,
   stripe: {
     customers: { retrieve: vi.fn(), create: vi.fn() },
     subscriptions: { list: vi.fn() },
@@ -29,7 +43,10 @@ const state = vi.hoisted(() => ({
   saveCustomer: vi.fn(),
 }));
 
-vi.mock("@/lib/auth", () => ({ ensureMigrations: vi.fn() }));
+vi.mock("@/lib/auth", () => ({
+  ensureMigrations: vi.fn(),
+  requireEmailVerification: () => state.verificationRequired,
+}));
 vi.mock("@/lib/server-session", () => ({ getServerUser: async () => state.user }));
 vi.mock("@/lib/founders-server", () => ({
   isFoundersWindowActive: async () => state.foundersActive,
@@ -72,6 +89,7 @@ describe("billing routes", () => {
       foundersDiscountRedeemedAt: null,
     });
     state.foundersActive = true;
+    state.verificationRequired = true;
     state.stripe.customers.retrieve.mockResolvedValue({
       id: "cus_existing",
       deleted: false,
@@ -98,6 +116,33 @@ describe("billing routes", () => {
     const response = await checkout(request());
     expect(response.status).toBe(403);
     expect(state.stripe.checkout.sessions.create).not.toHaveBeenCalled();
+  });
+
+  it("tells the client the refusal is fixable, and by whom", async () => {
+    // The dead end: the message alone gave the UI nothing to act on, so an
+    // unverified user got a flat error and no way to request a new link.
+    if (!state.user) throw new Error("expected signed-in test user");
+    state.user.emailVerified = false;
+    const body = await (await checkout(request())).json();
+    expect(body).toMatchObject({
+      reason: "email_unverified",
+      email: "member@example.test",
+    });
+  });
+
+  it("does NOT require verification when the deployment does not", async () => {
+    // The bug this pins. Checkout demanded `emailVerified` unconditionally
+    // while a separate setting decided whether anyone was ever asked to
+    // verify. With verification off, no account is ever verified — so checkout
+    // was unreachable for every user, with nothing they could do about it.
+    if (!state.user) throw new Error("expected signed-in test user");
+    state.user.emailVerified = false;
+    state.verificationRequired = false;
+
+    const response = await checkout(request());
+
+    expect(response.status).toBe(200);
+    expect(state.stripe.checkout.sessions.create).toHaveBeenCalledTimes(1);
   });
 
   it("rejects cross-origin browser POSTs", async () => {

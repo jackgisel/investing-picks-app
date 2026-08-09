@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.db import models  # noqa: F401 — register metadata
+from app.db.migrations import ensure_schema
 from app.db.session import Base, SessionLocal, engine
 from app.routes import ops, public_v1
 from app.services.portfolio import ensure_default_portfolio
@@ -13,6 +14,8 @@ from app.services.portfolio import ensure_default_portfolio
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    # create_all adds tables but never columns; ensure_schema does the rest.
+    ensure_schema(engine)
     db = SessionLocal()
     try:
         ensure_default_portfolio(db, get_settings().initial_cash)

@@ -131,6 +131,7 @@ describe("visibleGroups", () => {
       "/dashboard/ops",
       "/dashboard/ops/book",
       "/dashboard/ops/insights",
+      "/dashboard/ops/product-updates",
     ]);
   });
 });

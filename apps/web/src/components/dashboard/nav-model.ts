@@ -5,6 +5,7 @@ import {
   Settings,
   ScanSearch,
   FileText,
+  Megaphone,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
@@ -72,6 +73,11 @@ const NAV_GROUPS: readonly NavGroup[] = [
         label: "Research notes",
         href: "/dashboard/ops/insights",
         icon: FileText,
+      },
+      {
+        label: "Product updates",
+        href: "/dashboard/ops/product-updates",
+        icon: Megaphone,
       },
     ],
   },

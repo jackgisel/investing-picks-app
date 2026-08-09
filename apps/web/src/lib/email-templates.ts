@@ -483,3 +483,252 @@ export function renderMarketNoteWelcomeEmail(args: {
     banner: args.banner,
   });
 }
+
+/* ----------------------------- Weekly summary ----------------------------- */
+
+export type WeeklyMove = {
+  ticker: string;
+  /** "Bought" / "Sold" — plain reader-facing words, never internal actions. */
+  action: string;
+  /** e.g. "Mon 3 Aug". Empty is fine; the row just loses its date. */
+  when: string;
+};
+
+/**
+ * The Sunday digest.
+ *
+ * Percentages only, and no position sizes — the same rule the research notes
+ * and every published surface follow. Returns are what matter; absolute capital
+ * is the reader's own business, and a digest is not where that changes.
+ */
+export function renderWeeklySummaryEmail(args: {
+  recipientName: string | null;
+  /** e.g. "3–9 August 2026". */
+  periodLabel: string;
+  stats: PickStat[];
+  moves: WeeklyMove[];
+  dashboardUrl: string;
+  siteUrl: string;
+  unsubscribeUrl?: string;
+  banner?: string;
+}): string {
+  const greeting = args.recipientName
+    ? `Hi ${escapeHtml(args.recipientName.split(" ")[0])},`
+    : "Hi there,";
+
+  const stats = args.stats.filter((s) => s.value);
+  const statCells = stats
+    .map((s) => {
+      const colour =
+        s.direction === "up" ? GREEN : s.direction === "down" ? RED : TEXT;
+      const cls =
+        s.direction === "up" ? "dm-up" : s.direction === "down" ? "dm-down" : "dm-text";
+      return `
+        <td width="${Math.floor(100 / stats.length)}%" style="padding:0 12px 0 0;vertical-align:top;">
+          ${fieldLabel(s.label)}
+          <p class="${cls}" style="margin:0;font-family:${FONT_MONO};font-size:20px;font-weight:600;color:${colour};">${escapeHtml(s.value)}</p>
+        </td>`;
+    })
+    .join("");
+
+  const statBlock = stats.length
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 26px 0;"><tr>${statCells}</tr></table>`
+    : "";
+
+  // A week with no trades is the normal case for a biweekly strategy, and
+  // saying so plainly is better than an empty box that reads as a bug.
+  const movesBlock = args.moves.length
+    ? card(`
+        ${fieldLabel(`Moves this week (${args.moves.length})`)}
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          ${args.moves
+            .map(
+              (m) => `
+            <tr>
+              <td style="padding:7px 0;font-family:${FONT_MONO};font-size:15px;font-weight:600;color:${TEXT};" class="dm-text">${escapeHtml(m.ticker)}</td>
+              <td align="right" style="padding:7px 0;font-family:${FONT_SANS};font-size:13px;color:${TEXT_MUTED};" class="dm-muted">
+                ${escapeHtml(m.action)}${m.when ? ` · ${escapeHtml(m.when)}` : ""}
+              </td>
+            </tr>`,
+            )
+            .join("")}
+        </table>`)
+    : card(`
+        ${fieldLabel("Moves this week")}
+        <p class="dm-muted" style="margin:0;font-family:${FONT_SANS};font-size:14px;color:${TEXT_MUTED};line-height:1.6;">
+          No trades. The strategy evaluates on a fixed cadence and holds through
+          the weeks in between — most weeks look like this one.
+        </p>`);
+
+  const body = `
+    ${eyebrow("Weekly summary", "mint")}
+    ${heading(`The week of ${args.periodLabel}`)}
+    ${paragraph(greeting, 22)}
+    ${statBlock}
+    ${movesBlock}
+    ${pillButton(args.dashboardUrl, "Open the dashboard")}
+  `;
+
+  return shell({
+    preview: `Your ${SITE_NAME} week: ${stats[0]?.value ?? "portfolio update"}`,
+    bodyHtml: body,
+    siteUrl: args.siteUrl,
+    unsubscribe: args.unsubscribeUrl
+      ? { url: args.unsubscribeUrl, label: "Unsubscribe" }
+      : undefined,
+    banner: args.banner,
+  });
+}
+
+/* ---------------------------- Performance alert --------------------------- */
+
+export type PerformanceAlertKind = "milestone" | "drawdown";
+
+/**
+ * A position crossing a milestone, or the book entering a drawdown.
+ *
+ * Tone matters more here than anywhere else in this file. A "+100%" mail is
+ * exactly the shape of every pump newsletter ever written, so it states the
+ * fact, links to the research, and says nothing about what the reader should
+ * do next — no urgency, no exhortation, no implied target.
+ */
+export function renderPerformanceAlertEmail(args: {
+  recipientName: string | null;
+  kind: PerformanceAlertKind;
+  headline: string;
+  detail: string;
+  stats: PickStat[];
+  dashboardUrl: string;
+  siteUrl: string;
+  unsubscribeUrl?: string;
+  banner?: string;
+}): string {
+  const greeting = args.recipientName
+    ? `Hi ${escapeHtml(args.recipientName.split(" ")[0])},`
+    : "Hi there,";
+
+  const stats = args.stats.filter((s) => s.value);
+  const statCells = stats
+    .map((s) => {
+      const colour =
+        s.direction === "up" ? GREEN : s.direction === "down" ? RED : TEXT;
+      const cls =
+        s.direction === "up" ? "dm-up" : s.direction === "down" ? "dm-down" : "dm-text";
+      return `
+        <td width="${Math.floor(100 / stats.length)}%" style="padding:0 12px 0 0;vertical-align:top;">
+          ${fieldLabel(s.label)}
+          <p class="${cls}" style="margin:0;font-family:${FONT_MONO};font-size:20px;font-weight:600;color:${colour};">${escapeHtml(s.value)}</p>
+        </td>`;
+    })
+    .join("");
+
+  const body = `
+    ${eyebrow(
+      args.kind === "milestone" ? "Position milestone" : "Portfolio drawdown",
+      args.kind === "milestone" ? "mint" : "peach",
+    )}
+    ${heading(args.headline)}
+    ${paragraph(greeting, 14)}
+    ${paragraph(escapeHtml(args.detail), 24)}
+    ${
+      stats.length
+        ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 26px 0;"><tr>${statCells}</tr></table>`
+        : ""
+    }
+    ${card(`
+      <p class="dm-muted" style="margin:0;font-family:${FONT_SANS};font-size:14px;color:${TEXT_MUTED};line-height:1.6;">
+        This is a notification, not a recommendation. We publish what the book
+        did; what you do about it is your decision.
+      </p>`)}
+    ${pillButton(args.dashboardUrl, "See the portfolio")}
+  `;
+
+  return shell({
+    preview: args.headline,
+    bodyHtml: body,
+    siteUrl: args.siteUrl,
+    unsubscribe: args.unsubscribeUrl
+      ? { url: args.unsubscribeUrl, label: "Unsubscribe" }
+      : undefined,
+    banner: args.banner,
+  });
+}
+
+/* ----------------------------- Product update ----------------------------- */
+
+/**
+ * Admin-composed product news.
+ *
+ * `bodyHtml` is rendered from markdown by the caller — this template does not
+ * parse anything, because a template that accepts raw HTML from one caller and
+ * escaped text from another is how unescaped user input eventually reaches an
+ * inbox. The single caller sanitises.
+ */
+export function renderProductUpdateEmail(args: {
+  recipientName: string | null;
+  subject: string;
+  bodyHtml: string;
+  siteUrl: string;
+  unsubscribeUrl?: string;
+  banner?: string;
+}): string {
+  const greeting = args.recipientName
+    ? `Hi ${escapeHtml(args.recipientName.split(" ")[0])},`
+    : "Hi there,";
+
+  const body = `
+    ${eyebrow("Product update", "lilac")}
+    ${heading(args.subject)}
+    ${paragraph(greeting, 18)}
+    ${args.bodyHtml}
+  `;
+
+  return shell({
+    preview: args.subject,
+    bodyHtml: body,
+    siteUrl: args.siteUrl,
+    unsubscribe: args.unsubscribeUrl
+      ? { url: args.unsubscribeUrl, label: "Unsubscribe" }
+      : undefined,
+    banner: args.banner,
+  });
+}
+
+/* ------------------------------- Job failure ------------------------------ */
+
+/**
+ * Operational alert. Goes to admins only, never to a member.
+ *
+ * Plain on purpose: it is read at speed by someone deciding whether to get out
+ * of bed, so the job name, the time and the error come before anything else.
+ */
+export function renderJobFailureEmail(args: {
+  jobName: string;
+  failedAt: string;
+  detail: string;
+  opsUrl: string;
+  siteUrl: string;
+  banner?: string;
+}): string {
+  const body = `
+    ${eyebrow("Scheduled job failed", "coral")}
+    ${heading(args.jobName)}
+    ${card(`
+      ${fieldLabel("Failed at")}
+      <p class="dm-text" style="margin:0 0 16px 0;font-family:${FONT_MONO};font-size:14px;color:${TEXT};">${escapeHtml(args.failedAt)}</p>
+      ${fieldLabel("Error")}
+      <p class="dm-muted" style="margin:0;font-family:${FONT_MONO};font-size:13px;color:${TEXT_MUTED};line-height:1.55;word-break:break-word;">${escapeHtml(args.detail)}</p>`)}
+    ${paragraph(
+      `The run is recorded either way — this mail exists so a failure is not waiting silently for someone to open the ops page.`,
+      24,
+    )}
+    ${pillButton(args.opsUrl, "Open ops")}
+  `;
+
+  return shell({
+    preview: `${args.jobName} failed — ${args.detail.slice(0, 80)}`,
+    bodyHtml: body,
+    siteUrl: args.siteUrl,
+    banner: args.banner,
+  });
+}

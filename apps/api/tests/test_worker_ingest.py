@@ -74,6 +74,31 @@ def test_refresh_marks_twice_in_one_day_does_not_crash(db):
     assert bars[0].close == 11.0
 
 
+def test_refresh_marks_quotes_every_comparison_etf(db):
+    """MAGS/VTI were snapshot-backfill only, so Mag 7 froze mid-chart."""
+    from app.services.benchmarks import BENCHMARKS
+
+    class RecordingFMP(FakeFMP):
+        def __init__(self):
+            super().__init__({t: 100.0 for t in BENCHMARKS})
+            self.requested: list[str] = []
+
+        def batch_quotes(self, tickers):
+            self.requested = list(tickers)
+            return super().batch_quotes(tickers)
+
+    fmp = RecordingFMP()
+    n = refresh_marks(db, fmp)
+
+    assert set(BENCHMARKS).issubset(fmp.requested)
+    assert n == len(BENCHMARKS)
+    for ticker in BENCHMARKS:
+        stock = db.get(Stock, ticker)
+        assert stock is not None
+        assert stock.is_etf is True
+        assert db.query(PriceBar).filter(PriceBar.ticker == ticker).one().close == 100.0
+
+
 # ---------------------------------------------------------------------------
 # Bug 4: load_latest_scores mis-inferred "prior"
 # ---------------------------------------------------------------------------

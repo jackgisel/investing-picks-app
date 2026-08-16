@@ -108,8 +108,8 @@ MOMENTUM_ANCHOR_TOLERANCE_DAYS = 25
 
 # How stale the NEWEST bar may be and still be treated as "the price now".
 #
-# Only held positions, the top-rated candidate slice and SPY get a fresh bar
-# from `refresh_marks`; `backfill_price_history` is unscheduled and skips any
+# Only held positions, the top-rated candidate slice and the comparison ETFs
+# get a fresh bar from `refresh_marks`; `backfill_price_history` skips any
 # ticker that already has 200 bars. So for much of the universe the newest bar
 # is frozen at the backfill date while the `as_of - 365d` anchor keeps
 # advancing, and dividing a months-old close by that anchor is not a 12-month

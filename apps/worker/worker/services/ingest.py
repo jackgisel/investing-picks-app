@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from outpick_strategy import RUN118_PARAMS
 
 from app.db.models import Fundamentals, Portfolio, PortfolioSnapshot, Position, PriceBar, Stock
+from app.services.benchmarks import BENCHMARKS
 from app.services.portfolio import ensure_default_portfolio
 from worker.services.fmp import FMPAccessError, FMPClient
 from worker.services.market_calendar import last_trading_day_on_or_before
@@ -656,7 +657,10 @@ def backfill_price_history(
         return max(start, newest - timedelta(days=overlap_days))
 
     candidates = [t for (t,) in universe if _is_short(t) or _is_stale(t)]
-    for ticker in sorted(held):
+    # Holdings and comparison ETFs may have no Stock row (hand-entered picks,
+    # MAGS/QQQ never admitted to the universe). Without this they freeze at the
+    # last snapshot-backfill date and the Mag 7 line simply stops.
+    for ticker in sorted(held | set(BENCHMARKS)):
         if ticker not in candidates and (_is_short(ticker) or _is_stale(ticker)):
             candidates.append(ticker)
     tickers = candidates[:max_tickers] if max_tickers is not None else candidates
@@ -737,7 +741,7 @@ def backfill_price_history(
 
 
 def refresh_marks(db: Session, fmp: FMPClient) -> int:
-    """Update marks for open positions + recent candidates only (lean)."""
+    """Update marks for open positions, recent candidates, and comparison ETFs."""
     portfolio = ensure_default_portfolio(db)
     pos_tickers = [
         p.ticker
@@ -771,7 +775,10 @@ def refresh_marks(db: Session, fmp: FMPClient) -> int:
         else []
     )
     held_tickers = set(pos_tickers)
-    tickers = list({*pos_tickers, *[c[0] for c in candidates], "SPY"})
+    # Comparison ETFs must be marked every session. SPY already was; MAGS and
+    # VTI were only written during snapshot backfill, so their series stopped
+    # weeks before the picks curve and the Mag 7 line looked like missing data.
+    tickers = list({*pos_tickers, *[c[0] for c in candidates], *BENCHMARKS})
     quotes = fmp.batch_quotes(tickers)
     # Date the bar to the session it actually belongs to. FMP returns the last
     # close when the market is shut, so stamping it with date.today() invented a
@@ -795,7 +802,12 @@ def refresh_marks(db: Session, fmp: FMPClient) -> int:
             # refresh_universe — manually entered positions are the common
             # case. Skipping them here silently left every hand-entered
             # position marked at its entry price forever.
-            stock = Stock(ticker=ticker, name=q.get("name"), is_active=True, is_etf=False)
+            stock = Stock(
+                ticker=ticker,
+                name=q.get("name"),
+                is_active=True,
+                is_etf=ticker in BENCHMARKS,
+            )
             db.add(stock)
         # Backfill market cap whenever it is unknown, including on rows this
         # function created earlier.

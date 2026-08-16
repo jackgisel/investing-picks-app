@@ -14,6 +14,7 @@ import pytest
 
 from app.db.models import PriceBar, Trade
 from app.services.benchmarks import (
+    BENCHMARKS,
     benchmark_series,
     deployment_schedule,
     picks_series,
@@ -149,6 +150,12 @@ def test_empty_book_returns_no_series(db, portfolio):
     out = benchmark_series(db, portfolio.id, {"SPY": "S&P 500"})
     assert out["series"] == {}
     assert picks_series(db, portfolio.id) == []
+
+
+def test_published_benchmarks_include_nasdaq():
+    """The landing chart's ticker list lives in one dict; QQQ is not optional."""
+    assert BENCHMARKS["QQQ"] == "Nasdaq-100"
+    assert list(BENCHMARKS)[:2] == ["SPY", "QQQ"]
 
 
 def test_entry_date_beats_trade_timestamp(db, portfolio):

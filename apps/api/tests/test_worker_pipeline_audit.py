@@ -268,8 +268,13 @@ def test_refresh_marks_ignores_scores_from_an_earlier_date(db):
     refresh_marks(db, fmp)
 
     assert "YESTERDAY" not in fmp.requested
-    # 100 current candidates + SPY, with no duplicate slots consumed.
-    assert len(fmp.requested) == 101
+    # Current candidates plus every comparison ETF, with no duplicate slots
+    # consumed by yesterday's scores. MAGS/VTI/QQQ used to be omitted here,
+    # which is why the Mag 7 line froze weeks behind the picks curve.
+    from app.services.benchmarks import BENCHMARKS
+
+    assert len(fmp.requested) == 100 + len(BENCHMARKS)
+    assert set(BENCHMARKS).issubset(fmp.requested)
 
 
 # ---------------------------------------------------------------------------
@@ -280,8 +285,8 @@ def test_refresh_marks_ignores_scores_from_an_earlier_date(db):
 def test_momentum_refuses_a_stale_latest_bar():
     """A months-old close must not be ranked as a current 12-month return.
 
-    Only held positions, an id-ordered slice of 100 candidates and SPY get a
-    fresh bar from refresh_marks; backfill_price_history is unscheduled and
+    Only held positions, an id-ordered slice of 100 candidates and the
+    comparison ETFs get a fresh bar from refresh_marks; backfill_price_history
     skips any ticker that already has 200 bars. So for most of the universe the
     newest PriceBar is frozen at the backfill date while `as_of - 365d` keeps
     advancing. _momentum_12m divides that frozen close by a bar 365 days before

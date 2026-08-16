@@ -1,7 +1,7 @@
-import Image from "next/image";
 import { CategoryTag } from "@/components/ui/category-tag";
 import { TONE_BORDER, type PastelTone } from "@/lib/tones";
 import { PillButton } from "@/components/ui/pill-button";
+import { ThemeIllustration } from "@/components/ui/theme-illustration";
 
 const steps: {
   title: string;
@@ -104,7 +104,7 @@ export function HowItWorks() {
                   </p>
                 </div>
                 <div className="illustration-plate relative aspect-[4/3]">
-                  <Image
+                  <ThemeIllustration
                     src={step.image}
                     alt=""
                     fill

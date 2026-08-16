@@ -52,9 +52,8 @@ const config: Config = {
         // in both themes, so their foreground has to be too — `text` would flip
         // to near-white and leave light-on-light chips.
         "on-accent": withOpacity("--color-on-accent"),
-        // Warm paper the illustrations sit on. Invariant across themes — the
-        // PNGs are opaque with a white ground, so the plate frames them
-        // deliberately instead of letting them glow as stray white boxes.
+        // Paper the illustrations sit on. Cream in light, charcoal in dark —
+        // each set of PNGs is drawn against that ground.
         plate: withOpacity("--color-plate"),
       },
       // Two faces, no more: Outfit sets everything, IBM Plex Mono carries the

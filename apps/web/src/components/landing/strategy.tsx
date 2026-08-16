@@ -1,7 +1,7 @@
-import Image from "next/image";
 import { BACKTEST } from "@/lib/constants";
 import { CategoryTag } from "@/components/ui/category-tag";
 import { TONE_BORDER, type PastelTone } from "@/lib/tones";
+import { ThemeIllustration } from "@/components/ui/theme-illustration";
 
 const PILLARS: {
   num: string;
@@ -74,7 +74,7 @@ export function Strategy() {
               className="absolute -inset-3 rounded-soft border border-dashed border-border/70"
             />
             <div className="illustration-plate relative aspect-[5/4]">
-              <Image
+              <ThemeIllustration
                 src="/illustrations/strategy-value.png"
                 alt=""
                 fill

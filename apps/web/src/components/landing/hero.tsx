@@ -1,4 +1,3 @@
-import Image from "next/image";
 import {
   SITE_NAME,
   SITE_SUBHEADLINE,
@@ -6,6 +5,7 @@ import {
 } from "@/lib/constants";
 import { OutpickLogo } from "@/components/ui/outpick-logo";
 import { PillButton } from "@/components/ui/pill-button";
+import { ThemeIllustration } from "@/components/ui/theme-illustration";
 import { PriceLine } from "./price-line";
 
 export function Hero() {
@@ -48,7 +48,7 @@ export function Hero() {
 
           <div className="relative hero-reveal hero-reveal-4">
             <div className="illustration-plate aspect-square flex items-center justify-center p-6 sm:p-8">
-              <Image
+              <ThemeIllustration
                 src="/illustrations/research.png"
                 alt="Research illustration"
                 width={560}

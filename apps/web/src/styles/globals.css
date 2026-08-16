@@ -51,9 +51,8 @@
   --color-inverse-fg: 10 10 10;
   /* Deliberately identical to :root — the pastels it sits on don't change. */
   --color-on-accent: 10 10 10;
-  /* Also invariant: the illustrations are opaque PNGs with a baked-in white
-     ground, so their plate stays light and reads as paper on the dark page. */
-  --color-plate: 247 243 236;
+  /* Charcoal paper for the dark-mode illustrations (light ink, same pastels). */
+  --color-plate: 24 22 20;
   --color-accent-green: 34 197 94;
   --color-accent-green-soft: 15 46 27;
   --color-accent-green-hover: 22 163 74;
@@ -238,18 +237,23 @@
     @apply font-sans text-[10px] font-bold tracking-[0.1em] uppercase text-text-dim;
   }
 
-  /* Warm paper for the illustrations. `isolate` keeps the multiply blend of
-     the artwork inside this box instead of letting it reach the page. */
+  /* Paper for the illustrations. `isolate` keeps the multiply blend of the
+     light artwork inside this box instead of letting it reach the page. */
   .illustration-plate {
     @apply bg-plate rounded-soft isolate overflow-hidden;
   }
 
-  /* The PNGs are opaque with a white ground. Multiplying against the plate
+  /* Light PNGs are opaque with a white ground. Multiplying against the plate
      drops that white to the plate color and leaves only the ink and the
      pastel fills — no white square, and no filter hack that would muddy the
-     mint plant and peach mug. */
+     mint plant and peach mug. Dark PNGs are already drawn on the plate color,
+     so blend is a no-op under `.dark`. */
   .illustration-art {
     @apply mix-blend-multiply;
+  }
+
+  .dark .illustration-art {
+    mix-blend-mode: normal;
   }
 
   .category-tag {

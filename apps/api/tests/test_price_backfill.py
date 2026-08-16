@@ -14,6 +14,7 @@ from datetime import date, timedelta
 from conftest import make_position
 
 from app.db.models import PriceBar, Stock
+from app.services.benchmarks import BENCHMARKS
 from worker.services.ingest import backfill_price_history, bulk_insert_price_bars
 
 TODAY = date.today()
@@ -105,7 +106,10 @@ def test_backfill_skips_today_and_well_covered_tickers(db, portfolio):
 
     assert "THIN" in fmp.asked
     assert "FULL" not in fmp.asked, "re-fetched a ticker that already had history"
-    assert result["tickers"] == 1
+    # Comparison ETFs have no Stock row and no bars here, so they are short
+    # and must be fetched — that is the MAGS-gap fix.
+    assert set(BENCHMARKS).issubset(fmp.asked)
+    assert result["tickers"] == 1 + len(BENCHMARKS)
 
     # Today belongs to refresh_marks; the backfill must not write it.
     assert (
@@ -131,7 +135,7 @@ def test_a_long_but_stale_series_is_topped_up(db, portfolio):
     result = backfill_price_history(db, fmp, min_bars=20, max_stale_days=5)
 
     assert "STALE" in fmp.asked, "a long-but-frozen series was never topped up"
-    assert result["stale"] == 1 and result["short"] == 0
+    assert result["stale"] == 1 and result["short"] == len(BENCHMARKS)
 
 
 def test_a_stale_top_up_fetches_incrementally(db, portfolio):
@@ -165,7 +169,7 @@ def test_a_fresh_but_short_series_still_gets_full_history(db, portfolio):
 
     assert "SHORT" in fmp.asked, "a fresh but too-short series was skipped"
     assert fmp.asked_from["SHORT"] == TODAY - timedelta(days=430)
-    assert result["short"] == 1
+    assert result["short"] == 1 + len(BENCHMARKS)
 
 
 def test_a_held_ticker_outside_the_universe_is_still_covered(db, portfolio):
@@ -179,3 +183,14 @@ def test_a_held_ticker_outside_the_universe_is_still_covered(db, portfolio):
     backfill_price_history(db, fmp, min_bars=20, max_stale_days=5)
 
     assert "HELD" in fmp.asked
+
+
+def test_a_comparison_etf_without_a_stock_row_is_still_covered(db, portfolio):
+    """MAGS is not in the scored universe; omitting it froze Mag 7 on the chart."""
+    fmp = _StubFMP()
+    backfill_price_history(db, fmp, min_bars=20, max_stale_days=5)
+
+    assert "MAGS" in fmp.asked
+    assert "QQQ" in fmp.asked
+    assert "VTI" in fmp.asked
+    assert "SPY" in fmp.asked

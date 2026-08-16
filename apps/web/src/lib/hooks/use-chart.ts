@@ -45,7 +45,7 @@ export interface BenchmarkData {
   /**
    * Ticker → curve. A ticker is OMITTED entirely when its price history is
    * unavailable — the backend deliberately drops it rather than drawing a flat
-   * line, so consumers must cope with 0, 1, 2 or 3 entries here.
+   * line, so consumers must cope with 0–4 entries here.
    */
   series: Record<string, ReturnPoint[]>;
   /** Capital deployed into picks, in dollars. The UI does not render dollars. */
@@ -121,7 +121,7 @@ export interface PicksComparison {
  * Preferred left-to-right ordering in legends and tooltips. Anything the API
  * adds later sorts alphabetically after these.
  */
-const BENCHMARK_ORDER = ["SPY", "VTI", "MAGS"];
+const BENCHMARK_ORDER = ["SPY", "QQQ", "VTI", "MAGS"];
 
 function orderBenchmarks(keys: string[]): string[] {
   return [...keys].sort((a, b) => {
@@ -144,9 +144,9 @@ function lastValue(points: ReturnPoint[] | undefined): number | null {
  * Merge the picks curve and every present benchmark onto one date axis.
  *
  * Aligned BY DATE, never by array index. The series genuinely differ in length
- * — SPY and picks currently have 74 points while VTI and MAGS have 73, because
- * their latest mark has not landed — so zipping by position would shift every
- * benchmark point by a day and silently misstate the comparison.
+ * — a comparison ETF whose latest mark has not landed is shorter than the
+ * picks curve — so zipping by position would shift every benchmark point by a
+ * day and silently misstate the comparison.
  */
 export function buildPicksComparison(chart: ChartData | undefined): PicksComparison {
   const picks = chart?.picks_series ?? [];

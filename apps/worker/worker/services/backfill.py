@@ -66,6 +66,7 @@ from datetime import date
 from sqlalchemy.orm import Session
 
 from app.db.models import Portfolio, PortfolioSnapshot, Position, Trade
+from app.services.benchmarks import BENCHMARKS, CALENDAR_BENCHMARK
 
 from worker.services.ingest import CLOSE_FIELDS, first_present, upsert_price_bar
 
@@ -76,13 +77,12 @@ log = logging.getLogger(__name__)
 CORRECTION_ACTIONS = ("manual_remove",)
 
 #: The benchmark series drawn beside the book on the landing chart.
-BENCHMARK_TICKER = "SPY"
-
-#: Additional comparison instruments stored as price bars so the API can build
-#: the money-weighted benchmark comparison. SPY drives the trading calendar and
-#: is fetched regardless; these are best-effort — a missing one is logged and
-#: omitted from the chart rather than aborting the backfill.
-EXTRA_BENCHMARKS = ("VTI", "MAGS")
+#: Imported from `app.services.benchmarks` so a ticker added there is fetched
+#: here without a second edit. SPY still drives the trading calendar; the rest
+#: are best-effort — a missing one is logged and omitted from the chart rather
+#: than aborting the backfill.
+BENCHMARK_TICKER = CALENDAR_BENCHMARK
+EXTRA_BENCHMARKS = tuple(t for t in BENCHMARKS if t != BENCHMARK_TICKER)
 
 
 @dataclass

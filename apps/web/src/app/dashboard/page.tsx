@@ -183,9 +183,9 @@ export default function DashboardPage() {
             />
           </div>
 
-          {/* Full size, not compact: the vs-SPY / vs-VTI / vs-MAGS gap tiles
-              only render at full size, and they were the one thing the
-              Performance page carried that this one did not. */}
+          {/* Full size, not compact: the vs-benchmark gap tiles only render
+              at full size, and they were the one thing the Performance page
+              carried that this one did not. */}
           <PerformanceChart />
 
           {strategyFailed ? (

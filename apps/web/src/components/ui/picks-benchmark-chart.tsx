@@ -34,43 +34,46 @@ const PICKS_COLOR: Record<ThemeName, string> = {
  * Benchmark line styling.
  *
  * Every benchmark gets its own dash pattern as well as its own grey, because
- * the page prints and because colour-blind readers get no help from three
+ * the page prints and because colour-blind readers get no help from several
  * shades of the same hue. The dash is the primary distinguisher; the tone only
  * reinforces it. All of them are deliberately quieter than the picks line —
  * they are context, not competition.
  *
  * These were three greys, which meant the only chart in the product had
  * exactly one coloured line and looked like it belonged to no particular
- * brand. They are now desaturated house tones — cyan, lilac, peach — chosen
- * to land on the *same contrast ratios the greys had*, so the ordering and
- * subordination the original ramp encoded is unchanged and only the hue is
- * new.
+ * brand. They are now desaturated house tones — cyan, indigo, lilac, peach —
+ * chosen to land on the *same contrast ratios the greys had*, so the ordering
+ * and subordination the original ramp encoded is unchanged and only the hue
+ * is new.
  *
  * The ramp is tuned to sit *below* black text on a white page — SPY (the
  * most-referenced benchmark) is the most "present", MAGS the quietest. On
  * `#0A0A0A` that relationship has to invert in luminance (the lines now need
  * to sit *above* the background to read at all) while preserving the same
- * relative separation, so the three stay just as distinguishable from each
+ * relative separation, so the four stay just as distinguishable from each
  * other — and from the near-white body text — as they are in light mode.
  * Concretely, each line targets roughly the same ratio against `#0A0A0A` that
  * its light counterpart has against `#FFFFFF`:
  *
  *   SPY  ~7.8:1   light #1F5A66 7.74  ·  dark #6EACBA 7.80
+ *   QQQ           light #3D4F8A        ·  dark #8B9AD4
  *   VTI  ~4.2:1   light #8577A0 4.08  ·  dark #827499 4.63
  *   MAGS ~2.8:1   light #C4915E 2.78  ·  dark #775133 2.84
  *
  * MAGS is intentionally the quietest line in both themes; its unique dash
  * carries it. The dash patterns remain the primary distinguisher — the page
- * prints, and colour-blind readers get no help from three hues either.
+ * prints, and colour-blind readers get no help from four hues either.
  */
 const BENCHMARK_STYLES: Record<ThemeName, Record<string, LineStyle>> = {
   light: {
     SPY: { color: "#1F5A66", dash: "7 4" },
+    QQQ: { color: "#3D4F8A", dash: "4 3 1 3" },
     VTI: { color: "#8577A0", dash: "1 5" },
     MAGS: { color: "#C4915E", dash: "11 4 2 4" },
   },
   dark: {
     SPY: { color: "#6EACBA", dash: "7 4" },
+    QQQ: { color: "#8B9AD4", dash: "4 3 1 3" },
     VTI: { color: "#827499", dash: "1 5" },
     MAGS: { color: "#775133", dash: "11 4 2 4" },
   },

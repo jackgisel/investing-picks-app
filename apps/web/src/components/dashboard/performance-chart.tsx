@@ -123,7 +123,7 @@ export function PerformanceChart({ compact = false }: { compact?: boolean }) {
       {benchmarks.length > 0 && (
         <div className={compact ? "mt-3" : "mt-5"}>
           {!compact && picksLatestPct !== null && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
               {benchmarks.map((b) => {
                 const gap =
                   b.latestPct === null ? null : picksLatestPct - b.latestPct;

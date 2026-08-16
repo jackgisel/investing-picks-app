@@ -28,11 +28,19 @@ from app.db.models import PriceBar, Trade
 
 log = logging.getLogger(__name__)
 
-#: Ticker -> display label. MAGS is the Roundhill Magnificent Seven ETF, chosen
-#: over a hand-rolled basket so the comparison tracks a real, quotable
-#: instrument rather than a weighting we invented.
+#: Ticker -> display label. These are real, quotable ETFs rather than baskets
+#: we invented. MAGS is Roundhill's Magnificent Seven ETF (not a market-cap
+#: Mag 7 index); QQQ is the liquid Nasdaq-100 comparison.
+#:
+#: SPY also drives the trading calendar in the snapshot backfill. Every ticker
+#: here must be included in daily marks AND the weekly price backfill — leaving
+#: MAGS/VTI off those jobs froze their series at the last snapshot-backfill
+#: date and made Mag 7 look like it had stopped trading.
+CALENDAR_BENCHMARK = "SPY"
+
 BENCHMARKS: dict[str, str] = {
     "SPY": "S&P 500",
+    "QQQ": "Nasdaq-100",
     "VTI": "Total Market",
     "MAGS": "Mag 7",
 }

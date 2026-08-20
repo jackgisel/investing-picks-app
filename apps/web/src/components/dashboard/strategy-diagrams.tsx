@@ -60,7 +60,7 @@ export function EmphasisMeter({
           />
         ))}
       </span>
-      <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-text-dim">
+      <span className="font-sans text-[10px] font-bold uppercase tracking-[0.1em] text-text-dim">
         {EMPHASIS_LABEL[emphasis]}
       </span>
     </span>

@@ -219,7 +219,7 @@ export default function DashboardPage() {
               </span>
               <Link
                 href="/dashboard/positions"
-                className="font-mono text-[10px] text-text font-semibold underline underline-offset-2 hover:opacity-70 flex items-center gap-1"
+                className="font-sans text-[10px] text-text font-bold tracking-[0.08em] underline underline-offset-2 hover:opacity-70 flex items-center gap-1"
               >
                 ALL POSITIONS <ArrowUpRight size={10} />
               </Link>
@@ -274,11 +274,11 @@ export default function DashboardPage() {
               METHODOLOGY
             </span>
             <p className="font-sans text-[14px] font-semibold">
-              How the strategy works &middot; Full backtest methodology
+              How the strategy works &middot; Backtrained model data sheet
             </p>
             <p className="font-sans text-[12px] text-text-muted mt-1">
-              Everything above is live performance. The walk-forward backtest
-              is documented separately so simulation is never mistaken for it.
+              Everything above is live performance. The backtrained model is
+              documented separately so simulation is never mistaken for it.
             </p>
           </div>
           <ArrowUpRight

@@ -22,11 +22,6 @@ export function WhatWeAreNot() {
       id="what-we-are-not"
       className="relative border-b border-border overflow-hidden"
     >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_50%_50%_at_100%_0%,rgba(232,160,160,0.08),transparent_60%)]"
-      />
-
       <div className="container-op relative py-20 sm:py-24">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-10 items-start">
           <div className="max-w-[540px]">

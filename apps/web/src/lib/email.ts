@@ -5,6 +5,7 @@ import {
   renderNewPickEmail,
   renderDeleteAccountEmail,
   renderVerifyEmail,
+  renderMagicLinkEmail,
   renderMembershipWelcomeEmail,
   renderMarketNoteWelcomeEmail,
   renderWeeklySummaryEmail,
@@ -183,6 +184,28 @@ export async function sendVerifyEmail(args: {
   return send({
     to: args.to,
     subject: `Welcome to ${SITE_NAME} — verify your email`,
+    html,
+    text,
+  });
+}
+
+/* ------------------------------ Magic link ------------------------------ */
+
+export async function sendMagicLinkEmail(args: {
+  to: string;
+  signInUrl: string;
+  banner?: string;
+}): Promise<SendResult> {
+  const html = renderMagicLinkEmail({
+    signInUrl: args.signInUrl,
+    siteUrl: SITE_URL,
+    banner: args.banner,
+  });
+  const text = `Sign in to ${SITE_NAME}\n\nClick the link below to sign in — no password needed. It works once and expires shortly:\n\n${args.signInUrl}\n\nIf you didn't request this, you can ignore this email.`;
+
+  return send({
+    to: args.to,
+    subject: `Sign in to ${SITE_NAME}`,
     html,
     text,
   });

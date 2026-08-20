@@ -117,9 +117,9 @@ const article: Article = {
 
       <StatGrid
         stats={[
-          { label: "BACKTEST CAGR", value: "+38.99%", green: true },
+          { label: "BACKTRAINED MODEL TOTAL RETURN", value: "+250.39%", green: true },
           { label: "S&P 500 SAME PERIOD", value: "+83.34%" },
-          { label: "ALPHA (3.8Y)", value: "+167%", green: true },
+          { label: "EXCESS RETURN (3.8Y)", value: "+167%", green: true },
           { label: "SHARPE", value: "1.14" },
         ]}
       />
@@ -260,22 +260,25 @@ const article: Article = {
       <H2>Our numbers, your decision</H2>
       <P>
         Here is what Outpick has done, stated plainly. Over a 3.8-year
-        walk-forward backtest from June 2022 through April 2026, the strategy
-        returned +250.39% versus +83.34% for the S&amp;P 500 — roughly 167
-        percentage points of alpha. The Sharpe ratio was 1.14, the max
-        drawdown was -27.38% in April 2025, and the win rate across 132
-        trades was 66%. The out-of-sample portion alone (July 2024 through
-        April 2026) added 67% of alpha on data the strategy had never seen
-        when it was built.
+        walk-forward backtrained model from June 2022 through April 2026, the
+        strategy returned +250.39% versus +83.34% for the S&amp;P 500 — roughly
+        167 points of cumulative excess return, simulated. The Sharpe ratio
+        was 1.14, the max drawdown was -27.38% in April 2025, and the win
+        rate across 53 closed picks (132 individual trades) was 66%. The
+        out-of-sample portion alone (July 2024 through April 2026) added 67
+        points of excess return on data the strategy had never seen when it
+        was built.
       </P>
       <P>
-        On a $100k portfolio, the break-even alpha for our $1,000 annual fee
-        is roughly 1%. The backtest exceeded that hurdle by a factor of about
-        twenty. Live trading began April 1, 2026 — real money, real trades,
-        published{" "}
-        <A href="/dashboard">in the dashboard</A> as they happen. The historical
-        numbers are the basis for the decision, but the going-forward numbers
-        are the ones that matter, and we publish those openly.
+        The break-even excess return needed to cover our $1,000 annual fee is
+        roughly 1% of invested capital. The backtrained model exceeded that
+        hurdle by a factor of about twenty — simulated, not a projection for
+        what any individual account will do. Our live example portfolio began
+        trading April 1, 2026 — real trades, on our own capital, published{" "}
+        <A href="/dashboard">in the dashboard</A> as they happen. The
+        historical numbers are the basis for the decision, but the
+        going-forward numbers are the ones that matter, and we publish those
+        openly.
       </P>
 
       <P>

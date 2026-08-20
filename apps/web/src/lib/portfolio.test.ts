@@ -19,7 +19,7 @@ import {
   pnlClass,
   resolveLiveCagr,
 } from "./portfolio";
-import { FOUNDERS_DEAL_MAX_DAY, LIVE_PORTFOLIO } from "./constants";
+import { FOUNDERS_DEAL_ENDS_ISO, LIVE_PORTFOLIO } from "./constants";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -379,27 +379,37 @@ describe("daysSinceInception / daysBetweenISO", () => {
 
 describe("isFoundersDealActive", () => {
   // Gates the price shown on the landing page and the server-side Stripe coupon.
-  it("is active the day before the cutoff", () => {
-    expect(isFoundersDealActive(FOUNDERS_DEAL_MAX_DAY - 1)).toBe(true);
+  const cutoff = new Date(`${FOUNDERS_DEAL_ENDS_ISO}T12:00:00Z`).getTime();
+  const dayMs = 86_400_000;
+
+  it("is active on the cutoff date", () => {
+    expect(isFoundersDealActive(cutoff)).toBe(true);
   });
 
-  it("is over on the cutoff day itself", () => {
-    expect(isFoundersDealActive(FOUNDERS_DEAL_MAX_DAY)).toBe(false);
+  it("is over the UTC day after the cutoff", () => {
+    expect(isFoundersDealActive(cutoff + dayMs)).toBe(false);
   });
 
-  it("is over after the cutoff", () => {
-    expect(isFoundersDealActive(FOUNDERS_DEAL_MAX_DAY + 30)).toBe(false);
+  it("is over well after the cutoff", () => {
+    expect(isFoundersDealActive(cutoff + 30 * dayMs)).toBe(false);
   });
 
-  it("reads the clock when given no day", () => {
-    setDayNumber(FOUNDERS_DEAL_MAX_DAY + 1);
+  it("reads the clock when given no instant", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(cutoff + dayMs));
     expect(isFoundersDealActive()).toBe(false);
-    setDayNumber(1);
+    vi.setSystemTime(new Date(cutoff));
     expect(isFoundersDealActive()).toBe(true);
   });
 
   it("never counts remaining days below zero", () => {
-    expect(foundersDealDaysRemaining(FOUNDERS_DEAL_MAX_DAY + 99)).toBe(0);
+    expect(foundersDealDaysRemaining(cutoff + 99 * dayMs)).toBe(0);
+  });
+
+  it("counts the cutoff date as one day remaining", () => {
+    expect(
+      foundersDealDaysRemaining(new Date(`${FOUNDERS_DEAL_ENDS_ISO}T00:00:00Z`).getTime()),
+    ).toBe(1);
   });
 });
 

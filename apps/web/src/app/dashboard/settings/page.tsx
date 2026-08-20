@@ -3,11 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient, useSession, signOut } from "@/lib/auth-client";
-import { PRICING } from "@/lib/constants";
+import { MEMBERSHIP_BENEFITS, PRICING } from "@/lib/constants";
 import { isFoundersDealActive } from "@/lib/portfolio";
 import {
   User,
-  Lock,
   Bell,
   CreditCard,
   Check,
@@ -113,16 +112,6 @@ export default function SettingsPage() {
         icon={MessageSquare}
       >
         <DisplayNameForm userId={user.id} />
-      </Section>
-
-      {/* Password */}
-      <Section
-        label="PASSWORD"
-        title="Change password"
-        description="Pick a new password at least 8 characters long. We'll keep you signed in on this device."
-        icon={Lock}
-      >
-        <PasswordForm />
       </Section>
 
       {/* Notifications */}
@@ -263,7 +252,7 @@ function ProfileForm({
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full bg-bg-secondary border border-border rounded-pill px-5 py-3 font-sans text-[14px] text-text placeholder:text-text-dim focus:outline-none focus:border-border-strong transition-colors"
+          className="field-input"
           placeholder="Your name"
           maxLength={120}
         />
@@ -273,113 +262,9 @@ function ProfileForm({
         <button
           type="submit"
           disabled={!dirty || status.kind === "saving"}
-          className="font-mono text-[11px] bg-accent-green text-on-accent px-5 py-2.5 font-semibold tracking-wider hover:bg-accent-green-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="rounded-pill font-mono text-[11px] bg-accent-green text-on-accent px-5 py-2.5 font-semibold tracking-wider hover:bg-accent-green-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {status.kind === "saving" ? "SAVING..." : "SAVE NAME"}
-        </button>
-        <StatusMessage status={status} />
-      </div>
-    </form>
-  );
-}
-
-/* -------------------------- Password form -------------------------- */
-
-function PasswordForm() {
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [status, setStatus] = useState<FormStatus>({ kind: "idle" });
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (newPassword !== confirmPassword) {
-      setStatus({ kind: "error", message: "New passwords do not match" });
-      return;
-    }
-    if (newPassword.length < 8) {
-      setStatus({
-        kind: "error",
-        message: "New password must be at least 8 characters",
-      });
-      return;
-    }
-
-    setStatus({ kind: "saving" });
-    try {
-      const result = await authClient.changePassword({
-        currentPassword,
-        newPassword,
-        revokeOtherSessions: false,
-      });
-      if (result.error) {
-        setStatus({
-          kind: "error",
-          message: result.error.message ?? "Could not change password",
-        });
-        return;
-      }
-      setStatus({ kind: "success", message: "Password updated" });
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-    } catch {
-      setStatus({ kind: "error", message: "Something went wrong" });
-    }
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <FieldRow label="CURRENT PASSWORD">
-        <input
-          type="password"
-          value={currentPassword}
-          onChange={(e) => setCurrentPassword(e.target.value)}
-          required
-          className="w-full bg-bg-secondary border border-border rounded-pill px-5 py-3 font-sans text-[14px] text-text placeholder:text-text-dim focus:outline-none focus:border-border-strong transition-colors"
-          placeholder="Current password"
-          autoComplete="current-password"
-        />
-      </FieldRow>
-
-      <FieldRow label="NEW PASSWORD">
-        <input
-          type="password"
-          value={newPassword}
-          onChange={(e) => setNewPassword(e.target.value)}
-          required
-          minLength={8}
-          className="w-full bg-bg-secondary border border-border rounded-pill px-5 py-3 font-sans text-[14px] text-text placeholder:text-text-dim focus:outline-none focus:border-border-strong transition-colors"
-          placeholder="Min. 8 characters"
-          autoComplete="new-password"
-        />
-      </FieldRow>
-
-      <FieldRow label="CONFIRM NEW PASSWORD">
-        <input
-          type="password"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          required
-          minLength={8}
-          className="w-full bg-bg-secondary border border-border rounded-pill px-5 py-3 font-sans text-[14px] text-text placeholder:text-text-dim focus:outline-none focus:border-border-strong transition-colors"
-          placeholder="Repeat new password"
-          autoComplete="new-password"
-        />
-      </FieldRow>
-
-      <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={
-            status.kind === "saving" ||
-            !currentPassword ||
-            !newPassword ||
-            !confirmPassword
-          }
-          className="font-mono text-[11px] bg-accent-green text-on-accent px-5 py-2.5 font-semibold tracking-wider hover:bg-accent-green-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          {status.kind === "saving" ? "UPDATING..." : "UPDATE PASSWORD"}
         </button>
         <StatusMessage status={status} />
       </div>
@@ -528,8 +413,6 @@ function SubscriptionPanel() {
   const [loaded, setLoaded] = useState(false);
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingError, setBillingError] = useState<string | null>(null);
-  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
-  const [verifySent, setVerifySent] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -577,15 +460,8 @@ function SubscriptionPanel() {
       const body = (await response.json()) as {
         url?: string;
         error?: string;
-        reason?: string;
-        email?: string;
       };
       if (!response.ok || !body.url) {
-        // The one billing refusal the user can clear themselves. Everything
-        // else here is a server-side problem and only gets a message.
-        setUnverifiedEmail(
-          body.reason === "email_unverified" ? body.email ?? "" : null,
-        );
         throw new Error(body.error || "Billing could not be opened");
       }
       window.location.assign(body.url);
@@ -666,7 +542,7 @@ function SubscriptionPanel() {
       </div>
 
       {loaded && sub?.cancelAtPeriodEnd && (
-        <div className="bg-accent-yellow/10 border border-accent-yellow/30 px-4 py-3">
+        <div className="rounded-soft bg-accent-yellow/10 border border-accent-yellow/30 px-4 py-3">
           <p className="font-sans text-[12px] text-text-muted">
             Your membership is set to cancel on{" "}
             <span className="text-text font-semibold">
@@ -678,7 +554,7 @@ function SubscriptionPanel() {
       )}
 
       {loaded && status === "canceled" && canceledAt && (
-        <div className="bg-accent-red-soft/30 border border-accent-red/30 px-4 py-3">
+        <div className="rounded-soft bg-accent-red-soft/30 border border-accent-red/30 px-4 py-3">
           <p className="font-sans text-[12px] text-text-muted">
             Subscription canceled on{" "}
             <span className="text-text font-semibold">{canceledAt}</span>.
@@ -687,7 +563,7 @@ function SubscriptionPanel() {
       )}
 
       {loaded && status === "past_due" && (
-        <div className="bg-accent-red-soft/30 border border-accent-red/30 px-4 py-3">
+        <div className="rounded-soft bg-accent-red-soft/30 border border-accent-red/30 px-4 py-3">
           <p className="font-sans text-[12px] text-text-muted">
             Your last payment failed. You still have access while Stripe retries
             the payment. Open billing to update your payment method.
@@ -696,10 +572,9 @@ function SubscriptionPanel() {
       )}
 
       <div className="space-y-2.5 font-sans text-[13px] text-text-muted">
-        <BulletRow text="A new high-conviction stock pick every two weeks" />
-        <BulletRow text="Live portfolio with full position tracking" />
-        <BulletRow text="Six-agent research notes and methodology access" />
-        <BulletRow text="Performance vs S&P 500, no cherry-picking" />
+        {MEMBERSHIP_BENEFITS.map((text) => (
+          <BulletRow key={text} text={text} />
+        ))}
       </div>
 
       <div className="pt-5 border-t border-border space-y-3">
@@ -717,7 +592,7 @@ function SubscriptionPanel() {
               )
             }
             disabled={billingLoading}
-            className="font-mono text-[11px] bg-accent-green text-on-accent px-5 py-2.5 font-semibold tracking-wider hover:bg-accent-green-hover transition-colors inline-flex items-center gap-2"
+            className="rounded-pill font-mono text-[11px] bg-accent-green text-on-accent px-5 py-2.5 font-semibold tracking-wider hover:bg-accent-green-hover transition-colors inline-flex items-center gap-2"
           >
             <CreditCard size={12} />
             {billingLoading
@@ -730,26 +605,6 @@ function SubscriptionPanel() {
             <span className="font-sans text-[12px] text-accent-red">
               {billingError}
             </span>
-          )}
-          {unverifiedEmail !== null && (
-            <button
-              type="button"
-              onClick={() => {
-                void authClient
-                  .sendVerificationEmail({
-                    email: unverifiedEmail,
-                    callbackURL: "/subscribe",
-                  })
-                  .catch(() => {
-                    /* reported identically either way */
-                  })
-                  .finally(() => setVerifySent(true));
-              }}
-              disabled={verifySent}
-              className="btn-outline !py-2 !px-4 !text-[11px] disabled:opacity-60"
-            >
-              {verifySent ? "Sent — check your inbox" : "Resend verification"}
-            </button>
           )}
         </div>
       </div>
@@ -892,11 +747,11 @@ function DeleteAccountPanel() {
 
   return (
     <div className="space-y-5">
-      <div className="bg-accent-red-soft/30 border border-accent-red/30 px-4 py-3">
+      <div className="rounded-soft bg-accent-red-soft/30 border border-accent-red/30 px-4 py-3">
         <p className="font-sans text-[13px] text-text leading-relaxed">
           <strong>This will permanently delete your account.</strong> Your
-          subscription will continue to bill until you cancel it separately —
-          open Manage billing above first if you also want to cancel.
+          Stripe subscription is canceled automatically as part of deletion —
+          you won&apos;t be billed again.
         </p>
       </div>
 
@@ -905,7 +760,7 @@ function DeleteAccountPanel() {
           type="text"
           value={confirmText}
           onChange={(e) => setConfirmText(e.target.value)}
-          className="w-full bg-bg-secondary border border-border rounded-pill px-5 py-3 font-mono text-[14px] text-text placeholder:text-text-dim focus:outline-none focus:border-accent-red transition-colors"
+          className="field-input font-mono focus:!border-accent-red"
           placeholder="DELETE"
           autoComplete="off"
         />
@@ -916,7 +771,7 @@ function DeleteAccountPanel() {
           type="button"
           onClick={handleRequestDelete}
           disabled={!canConfirm || status.kind === "saving"}
-          className="font-mono text-[11px] bg-accent-red text-inverse-fg px-5 py-2.5 font-semibold tracking-wider hover:opacity-90 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
+          className="rounded-pill font-mono text-[11px] bg-accent-red text-inverse-fg px-5 py-2.5 font-semibold tracking-wider hover:opacity-90 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
         >
           {status.kind === "saving" ? "SENDING..." : "SEND CONFIRMATION EMAIL"}
         </button>

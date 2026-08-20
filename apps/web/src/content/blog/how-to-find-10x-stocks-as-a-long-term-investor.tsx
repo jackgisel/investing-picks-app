@@ -109,10 +109,10 @@ const article: Article = {
 
       <H2>Patterns we look for</H2>
       <P>
-        We&apos;ve found, across a 3.8-year walk-forward backtest that produced
-        eight doublers from 132 trades, that 10x candidates tend to share a
-        recognizable fingerprint. None of these patterns individually guarantee
-        anything. Together they move the odds.
+        We&apos;ve found, across a 3.8-year walk-forward backtrained model that
+        produced five doubling positions among 53 closed picks, that 10x
+        candidates tend to share a recognizable fingerprint. None of these
+        patterns individually guarantee anything. Together they move the odds.
       </P>
       <UL>
         <LI>
@@ -148,7 +148,7 @@ const article: Article = {
       <H2>Case study: a 5-bagger in 2 years</H2>
       <P>
         <Strong>CRS (Carpenter Technology)</Strong> is the closest thing in our
-        live portfolio to a textbook case study. We bought it on January 2, 2024
+        live example portfolio to a textbook case study. We bought it on January 2, 2024
         — a small-cap specialty-alloys business that makes premium aerospace-grade
         materials with pricing power that most metals companies can only dream
         about. Two years and three months later, the position is up roughly 5x.
@@ -172,10 +172,10 @@ const article: Article = {
         works in live markets, not just in academic back-tests.
       </P>
       <P>
-        Across our walk-forward backtest period (June 2022 - April 2026),{" "}
-        <Strong>eight of our closed positions doubled or better</Strong>. Names
+        Across our walk-forward backtrained model period (June 2022 - April 2026),{" "}
+        <Strong>five of our closed positions doubled or better</Strong>. Names
         like YPF (+199.87%), TGS (+189.83%), BMA (+179.01%), IRS (+160.98%), and
-        AVGO (+128.40%) made up most of the alpha. These aren&apos;t unicorns.
+        AVGO (+128.40%) made up most of the gain. These aren&apos;t unicorns.
         They are the direct output of a disciplined screen applied biweekly.
       </P>
 
@@ -220,18 +220,19 @@ const article: Article = {
         upside costs.
       </P>
       <P>
-        Over our walk-forward backtest, that structure produced{" "}
-        <Strong>+38.99% CAGR against the S&amp;P 500&apos;s +83.34% total</Strong>{" "}
-        for the same period — an alpha of +167% over 3.8 years. You can see the
-        live portfolio on the <A href="/dashboard">dashboard</A> and the full
-        methodology on the <A href="/#track-record">track record page</A>.
+        Over our walk-forward backtrained model, that structure produced{" "}
+        <Strong>+250.39% total return against the S&amp;P 500&apos;s +83.34%</Strong>{" "}
+        for the same period — a cumulative excess return of +167 points over
+        3.8 years, simulated. You can see the live example portfolio on the{" "}
+        <A href="/dashboard">dashboard</A> and the full methodology on the{" "}
+        <A href="/#track-record">track record page</A>.
       </P>
 
       <FAQList
         items={[
           {
             q: "How rare are 10x stocks really?",
-            a: "Less rare than most investors think. In our 3.8-year backtest, 8 of 132 trades doubled and a handful went much further. The rarity isn't finding them — it's holding them long enough. Most investors sell their biggest future winners at +50% because they don't yet know what they're sitting on.",
+            a: "Less rare than most investors think. In our 3.8-year backtrained model, 5 of 53 closed picks doubled or better and a handful went much further. The rarity isn't finding them — it's holding them long enough. Most investors sell their biggest future winners at +50% because they don't yet know what they're sitting on.",
           },
           {
             q: "How long do you have to hold to find a 10-bagger?",

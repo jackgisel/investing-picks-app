@@ -24,7 +24,7 @@ export function Avatar({
       // The name is already rendered next to this in every use, so the
       // monogram is decoration — announcing it would read the name twice.
       aria-hidden
-      className={`flex shrink-0 items-center justify-center rounded-full font-sans font-bold tracking-wide text-inverse-fg ${TONE_BG[tone]} ${dims}`}
+      className={`flex shrink-0 items-center justify-center rounded-full font-sans font-bold tracking-wide text-on-accent ${TONE_BG[tone]} ${dims}`}
     >
       {initialsFor(displayName)}
     </span>

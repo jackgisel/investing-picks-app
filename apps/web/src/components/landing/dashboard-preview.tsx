@@ -5,23 +5,17 @@ import { PillButton } from "@/components/ui/pill-button";
 import { useSession } from "@/lib/auth-client";
 import { CompanyLogo } from "@/components/ui/company-logo";
 
-const visibleHoldings = 3;
-const visibleWinners = 3;
-
 /**
- * A free account unlocks the full *backtest* record — never the live picks.
- *
- * This is a presentation gate, not a paywall: FINAL_HOLDINGS and WINNERS_CIRCLE
- * are compile-time constants that ship in the client bundle either way, and the
- * backtest is history we are happy to publish. The live portfolio and current
- * picks are enforced server-side in lib/api-gate.ts, which is the real boundary.
+ * Every figure here is from the backtrained model — simulated, not a live
+ * account. It's all shown in full to everyone: FINAL_HOLDINGS and
+ * WINNERS_CIRCLE are compile-time constants that ship in the client bundle
+ * regardless of session state, so gating their visibility was theater, not a
+ * boundary. The live example portfolio and current picks are the real
+ * members-only surface, enforced server-side in lib/api-gate.ts.
  */
 export function DashboardPreview() {
   const { data: session } = useSession();
   const unlocked = Boolean(session?.user);
-
-  const displayHoldings = unlocked ? FINAL_HOLDINGS : FINAL_HOLDINGS.slice(0, 8);
-  const displayWinners = unlocked ? WINNERS_CIRCLE : WINNERS_CIRCLE.slice(0, 6);
 
   return (
     <section id="performance" className="relative border-b border-border overflow-hidden">
@@ -33,15 +27,15 @@ export function DashboardPreview() {
       <div className="container-op relative py-20 sm:py-24">
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_auto] gap-8 lg:gap-12 items-end mb-10 sm:mb-12">
           <div>
-            <p className="section-label section-label-coral">Backtest winners</p>
+            <p className="section-label section-label-coral">Backtrained model · simulated</p>
             <h2 className="section-title max-w-[540px]">
               {BACKTEST.winnersCircle} picks doubled. That&apos;s the edge.
             </h2>
             <p className="section-sub mb-0 max-w-[500px]">
               Total return tells part of the story. What matters is how many
               high-conviction picks become multi-baggers — and how the model
-              finds them. A free account opens the whole backtest record, losses
-              and all; no card, no trial clock.
+              finds them. The full backtrained model record is below, losses
+              and all; no card, no account needed to see it.
             </p>
           </div>
 
@@ -64,11 +58,11 @@ export function DashboardPreview() {
               </span>
             </div>
             <div className="flex flex-wrap gap-2">
-              <span className="font-mono text-[12px] font-bold text-accent-green px-3 py-1.5 rounded-pill bg-accent-green-soft">
-                {BACKTEST.totalReturn} portfolio
+              <span className="badge !text-[12px] !py-1.5 text-accent-green bg-accent-green-soft">
+                <span className="font-mono">{BACKTEST.totalReturn}</span> simulated
               </span>
-              <span className="font-mono text-[12px] text-text-muted px-3 py-1.5 rounded-pill bg-bg-tertiary">
-                SPY {BACKTEST.spyReturn}
+              <span className="badge !text-[12px] !py-1.5 text-text-muted bg-bg-tertiary">
+                SPY <span className="font-mono">{BACKTEST.spyReturn}</span>
               </span>
             </div>
           </div>
@@ -89,17 +83,14 @@ export function DashboardPreview() {
                   </tr>
                 </thead>
                 <tbody>
-                  {displayHoldings.map((h, i) => {
+                  {FINAL_HOLDINGS.map((h, i) => {
                     const isNegative = h.ret.startsWith("-");
-                    const blurred = !unlocked && i >= visibleHoldings;
                     return (
                       <tr
                         key={`${h.ticker}-${i}`}
                         className={`border-b border-border/80 last:border-b-0 ${
-                          blurred
-                            ? "blur-[5px] select-none pointer-events-none"
-                            : ""
-                        } ${i % 2 === 0 && !blurred ? "bg-bg-secondary/15" : ""}`}
+                          i % 2 === 0 ? "bg-bg-secondary/15" : ""
+                        }`}
                       >
                         <td className="px-6 py-3.5 font-mono text-[11px] text-text-dim">
                           {String(i + 1).padStart(2, "0")}
@@ -134,24 +125,19 @@ export function DashboardPreview() {
             <div className="border-t border-border px-6 sm:px-7 py-5 bg-bg-secondary/20">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                 <p className="font-sans text-[10px] font-bold tracking-[0.12em] uppercase text-text-dim">
-                  Winners circle — stocks that doubled
+                  Winners circle — picks that doubled
                 </p>
                 <span className="font-mono text-[13px] text-accent-green font-bold">
                   {BACKTEST.winnersCircle} total · {BACKTEST.wins}W /{" "}
-                  {BACKTEST.losses}L
+                  {BACKTEST.losses}L of {BACKTEST.closedPicks} closed picks
                 </span>
               </div>
               <div className="flex flex-wrap gap-2">
-                {displayWinners.map((w, i) => {
-                  const blurred = !unlocked && i >= visibleWinners;
+                {WINNERS_CIRCLE.map((w, i) => {
                   return (
                     <span
                       key={`${w.ticker}-${w.entry}-${i}`}
-                      className={`inline-flex items-center gap-2 rounded-pill border border-border bg-bg px-3 py-1.5 ${
-                        blurred
-                          ? "blur-[5px] select-none pointer-events-none"
-                          : ""
-                      }`}
+                      className="inline-flex items-center gap-2 rounded-pill border border-border bg-bg px-3 py-1.5"
                     >
                       <CompanyLogo ticker={w.ticker} size="xxs" />
                       <span className="font-mono text-[12px] font-bold">
@@ -166,47 +152,32 @@ export function DashboardPreview() {
               </div>
             </div>
 
-            {/* Unlock CTA with gradient veil */}
+            {/* Everything above is shown in full — nothing gated on session. */}
             <div className="relative border-t border-border">
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-x-0 -top-16 h-16 bg-gradient-to-b from-transparent to-bg"
-              />
               <div className="text-center py-8 sm:py-10 px-6">
+                <p className="font-sans text-[14px] text-text-muted mb-1">
+                  That&apos;s the backtrained model&apos;s final snapshot —{" "}
+                  {FINAL_HOLDINGS.length} positions, winners and losers, as
+                  the simulation ended. Sharpe {BACKTEST.sharpe} · max
+                  drawdown {BACKTEST.maxDrawdown}.
+                </p>
+                <p className="font-sans text-[12px] text-text-dim mb-5">
+                  The live example portfolio and current picks are
+                  members-only.
+                </p>
                 {unlocked ? (
-                  <>
-                    <p className="font-sans text-[14px] text-text-muted mb-1">
-                      That&apos;s the complete backtest record — all{" "}
-                      {FINAL_HOLDINGS.length} closing positions and all{" "}
-                      {BACKTEST.winnersCircle} doubles, losses included.
-                    </p>
-                    <p className="font-sans text-[12px] text-text-dim mb-5">
-                      The live portfolio and current picks are members-only.
-                    </p>
-                    <PillButton href="/#pricing" arrow>
+                  <PillButton href="/#pricing" arrow>
+                    See membership
+                  </PillButton>
+                ) : (
+                  <div className="flex flex-wrap gap-3 justify-center">
+                    <PillButton href="/login" arrow>
+                      Create a free account
+                    </PillButton>
+                    <PillButton href="/#pricing" variant="outline">
                       See membership
                     </PillButton>
-                  </>
-                ) : (
-                  <>
-                    <p className="font-sans text-[14px] text-text-muted mb-1">
-                      {FINAL_HOLDINGS.length - visibleHoldings} more holdings +{" "}
-                      {BACKTEST.winnersCircle - visibleWinners} more winners in
-                      the full backtest record
-                    </p>
-                    <p className="font-sans text-[12px] text-text-dim mb-5">
-                      Sharpe {BACKTEST.sharpe} · max drawdown{" "}
-                      {BACKTEST.maxDrawdown} — free account, no card
-                    </p>
-                    <div className="flex flex-wrap gap-3 justify-center">
-                      <PillButton href="/login" arrow>
-                        Unlock the full record — free
-                      </PillButton>
-                      <PillButton href="/#pricing" variant="outline">
-                        See membership
-                      </PillButton>
-                    </div>
-                  </>
+                  </div>
                 )}
               </div>
             </div>

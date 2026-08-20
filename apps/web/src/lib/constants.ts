@@ -14,8 +14,9 @@ export const PRICING = {
   foundersLabel: "$250 / year",
 };
 
-/** Founders pricing is available through this day of the live portfolio. */
-export const FOUNDERS_DEAL_MAX_DAY = 150;
+/** Founders pricing is available through this UTC calendar date, inclusive. */
+export const FOUNDERS_DEAL_ENDS_ISO = "2026-12-01";
+export const FOUNDERS_DEAL_ENDS_LABEL = "December 1, 2026";
 
 // Historical backtest: Jun 15, 2022 — Apr 06, 2026 (~3.8 years)
 // Walk-forward validation: parameters trained on Jun 2022 — Jul 2024,
@@ -24,6 +25,12 @@ export const FOUNDERS_DEAL_MAX_DAY = 150;
 // NOTE: We intentionally express everything as percentages — no portfolio
 // dollar values, entry/exit prices, or P&L in dollars. Returns are what
 // matters; absolute capital is a customer's own decision.
+// We do not publish a CAGR/annualized figure for the backtrained model. A
+// 3.8-year cumulative return compared against the S&P's cumulative return
+// over the same window is apples-to-apples; converting one side to an
+// annualized rate and not the other produced a real bug (see git history).
+// Cumulative-to-cumulative is also the honest match for "outpicking the
+// index" — the comparison this whole product is built around.
 export const BACKTEST = {
   label: "COMBINED: best weights + best Outpick-style",
   startDate: "Jun 15, 2022",
@@ -33,25 +40,46 @@ export const BACKTEST = {
   yearsCovered: 3.8,
   yearsLabel: "3.8-year trailing history",
   totalReturn: "+250.39%",
-  cagr: "+38.99%",
   spyReturn: "+83.34%",
-  alpha: "+167.0%",
+  // Cumulative excess return over the S&P (totalReturn − spyReturn). This is
+  // NOT risk-adjusted alpha — do not call it "alpha" in copy.
+  outpickedSp: "+167.0%",
   sharpe: "1.14",
   maxDrawdown: "-27.38%",
   maxDrawdownDate: "2025-04-08",
   winRate: "66%",
   wins: 35,
   losses: 18,
+  // wins + losses. The win-rate denominator — always show this next to the
+  // rate, never `trades`, which counts individual executions instead.
+  closedPicks: 53,
+  // Individual buy/sell executions across those 53 picks — a pick can be
+  // trimmed or added to more than once. Not the win-rate denominator.
   trades: 132,
   // Distinct positions that doubled — see WINNERS_CIRCLE. Must equal
   // WINNERS_CIRCLE.length; there is a script check in scripts/.
   winnersCircle: 5,
   doubledMinReturnPct: 100,
-  // Validation period (out-of-sample only)
-  validationAlpha: "+67%",
+  // Validation period (out-of-sample only). Cumulative excess return over
+  // the S&P during the held-out window — see the note above on "alpha".
+  validationOutpickedSp: "+67%",
   validationStart: "Jul 2024",
   validationEnd: "Apr 2026",
 };
+
+// The single benefit list for the membership — shown on the pricing card
+// (pre-purchase) and in account settings (post-purchase). These used to be
+// two independently hand-written lists that drifted apart, and the only
+// place a subscriber learned research is AI-drafted was the settings copy,
+// after paying. State it up front instead.
+export const MEMBERSHIP_BENEFITS = [
+  "A new high-conviction pick every two weeks, researched by our AI agent team",
+  "Live example portfolio with full position tracking",
+  "Complete investment theses — evidence and risks, not just a call",
+  "Performance tracked against the S&P 500, wins and losses both shown",
+  "Email alerts on new picks",
+  `${BACKTEST.yearsCovered}-year backtrained model + live example portfolio`,
+];
 
 // Live portfolio.
 //
@@ -63,7 +91,6 @@ export const LIVE_PORTFOLIO = {
   inceptionDate: "Apr 01, 2026",
   inceptionISO: "2026-04-01",
   status: "LIVE" as const,
-  foundersDealMaxDay: FOUNDERS_DEAL_MAX_DAY,
 };
 
 // Positions that doubled during the backtest.

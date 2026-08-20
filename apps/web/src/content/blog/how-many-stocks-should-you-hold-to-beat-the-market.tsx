@@ -106,7 +106,7 @@ const article: Article = {
       </P>
       <UL>
         <LI><Strong>Start equal-weight.</Strong> A new pick enters the book at roughly 4-6%. You do not actually know which idea will be the winner, so handicapping at entry is mostly false confidence.</LI>
-        <LI><Strong>Let winners run.</Strong> If a position doubles, do not trim mechanically. The big winners are what carry the portfolio &mdash; in our backtest, eight stocks doubled and they did almost all of the heavy lifting. Cutting them early is the single most expensive mistake an active investor makes.</LI>
+        <LI><Strong>Let winners run.</Strong> If a position doubles, do not trim mechanically. The big winners are what carry the portfolio &mdash; in our backtrained model, five positions doubled and they did almost all of the heavy lifting. Cutting them early is the single most expensive mistake an active investor makes.</LI>
         <LI><Strong>Cap any position at ~12-15%.</Strong> Past that you are taking single-name risk that one bad earnings call can erase a year of work.</LI>
         <LI><Strong>Never average down on a thesis-broken loser.</Strong> Adding to a falling stock is only correct if the fundamentals are intact and the price has improved. If the original thesis is broken, doubling down is just doubling the mistake.</LI>
         <LI><Strong>Cut losers small.</Strong> A 25-30% drawdown on a single name should trigger a fresh review, not an automatic add.</LI>
@@ -114,14 +114,13 @@ const article: Article = {
 
       <H2>What our portfolio looks like</H2>
       <P>
-        Outpick ended its 3.8-year walk-forward backtest holding 16 names. That number was not a target &mdash; it is what fell out of the process. We publish a new pick every two weeks (~26 a year), exit positions when the thesis breaks or the valuation runs ahead of the fundamentals, and let winners compound. Over time the book naturally settles in the high teens.
+        Outpick ended its 3.8-year walk-forward backtrained model holding 16 names. That number was not a target &mdash; it is what fell out of the process. We publish a new pick every two weeks (~26 a year), exit positions when the thesis breaks or the valuation runs ahead of the fundamentals, and let winners compound. Over time the book naturally settles in the high teens.
       </P>
       <CompareTable
-        headers={["Metric", "S&P 500", "Outpick (backtest)"]}
+        headers={["Metric", "S&P 500", "Outpick (backtrained model)"]}
         rows={[
           ["Period", "Jun 2022 – Apr 2026", "Jun 2022 – Apr 2026"],
           ["Total return", "+83.34%", "+250.39%"],
-          ["CAGR", "~17%", "+38.99%"],
           ["Max drawdown", "~-25%", "-27.38%"],
           ["Holdings", "500", "16"],
         ]}
@@ -130,7 +129,7 @@ const article: Article = {
         The drawdown numbers are worth noting. A 16-stock book is not dramatically more volatile than the S&amp;P 500 over a multi-year window &mdash; you give up a couple of points of downside protection in exchange for a much larger return profile. That trade is the entire point of active management. For more on whether that trade is worth paying for, see <A href="/blog/is-paying-for-a-stock-picking-service-worth-it">is paying for a stock picking service worth it</A>.
       </P>
       <P>
-        Outpick is educational research, not financial advice; past performance is not indicative of future results. The walk-forward backtest is published in full on our <A href="/dashboard">dashboard</A> alongside the live portfolio that began trading real money on April 1, 2026.
+        Outpick is educational research, not financial advice; past performance is not indicative of future results. The backtrained model is simulated and published in full on our <A href="/dashboard">dashboard</A> alongside the live example portfolio that began trading on April 1, 2026 — real trades, on our own capital.
       </P>
 
       <InlineCTA />

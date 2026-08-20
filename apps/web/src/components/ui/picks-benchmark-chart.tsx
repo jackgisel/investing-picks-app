@@ -405,7 +405,7 @@ export function PicksBenchmarkChart({
             tick={{
               fontSize: 10,
               fill: chrome.tick,
-              fontFamily: "IBM Plex Mono",
+              fontFamily: "var(--font-mono), IBM Plex Mono, monospace",
             }}
             tickFormatter={(d: string) => formatShortDate(d)}
             stroke={chrome.grid}
@@ -416,7 +416,7 @@ export function PicksBenchmarkChart({
             tick={{
               fontSize: 10,
               fill: chrome.tick,
-              fontFamily: "IBM Plex Mono",
+              fontFamily: "var(--font-mono), IBM Plex Mono, monospace",
             }}
             tickFormatter={formatPctTick}
             stroke={chrome.grid}

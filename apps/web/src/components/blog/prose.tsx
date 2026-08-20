@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ReactNode } from "react";
+import { FOUNDERS_DEAL_ENDS_LABEL } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 /**
@@ -148,7 +149,7 @@ export function Callout({
       {title ? (
         <p
           className={cn(
-            "font-mono text-[10px] tracking-[2px] font-bold uppercase mb-2",
+            "font-sans text-[10px] tracking-[0.14em] font-bold uppercase mb-2",
             labelColor[variant],
           )}
         >
@@ -179,7 +180,7 @@ export function StatGrid({
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-0.5 bg-border my-10 max-w-[680px]">
       {stats.map((s) => (
         <div key={s.label} className="bg-bg-secondary py-5 px-5">
-          <p className="font-mono text-[9px] text-text-dim tracking-[1.5px] mb-2">
+          <p className="font-sans text-[9px] font-bold text-text-dim tracking-[0.12em] uppercase mb-2">
             {s.label}
           </p>
           <p
@@ -211,7 +212,7 @@ export function CompareTable({
             {headers.map((h, i) => (
               <th
                 key={i}
-                className="font-mono text-[10px] text-text-dim tracking-[1.5px] uppercase px-5 py-3 font-semibold"
+                className="font-sans text-[10px] text-text-dim tracking-[0.12em] uppercase px-5 py-3 font-bold"
               >
                 {h}
               </th>
@@ -253,7 +254,7 @@ export function Quote({
         {children}
       </p>
       {cite ? (
-        <footer className="font-mono text-[11px] text-text-dim tracking-wider mt-3 uppercase">
+        <footer className="font-sans text-[11px] font-bold text-text-dim tracking-wider mt-3 uppercase">
           — {cite}
         </footer>
       ) : null}
@@ -263,7 +264,7 @@ export function Quote({
 
 export function InlineCTA({
   heading = "Want to see the picks?",
-  body = "Outpick is a stock research team that publishes high-conviction picks every two weeks — full thesis, live tracking, and transparent performance. Founders: $250/year through Day 150 · then $1,000/year.",
+  body = `Outpick is a stock research team that publishes high-conviction picks every two weeks — full thesis, live tracking, and transparent performance. Founders: $250/year through ${FOUNDERS_DEAL_ENDS_LABEL} · then $1,000/year.`,
   cta = "START YOUR MEMBERSHIP",
   href = "/dashboard",
 }: {
@@ -325,7 +326,7 @@ export function FAQList({
 export function TLDR({ children }: { children: ReactNode }) {
   return (
     <div className="my-10 max-w-[680px] border border-border bg-bg-secondary px-7 py-6">
-      <p className="font-mono text-[10px] text-accent-green tracking-[2px] mb-3 uppercase">
+      <p className="font-sans text-[10px] font-bold text-accent-green tracking-[0.14em] mb-3 uppercase">
         TL;DR
       </p>
       <div className="font-sans text-[14px] text-text-muted leading-[1.7] [&>p+p]:mt-3">

@@ -254,8 +254,8 @@ export default function OpsPositionsPage() {
             </h2>
             <div className="data-card space-y-3">
               <p className="text-sm text-text-muted">
-                Day the live track record starts. Drives the founders-deal countdown and
-                every &ldquo;days live&rdquo; figure on the site.
+                Day the live track record starts. Drives every &ldquo;days live&rdquo;
+                figure on the site.
               </p>
               <div className="flex flex-wrap items-end gap-3">
                 <div className="w-48">

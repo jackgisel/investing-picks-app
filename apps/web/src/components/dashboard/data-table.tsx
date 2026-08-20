@@ -53,7 +53,7 @@ export function SortableHead<K extends string>({
                     ? "none"
                     : undefined
               }
-              className="border-b border-border bg-bg px-5 py-3 text-left font-mono text-[10px] font-medium tracking-[1.5px] text-text-dim"
+              className="border-b border-border bg-bg px-5 py-3 text-left font-sans text-[10px] font-bold tracking-[0.12em] text-text-dim"
             >
               <span className="flex flex-col gap-0.5">
                 {col.sortKey ? (
@@ -109,7 +109,7 @@ export function FilteredOutRow({ colSpan }: { colSpan: number }) {
   return (
     <tr>
       <td colSpan={colSpan} className="px-5 py-8 text-center">
-        <span className="font-mono text-[11px] text-text-dim">
+        <span className="font-sans text-[11px] font-bold tracking-[0.08em] text-text-dim">
           NOTHING MATCHES THESE FILTERS
         </span>
       </td>

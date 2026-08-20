@@ -1,7 +1,6 @@
 import { BACKTEST } from "@/lib/constants";
 import { CategoryTag } from "@/components/ui/category-tag";
-import { TONE_BORDER, type PastelTone } from "@/lib/tones";
-import { ThemeIllustration } from "@/components/ui/theme-illustration";
+import { TONE_BG, TONE_BORDER, type PastelTone } from "@/lib/tones";
 
 const PILLARS: {
   num: string;
@@ -50,11 +49,6 @@ export function Strategy() {
       id="strategy"
       className="relative border-b border-border overflow-hidden"
     >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_55%_45%_at_100%_0%,rgba(240,168,108,0.08),transparent_55%)]"
-      />
-
       <div className="container-op relative py-20 sm:py-24">
         <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-14 lg:gap-20 items-end mb-14 sm:mb-16">
           <div>
@@ -73,14 +67,25 @@ export function Strategy() {
               aria-hidden
               className="absolute -inset-3 rounded-soft border border-dashed border-border/70"
             />
-            <div className="illustration-plate relative aspect-[5/4]">
-              <ThemeIllustration
-                src="/illustrations/strategy-value.png"
-                alt=""
-                fill
-                className="illustration-art object-contain p-6"
-                sizes="(max-width: 1024px) 100vw, 40vw"
-              />
+            <div className="relative aspect-[5/4] rounded-soft border border-border bg-bg p-6 sm:p-8 flex items-center">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4 w-full" aria-hidden>
+                {PILLARS.map((pillar) => (
+                  <div
+                    key={pillar.num}
+                    className={`rounded-lg border bg-bg-secondary/30 p-4 sm:p-5 ${TONE_BORDER[pillar.tone]}`}
+                  >
+                    <span
+                      className={`inline-block h-2 w-2 rounded-full mb-3 ${TONE_BG[pillar.tone]}`}
+                    />
+                    <p className="font-mono text-[10px] text-text-dim tracking-wider">
+                      {pillar.num}
+                    </p>
+                    <p className="font-sans text-[12px] sm:text-[13px] font-bold text-text mt-1 tracking-tight">
+                      {pillar.short}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -121,11 +126,13 @@ export function Strategy() {
             Transparent by design
           </h3>
           <p className="font-sans text-[15px] text-text-muted leading-relaxed">
-            We show our live portfolio, our backtest ({BACKTEST.totalReturn}{" "}
-            total · {BACKTEST.sharpe} Sharpe · {BACKTEST.maxDrawdown} max
-            drawdown), and our reasoning — including the losses. Membership
-            isn&apos;t black-box signals; it&apos;s joining a research team
-            that publishes its work.
+            We show our live example portfolio, our backtrained model (
+            <span className="font-mono">{BACKTEST.totalReturn}</span> total ·{" "}
+            <span className="font-mono">{BACKTEST.sharpe}</span> Sharpe ·{" "}
+            <span className="font-mono">{BACKTEST.maxDrawdown}</span> max
+            drawdown, simulated), and our reasoning — including the losses.
+            Membership isn&apos;t black-box signals; it&apos;s joining a team
+            of agents that publishes its work.
           </p>
         </blockquote>
       </div>

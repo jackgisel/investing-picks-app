@@ -47,9 +47,10 @@ const article: Article = {
         <P>
           Most investors are sold a false binary: either accept index returns or turn trading into
           a full-time job. The third path is long-term equity research on a biweekly cadence —
-          roughly 30 minutes of portfolio work every two weeks. Our backtest delivered{" "}
-          <Strong>+38.99% CAGR</Strong> against the S&amp;P 500&apos;s <Strong>+18%</Strong> over
-          the same 3.8-year window, with no intraday trading, no margin, and no screens.
+          roughly 30 minutes of portfolio work every two weeks. Our backtrained model delivered{" "}
+          <Strong>+250.39% total return</Strong> against the S&amp;P 500&apos;s{" "}
+          <Strong>+83.34%</Strong> over the same 3.8-year window, simulated, with no intraday
+          trading, no margin, and no screens.
         </P>
       </TLDR>
 
@@ -198,25 +199,26 @@ const article: Article = {
 
       <StatGrid
         stats={[
-          { label: "BACKTEST CAGR", value: "+38.99%", green: true },
-          { label: "S&P 500", value: "+18% ANN." },
+          { label: "BACKTRAINED MODEL TOTAL RETURN", value: "+250.39%", green: true },
+          { label: "S&P 500", value: "+83.34%" },
           { label: "WIN RATE", value: "66%", green: true },
           { label: "TRADES / YEAR", value: "~35" },
         ]}
       />
 
       <P>
-        Thirty-five trades a year. That is less than one a week, and most of them are simply the
-        biweekly new pick or a rebalance on a winner. Over 3.8 years the framework produced 132
-        total trades, 35 standout winners, 18 losses, and a total return of{" "}
-        <Strong>+250.39%</Strong> versus +83.34% for the S&amp;P 500 over the same window. Max
-        drawdown was -27.38% in April 2025, which is roughly in line with the index itself during
-        the same period.
+        Roughly thirty-five trades a year. That is less than one a week, and most of them are
+        simply the biweekly new pick or a rebalance on a winner. Over 3.8 years the framework
+        produced 132 total trades across 53 closed picks — 35 winners, 18 losses — and a total
+        return of <Strong>+250.39%</Strong> versus +83.34% for the S&amp;P 500 over the same
+        window, simulated. Max drawdown was -27.38% in April 2025, which is roughly in line with
+        the index itself during the same period.
       </P>
       <P>
-        Eight names doubled during the backtest. They were not day-traded. They were bought,
-        held, and sold when the thesis played out — which is exactly the outcome a long-term
-        investor is supposed to get. For an honest evaluation of whether this kind of service is
+        Five positions doubled during the backtrained model. They were not day-traded. They were
+        bought, held, and sold when the thesis played out — which is exactly the outcome a
+        long-term investor is supposed to get. For an honest evaluation of whether this kind of
+        service is
         worth paying for, read{" "}
         <A href="/blog/is-paying-for-a-stock-picking-service-worth-it">
           is paying for a stock-picking service worth it

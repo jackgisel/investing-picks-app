@@ -177,9 +177,9 @@ const article: Article = {
 
       <StatGrid
         stats={[
-          { label: "BACKTEST CAGR", value: "+38.99%", green: true },
+          { label: "BACKTRAINED MODEL TOTAL RETURN", value: "+250.39%", green: true },
           { label: "S&P 500", value: "+83.34%" },
-          { label: "ALPHA", value: "+167%", green: true },
+          { label: "EXCESS RETURN", value: "+167%", green: true },
           { label: "MAX DRAWDOWN", value: "-27.38%" },
         ]}
       />
@@ -187,7 +187,7 @@ const article: Article = {
       <H2>The volatility tax</H2>
       <P>
         Here is the honest part. Small caps drawdown harder than the index.
-        Always. Our own walk-forward backtest from June 2022 to April 2026
+        Always. Our own walk-forward backtrained model from June 2022 to April 2026
         produced a <Strong>-27.38% max drawdown in April 2025</Strong>. Individual
         positions can be worse — 30%, 40%, sometimes more. That volatility is not
         a bug; it is the price of admission for the returns.

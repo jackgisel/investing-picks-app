@@ -187,10 +187,10 @@ export function ScoreboardSlide({
           value={closedCount === null ? dash : String(closedCount)}
         />
         <Metric
-          label="Model target CAGR"
-          value={BACKTEST.cagr}
+          label="Backtrained model return"
+          value={BACKTEST.totalReturn}
           tone="green"
-          note={`${BACKTEST.yearsCovered}-year walk-forward backtest`}
+          note={`${BACKTEST.yearsCovered}-year backtrained model · simulated`}
         />
       </div>
     </Slide>

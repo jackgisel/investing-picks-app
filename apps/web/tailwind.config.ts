@@ -52,17 +52,14 @@ const config: Config = {
         // in both themes, so their foreground has to be too — `text` would flip
         // to near-white and leave light-on-light chips.
         "on-accent": withOpacity("--color-on-accent"),
-        // Paper the illustrations sit on. Cream in light, charcoal in dark —
-        // each set of PNGs is drawn against that ground.
-        plate: withOpacity("--color-plate"),
       },
       // Two faces, no more: Outfit sets everything, IBM Plex Mono carries the
       // numerals and tickers. There is deliberately no `serif` or `display`
       // alias — both used to point at Outfit, which meant `font-serif italic`
       // silently rendered as italic sans and read as a bug at every call site.
       fontFamily: {
-        mono: ["IBM Plex Mono", "monospace"],
-        sans: ["Outfit", "sans-serif"],
+        mono: ["var(--font-mono)", "IBM Plex Mono", "monospace"],
+        sans: ["var(--font-sans)", "Outfit", "sans-serif"],
       },
       borderRadius: {
         pill: "9999px",

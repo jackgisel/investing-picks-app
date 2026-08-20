@@ -1,105 +1,76 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { sendVerificationEmail, signIn, signUp } from "@/lib/auth-client";
+import { signIn } from "@/lib/auth-client";
 import { OutpickWordmark } from "@/components/ui/outpick-logo";
 import Link from "next/link";
 import { MailCheck } from "lucide-react";
 
+/** Where the magic link should land after it verifies. */
+function resolveCallbackURL(): string {
+  if (typeof window === "undefined") return "/subscribe";
+  const requested = new URLSearchParams(window.location.search).get("next");
+  return requested === "/subscribe" ||
+    requested === "/welcome" ||
+    requested === "/dashboard"
+    ? requested
+    : "/subscribe";
+}
+
 export default function LoginPage() {
-  const router = useRouter();
-  const [mode, setMode] = useState<"login" | "signup">("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [verificationSentTo, setVerificationSentTo] = useState<string | null>(null);
+  const [linkSentTo, setLinkSentTo] = useState<string | null>(null);
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
 
   /**
-   * Ask for a fresh verification link.
-   *
-   * Always reports success, even on failure. This endpoint takes a bare email
-   * address from an unauthenticated caller, so a truthful "no such account"
-   * would turn it into a membership oracle — anyone could test whether an
-   * address has an Outpick account. The user sees the same confirmation either
-   * way; a real failure is in the server log.
+   * There is no password on this account model — one email field, one link.
+   * The same call signs in a returning member and creates the account for a
+   * new one; `name` is only used the first time an address is seen.
    */
-  async function resendVerification(address: string) {
-    setResending(true);
-    try {
-      await sendVerificationEmail({ email: address, callbackURL: "/subscribe" });
-    } catch {
-      /* deliberately indistinguishable — see above */
+  async function requestLink(address: string, displayName: string) {
+    const result = await signIn.magicLink({
+      email: address,
+      name: displayName || undefined,
+      callbackURL: resolveCallbackURL(),
+    });
+    if (result.error) {
+      throw new Error(result.error.message || "Could not send the link");
     }
-    setResending(false);
-    setResent(true);
-    setTimeout(() => setResent(false), 6000);
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
-
     try {
-      if (mode === "login") {
-        const result = await signIn.email({ email, password });
-        if (result.error) {
-          // Correct credentials, unverified address. Better-auth has already
-          // re-sent the link (emailVerification.sendOnSignIn), so send the user
-          // to the same "check your inbox" screen rather than an error that
-          // reads like a wrong password and offers nothing to do about it.
-          if (
-            result.error.code === "EMAIL_NOT_VERIFIED" ||
-            result.error.status === 403
-          ) {
-            setVerificationSentTo(email.trim());
-            setLoading(false);
-            return;
-          }
-          setError(result.error.message || "Invalid credentials");
-          setLoading(false);
-          return;
-        }
-      } else {
-        const result = await signUp.email({
-          email,
-          password,
-          name,
-          // Better Auth embeds this trusted relative path in the verification
-          // link. Verification auto-signs the new user in, then continues to
-          // Outpick's account-first membership flow.
-          callbackURL: "/subscribe",
-        });
-        if (result.error) {
-          setError(result.error.message || "Could not create account");
-          setLoading(false);
-          return;
-        }
-        setVerificationSentTo(email.trim());
-        setLoading(false);
-        return;
-      }
-      const requested = new URLSearchParams(window.location.search).get("next");
-      router.push(
-        requested === "/subscribe" || requested === "/welcome"
-          ? requested
-          : "/dashboard",
-      );
-    } catch {
-      setError("Something went wrong. Please try again.");
+      await requestLink(email.trim(), name.trim());
+      setLinkSentTo(email.trim());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    } finally {
       setLoading(false);
     }
   }
 
-  const inputClass =
-    "w-full bg-bg-secondary border border-border rounded-pill px-5 py-3.5 font-sans text-[14px] text-text placeholder:text-text-dim focus:outline-none focus:border-border-strong transition-colors";
+  async function resend(address: string) {
+    setResending(true);
+    try {
+      await requestLink(address, name.trim());
+    } catch {
+      /* deliberately silent — see the button copy below */
+    }
+    setResending(false);
+    setResent(true);
+    setTimeout(() => setResent(false), 6000);
+  }
 
-  if (verificationSentTo) {
+  const inputClass = "field-input !py-3.5";
+
+  if (linkSentTo) {
     return (
       <div className="min-h-[calc(100vh-72px)] flex items-center justify-center px-4 py-16">
         <div className="w-full max-w-md text-center">
@@ -107,15 +78,15 @@ export default function LoginPage() {
             <MailCheck size={28} strokeWidth={1.8} aria-hidden="true" />
           </div>
           <p className="section-label section-label-mint justify-center">
-            One quick check
+            One click, no password
           </p>
           <h1 className="font-sans text-[30px] sm:text-[36px] font-bold tracking-tight text-text">
             Check your inbox
           </h1>
           <p className="mt-4 font-sans text-[15px] leading-relaxed text-text-muted">
-            We sent a welcome and verification link to{" "}
-            <span className="font-semibold text-text">{verificationSentTo}</span>.
-            Verify that address and we&apos;ll take you directly to secure checkout.
+            We sent a sign-in link to{" "}
+            <span className="font-semibold text-text">{linkSentTo}</span>.
+            Click it and you&apos;re in — nothing to remember, nothing to type.
           </p>
           <div className="soft-card mt-8 text-left">
             <p className="field-label mb-2">WHAT HAPPENS NEXT</p>
@@ -127,7 +98,7 @@ export default function LoginPage() {
           <div className="mt-7 flex flex-col items-center gap-3">
             <button
               type="button"
-              onClick={() => void resendVerification(verificationSentTo)}
+              onClick={() => void resend(linkSentTo)}
               disabled={resending || resent}
               className="btn-primary disabled:opacity-60"
             >
@@ -144,7 +115,7 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={() => {
-              setVerificationSentTo(null);
+              setLinkSentTo(null);
               setEmail("");
             }}
             className="btn-outline mt-5"
@@ -164,55 +135,24 @@ export default function LoginPage() {
             <OutpickWordmark size={28} />
           </Link>
           <p className="font-sans text-[12px] font-bold tracking-[0.14em] uppercase text-text-dim mt-5">
-            {mode === "login" ? "Sign in to your account" : "Create your account"}
+            Sign in or create your account
           </p>
         </div>
 
-        <div className="flex soft-card !p-1 mb-6 gap-1">
-          <button
-            onClick={() => {
-              setMode("login");
-              setError("");
-            }}
-            className={`flex-1 font-sans text-[11px] py-2.5 tracking-[0.1em] uppercase font-bold rounded-pill transition-colors ${
-              mode === "login"
-                ? "bg-inverse text-inverse-fg"
-                : "text-text-dim hover:text-text"
-            }`}
-          >
-            Sign in
-          </button>
-          <button
-            onClick={() => {
-              setMode("signup");
-              setError("");
-            }}
-            className={`flex-1 font-sans text-[11px] py-2.5 tracking-[0.1em] uppercase font-bold rounded-pill transition-colors ${
-              mode === "signup"
-                ? "bg-inverse text-inverse-fg"
-                : "text-text-dim hover:text-text"
-            }`}
-          >
-            Sign up
-          </button>
-        </div>
-
         <form onSubmit={handleSubmit} className="space-y-4">
-          {mode === "signup" && (
-            <div>
-              <label className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim block mb-2">
-                Name
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required={mode === "signup"}
-                className={inputClass}
-                placeholder="Your name"
-              />
-            </div>
-          )}
+          <div>
+            <label className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim block mb-2">
+              Name <span className="normal-case font-normal text-text-dim">(new accounts only)</span>
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className={inputClass}
+              placeholder="Your name"
+              autoComplete="name"
+            />
+          </div>
 
           <div>
             <label className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim block mb-2">
@@ -225,26 +165,12 @@ export default function LoginPage() {
               required
               className={inputClass}
               placeholder="you@example.com"
-            />
-          </div>
-
-          <div>
-            <label className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim block mb-2">
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={8}
-              className={inputClass}
-              placeholder="Min. 8 characters"
+              autoComplete="email"
             />
           </div>
 
           {error && (
-            <div className="bg-accent-red-soft rounded-2xl px-4 py-3">
+            <div className="bg-accent-red-soft rounded-soft px-4 py-3">
               <p className="font-sans text-[13px] text-accent-red">{error}</p>
             </div>
           )}
@@ -254,43 +180,22 @@ export default function LoginPage() {
             disabled={loading}
             className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading
-              ? "Loading..."
-              : mode === "login"
-                ? "Sign in"
-                : "Create account"}
+            {loading ? "Sending…" : "Continue with email"}
           </button>
-        </form>
 
-        <p className="text-center font-sans text-[13px] text-text-dim mt-6">
-          {mode === "login" ? (
-            <>
-              Don&apos;t have an account?{" "}
-              <button
-                onClick={() => {
-                  setMode("signup");
-                  setError("");
-                }}
-                className="text-text font-semibold underline underline-offset-2"
-              >
-                Sign up
-              </button>
-            </>
-          ) : (
-            <>
-              Already have an account?{" "}
-              <button
-                onClick={() => {
-                  setMode("login");
-                  setError("");
-                }}
-                className="text-text font-semibold underline underline-offset-2"
-              >
-                Sign in
-              </button>
-            </>
-          )}
-        </p>
+          <p className="text-center font-sans text-[11px] text-text-dim leading-relaxed">
+            No password — we&apos;ll email you a one-click sign-in link. By
+            continuing, you agree to our{" "}
+            <Link href="/terms" className="underline underline-offset-2">
+              Terms
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy" className="underline underline-offset-2">
+              Privacy Policy
+            </Link>
+            .
+          </p>
+        </form>
       </div>
     </div>
   );

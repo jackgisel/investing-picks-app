@@ -67,7 +67,7 @@ export function PostLayout({
               {meta.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="font-sans text-[11px] font-semibold tracking-[0.08em] uppercase px-3 py-1.5 rounded-pill bg-bg-secondary text-text-dim"
+                  className="badge !text-[11px] !py-1.5 !font-semibold bg-bg-secondary text-text-dim"
                 >
                   {tag}
                 </span>

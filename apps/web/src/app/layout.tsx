@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
+import { Outfit, IBM_Plex_Mono } from "next/font/google";
 import "@/styles/globals.css";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL, SITE_TAGLINE } from "@/lib/constants";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { MarketingOnly } from "@/components/layout/app-chrome";
 import { CookieBanner } from "@/components/layout/cookie-banner";
-import { FoundersBanner } from "@/components/landing/founders-banner";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 
@@ -14,6 +14,25 @@ import { ThemeProvider } from "@/components/providers/theme-provider";
 // preference) using the same "outpick-theme" key and resolution rules as
 // ThemeProvider.
 const THEME_INIT_SCRIPT = `(function(){try{var s=localStorage.getItem("outpick-theme");var t=s==="light"||s==="dark"||s==="system"?s:"system";var d=t==="dark"||(t==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches);var r=document.documentElement;if(d){r.classList.add("dark")}r.style.colorScheme=d?"dark":"light"}catch(e){}})();`;
+
+// Self-hosted via next/font instead of the old @import from Google Fonts —
+// that was a render-blocking third-party request on every page load and
+// guaranteed a flash of unstyled text on the hero headline. next/font
+// downloads at build time, serves from this origin, and matches fallback
+// metrics to cut layout shift while the real face loads.
+const outfit = Outfit({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-sans",
+  display: "swap",
+});
+
+const ibmPlexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-mono",
+  display: "swap",
+});
 
 const TITLE = `${SITE_NAME} — ${SITE_TAGLINE}`;
 
@@ -86,14 +105,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="bg-bg" suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`bg-bg ${outfit.variable} ${ibmPlexMono.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className="font-sans antialiased text-text bg-bg min-h-screen selection:bg-accent-yellow/50">
         <ThemeProvider>
           <QueryProvider>
-            <FoundersBanner />
             <Navbar />
             <main>{children}</main>
             <MarketingOnly>

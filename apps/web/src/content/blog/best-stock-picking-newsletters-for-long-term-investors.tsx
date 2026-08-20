@@ -218,18 +218,18 @@ const article: Article = {
 
       <StatGrid
         stats={[
-          { label: "BACKTEST CAGR", value: "+38.99%", green: true },
+          { label: "BACKTRAINED MODEL TOTAL RETURN", value: "+250.39%", green: true },
           { label: "S&P 500 SAME PERIOD", value: "+83.34%" },
-          { label: "ALPHA", value: "+167%", green: true },
+          { label: "EXCESS RETURN", value: "+167%", green: true },
           { label: "MAX DRAWDOWN", value: "-27.38%" },
         ]}
       />
 
       <P>
-        Those are our numbers. We publish them because the checklist above is
-        the one we hold ourselves to. A 3.8-year walk-forward backtest from
-        June 2022 through April 2026, a 66% win rate across 132 trades, and a
-        documented 27% drawdown in April 2025 that we did not paper over.
+        Those are our numbers, simulated. We publish them because the checklist above is
+        the one we hold ourselves to. A 3.8-year walk-forward backtrained model from
+        June 2022 through April 2026, a 66% win rate across 53 closed picks (132 individual
+        trades), and a documented 27% drawdown in April 2025 that we did not paper over.
       </P>
 
       <H2>What good looks like</H2>

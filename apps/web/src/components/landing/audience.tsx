@@ -55,7 +55,7 @@ export function Audience() {
 
           <blockquote className="border-l-2 border-accent-yellow pl-6 sm:pl-7 py-1 lg:mt-6">
             <p className="font-sans text-[10px] font-bold tracking-[0.14em] uppercase text-text-dim mb-2">
-              Walk-forward backtest
+              Backtrained model · simulated
             </p>
             <p className="font-sans text-[16px] sm:text-[17px] text-text leading-snug">
               <span className="font-mono font-bold text-accent-green">
@@ -63,9 +63,9 @@ export function Audience() {
               </span>{" "}
               picks doubled ·{" "}
               <span className="font-mono font-bold text-accent-green">
-                {BACKTEST.cagr}
+                {BACKTEST.totalReturn}
               </span>{" "}
-              CAGR ·{" "}
+              vs{" "}
               <span className="font-mono font-bold">{BACKTEST.spyReturn}</span>{" "}
               S&amp;P 500
             </p>

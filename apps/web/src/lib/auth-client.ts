@@ -1,19 +1,18 @@
 import { createAuthClient } from "better-auth/react";
+import { magicLinkClient } from "better-auth/client/plugins";
 
 export const authClient = createAuthClient({
   baseURL: typeof window !== "undefined" ? window.location.origin : "",
+  plugins: [magicLinkClient()],
 });
 
 export const {
+  // authClient.signIn.magicLink({ email, callbackURL }) is the entire sign-in
+  // and sign-up surface — there is no password on this account model. It
+  // creates the account on first use, so a separate `signUp` isn't needed.
   signIn,
-  signUp,
   signOut,
   useSession,
   updateUser,
-  changePassword,
   deleteUser,
-  // The recovery path for a verification link that was lost, expired, or never
-  // arrived. Better-auth has always exposed the endpoint; nothing in the app
-  // called it, so an unverified account had no way back and could never pay.
-  sendVerificationEmail,
 } = authClient;

@@ -145,9 +145,9 @@ const article: Article = {
         pricing power &mdash; even though the underlying commodity is completely different.
       </P>
       <P>
-        Entered on 2024-01-02, CRS is up <Strong>+470.68%</Strong> and is one of
-        the eight stocks that more than doubled during our walk-forward backtest
-        window. We&apos;re mentioning it in the same article because investors
+        Entered on 2024-01-02, CRS is up <Strong>+470.68%</Strong> — the largest
+        single winner still held in the backtrained model&apos;s final holdings
+        snapshot. We&apos;re mentioning it in the same article because investors
         interested in gold miners are usually also thinking about real assets and
         supply-constrained industrials, and CRS is the cleanest expression of
         that adjacent theme in our book.

@@ -177,24 +177,25 @@ const article: Article = {
 
       <H2>How Outpick&apos;s Sharpe stacks up</H2>
       <P>
-        Our walk-forward backtest of the Outpick stock-picks strategy from June
-        2022 through April 2026 produced a Sharpe ratio of 1.14. To put that in
-        context, it sits in the &quot;good&quot; band described above, and is
-        meaningfully higher than the long-run S&amp;P 500 Sharpe over comparable
-        windows. The CAGR over that same period was 38.99%, with a maximum
-        drawdown of 27.38%. You can see the full track record on our{" "}
+        Our walk-forward backtrained model of the Outpick stock-picks strategy
+        from June 2022 through April 2026 produced a Sharpe ratio of 1.14. To
+        put that in context, it sits in the &quot;good&quot; band described
+        above, and is meaningfully higher than the long-run S&amp;P 500 Sharpe
+        over comparable windows. The total return over that same period was
+        +250.39%, simulated, with a maximum drawdown of 27.38%. You can see
+        the full track record on our{" "}
         <A href="/#track-record">track record page</A>.
       </P>
       <StatGrid
         stats={[
-          { label: "BACKTEST CAGR", value: "+38.99%", green: true },
+          { label: "BACKTRAINED MODEL TOTAL RETURN", value: "+250.39%", green: true },
           { label: "SHARPE RATIO", value: "1.14", green: true },
           { label: "MAX DRAWDOWN", value: "-27.38%" },
         ]}
       />
       <P>
-        That Sharpe of 1.14 is the number we&apos;re proudest of. The CAGR is
-        what catches the eye, but the Sharpe is what tells you the CAGR
+        That Sharpe of 1.14 is the number we&apos;re proudest of. The headline
+        return is what catches the eye, but the Sharpe is what tells you it
         wasn&apos;t bought with reckless concentration. For a deeper look at how
         risk-adjusted returns relate to active stock picking, see our piece on{" "}
         <A href="/blog/alpha-vs-beta-what-active-stock-picking-actually-buys-you">

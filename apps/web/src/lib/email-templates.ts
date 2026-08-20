@@ -392,6 +392,35 @@ export function renderVerifyEmail(args: {
   });
 }
 
+/* ---------------------------- Magic-link sign-in --------------------------- */
+
+export function renderMagicLinkEmail(args: {
+  signInUrl: string;
+  siteUrl: string;
+  banner?: string;
+}): string {
+  const body = `
+    ${eyebrow("Sign in to Outpick", "mint")}
+    ${heading("One click and you’re in")}
+    ${paragraph(
+      `Click below to sign in. No password to remember — this link works once and expires shortly, so request a new one if it's gone stale.`,
+      26
+    )}
+    ${pillButton(args.signInUrl, "Sign in to Outpick")}
+    ${fallbackLink(args.signInUrl)}
+    <p class="dm-dim" style="margin:0;font-family:${FONT_SANS};font-size:12px;color:${TEXT_DIM};line-height:1.6;">
+      Didn't request this? You can safely ignore this email — no account changes happen until the link is clicked.
+    </p>
+  `;
+
+  return shell({
+    preview: `Sign in to ${SITE_NAME} — click the link, no password needed.`,
+    bodyHtml: body,
+    siteUrl: args.siteUrl,
+    banner: args.banner,
+  });
+}
+
 /* ------------------------- Membership welcome email ------------------------- */
 
 export function renderMembershipWelcomeEmail(args: {

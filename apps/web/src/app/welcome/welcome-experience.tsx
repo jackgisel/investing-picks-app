@@ -147,7 +147,7 @@ export function WelcomeExperience({
     <div className="border-b border-border">
       <section className="container-op py-16 sm:py-24">
         <div className="max-w-3xl">
-          <div className="mb-8 inline-flex items-center gap-2 rounded-full bg-accent-green-soft px-4 py-2 font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-accent-green">
+          <div className="badge mb-8 !text-[11px] !px-4 !py-2 text-accent-green bg-accent-green-soft">
             <CircleCheck size={14} aria-hidden="true" />
             Membership active
           </div>

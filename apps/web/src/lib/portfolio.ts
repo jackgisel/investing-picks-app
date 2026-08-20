@@ -1,8 +1,5 @@
 import type { StrategyData, Holding } from "@/lib/hooks/use-strategy";
-import {
-  FOUNDERS_DEAL_MAX_DAY,
-  LIVE_PORTFOLIO,
-} from "@/lib/constants";
+import { FOUNDERS_DEAL_ENDS_ISO, LIVE_PORTFOLIO } from "@/lib/constants";
 
 /**
  * Cumulative return on the stocks we picked — the headline number.
@@ -176,16 +173,29 @@ export function liveAccrualDays(window?: {
   return 0;
 }
 
-export function isFoundersDealActive(
-  day: number = daysSinceInception()
-): boolean {
-  return day < FOUNDERS_DEAL_MAX_DAY;
+/** UTC `YYYY-MM-DD` for an instant — same clock the founders window uses. */
+function utcCalendarISO(nowMs: number): string {
+  const d = new Date(nowMs);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
-export function foundersDealDaysRemaining(
-  day: number = daysSinceInception()
-): number {
-  return Math.max(0, FOUNDERS_DEAL_MAX_DAY - day);
+function foundersDealEndExclusiveMs(): number {
+  const [year, month, day] = FOUNDERS_DEAL_ENDS_ISO.split("-").map(Number);
+  return Date.UTC(year, month - 1, day + 1);
+}
+
+export function isFoundersDealActive(nowMs: number = Date.now()): boolean {
+  return utcCalendarISO(nowMs) <= FOUNDERS_DEAL_ENDS_ISO;
+}
+
+export function foundersDealDaysRemaining(nowMs: number = Date.now()): number {
+  return Math.max(
+    0,
+    Math.ceil((foundersDealEndExclusiveMs() - nowMs) / 86_400_000),
+  );
 }
 
 /**
@@ -197,6 +207,18 @@ export function foundersDealDaysRemaining(
  * source of truth when the API reports it.
  */
 export const MIN_CAGR_WINDOW_DAYS = 90;
+
+/**
+ * Below this, `resolveLiveCagr` may return a statistically valid "ok" value
+ * (see `MIN_CAGR_WINDOW_DAYS` above), but the public marketing pages still
+ * don't show it. A rate extrapolated from a few months invites exactly the
+ * "133 days live -> +74.81%/yr" headline this guards against — 90 days is
+ * enough for the math to be defensible, not enough for the number to be
+ * worth leading with. Callers that gate the *public* annualized figure
+ * should check `cagr.daysLive >= PUBLIC_CAGR_MIN_DAYS` in addition to
+ * `cagr.value !== null`. Internal tooling is free to use the 90-day figure.
+ */
+export const PUBLIC_CAGR_MIN_DAYS = 365;
 
 /**
  * How much of the book's life must be covered by daily snapshots before the

@@ -5,7 +5,7 @@ import {
 } from "@/lib/constants";
 import { OutpickLogo } from "@/components/ui/outpick-logo";
 import { PillButton } from "@/components/ui/pill-button";
-import { ThemeIllustration } from "@/components/ui/theme-illustration";
+import { LivePicksChart } from "@/components/ui/live-picks-chart";
 import { PriceLine } from "./price-line";
 
 export function Hero() {
@@ -15,7 +15,7 @@ export function Hero() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           <div>
             <p className="section-label section-label-mint mb-6 hero-reveal hero-reveal-1">
-              A stock research team
+              A team of agents, researching around the clock
             </p>
 
             <div className="flex items-center gap-3.5 mb-8 hero-reveal hero-reveal-2">
@@ -47,16 +47,7 @@ export function Hero() {
           </div>
 
           <div className="relative hero-reveal hero-reveal-4">
-            <div className="illustration-plate aspect-square flex items-center justify-center p-6 sm:p-8">
-              <ThemeIllustration
-                src="/illustrations/research.png"
-                alt="Research illustration"
-                width={560}
-                height={560}
-                className="illustration-art w-full h-full object-contain p-4"
-                priority
-              />
-            </div>
+            <LivePicksChart height={240} />
           </div>
         </div>
       </div>

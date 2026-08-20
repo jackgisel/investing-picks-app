@@ -1,14 +1,20 @@
 import { CategoryTag } from "@/components/ui/category-tag";
 import { TONE_BORDER, type PastelTone } from "@/lib/tones";
 import { PillButton } from "@/components/ui/pill-button";
-import { ThemeIllustration } from "@/components/ui/theme-illustration";
+import {
+  ResearchDiagram,
+  PublishDiagram,
+  TrackDiagram,
+  MeasureDiagram,
+} from "./how-it-works-diagrams";
+import type { ComponentType } from "react";
 
 const steps: {
   title: string;
   tag: string;
   description: string;
   tone: PastelTone;
-  image: string;
+  Diagram: ComponentType;
 }[] = [
   {
     title: "We research every pick",
@@ -16,7 +22,7 @@ const steps: {
     description:
       "Fundamentals, financial quality, and cycle context — before anything is published. No hype, no momentum for its own sake.",
     tone: "yellow",
-    image: "/illustrations/research.png",
+    Diagram: ResearchDiagram,
   },
   {
     title: "New research every 2 weeks",
@@ -24,7 +30,7 @@ const steps: {
     description:
       "One high-conviction name with full notes: thesis, financials, cycle context, and why it belongs in a long-term book.",
     tone: "peach",
-    image: "/illustrations/publish.png",
+    Diagram: PublishDiagram,
   },
   {
     title: "Live portfolio tracking",
@@ -32,7 +38,7 @@ const steps: {
     description:
       "Every position with real-time status. Entries, exits, and conviction — no cherry-picked highlights.",
     tone: "lilac",
-    image: "/illustrations/pick.png",
+    Diagram: TrackDiagram,
   },
   {
     title: "Performance vs. the S&P",
@@ -40,7 +46,7 @@ const steps: {
     description:
       "The full portfolio against the S&P 500. Every gain and every loss, measured honestly.",
     tone: "mint",
-    image: "/illustrations/track.png",
+    Diagram: MeasureDiagram,
   },
 ];
 
@@ -103,14 +109,8 @@ export function HowItWorks() {
                     {step.description}
                   </p>
                 </div>
-                <div className="illustration-plate relative aspect-[4/3]">
-                  <ThemeIllustration
-                    src={step.image}
-                    alt=""
-                    fill
-                    className="illustration-art object-contain p-4 sm:p-5"
-                    sizes="280px"
-                  />
+                <div className="relative aspect-[4/3]">
+                  <step.Diagram />
                 </div>
               </li>
             ))}

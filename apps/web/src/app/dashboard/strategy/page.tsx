@@ -14,6 +14,7 @@ import {
   type Emphasis,
 } from "@/components/dashboard/strategy-diagrams";
 import { sectorPositionCap } from "@/components/dashboard/sector-model";
+import { BACKTEST, WINNERS_CIRCLE_EXITS } from "@/lib/constants";
 import { Check, X } from "lucide-react";
 
 /**
@@ -129,6 +130,93 @@ export default function StrategyPage() {
         />
       ) : (
         <>
+          {/* The backtrained model data sheet — the number that sold the
+              subscription lives inside the product, not just on the
+              marketing site. Simulated; never blended with live figures. */}
+          <section className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="panel-label panel-label-mint">
+                The backtrained model
+              </p>
+              <span className="badge bg-bg-tertiary text-text-muted">
+                Simulated
+              </span>
+            </div>
+            <div className="data-card">
+              <p className="font-mono text-[12px] text-text-dim mb-5">
+                {BACKTEST.startDate} — {BACKTEST.endDate} ·{" "}
+                {BACKTEST.yearsCovered} years · walk-forward validated
+              </p>
+              <div className="grid grid-cols-2 gap-x-8 gap-y-5 sm:grid-cols-4">
+                <div>
+                  <p className="field-label">TOTAL RETURN</p>
+                  <p className="mt-1.5 font-mono text-xl font-bold tabular-nums text-accent-green">
+                    {BACKTEST.totalReturn}
+                  </p>
+                  <p className="mt-1 font-sans text-[11px] text-text-dim">
+                    vs {BACKTEST.spyReturn} S&amp;P 500
+                  </p>
+                </div>
+                <div>
+                  <p className="field-label">SHARPE</p>
+                  <p className="mt-1.5 font-mono text-xl font-bold tabular-nums text-text">
+                    {BACKTEST.sharpe}
+                  </p>
+                </div>
+                <div>
+                  <p className="field-label">MAX DRAWDOWN</p>
+                  <p className="mt-1.5 font-mono text-xl font-bold tabular-nums text-text">
+                    {BACKTEST.maxDrawdown}
+                  </p>
+                  <p className="mt-1 font-sans text-[11px] text-text-dim">
+                    {BACKTEST.maxDrawdownDate}
+                  </p>
+                </div>
+                <div>
+                  <p className="field-label">WIN RATE</p>
+                  <p className="mt-1.5 font-mono text-xl font-bold tabular-nums text-text">
+                    {BACKTEST.winRate}
+                  </p>
+                  <p className="mt-1 font-sans text-[11px] text-text-dim">
+                    {BACKTEST.wins}W/{BACKTEST.losses}L of{" "}
+                    {BACKTEST.closedPicks} closed picks
+                  </p>
+                </div>
+              </div>
+              <div className="mt-5 border-t border-border pt-4 flex flex-wrap items-center gap-x-8 gap-y-3">
+                <div>
+                  <p className="field-label">OUT-OF-SAMPLE WINDOW</p>
+                  <p className="mt-1.5 font-mono text-[13px] font-semibold text-text">
+                    {BACKTEST.validationStart} – {BACKTEST.validationEnd}
+                  </p>
+                </div>
+                <div>
+                  <p className="field-label">OUT-OF-SAMPLE EXCESS RETURN</p>
+                  <p className="mt-1.5 font-mono text-[13px] font-semibold text-accent-green">
+                    {BACKTEST.validationOutpickedSp}
+                  </p>
+                </div>
+                <div>
+                  <p className="field-label">DOUBLED POSITIONS</p>
+                  <p className="mt-1.5 font-mono text-[13px] font-semibold text-text">
+                    {BACKTEST.winnersCircle}{" "}
+                    <span className="text-text-dim font-sans font-normal">
+                      ({WINNERS_CIRCLE_EXITS} exits — trimmed, not sold at once)
+                    </span>
+                  </p>
+                </div>
+              </div>
+              <p className="mt-5 font-sans text-[12px] leading-relaxed text-text-dim border-t border-border pt-4">
+                Point-in-time fundamentals with a 90-day filing lag. Trained on{" "}
+                {BACKTEST.startDate} – {BACKTEST.validationStart}, tested only
+                on the unseen {BACKTEST.validationStart} –{" "}
+                {BACKTEST.validationEnd} window before any capital followed
+                it. Simulated performance — not a realized track record, and
+                not indicative of future results.
+              </p>
+            </div>
+          </section>
+
           {/* What we measure */}
           <section className="space-y-3">
             <p className="panel-label panel-label-mint">

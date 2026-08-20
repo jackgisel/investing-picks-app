@@ -12,7 +12,7 @@ const PRINCIPLES: {
     label: "The record",
     tone: "mint",
     title: "We publish the record, not the personalities",
-    body: "No founder story, no headshots, no track record you have to take on faith. The model, the picks, the live book, and every closed trade are on this site — that is the credential. Judge the work.",
+    body: "No founder story, no headshots, no track record you have to take on faith. The backtrained model, the picks, and the live example portfolio are all on this site — that is the credential. Judge the work.",
   },
   {
     label: "Funding",
@@ -24,7 +24,7 @@ const PRINCIPLES: {
     label: "The losses",
     tone: "peach",
     title: "Losers stay on the page",
-    body: `We publish max drawdown (${BACKTEST.maxDrawdown}), win rate (${BACKTEST.winRate}), and every position that went against us. A track record without losses in it is a marketing asset, not a track record.`,
+    body: `We publish the backtrained model's max drawdown (${BACKTEST.maxDrawdown}) and win rate (${BACKTEST.winRate}, simulated) alongside every position that went against us. A track record without losses in it is a marketing asset, not a track record.`,
   },
   {
     label: "The method",
@@ -56,13 +56,13 @@ const COMPARISON: {
     dimension: "Track record",
     index: "The market, by definition",
     newsletter: "Selected highlights",
-    outpick: "Backtest, live book, every closed trade",
+    outpick: "Backtrained model + live example portfolio, published",
   },
   {
     dimension: "Risk disclosed",
     index: "Market risk",
     newsletter: "Rarely published",
-    outpick: `Sharpe ${BACKTEST.sharpe} · max DD ${BACKTEST.maxDrawdown}`,
+    outpick: `Sharpe ${BACKTEST.sharpe} · max DD ${BACKTEST.maxDrawdown} (backtrained model, simulated)`,
   },
   {
     dimension: "What it costs",
@@ -78,10 +78,6 @@ export function WhoWeAre() {
       id="who-we-are"
       className="relative border-b border-border overflow-hidden"
     >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_50%_at_0%_0%,rgba(168,217,160,0.09),transparent_60%)]"
-      />
 
       <div className="container-op relative py-20 sm:py-24">
         <div className="max-w-[640px] mb-14 sm:mb-16">

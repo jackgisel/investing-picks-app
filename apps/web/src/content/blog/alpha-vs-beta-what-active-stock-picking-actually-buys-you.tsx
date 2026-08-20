@@ -94,20 +94,20 @@ const article: Article = {
       </P>
       <StatGrid
         stats={[
-          { label: "OUTPICK CAGR", value: "+38.99%", green: true },
+          { label: "BACKTRAINED MODEL TOTAL RETURN", value: "+250.39%", green: true },
           { label: "S&P 500 (TOTAL)", value: "+83.34%" },
-          { label: "ALPHA (3.8 YR)", value: "+167%", green: true },
-          { label: "WALK-FORWARD ALPHA", value: "+67%", green: true },
+          { label: "EXCESS RETURN (3.8Y)", value: "+167%", green: true },
+          { label: "EXCESS RETURN (OOS)", value: "+67%", green: true },
         ]}
       />
       <P>
-        The 167% number is the cumulative excess return over the S&amp;P 500 across the full backtest. The 67% is the alpha generated specifically in the out-of-sample walk-forward window from July 2024 onward &mdash; the part of the test where the strategy was making picks on data it had never seen during development. That second number matters far more than the first. If you want a deeper explanation of why, see our writeup on <A href="/blog/walk-forward-backtesting-explained">walk-forward backtesting explained</A>.
+        The 167% number is the cumulative excess return over the S&amp;P 500 across the full backtrained model &mdash; not risk-adjusted alpha, just the raw gap between the two cumulative returns. The 67% is the same measure taken only in the out-of-sample walk-forward window from July 2024 onward &mdash; the part of the test where the strategy was making picks on data it had never seen during development. That second number matters far more than the first. If you want a deeper explanation of why, see our writeup on <A href="/blog/walk-forward-backtesting-explained">walk-forward backtesting explained</A>.
       </P>
       <P>
-        A few additional numbers help frame the risk side of the equation: a Sharpe ratio of 1.14, a max drawdown of -27.38% in April 2025, and a 66% win rate across 132 trades. None of those numbers are magic. They are what you would expect from a concentrated long-only book that is willing to be wrong about a third of the time as long as the winners are big enough to carry the result.
+        A few additional numbers help frame the risk side of the equation: a Sharpe ratio of 1.14, a max drawdown of -27.38% in April 2025, and a 66% win rate across 53 closed picks (132 individual trades, since a pick can be trimmed or added to more than once). None of those numbers are magic. They are what you would expect from a concentrated long-only book that is willing to be wrong about a third of the time as long as the winners are big enough to carry the result.
       </P>
       <P>
-        Outpick is educational research, not financial advice; past performance is not indicative of future results. Live trading with real money began on April 1, 2026 and is published in full on the <A href="/dashboard">dashboard</A>.
+        Outpick is educational research, not financial advice; past performance is not indicative of future results. The backtrained model above is simulated. Our live example portfolio began trading on April 1, 2026 &mdash; real trades, on our own capital, marked at each day&apos;s closing price &mdash; and is published in full on the <A href="/dashboard">dashboard</A>.
       </P>
 
       <H2>How Outpick generates alpha</H2>
@@ -117,7 +117,7 @@ const article: Article = {
       <UL>
         <LI><Strong>Stock selection.</Strong> The single biggest contributor. Picks are screened for fundamentals (cash flow, balance sheet, returns on capital) before any technical or sentiment overlay.</LI>
         <LI><Strong>Factor tilts.</Strong> The book leans into well-documented factor premia: small-cap value, quality, and momentum. These are the factors that academic literature has shown deliver excess returns over decades, not quarters.</LI>
-        <LI><Strong>Position sizing.</Strong> Equal-weight at entry, let winners run, never average down on a broken thesis. Eight stocks doubled during the backtest, and they did most of the work.</LI>
+        <LI><Strong>Position sizing.</Strong> Equal-weight at entry, let winners run, never average down on a broken thesis. Five positions doubled during the backtrained model (across eight partial exits, as winners got trimmed rather than sold all at once), and they did most of the work.</LI>
         <LI><Strong>Cadence and patience.</Strong> A new pick every two weeks (~26 a year). No reactive trading, no chasing headlines.</LI>
         <LI><Strong>Hard exits.</Strong> When a thesis breaks, the position closes. Holding losers is the most common alpha killer in long-only books.</LI>
       </UL>

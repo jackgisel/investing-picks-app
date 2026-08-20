@@ -1,4 +1,5 @@
 import { pool } from "@/lib/db";
+import { getStripe } from "@/lib/stripe";
 import {
   normalizeStripeStatus,
   type SubscriptionStatus,
@@ -185,6 +186,33 @@ export async function syncStripeSubscription(
     ],
   );
   return true;
+}
+
+/**
+ * Cancel any live Stripe subscription immediately, ahead of deleting the
+ * account. Deletion must never leave a subscription billing an account that
+ * no longer exists — see `user.deleteUser.beforeDelete` in lib/auth.ts, the
+ * only caller. Swallows Stripe errors (already-canceled subscription, API
+ * outage) so a billing hiccup never blocks a user from deleting their
+ * account; a failure here is a stuck Stripe subscription to clean up
+ * manually, not a security or data problem.
+ */
+export async function cancelStripeSubscriptionForDeletedUser(
+  userId: string,
+): Promise<void> {
+  const record = await getSubscriptionRecord(userId);
+  if (!record.stripeSubscriptionId) return;
+  const stripe = getStripe();
+  if (!stripe) return;
+  try {
+    await stripe.subscriptions.cancel(record.stripeSubscriptionId);
+  } catch (e) {
+    console.error(
+      `Failed to cancel Stripe subscription ${record.stripeSubscriptionId} ` +
+        `for deleted user ${userId}:`,
+      e,
+    );
+  }
 }
 
 export type MembershipWelcomeClaim = {

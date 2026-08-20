@@ -47,9 +47,10 @@ const article: Article = {
         <P>
           Beating the index is a math problem before it is a stock-picking problem. A concentrated
           20-to-25 name portfolio, rebalanced on a slow cadence, is one of the few structures that
-          can produce real alpha. Our walk-forward backtest delivered <Strong>+38.99% CAGR</Strong>
-          {" "}against the S&amp;P 500&apos;s <Strong>+18% annualized</Strong> over the same 3.8-year
-          window, with a <Strong>66% win rate</Strong> across 132 trades.
+          can produce real alpha. Our walk-forward backtrained model delivered{" "}
+          <Strong>+250.39% total return</Strong> against the S&amp;P 500&apos;s{" "}
+          <Strong>+83.34%</Strong> over the same 3.8-year window, simulated, with a{" "}
+          <Strong>66% win rate</Strong> across 53 closed picks.
         </P>
       </TLDR>
 
@@ -171,38 +172,38 @@ const article: Article = {
 
       <StatGrid
         stats={[
-          { label: "BACKTEST CAGR", value: "+38.99%", green: true },
-          { label: "S&P 500 (SAME WINDOW)", value: "+18% ANN." },
-          { label: "ALPHA", value: "+167%", green: true },
+          { label: "BACKTRAINED MODEL TOTAL RETURN", value: "+250.39%", green: true },
+          { label: "S&P 500 (SAME WINDOW)", value: "+83.34%" },
+          { label: "EXCESS RETURN", value: "+167%", green: true },
           { label: "SHARPE", value: "1.14" },
         ]}
       />
 
       <P>
         The walk-forward portion — the period where the strategy had to pick stocks it had never
-        seen before — produced <Strong>+67% alpha</Strong> against the S&amp;P 500. That is the
-        number that matters. Anybody can curve-fit a backtest to a chart; the question is whether
-        the framework holds up on data it was not trained on. If you want the full picture of how
-        to evaluate this kind of test, read{" "}
+        seen before — produced a <Strong>+67% excess return</Strong> against the S&amp;P 500. That is
+        the number that matters. Anybody can curve-fit a backtest to a chart; the question is
+        whether the framework holds up on data it was not trained on. If you want the full picture
+        of how to evaluate this kind of test, read{" "}
         <A href="/blog/walk-forward-backtesting-explained">walk-forward backtesting explained</A>.
       </P>
 
       <CompareTable
         headers={["", "S&P 500 ETF", "Outpick Framework"]}
         rows={[
-          ["CAGR (3.8y backtest)", "~+18%", "+38.99%"],
+          ["Total return (3.8y backtrained model)", "+83.34%", "+250.39%"],
           ["Max drawdown", "~-25%", "-27.38%"],
           ["Sharpe ratio", "~0.70", "1.14"],
           ["Picks per year", "—", "~26"],
           ["Win rate", "—", "66%"],
-          ["Stocks that doubled", "few", "8"],
+          ["Positions that doubled", "few", "5"],
         ]}
       />
 
       <P>
-        Eight positions doubled inside the backtest window — the Winners Circle. YPF finished
+        Five positions doubled inside the backtrained model window — the Winners Circle. YPF finished
         +200%, TGS +190%, BMA +179%, AVGO +128%, IRS +161%. Those five names alone more than
-        covered every losing trade combined. That is the asymmetric upside concentration is
+        covered every losing pick combined. That is the asymmetric upside concentration is
         supposed to deliver, and it is the reason you can be wrong 34% of the time and still
         crush the index.
       </P>
@@ -219,8 +220,8 @@ const article: Article = {
       <P>
         The second path is to outsource the research while keeping control of the execution. A
         biweekly newsletter cadence means you make one informed decision every two weeks, not one
-        panicked decision every two days. Our live portfolio went public on April 1, 2026 — real
-        money, real trades, tracked in public on the{" "}
+        panicked decision every two days. Our live example portfolio went public on April 1, 2026 —
+        real trades, on our own capital, tracked in public on the{" "}
         <A href="/#track-record">track record page</A>. If you want the comparison to other
         services before deciding, see{" "}
         <A href="/blog/best-stock-picking-newsletters-for-long-term-investors">

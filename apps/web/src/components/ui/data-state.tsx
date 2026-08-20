@@ -72,7 +72,7 @@ export function DataState({
   if (state === "loading") {
     return (
       <div className={`px-5 ${pad} text-center`}>
-        <span className="font-mono text-[11px] text-text-dim animate-pulse">
+        <span className="font-sans text-[11px] font-bold tracking-[0.08em] text-text-dim animate-pulse">
           LOADING...
         </span>
       </div>

@@ -1,15 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
 import { useStrategy } from "@/lib/hooks/use-strategy";
-import { buildPicksComparison, useChart } from "@/lib/hooks/use-chart";
-import { DataState, resolveDataState } from "@/components/ui/data-state";
-import {
-  BenchmarkBasisNote,
-  PicksBenchmarkChart,
-  PicksBenchmarkLegend,
-  formatChartPct,
-} from "@/components/ui/picks-benchmark-chart";
+import { useChart } from "@/lib/hooks/use-chart";
+import { LivePicksChart } from "@/components/ui/live-picks-chart";
 import {
   BACKTEST,
   WINNERS_CIRCLE,
@@ -20,17 +13,16 @@ import {
   computePortfolioReturnPct,
   countDoubledWinners,
   countWinningPositions,
-  describeLiveCagr,
   resolveLiveCagr,
   formatPct,
+  PUBLIC_CAGR_MIN_DAYS,
 } from "@/lib/portfolio";
 import { CompanyLogo } from "@/components/ui/company-logo";
 
 const backtestSecondary = [
   { label: "Win rate", value: BACKTEST.winRate, green: true },
   { label: "S&P 500", value: BACKTEST.spyReturn, green: false },
-  { label: "Alpha", value: BACKTEST.alpha, green: true },
-  { label: "Total return", value: BACKTEST.totalReturn, green: true },
+  { label: "Outpicked S&P", value: BACKTEST.outpickedSp, green: true },
   { label: "Sharpe", value: BACKTEST.sharpe, green: false },
   { label: "Max drawdown", value: BACKTEST.maxDrawdown, green: false },
 ];
@@ -59,7 +51,6 @@ export function TrackRecord() {
   // "picks" to match `totalReturnPct` above, which is the picks return.
   const cagr = resolveLiveCagr(totalReturnPct, chart?.summary, "picks");
   const days = cagr.daysLive;
-  const cagrNote = describeLiveCagr(cagr);
   const liveDoubled = countDoubledWinners(strategy?.holdings);
   const liveWinners = countWinningPositions(strategy?.holdings);
 
@@ -68,11 +59,6 @@ export function TrackRecord() {
       id="track-record"
       className="relative border-b border-border overflow-hidden"
     >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(ellipse_70%_80%_at_50%_-20%,rgba(168,217,160,0.12),transparent_70%)]"
-      />
-
       <div className="container-op relative py-20 sm:py-24">
         <div className="max-w-[680px] mb-12 sm:mb-14">
           <p className="section-label section-label-mint">Track record</p>
@@ -91,13 +77,13 @@ export function TrackRecord() {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-10 sm:mb-12">
           <div className="md:col-span-5 rounded-soft border border-border bg-bg px-7 py-8 sm:px-8">
             <p className="font-sans text-[10px] font-bold text-text-dim tracking-[0.14em] uppercase mb-2">
-              Model CAGR
+              Total return
             </p>
             <p className="font-mono text-[40px] sm:text-[48px] font-bold text-accent-green leading-none tracking-tight">
-              {BACKTEST.cagr}
+              {BACKTEST.totalReturn}
             </p>
             <p className="font-sans text-[12px] text-text-dim mt-3">
-              {BACKTEST.yearsLabel} · walk-forward validated
+              {BACKTEST.yearsLabel} · walk-forward validated · backtrained model
             </p>
           </div>
 
@@ -118,17 +104,17 @@ export function TrackRecord() {
               Out-of-sample
             </p>
             <p className="font-mono text-[28px] sm:text-[32px] font-bold text-text leading-none">
-              {BACKTEST.validationAlpha}
+              {BACKTEST.validationOutpickedSp}
             </p>
             <p className="font-sans text-[11px] text-text-dim mt-2 leading-snug">
-              Alpha · {BACKTEST.validationStart} – {BACKTEST.validationEnd}
+              Outpicked S&amp;P · {BACKTEST.validationStart} – {BACKTEST.validationEnd}
             </p>
           </div>
         </div>
 
         {/* Live picks curve vs. the same dollars in each index */}
         <div className="mb-10 sm:mb-12">
-          <LivePicksComparison />
+          <LivePicksChart />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10 mb-12">
@@ -140,7 +126,7 @@ export function TrackRecord() {
                 <span className="font-sans text-[10px] font-bold tracking-[0.14em] uppercase text-text-dim">
                   Live example portfolio
                 </span>
-                <span className="inline-flex items-center gap-2 font-sans text-[9px] tracking-[0.1em] font-bold px-3 py-1 rounded-pill bg-accent-green-soft text-accent-green uppercase">
+                <span className="badge !text-[9px] text-accent-green bg-accent-green-soft">
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-green opacity-60" />
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-accent-green" />
@@ -154,44 +140,33 @@ export function TrackRecord() {
                   Inception {formatInceptionDate(inceptionISO)} · Day {days}
                 </p>
 
-                <div className="grid grid-cols-2 gap-6 sm:gap-8 pb-6 mb-6 border-b border-border">
-                  <div>
-                    <p className="font-sans text-[10px] font-bold text-text-dim tracking-[0.12em] uppercase mb-1.5">
-                      Live CAGR
+                <div className="pb-6 mb-6 border-b border-border">
+                  <p className="font-sans text-[10px] font-bold text-text-dim tracking-[0.12em] uppercase mb-1.5">
+                    Live return
+                  </p>
+                  <p
+                    className={`font-mono text-[32px] sm:text-[36px] font-bold leading-none tracking-tight ${
+                      hasReturn && totalReturnPct! >= 0
+                        ? "text-accent-green"
+                        : hasReturn
+                          ? "text-accent-red"
+                          : "text-text-dim"
+                    }`}
+                  >
+                    {hasReturn ? formatPct(totalReturnPct!) : "—"}
+                  </p>
+                  <p className="font-sans text-[10px] text-text-dim mt-2 leading-snug">
+                    On capital deployed into picks — cash held back to fund
+                    future buys isn&apos;t counted.
+                  </p>
+                  {cagr.value !== null && cagr.daysLive >= PUBLIC_CAGR_MIN_DAYS && (
+                    <p className="font-mono text-[13px] text-text-muted mt-3">
+                      {formatPct(cagr.value)}{" "}
+                      <span className="font-sans text-[10px] font-bold uppercase tracking-[0.1em] text-text-dim">
+                        annualized
+                      </span>
                     </p>
-                    {cagr.value !== null ? (
-                      <>
-                        <p
-                          className={`font-mono text-[32px] sm:text-[36px] font-bold leading-none tracking-tight ${
-                            cagr.value >= 0 ? "text-accent-green" : "text-accent-red"
-                          }`}
-                        >
-                          {formatPct(cagr.value)}
-                        </p>
-                        <p className="font-sans text-[10px] text-text-dim mt-2 leading-snug">
-                          Annualized from {cagr.daysLive} days live — an
-                          extrapolation, not a realized annual return.
-                        </p>
-                      </>
-                    ) : (
-                      <>
-                        <p className="font-mono text-[32px] sm:text-[36px] font-bold text-text-dim leading-none tracking-tight">
-                          Not yet
-                        </p>
-                        <p className="font-sans text-[10px] text-text-dim mt-2 leading-snug">
-                          {cagrNote}
-                        </p>
-                      </>
-                    )}
-                  </div>
-                  <div>
-                    <p className="font-sans text-[10px] font-bold text-text-dim tracking-[0.12em] uppercase mb-1.5">
-                      Model target
-                    </p>
-                    <p className="font-mono text-[32px] sm:text-[36px] font-bold text-accent-green leading-none tracking-tight">
-                      {BACKTEST.cagr}
-                    </p>
-                  </div>
+                  )}
                 </div>
 
                 <dl className="grid grid-cols-2 gap-x-6 gap-y-4">
@@ -201,24 +176,21 @@ export function TrackRecord() {
                     green={liveDoubled > 0}
                   />
                   <MetricRow
-                    label="Winning positions"
+                    label="Winning picks"
                     value={liveWinners > 0 ? liveWinners.toString() : "—"}
                   />
                   <MetricRow
-                    label="Total return"
-                    value={hasReturn ? formatPct(totalReturnPct!) : "—"}
-                    green={hasReturn ? totalReturnPct! >= 0 : false}
-                    red={hasReturn ? totalReturnPct! < 0 : false}
-                  />
-                  <MetricRow
-                    label="Positions"
+                    label="Open picks"
                     value={portfolio?.position_count?.toString() ?? "—"}
                   />
                 </dl>
 
                 <p className="font-sans text-[11px] text-text-dim mt-6 leading-relaxed border-t border-border pt-5">
                   Our portfolio, published for transparency — not what you
-                  should buy. CAGR stabilizes as the live track record grows.
+                  should buy. Trades are logged manually with real fill
+                  prices and dates, not auto-synced from a brokerage feed.
+                  Position sizes are illustrative, so every return here comes
+                  from price movement, not dollar size.
                 </p>
               </div>
             </div>
@@ -228,26 +200,27 @@ export function TrackRecord() {
           <div className="rounded-soft border border-border overflow-hidden bg-bg-secondary/30">
             <div className="flex flex-wrap items-center justify-between gap-3 px-6 sm:px-7 py-5 border-b border-border">
               <span className="font-sans text-[10px] font-bold tracking-[0.14em] uppercase text-text-dim">
-                {BACKTEST.yearsCovered}-year model backtest
+                {BACKTEST.yearsCovered}-year backtrained model
               </span>
-              <span className="font-sans text-[9px] tracking-[0.1em] font-bold px-3 py-1 rounded-pill bg-bg-tertiary text-text-muted uppercase">
+              <span className="badge !text-[9px] text-text-muted bg-bg-tertiary">
                 Simulated · not live
               </span>
             </div>
 
             <div className="px-6 sm:px-7 py-6 sm:py-7">
               <p className="font-mono text-[11px] text-text-dim mb-6">
-                {BACKTEST.startDate} — {BACKTEST.endDate} · {BACKTEST.wins}W /{" "}
-                {BACKTEST.losses}L · {BACKTEST.trades} trades
+                {BACKTEST.startDate} — {BACKTEST.endDate} · {BACKTEST.wins}W/
+                {BACKTEST.losses}L of {BACKTEST.closedPicks} closed picks ·{" "}
+                {BACKTEST.trades} trades
               </p>
 
               <div className="flex flex-wrap items-end gap-x-10 gap-y-4 pb-6 mb-6 border-b border-border">
                 <div>
                   <p className="font-sans text-[10px] font-bold text-text-dim tracking-[0.12em] uppercase mb-1.5">
-                    CAGR
+                    Total return
                   </p>
                   <p className="font-mono text-[32px] sm:text-[36px] font-bold text-accent-green leading-none">
-                    {BACKTEST.cagr}
+                    {BACKTEST.totalReturn}
                   </p>
                   <p className="font-sans text-[11px] text-text-dim mt-2">
                     vs {BACKTEST.spyReturn} S&amp;P 500
@@ -296,44 +269,48 @@ export function TrackRecord() {
         {/* Explainer + winners strip */}
         <div className="border-t border-border pt-12 sm:pt-14">
           <p className="font-sans text-[11px] font-bold tracking-[0.14em] uppercase text-text mb-6">
-            How our model portfolio works
+            How the backtrained model and live example portfolio work
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6 font-sans text-[13px] text-text-muted leading-relaxed mb-12">
             <p>
-              <strong className="text-text">
-                Built on {BACKTEST.yearsCovered} years of history.
-              </strong>{" "}
-              We developed the model on trailing market data, then validated it
+              <strong className="text-text">Backtrained on {BACKTEST.yearsCovered} years of history.</strong>{" "}
+              We built the model on trailing market data, then validated it
               walk-forward — training on one period, testing on unseen data (
               {BACKTEST.validationStart} – {BACKTEST.validationEnd}) before
-              going live.
+              going live. This is simulated performance, not a track record —
+              see the badge above.
             </p>
             <p>
-              <strong className="text-text">Biweekly high-conviction picks.</strong>{" "}
-              Every two weeks we score ~3,600 US-listed stocks on growth,
-              revisions, profitability, momentum, and valuation — then publish
-              one name with full research when the framework agrees.
+              <strong className="text-text">A team of agents, researching around the clock.</strong>{" "}
+              Every two weeks our research pipeline scores ~3,600 US-listed
+              stocks on growth, revisions, profitability, momentum, and
+              valuation, then publishes one name with full research when the
+              framework agrees.
             </p>
             <p>
               <strong className="text-text">Winners run, losers get cut.</strong>{" "}
               Position sizing and risk guardrails keep the book disciplined,
               but we don&apos;t cap upside on names that pay back their cost
-              basis. In the backtest {BACKTEST.winnersCircle} positions
-              doubled, and we sold out of them across{" "}
+              basis. In the backtrained model {BACKTEST.winnersCircle}{" "}
+              positions doubled, and we sold out of them across{" "}
               {WINNERS_CIRCLE_EXITS} separate exits — trimming as they ran
               rather than closing all at once.
             </p>
             <p>
-              <strong className="text-text">Live portfolio = example, not instruction.</strong>{" "}
-              We trade our own capital and publish every entry, exit, and
-              thesis so you can study the process.
+              <strong className="text-text">Live example portfolio, not instruction.</strong>{" "}
+              We place real trades on our own capital, marked at each day&apos;s
+              closing price, and publish every entry and exit. We&apos;re not
+              chasing the perfect entry or exit — our research is about
+              finding valuable businesses and cost-basis averaging into them
+              over a long horizon. Position sizes shown are illustrative, so
+              nothing here implies a fixed account size.
             </p>
           </div>
 
           <div>
             <div className="flex items-end justify-between gap-4 mb-4">
               <p className="font-sans text-[10px] font-bold text-text-dim tracking-[0.12em] uppercase">
-                Top backtest winners · stocks that doubled
+                Backtrained model winners · picks that doubled
               </p>
               <span className="font-mono text-[12px] text-text-dim hidden sm:inline">
                 {BACKTEST.winnersCircle} total
@@ -358,128 +335,16 @@ export function TrackRecord() {
                 </div>
               ))}
             </div>
+            <p className="font-sans text-[11px] text-text-dim mt-4 leading-relaxed max-w-[560px]">
+              Concentrated by design, not diversified: four of these five
+              doubles came from a single macro theme (Argentine equities,
+              2023–2025). A repeat requires a comparable dislocation, not a
+              repeatable process across unrelated names.
+            </p>
           </div>
         </div>
       </div>
     </section>
-  );
-}
-
-/**
- * The landing-page version of the picks-vs-benchmarks chart.
- *
- * Deliberately thinner than the dashboard's: one headline number, one legend,
- * one line of basis copy. A visitor should get "the picks beat the same money
- * in the index" in about two seconds without reading anything.
- */
-function LivePicksComparison() {
-  const { data, isPending, isError, error, refetch } = useChart();
-  const comparison = useMemo(() => buildPicksComparison(data), [data]);
-  const picksPoints = comparison.rows.filter((r) => r.picks !== null).length;
-
-  const shellClass =
-    "rounded-soft border border-border bg-bg overflow-hidden";
-
-  if (isPending) {
-    return (
-      <div className={`${shellClass} h-[340px] flex items-center justify-center`}>
-        <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim animate-pulse">
-          Loading live chart...
-        </span>
-      </div>
-    );
-  }
-
-  if (isError) {
-    const state = resolveDataState({
-      isPending: false,
-      isError: true,
-      error,
-      isEmpty: false,
-    })!;
-    return (
-      <div className={shellClass}>
-        <DataState state={state} error={error} onRetry={() => void refetch()} />
-      </div>
-    );
-  }
-
-  if (picksPoints < 2) {
-    return (
-      <div className={`${shellClass} px-6 sm:px-7 py-10 text-center`}>
-        <p className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">
-          Building track record
-        </p>
-        <p className="font-sans text-[13px] text-text-muted mt-2">
-          The live picks curve appears here once there are two days of marks.
-        </p>
-      </div>
-    );
-  }
-
-  const { picksLatestPct, benchmarks, startDate } = comparison;
-  const bestBenchmark = benchmarks.reduce<number | null>(
-    (acc, b) =>
-      b.latestPct === null ? acc : acc === null ? b.latestPct : Math.max(acc, b.latestPct),
-    null
-  );
-  const lead =
-    picksLatestPct !== null && bestBenchmark !== null
-      ? picksLatestPct - bestBenchmark
-      : null;
-
-  return (
-    <div className={shellClass}>
-      <div className="flex flex-wrap items-center justify-between gap-3 px-6 sm:px-7 py-5 border-b border-border bg-bg-secondary/40">
-        <span className="font-sans text-[10px] font-bold tracking-[0.14em] uppercase text-text-dim">
-          Live picks vs. the same money in the index
-        </span>
-        {lead !== null && (
-          <span className="font-mono text-[11px] text-text-muted">
-            {lead >= 0 ? "Ahead of" : "Behind"} the best benchmark by{" "}
-            <span
-              className={`font-bold ${lead >= 0 ? "text-accent-green" : "text-accent-red"}`}
-            >
-              {Math.abs(lead).toFixed(2)} pts
-            </span>
-          </span>
-        )}
-      </div>
-
-      <div className="px-4 sm:px-7 py-6 sm:py-7">
-        {picksLatestPct !== null && (
-          <div className="flex items-end gap-3 mb-5 px-2 sm:px-0">
-            <span
-              className={`font-mono text-[40px] sm:text-[48px] font-bold leading-none tracking-tight ${
-                picksLatestPct >= 0 ? "text-accent-green" : "text-accent-red"
-              }`}
-            >
-              {formatChartPct(picksLatestPct)}
-            </span>
-            <span className="font-sans text-[12px] text-text-dim pb-1.5">
-              on capital deployed into picks
-            </span>
-          </div>
-        )}
-
-        <div className="mb-4 px-2 sm:px-0">
-          <PicksBenchmarkLegend comparison={comparison} compact />
-        </div>
-
-        <PicksBenchmarkChart comparison={comparison} height={280} compact />
-
-        <div className="mt-5 px-2 sm:px-0">
-          {benchmarks.length > 0 ? (
-            <BenchmarkBasisNote startDate={startDate} />
-          ) : (
-            <p className="font-sans text-[11px] text-text-dim leading-relaxed">
-              Index comparisons are unavailable right now — we show nothing
-              rather than a placeholder line.
-            </p>
-          )}
-        </div>
-      </div>
-    </div>
   );
 }
 

@@ -206,22 +206,23 @@ const article: Article = {
         stats={[
           { label: "TRAINING WINDOW", value: "Jun 2022-Jul 2024" },
           { label: "OUT-OF-SAMPLE TEST", value: "Jul 2024-Apr 2026" },
-          { label: "OUT-OF-SAMPLE ALPHA", value: "+67%", green: true },
+          { label: "OUT-OF-SAMPLE EXCESS RETURN", value: "+67%", green: true },
         ]}
       />
       <P>
-        The full backtest CAGR over the combined June 2022 through April 2026
-        window came out to 38.99%, with a Sharpe ratio of 1.14 and a max
-        drawdown of 27.38%. But the number we care about most is the
-        out-of-sample alpha of +67% over the test window — that&apos;s the
-        portion of the backtest that the model had no opportunity to memorize.
-        It is the only portion that should be treated as evidence the strategy
-        generalizes. You can dig into the full numbers on the{" "}
+        The full backtrained model total return over the combined June 2022
+        through April 2026 window came out to +250.39% (simulated), with a
+        Sharpe ratio of 1.14 and a max drawdown of 27.38%. But the number we
+        care about most is the out-of-sample excess return of +67% over the
+        test window — that&apos;s the portion of the backtrained model that had
+        no opportunity to memorize the data. It is the only portion that
+        should be treated as evidence the strategy generalizes. You can dig
+        into the full numbers on the{" "}
         <A href="/#track-record">track record page</A>.
       </P>
       <P>
-        That out-of-sample result is also why the live portfolio launched on
-        April 1, 2026 with the same parameter set. The walk-forward gave us a
+        That out-of-sample result is also why the live example portfolio
+        launched on April 1, 2026 with the same parameter set. The walk-forward gave us a
         defensible reason to believe the rules captured something real, not
         just curve-fit history. For more on the philosophy behind it, our piece
         on{" "}

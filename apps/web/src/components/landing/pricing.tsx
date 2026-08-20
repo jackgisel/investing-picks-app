@@ -1,4 +1,3 @@
-import { FoundersPricingCallout } from "./founders-pricing-callout";
 import { PricingPlanCard } from "./pricing-plan-card";
 
 export function Pricing() {
@@ -13,8 +12,6 @@ export function Pricing() {
             nothing held back.
           </p>
         </div>
-
-        <FoundersPricingCallout />
 
         <PricingPlanCard />
       </div>

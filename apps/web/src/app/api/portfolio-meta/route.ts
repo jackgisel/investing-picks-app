@@ -6,9 +6,8 @@ import { LIVE_PORTFOLIO } from "@/lib/constants";
  * Public, dollar-free book metadata — currently just the inception date.
  *
  * Intentionally unauthenticated: the inception date is already published on the
- * marketing site (it drives the founders-deal countdown). Only the two fields
- * below are forwarded; the ops key never leaves the server. Cached so anonymous
- * traffic can't hammer the ops API.
+ * marketing site. Only the two fields below are forwarded; the ops key never
+ * leaves the server. Cached so anonymous traffic can't hammer the ops API.
  */
 export const revalidate = 300;
 

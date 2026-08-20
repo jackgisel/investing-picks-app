@@ -8,6 +8,7 @@ import {
   countDoubledWinners,
   resolveLiveCagr,
   formatPct,
+  PUBLIC_CAGR_MIN_DAYS,
 } from "@/lib/portfolio";
 
 export function StatsBar() {
@@ -62,7 +63,7 @@ export function StatsBar() {
                     total return
                   </span>
                 </p>
-                {cagr.value !== null && (
+                {cagr.value !== null && cagr.daysLive >= PUBLIC_CAGR_MIN_DAYS && (
                   <p className="font-mono text-[15px] font-bold text-text-muted">
                     {formatPct(cagr.value)}
                     <span className="font-sans text-[10px] font-bold tracking-[0.12em] uppercase text-text-dim ml-2">
@@ -84,17 +85,21 @@ export function StatsBar() {
             <div className="op-animate-rise op-animate-rise-delay-1 xl:flex-1 xl:pl-10">
               <div className="flex items-center justify-between gap-3 mb-3">
                 <p className="font-sans text-[10px] font-bold tracking-[0.16em] uppercase text-text-dim">
-                  {BACKTEST.yearsCovered}-year walk-forward model
+                  {BACKTEST.yearsCovered}-year backtrained model
                 </p>
                 <span className="badge bg-bg-tertiary text-text-muted shrink-0">
                   Simulated
                 </span>
               </div>
+              {/* Cumulative figures only — never CAGR here. Comparing an
+                  annualized rate to a cumulative one is how "+38.99% vs
+                  +83.34%" used to read like a loss when the model actually
+                  won by 167 points cumulative. */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-8">
-                <Stat label="Model CAGR" value={BACKTEST.cagr} hero />
+                <Stat label="Total return" value={BACKTEST.totalReturn} hero />
                 <Stat label="2× winners" value={String(BACKTEST.winnersCircle)} />
                 <Stat label="Win rate" value={BACKTEST.winRate} />
-                <Stat label="vs S&P" value={BACKTEST.alpha} />
+                <Stat label="Outpicked S&P" value={BACKTEST.outpickedSp} />
               </div>
             </div>
           </div>

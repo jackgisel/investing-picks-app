@@ -17,7 +17,7 @@ from outpick_strategy.scoring import (
     quant_rating_from_composite,
 )
 
-from app.db.models import CompositeScore, Fundamentals, PriceBar, Stock
+from app.db.models import CompositeScore, Fundamentals, Position, PriceBar, Stock
 
 log = logging.getLogger(__name__)
 
@@ -197,16 +197,28 @@ class ScoredTicker:
     momentum_12m: float | None
 
 
-def compute_scores(
+@dataclass(frozen=True)
+class UnscoredHolding:
+    """A live position with no row in the latest CompositeScore run.
+
+    The dashboard renders this as "unrated". `_removal_signals` skips the name,
+    so it cannot be sold either. That is a production incident, not a Hold.
+    """
+
+    ticker: str
+    reason: str
+    as_of: date | None
+
+
+def _load_scoring_universe(
     db: Session, params: StrategyParams, as_of: date
-) -> tuple[list[ScoredTicker], dict[str, int], int]:
-    """Score the universe in memory. Writes nothing.
+) -> tuple[dict[str, dict], dict[str, list[str]]]:
+    """Latest-in-window fundamentals and sector peer groups.
 
-    Shared by the persisting `score_universe` and the read-only simulation
-    behind the ops dry-run, so the two can never drift — the repo's rule is that
-    live and simulated paths run the same code.
-
-    Returns (scored, missing_factor_counts, considered).
+    The SQL universe filter lives here so `diagnose_unscored_holdings` walks the
+    same gates `compute_scores` does. A held ticker missing from `by_sector`
+    failed one of: inactive, ETF, market-cap floor, no sector, no recent
+    fundamentals.
     """
     stocks = (
         db.query(Stock)
@@ -214,9 +226,6 @@ def compute_scores(
         .filter(Stock.market_cap >= params.min_universe_market_cap)
         .all()
     )
-    if not stocks:
-        return [], {}, 0
-
     oldest_allowed = as_of - timedelta(days=FUNDAMENTALS_MAX_AGE_DAYS)
     latest_ids = (
         db.query(func.max(Fundamentals.id))
@@ -236,11 +245,116 @@ def compute_scores(
         f.ticker: (f.data or {})
         for f in db.query(Fundamentals).filter(Fundamentals.id.in_(select(latest_ids)))
     }
-
     by_sector: dict[str, list[str]] = defaultdict(list)
     for s in stocks:
         if s.ticker in funds and s.sector:
             by_sector[s.sector].append(s.ticker)
+    return funds, by_sector
+
+
+def _rank_sector(
+    sector: str,
+    tickers: list[str],
+    funds: dict[str, dict],
+    history: dict[str, list[tuple[date, float]]],
+    params: StrategyParams,
+    as_of: date,
+) -> tuple[list[ScoredTicker], dict[str, list[str]]]:
+    """Percentile-rank `tickers` as one peer group.
+
+    Caller guarantees `len(tickers) >= MIN_SECTOR_POPULATION`. Returns the
+    scored subset and, for every name that failed the coverage floor, the
+    factor names that were null.
+    """
+
+    def col(keys) -> dict[str, list[float | None]]:
+        out = {aliases[0]: [] for aliases, _ in keys}
+        for t in tickers:
+            data = funds.get(t, {})
+            for aliases, _ in keys:
+                value = None
+                for alias in aliases:
+                    raw = data.get(alias)
+                    if raw is None:
+                        continue
+                    try:
+                        value = float(raw)
+                    except (TypeError, ValueError):
+                        value = None
+                    if value is not None:
+                        break
+                out[aliases[0]].append(value)
+        return out
+
+    def avg_factor(cols, keys):
+        pct_matrix = [
+            factor_percentile_score(cols[aliases[0]], hib) for aliases, hib in keys
+        ]
+        result = []
+        for i in range(len(tickers)):
+            vals = [row[i] for row in pct_matrix if row[i] is not None]
+            result.append(sum(vals) / len(vals) if vals else None)
+        return result
+
+    val_pcts = avg_factor(col(VALUATION_KEYS), VALUATION_KEYS)
+    gro_pcts = avg_factor(col(GROWTH_KEYS), GROWTH_KEYS)
+    pro_pcts = avg_factor(col(PROFIT_KEYS), PROFIT_KEYS)
+    rev_pcts = avg_factor(col(REVISION_KEYS), REVISION_KEYS)
+    mom_raw = [_momentum_12m(history, t, as_of) for t in tickers]
+    mom_pcts = factor_percentile_score(mom_raw, True)
+
+    scored: list[ScoredTicker] = []
+    missing_by_ticker: dict[str, list[str]] = {}
+    for i, ticker in enumerate(tickers):
+        factor_pcts = {
+            "valuation": val_pcts[i],
+            "growth": gro_pcts[i],
+            "profitability": pro_pcts[i],
+            "momentum": mom_pcts[i],
+            "revisions": rev_pcts[i],
+        }
+        composite, grades = composite_from_factor_pcts(
+            factor_pcts,
+            params,
+            momentum_12m=mom_raw[i],
+            # Explicit, not omitted — see Z_SCORE_UNAVAILABLE. Passing the
+            # argument by name is what stops this reading as an oversight
+            # the next person "fixes" by deleting the parameter.
+            z_score=Z_SCORE_UNAVAILABLE,
+        )
+        if composite is None:
+            missing_by_ticker[ticker] = [
+                name for name, pct in factor_pcts.items() if pct is None
+            ]
+            continue
+        scored.append(
+            ScoredTicker(
+                ticker=ticker,
+                sector=sector,
+                composite=composite,
+                quant_rating=quant_rating_from_composite(composite),
+                grades=grades,
+                factor_pcts=factor_pcts,
+                momentum_12m=mom_raw[i],
+            )
+        )
+    return scored, missing_by_ticker
+
+
+def compute_scores(
+    db: Session, params: StrategyParams, as_of: date
+) -> tuple[list[ScoredTicker], dict[str, int], int]:
+    """Score the universe in memory. Writes nothing.
+
+    Shared by the persisting `score_universe` and the read-only simulation
+    behind the ops dry-run, so the two can never drift — the repo's rule is that
+    live and simulated paths run the same code.
+
+    Returns (scored, missing_factor_counts, considered).
+    """
+    funds, by_sector = _load_scoring_universe(db, params, as_of)
+    if not by_sector:
+        return [], {}, 0
 
     scored: list[ScoredTicker] = []
     missing_factor: dict[str, int] = defaultdict(int)
@@ -256,78 +370,15 @@ def compute_scores(
             thin_sectors[sector] = len(tickers)
             continue
 
-        def col(keys) -> dict[str, list[float | None]]:
-            out = {aliases[0]: [] for aliases, _ in keys}
-            for t in tickers:
-                data = funds.get(t, {})
-                for aliases, _ in keys:
-                    value = None
-                    for alias in aliases:
-                        raw = data.get(alias)
-                        if raw is None:
-                            continue
-                        try:
-                            value = float(raw)
-                        except (TypeError, ValueError):
-                            value = None
-                        if value is not None:
-                            break
-                    out[aliases[0]].append(value)
-            return out
-
-        def avg_factor(cols, keys):
-            pct_matrix = [
-                factor_percentile_score(cols[aliases[0]], hib) for aliases, hib in keys
-            ]
-            result = []
-            for i in range(len(tickers)):
-                vals = [row[i] for row in pct_matrix if row[i] is not None]
-                result.append(sum(vals) / len(vals) if vals else None)
-            return result
-
-        val_pcts = avg_factor(col(VALUATION_KEYS), VALUATION_KEYS)
-        gro_pcts = avg_factor(col(GROWTH_KEYS), GROWTH_KEYS)
-        pro_pcts = avg_factor(col(PROFIT_KEYS), PROFIT_KEYS)
-        rev_pcts = avg_factor(col(REVISION_KEYS), REVISION_KEYS)
-
         history = load_price_history(db, tickers, as_of)
-        mom_raw = [_momentum_12m(history, t, as_of) for t in tickers]
-        mom_pcts = factor_percentile_score(mom_raw, True)
-
-        for i, ticker in enumerate(tickers):
-            considered += 1
-            factor_pcts = {
-                "valuation": val_pcts[i],
-                "growth": gro_pcts[i],
-                "profitability": pro_pcts[i],
-                "momentum": mom_pcts[i],
-                "revisions": rev_pcts[i],
-            }
-            composite, grades = composite_from_factor_pcts(
-                factor_pcts,
-                params,
-                momentum_12m=mom_raw[i],
-                # Explicit, not omitted — see Z_SCORE_UNAVAILABLE. Passing the
-                # argument by name is what stops this reading as an oversight
-                # the next person "fixes" by deleting the parameter.
-                z_score=Z_SCORE_UNAVAILABLE,
-            )
-            if composite is None:
-                for name, pct in factor_pcts.items():
-                    if pct is None:
-                        missing_factor[name] += 1
-                continue
-            scored.append(
-                ScoredTicker(
-                    ticker=ticker,
-                    sector=sector,
-                    composite=composite,
-                    quant_rating=quant_rating_from_composite(composite),
-                    grades=grades,
-                    factor_pcts=factor_pcts,
-                    momentum_12m=mom_raw[i],
-                )
-            )
+        ranked, missing_by_ticker = _rank_sector(
+            sector, tickers, funds, history, params, as_of
+        )
+        considered += len(tickers)
+        scored.extend(ranked)
+        for names in missing_by_ticker.values():
+            for name in names:
+                missing_factor[name] += 1
 
     if thin_sectors:
         log.warning(
@@ -340,6 +391,140 @@ def compute_scores(
             dict(sorted(thin_sectors.items(), key=lambda kv: -kv[1])),
         )
     return scored, dict(missing_factor), considered
+
+
+def _held_tickers(db: Session) -> list[str]:
+    return sorted(
+        {
+            row[0]
+            for row in db.query(Position.ticker)
+            .filter(Position.portfolio_id == 1)
+            .all()
+        }
+    )
+
+
+def _missing_factor_reason(missing: list[str]) -> str:
+    names = ", ".join(missing)
+    if missing == ["revisions"]:
+        return (
+            "missing factors: revisions. Revisions go null for one cycle when "
+            "the forward fiscal period rolls over, and min_factor_coverage = 1.0 "
+            "then refuses to rate the ticker."
+        )
+    if missing == ["momentum"]:
+        return (
+            "missing factors: momentum. Momentum needs a bar near as_of minus "
+            "365 days; a short or gapped series makes the whole ticker "
+            "unscoreable under min_factor_coverage = 1.0."
+        )
+    return f"missing factors: {names}"
+
+
+def diagnose_unscored_holdings(
+    db: Session, params: StrategyParams | None = None
+) -> list[UnscoredHolding]:
+    """Why each open position is missing from the latest score run.
+
+    Matches `_latest_ratings` / the dashboard: a name is unrated when it has no
+    row on `max(composite_scores.as_of)`, even if an older row still exists.
+    Structural gates are checked in the same order as `compute_scores`.
+    """
+    params = params or RUN118_PARAMS
+    held = _held_tickers(db)
+    if not held:
+        return []
+
+    latest = db.query(func.max(CompositeScore.as_of)).scalar()
+    if latest is None:
+        return [
+            UnscoredHolding(
+                ticker=ticker,
+                reason="universe has never been scored",
+                as_of=None,
+            )
+            for ticker in held
+        ]
+
+    scored = {
+        row[0]
+        for row in db.query(CompositeScore.ticker)
+        .filter(CompositeScore.as_of == latest)
+        .all()
+    }
+    missing = [ticker for ticker in held if ticker not in scored]
+    if not missing:
+        return []
+
+    funds, by_sector = _load_scoring_universe(db, params, latest)
+    oldest_allowed = latest - timedelta(days=FUNDAMENTALS_MAX_AGE_DAYS)
+    sector_drops: dict[str, dict[str, list[str]]] = {}
+    out: list[UnscoredHolding] = []
+    for ticker in missing:
+        reason = _diagnose_ticker(
+            db,
+            ticker,
+            params,
+            latest,
+            oldest_allowed,
+            funds,
+            by_sector,
+            sector_drops,
+        )
+        out.append(UnscoredHolding(ticker=ticker, reason=reason, as_of=latest))
+    return out
+
+
+def _diagnose_ticker(
+    db: Session,
+    ticker: str,
+    params: StrategyParams,
+    as_of: date,
+    oldest_allowed: date,
+    funds: dict[str, dict],
+    by_sector: dict[str, list[str]],
+    sector_drops: dict[str, dict[str, list[str]]],
+) -> str:
+    stock = db.get(Stock, ticker)
+    if stock is None:
+        return "no stock row; it was never ingested"
+    if stock.is_etf:
+        return "marked as an ETF; scoring excludes ETFs"
+    if not stock.is_active:
+        return "inactive; scoring skips inactive names"
+    if stock.market_cap is None:
+        return (
+            "market cap unknown; scoring requires "
+            f">= {params.min_universe_market_cap:,.0f}"
+        )
+    if stock.market_cap < params.min_universe_market_cap:
+        return (
+            f"market cap {stock.market_cap:,.0f} is below the "
+            f"{params.min_universe_market_cap:,.0f} universe floor"
+        )
+    if not stock.sector:
+        return "no sector; cannot be peer-ranked"
+    if ticker not in funds:
+        return (
+            f"no fundamentals on or after {oldest_allowed.isoformat()} "
+            f"(scoring as_of {as_of.isoformat()})"
+        )
+    peers = by_sector.get(stock.sector, [])
+    if len(peers) < MIN_SECTOR_POPULATION:
+        return (
+            f"{stock.sector} has {len(peers)} names with usable fundamentals; "
+            f"need {MIN_SECTOR_POPULATION} before a percentile is evidence"
+        )
+    if stock.sector not in sector_drops:
+        history = load_price_history(db, peers, as_of)
+        _ranked, missing_by_ticker = _rank_sector(
+            stock.sector, peers, funds, history, params, as_of
+        )
+        sector_drops[stock.sector] = missing_by_ticker
+    missing_factors = sector_drops[stock.sector].get(ticker)
+    if missing_factors:
+        return _missing_factor_reason(missing_factors)
+    return "unscoreable for an unclassified reason"
 
 
 def preview_scores(
@@ -417,6 +602,17 @@ def score_universe(db: Session, params: StrategyParams | None = None) -> int:
         unscoreable,
         dropped,
     )
+    unrated = diagnose_unscored_holdings(db, params)
+    if unrated:
+        # Named, not folded into the coverage-floor warning above. That warning
+        # is an aggregate over the whole universe; a held ticker vanishing
+        # inside it is how WDC sat "unrated" on the dashboard with nobody
+        # mailed. Sell rules skip any name with no score.
+        log.error(
+            "UNRATED HOLDINGS as of %s. Sell rules skip these names: %s",
+            as_of,
+            {row.ticker: row.reason for row in unrated},
+        )
     if unscoreable:
         log.warning(
             "%s/%s candidates failed the %.0f%% factor-coverage floor. Missing "

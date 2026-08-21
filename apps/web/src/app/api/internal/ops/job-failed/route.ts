@@ -53,6 +53,8 @@ export async function POST(req: Request) {
       typeof b.detail === "string" && b.detail.trim()
         ? b.detail.slice(0, 2000)
         : "No detail recorded.",
+    headline: typeof b.headline === "string" ? b.headline : undefined,
+    eyebrow: typeof b.eyebrow === "string" ? b.eyebrow : undefined,
   });
 
   // A non-ok result must be a non-2xx, or the worker marks the run alerted and

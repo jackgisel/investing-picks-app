@@ -465,8 +465,11 @@ export async function sendJobFailureEmail(args: {
   failedAt: string;
   detail: string;
   banner?: string;
+  headline?: string;
+  eyebrow?: string;
 }): Promise<SendResult> {
   const opsUrl = `${SITE_URL}/dashboard/ops`;
+  const headline = args.headline ?? `${args.jobName} failed`;
   const html = renderJobFailureEmail({
     jobName: args.jobName,
     failedAt: args.failedAt,
@@ -474,12 +477,14 @@ export async function sendJobFailureEmail(args: {
     opsUrl,
     siteUrl: SITE_URL,
     banner: args.banner,
+    headline,
+    eyebrow: args.eyebrow,
   });
-  const text = `Scheduled job failed: ${args.jobName}\n\nFailed at: ${args.failedAt}\n\n${args.detail}\n\nOps: ${opsUrl}`;
+  const text = `${headline}\n\nFailed at: ${args.failedAt}\n\n${args.detail}\n\nOps: ${opsUrl}`;
 
   return send({
     to: args.to,
-    subject: `[${SITE_NAME}] ${args.jobName} failed`,
+    subject: `[${SITE_NAME}] ${headline}`,
     html,
     text,
     idempotencyKey: `outpick-jobfail-${args.runId}`,

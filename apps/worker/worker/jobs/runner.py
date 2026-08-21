@@ -26,9 +26,15 @@ from worker.services.ingest import (
     refresh_marks,
     refresh_universe,
 )
-from worker.services.scoring import score_universe
+from worker.services.scoring import diagnose_unscored_holdings, score_universe
 
 log = logging.getLogger(__name__)
+
+# Synthetic job_runs row for a held ticker missing from the latest score run.
+# Status is error so the existing 5-minute alert sweep mails the admins — the
+# same channel as a crashed daily_marks, because an unrated holding is the same
+# class of problem: the book is running without the data the strategy needs.
+UNRATED_HOLDINGS_JOB = "unrated_holdings"
 
 
 def _fmp(deadline: JobDeadline | None = None) -> FMPClient:
@@ -210,6 +216,8 @@ def alert_failed_job_runs(limit: int = 10) -> dict:
                 "failed_at": (run.finished_at or claimed_at).isoformat(),
                 "detail": run.detail or "",
             }
+            if run.job_name == UNRATED_HOLDINGS_JOB:
+                body.update(_unrated_alert_fields(run.detail or ""))
             res = _post_to_web_app(
                 "/api/internal/ops/job-failed",
                 f"Job failure alert ({run.job_name})",
@@ -234,6 +242,100 @@ def alert_failed_job_runs(limit: int = 10) -> dict:
         return {"error": str(e)}
     finally:
         db.close()
+
+
+def _unrated_alert_fields(detail: str) -> dict[str, str]:
+    """Subject line for the unrated-holdings mail, parsed from JobRun.detail."""
+    tickers: list[str] = []
+    for line in detail.splitlines():
+        if ": " in line and not line.startswith("Unrated"):
+            tickers.append(line.split(":", 1)[0].strip())
+    if len(tickers) == 1:
+        return {"headline": f"{tickers[0]} has no rating", "eyebrow": "Unrated holding"}
+    if tickers:
+        return {
+            "headline": f"{len(tickers)} holdings have no rating",
+            "eyebrow": "Unrated holdings",
+        }
+    return {"headline": "Holdings have no rating", "eyebrow": "Unrated holding"}
+
+
+def format_unrated_detail(incidents) -> str:
+    as_of = next((row.as_of for row in incidents if row.as_of is not None), None)
+    header = (
+        f"Unrated holdings as of {as_of.isoformat()}."
+        if as_of is not None
+        else "Unrated holdings."
+    )
+    lines = [
+        header,
+        "Sell rules skip any name with no score.",
+        "",
+    ]
+    for row in incidents:
+        lines.append(f"{row.ticker}: {row.reason}")
+    return "\n".join(lines)
+
+
+def sweep_ops_alerts() -> dict:
+    """Record unrated holdings, then mail any unalerted error JobRuns.
+
+    One function so the 5-minute tick cannot alert before the incident row
+    exists. `record_unrated_holdings` is a no-op when every holding is scored.
+    """
+    recorded = record_unrated_holdings()
+    alerted = alert_failed_job_runs()
+    return {"unrated_holdings": recorded, "job_failures": alerted}
+
+
+def record_unrated_holdings(db: Session | None = None) -> dict:
+    """Write an error JobRun when a live holding has no rating.
+
+    Dedupes on the exact detail string, so a re-score the same day with the
+    same gap does not mail twice, and a new scoring date (or a new reason)
+    mails again. Never raises: it runs on the same tick as the job-failure
+    sweep, and a diagnostic problem must not take that sweep down with it.
+    """
+    own_session = db is None
+    if own_session:
+        db = SessionLocal()
+    try:
+        incidents = diagnose_unscored_holdings(db)
+        if not incidents:
+            return {"unrated": 0}
+        detail = format_unrated_detail(incidents)
+        existing = (
+            db.query(JobRun)
+            .filter(
+                JobRun.job_name == UNRATED_HOLDINGS_JOB,
+                JobRun.detail == detail,
+            )
+            .first()
+        )
+        if existing:
+            return {"unrated": len(incidents), "recorded": False}
+        now = datetime.now(timezone.utc)
+        db.add(
+            JobRun(
+                job_name=UNRATED_HOLDINGS_JOB,
+                status="error",
+                detail=detail,
+                finished_at=now,
+            )
+        )
+        db.commit()
+        log.error("Recorded unrated_holdings incident:\n%s", detail)
+        return {"unrated": len(incidents), "recorded": True}
+    except Exception as e:
+        log.exception("Unrated-holdings check failed")
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        return {"error": str(e)}
+    finally:
+        if own_session:
+            db.close()
 
 
 def job_auto_publish_insights():
@@ -328,6 +430,7 @@ def job_daily_marks():
             # averaging into a name mid-week was reading a badge up to six days
             # old with nothing on screen saying so.
             s = score_universe(db)
+            unrated = record_unrated_holdings(db)
             # Optional daily sells if enabled in params
             run_evaluation(db, mode="daily", dry_run=False)
             # Backstop. Manual buys go through the ops form, which opens the
@@ -336,7 +439,7 @@ def job_daily_marks():
             # sweep is what makes the pipeline self-healing rather than
             # dependent on every trigger having fired.
             drafts = sync_insight_drafts()
-            return {"marks": n, "scores": s, "drafts": drafts}
+            return {"marks": n, "scores": s, "unrated_holdings": unrated, "drafts": drafts}
         finally:
             fmp.close()
 
@@ -364,7 +467,14 @@ def job_weekly_refresh():
             deadline.check()
             m = refresh_marks(db, fmp)
             deadline.check()
-            return {"universe": u, "fundamentals": f, "scores": s, "marks": m}
+            unrated = record_unrated_holdings(db)
+            return {
+                "universe": u,
+                "fundamentals": f,
+                "scores": s,
+                "marks": m,
+                "unrated_holdings": unrated,
+            }
         finally:
             fmp.close()
 
@@ -411,6 +521,7 @@ def job_backfill_prices():
         # unblock do not appear until Monday evening. Pure DB compute — no FMP
         # quota, same reasoning as the re-score in daily_marks.
         result["scores"] = score_universe(db)
+        result["unrated_holdings"] = record_unrated_holdings(db)
         return result
 
     return _track("backfill_prices", _run)

@@ -20,7 +20,6 @@ from app.db.migrations import ensure_schema
 from app.db.session import engine
 
 from worker.jobs.runner import (
-    alert_failed_job_runs,
     job_auto_publish_insights,
     job_backfill_prices,
     job_backfill_snapshots,
@@ -32,6 +31,7 @@ from worker.jobs.runner import (
     job_weekly_review_publish,
     job_weekly_summary,
     reap_stale_weekly_refreshes,
+    sweep_ops_alerts,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -59,10 +59,11 @@ def main():
     # A failed job used to sit in the table waiting for someone to open the ops
     # page. Same tick as the reaper, and deliberately after it, so a run the
     # reaper just declared abandoned is alerted on this pass rather than the
-    # next one.
-    alert_failed_job_runs()
+    # next one. Unrated holdings are recorded first so a gap the re-score just
+    # created is mailed on this tick rather than the next.
+    sweep_ops_alerts()
     scheduler.add_job(
-        alert_failed_job_runs,
+        sweep_ops_alerts,
         IntervalTrigger(minutes=5),
         id="job_failure_alerts",
         replace_existing=True,

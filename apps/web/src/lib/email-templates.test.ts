@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   renderDeleteAccountEmail,
+  renderJobFailureEmail,
   renderMarketNoteWelcomeEmail,
   renderMembershipWelcomeEmail,
   renderNewPickEmail,
@@ -33,9 +34,21 @@ const review = () =>
     siteUrl: SITE,
   });
 
+const jobFail = () =>
+  renderJobFailureEmail({
+    jobName: "unrated_holdings",
+    failedAt: "2026-08-21T22:00:00Z",
+    detail: "WDC: missing factors: revisions",
+    opsUrl: `${SITE}/dashboard/ops`,
+    siteUrl: SITE,
+    headline: "WDC has no rating",
+    eyebrow: "Unrated holding",
+  });
+
 const all = () => [
   pick(),
   review(),
+  jobFail(),
   renderVerifyEmail({ name: null, verifyUrl: `${SITE}/v`, siteUrl: SITE }),
   renderDeleteAccountEmail({ name: "Jack", confirmUrl: `${SITE}/d`, siteUrl: SITE }),
   renderMarketNoteWelcomeEmail({ unsubscribeUrl: `${SITE}/u`, siteUrl: SITE }),
@@ -184,5 +197,15 @@ describe("weekly review email", () => {
     expect(html).toContain("/dashboard/insights/weekly-review-2026-w34");
     expect(html).not.toContain("font-size:56px");
     expect(html).not.toContain("$");
+  });
+});
+
+describe("unrated holding alert", () => {
+  it("names the ticker in the heading, not a failed job", () => {
+    const html = jobFail();
+    expect(html).toContain("WDC has no rating");
+    expect(html).toContain("Unrated holding");
+    expect(html).toContain("missing factors: revisions");
+    expect(html).not.toContain("unrated_holdings failed");
   });
 });

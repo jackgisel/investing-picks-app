@@ -731,24 +731,28 @@ export function renderJobFailureEmail(args: {
   opsUrl: string;
   siteUrl: string;
   banner?: string;
+  headline?: string;
+  eyebrow?: string;
 }): string {
+  const headline = args.headline ?? args.jobName;
+  const eyebrowLabel = args.eyebrow ?? "Scheduled job failed";
   const body = `
-    ${eyebrow("Scheduled job failed", "coral")}
-    ${heading(args.jobName)}
+    ${eyebrow(eyebrowLabel, "coral")}
+    ${heading(headline)}
     ${card(`
       ${fieldLabel("Failed at")}
       <p class="dm-text" style="margin:0 0 16px 0;font-family:${FONT_MONO};font-size:14px;color:${TEXT};">${escapeHtml(args.failedAt)}</p>
       ${fieldLabel("Error")}
       <p class="dm-muted" style="margin:0;font-family:${FONT_MONO};font-size:13px;color:${TEXT_MUTED};line-height:1.55;word-break:break-word;">${escapeHtml(args.detail)}</p>`)}
     ${paragraph(
-      `The run is recorded either way — this mail exists so a failure is not waiting silently for someone to open the ops page.`,
+      `This mail exists so a failure is not waiting silently for someone to open the ops page.`,
       24,
     )}
     ${pillButton(args.opsUrl, "Open ops")}
   `;
 
   return shell({
-    preview: `${args.jobName} failed — ${args.detail.slice(0, 80)}`,
+    preview: `${headline} — ${args.detail.slice(0, 80)}`,
     bodyHtml: body,
     siteUrl: args.siteUrl,
     banner: args.banner,

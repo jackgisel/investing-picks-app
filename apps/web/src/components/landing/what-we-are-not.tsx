@@ -25,7 +25,7 @@ export function WhatWeAreNot() {
       <div className="container-op relative py-20 sm:py-24">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-10 items-start">
           <div className="max-w-[540px]">
-            <p className="section-label section-label-coral">
+            <p className="section-label">
               What we are not
             </p>
             <h2 className="section-title">

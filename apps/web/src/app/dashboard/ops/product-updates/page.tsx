@@ -69,7 +69,7 @@ export default function OpsProductUpdatesPage() {
   return (
     <div className="space-y-6">
       <header>
-        <p className="panel-label panel-label-lilac mb-2">OPS</p>
+        <p className="panel-label mb-2">OPS</p>
         <h1 className="page-title">Product updates</h1>
         <p className="text-text-muted mt-2 text-sm max-w-xl">
           Feature news, written here and mailed to everyone opted in. Unlike pick
@@ -79,7 +79,7 @@ export default function OpsProductUpdatesPage() {
       </header>
 
       <section className="space-y-3">
-        <h2 className="panel-label panel-label-lilac">NEW UPDATE</h2>
+        <h2 className="panel-label">NEW UPDATE</h2>
         <div className="data-panel px-4 py-4 flex flex-wrap items-end gap-3">
           <div className="flex-1 min-w-[240px]">
             <label className={labelClass}>Subject</label>
@@ -113,7 +113,7 @@ export default function OpsProductUpdatesPage() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="panel-label panel-label-lilac">DRAFTS ({drafts.length})</h2>
+        <h2 className="panel-label">DRAFTS ({drafts.length})</h2>
         {drafts.length === 0 && !list.isPending && (
           <div className="data-panel px-4 py-6">
             <p className="text-sm text-text-muted">No drafts.</p>
@@ -154,7 +154,7 @@ export default function OpsProductUpdatesPage() {
 
       {sent && (
         <section className="space-y-2">
-          <h2 className="panel-label panel-label-mint">LAST SEND</h2>
+          <h2 className="panel-label">LAST SEND</h2>
           <div className="data-panel px-4 py-3 space-y-1">
             <p className="text-sm text-text-muted">
               Emailed <span className="font-mono text-text">{sent.sent}</span> of{" "}
@@ -178,7 +178,7 @@ export default function OpsProductUpdatesPage() {
       )}
 
       <section className="space-y-3">
-        <h2 className="panel-label panel-label-coral">SENT ({history.length})</h2>
+        <h2 className="panel-label">SENT ({history.length})</h2>
         <div className="divide-y divide-border data-panel">
           {history.map((u) => (
             <div key={u.id} className="px-4 py-3">

@@ -154,7 +154,7 @@ export function MarketNoteSignup({
         className
       )}
     >
-      <p className="section-label section-label-mint">The Market Note</p>
+      <p className="section-label section-label-lilac">The Market Note</p>
       <h3 className="font-sans text-[20px] sm:text-[22px] font-bold tracking-tight mb-2.5">
         One short read, every week. Free.
       </h3>

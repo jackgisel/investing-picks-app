@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useChart, buildPicksComparison } from "@/lib/hooks/use-chart";
 import { DataState, resolveDataState } from "@/components/ui/data-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   BenchmarkBasisNote,
   PicksBenchmarkChart,
@@ -31,10 +32,19 @@ export function LivePicksChart({ height = 280 }: { height?: number }) {
 
   if (isPending) {
     return (
-      <div className={`${shellClass} h-[340px] flex items-center justify-center`}>
-        <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim animate-pulse">
-          Loading live chart...
-        </span>
+      <div
+        className={shellClass}
+        role="status"
+        aria-label="Loading live chart"
+      >
+        <div className="flex items-center justify-between px-6 sm:px-7 py-5 border-b border-border bg-bg-secondary/40">
+          <Skeleton className="h-3 w-56" />
+        </div>
+        <div className="px-4 sm:px-7 py-6 sm:py-7">
+          <Skeleton className="h-12 w-36 mb-5" />
+          <Skeleton className="h-4 w-48 mb-4" />
+          <Skeleton className="w-full" style={{ height }} />
+        </div>
       </div>
     );
   }

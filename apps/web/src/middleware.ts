@@ -21,18 +21,24 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Protect dashboard routes
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", pathname);
+
+  // Protect dashboard routes. Keep the destination so a magic link can
+  // return the reader to the note or page they opened, not to checkout.
   if (pathname.startsWith("/dashboard")) {
     if (!hasSessionCookie(request)) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
+      url.search = "";
+      url.searchParams.set("next", pathname);
       return NextResponse.redirect(url);
     }
   }
 
-  return NextResponse.next();
+  return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/api/ops/:path*"],
+  matcher: ["/dashboard", "/dashboard/:path*", "/api/ops/:path*"],
 };

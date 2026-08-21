@@ -50,7 +50,7 @@ export function PositionsActivity() {
   return (
     <div className="pt-4">
       <div className="data-panel">
-        <PanelHeader label="Trade activity" tone="peach">
+        <PanelHeader label="Trade activity" tone="mint">
           <div className="flex flex-wrap items-center gap-3">
             <FilterChips
               options={["all", "buy", "sell"] as const}

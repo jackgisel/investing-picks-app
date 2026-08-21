@@ -134,7 +134,7 @@ export function SectorRelativeExample() {
 
   return (
     <div className="data-card">
-      <p className="panel-label panel-label-cyan mb-4">Worked example</p>
+      <p className="panel-label mb-4">Worked example</p>
       <p className="mb-5 max-w-[560px] font-sans text-[13px] leading-relaxed text-text-muted">
         Take one company with a{" "}
         <span className="font-mono font-semibold text-text">38% gross margin</span>.
@@ -221,7 +221,7 @@ export function PickFunnel() {
 
   return (
     <div className="data-card">
-      <p className="panel-label panel-label-lilac mb-1">
+      <p className="panel-label mb-1">
         From the whole market to one name
       </p>
       <p className="mb-5 font-sans text-[12px] text-text-dim">
@@ -298,7 +298,7 @@ export function PositionLifecycle({
 
   return (
     <div className="data-card">
-      <p className="panel-label panel-label-peach mb-5">
+      <p className="panel-label mb-5">
         The life of a position
       </p>
       <ol className="relative space-y-6 before:absolute before:bottom-2 before:left-[7px] before:top-2 before:w-px before:bg-border">

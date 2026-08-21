@@ -2,7 +2,6 @@
 
 import { MEMBERSHIP_BENEFITS, PRICING } from "@/lib/constants";
 import { PillButton } from "@/components/ui/pill-button";
-import { TONE_BG, toneByIndex } from "@/lib/tones";
 import { isFoundersDealActive } from "@/lib/portfolio";
 
 const features = MEMBERSHIP_BENEFITS;
@@ -54,9 +53,7 @@ export function PricingPlanCard() {
             }`}
           >
             <span
-              className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${
-                TONE_BG[toneByIndex(i)]
-              }`}
+              className="mt-0.5 w-2 h-2 rounded-full shrink-0 bg-border-strong"
               aria-hidden
             />
             {feat}

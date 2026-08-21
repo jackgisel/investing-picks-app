@@ -116,7 +116,9 @@ export default function RootLayout({
       <body className="font-sans antialiased text-text bg-bg min-h-screen selection:bg-accent-yellow/50">
         <ThemeProvider>
           <QueryProvider>
-            <Navbar />
+            <MarketingOnly>
+              <Navbar />
+            </MarketingOnly>
             <main>{children}</main>
             <MarketingOnly>
               <Footer />

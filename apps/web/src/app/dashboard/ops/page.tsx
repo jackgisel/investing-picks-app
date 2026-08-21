@@ -97,7 +97,7 @@ export default function OpsEvaluationsPage() {
   return (
     <div className="space-y-6">
       <header>
-        <p className="panel-label panel-label-coral mb-2">OPS</p>
+        <p className="panel-label mb-2">OPS</p>
         <h1 className="page-title">Decision ledger</h1>
         <p className="text-text-muted mt-2 text-sm max-w-xl">
           Every buy and sell is recorded with the exact rule checks that fired — not LLM prose.
@@ -106,7 +106,7 @@ export default function OpsEvaluationsPage() {
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-4 flex-wrap">
-          <h2 className="panel-label panel-label-coral">NEXT EVAL (DRY-RUN)</h2>
+          <h2 className="panel-label">NEXT EVAL (DRY-RUN)</h2>
           <div className="flex items-center gap-3">
             {dry.dataUpdatedAt > 0 && !dry.isFetching && (
               <span className="font-mono text-xs text-text-dim">
@@ -227,7 +227,7 @@ export default function OpsEvaluationsPage() {
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-4 flex-wrap">
-          <h2 className="panel-label panel-label-coral">WORKER JOBS</h2>
+          <h2 className="panel-label">WORKER JOBS</h2>
           <button
             type="button"
             onClick={() => refresh.mutate()}
@@ -287,7 +287,7 @@ export default function OpsEvaluationsPage() {
       <EmailTestPanel />
 
       <section className="space-y-3">
-        <h2 className="panel-label panel-label-coral">HISTORY</h2>
+        <h2 className="panel-label">HISTORY</h2>
         {isLoading && <p className="text-text-muted text-sm">Loading…</p>}
         {error && <p className="text-accent-red text-sm">Could not load evaluations</p>}
         <div className="divide-y divide-border data-panel">
@@ -364,7 +364,7 @@ function EmailTestPanel() {
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between gap-4 flex-wrap">
-        <h2 className="panel-label panel-label-coral">EMAIL TEST</h2>
+        <h2 className="panel-label">EMAIL TEST</h2>
         <div className="flex items-center gap-3">
           <select
             value={template}
@@ -442,7 +442,7 @@ function NextEvaluationPanel({ next }: { next: NextEvaluation }) {
   return (
     <div className="data-panel px-4 py-3 space-y-2">
       <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
-        <span className="panel-label panel-label-mint">Next evaluation</span>
+        <span className="panel-label">Next evaluation</span>
         <span className="font-mono text-sm text-text">{next.target}</span>
         {next.moved_for_holiday && (
           <span className="font-mono text-xs text-accent-yellow">

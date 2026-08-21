@@ -34,7 +34,7 @@ export function SubscribeRedirect() {
       <div className="soft-card w-full max-w-md text-center">
         {error ? (
           <>
-            <p className="panel-label panel-label-red mb-3">Billing unavailable</p>
+            <p className="panel-label mb-3">Billing unavailable</p>
             <p className="font-sans text-[14px] text-text-muted mb-6">{error}</p>
             <Link href="/dashboard/settings" className="btn-outline">
               Return to settings
@@ -42,7 +42,7 @@ export function SubscribeRedirect() {
           </>
         ) : (
           <>
-            <p className="panel-label panel-label-green mb-3">Secure checkout</p>
+            <p className="panel-label mb-3">Secure checkout</p>
             <p className="font-sans text-[14px] text-text-muted">
               Redirecting you to Stripe…
             </p>

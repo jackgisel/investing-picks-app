@@ -5,16 +5,14 @@ import { signIn } from "@/lib/auth-client";
 import { OutpickWordmark } from "@/components/ui/outpick-logo";
 import Link from "next/link";
 import { MailCheck } from "lucide-react";
+import { resolveCallbackPath } from "@/lib/login-redirect";
 
 /** Where the magic link should land after it verifies. */
 function resolveCallbackURL(): string {
   if (typeof window === "undefined") return "/subscribe";
-  const requested = new URLSearchParams(window.location.search).get("next");
-  return requested === "/subscribe" ||
-    requested === "/welcome" ||
-    requested === "/dashboard"
-    ? requested
-    : "/subscribe";
+  return resolveCallbackPath(
+    new URLSearchParams(window.location.search).get("next"),
+  );
 }
 
 export default function LoginPage() {
@@ -77,7 +75,7 @@ export default function LoginPage() {
           <div className="mx-auto mb-7 flex h-16 w-16 items-center justify-center rounded-full bg-accent-mint text-on-accent">
             <MailCheck size={28} strokeWidth={1.8} aria-hidden="true" />
           </div>
-          <p className="section-label section-label-mint justify-center">
+          <p className="section-label justify-center">
             One click, no password
           </p>
           <h1 className="font-sans text-[30px] sm:text-[36px] font-bold tracking-tight text-text">
@@ -141,10 +139,14 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim block mb-2">
+            <label
+              htmlFor="login-name"
+              className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim block mb-2"
+            >
               Name <span className="normal-case font-normal text-text-dim">(new accounts only)</span>
             </label>
             <input
+              id="login-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -155,10 +157,14 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim block mb-2">
+            <label
+              htmlFor="login-email"
+              className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim block mb-2"
+            >
               Email
             </label>
             <input
+              id="login-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}

@@ -18,7 +18,7 @@ export default async function UnsubscribePage({
     <section className="border-b border-border">
       <div className="container-op py-20 sm:py-28">
         <div className="max-w-[520px]">
-          <p className="section-label section-label-mint">Market note</p>
+          <p className="section-label">Market note</p>
           <h1 className="section-title">Leaving the list?</h1>
 
           {token ? (

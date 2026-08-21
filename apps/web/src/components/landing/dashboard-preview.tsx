@@ -25,25 +25,15 @@ export function DashboardPreview() {
       />
 
       <div className="container-op relative py-20 sm:py-24">
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_auto] gap-8 lg:gap-12 items-end mb-10 sm:mb-12">
-          <div>
-            <p className="section-label section-label-coral">Backtrained model · simulated</p>
-            <h2 className="section-title max-w-[540px]">
-              {BACKTEST.winnersCircle} picks doubled. That&apos;s the edge.
-            </h2>
-            <p className="section-sub mb-0 max-w-[500px]">
-              Total return tells part of the story. What matters is how many
-              high-conviction picks become multi-baggers — and how the model
-              finds them. The full backtrained model record is below, losses
-              and all; no card, no account needed to see it.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-6 sm:gap-8 lg:pb-2">
-            <PreviewStat label="Total return" value={BACKTEST.totalReturn} hero />
-            <PreviewStat label="Win rate" value={BACKTEST.winRate} />
-            <PreviewStat label="2× winners" value={BACKTEST.winnersCircle.toString()} />
-          </div>
+        <div className="mb-10 sm:mb-12 max-w-[540px]">
+          <p className="section-label section-label-yellow">Backtrained model · simulated</p>
+          <h2 className="section-title">
+            Every name, winners and losers.
+          </h2>
+          <p className="section-sub mb-0">
+            The simulation&apos;s final holdings. Nothing gated, nothing
+            held back for a paywall. The live book is members-only.
+          </p>
         </div>
 
         <div className="relative rounded-soft border border-border overflow-hidden bg-bg">
@@ -185,30 +175,5 @@ export function DashboardPreview() {
         </div>
       </div>
     </section>
-  );
-}
-
-function PreviewStat({
-  label,
-  value,
-  hero = false,
-}: {
-  label: string;
-  value: string;
-  hero?: boolean;
-}) {
-  return (
-    <div>
-      <p className="font-sans text-[9px] font-bold text-text-dim tracking-[0.14em] uppercase mb-1">
-        {label}
-      </p>
-      <p
-        className={`font-mono font-bold text-accent-green leading-none ${
-          hero ? "text-[28px] sm:text-[32px]" : "text-[20px]"
-        }`}
-      >
-        {value}
-      </p>
-    </div>
   );
 }

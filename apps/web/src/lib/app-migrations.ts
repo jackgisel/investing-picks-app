@@ -191,7 +191,7 @@ export async function runAppMigrations() {
       slug TEXT NOT NULL UNIQUE,
       ticker TEXT,
       post_type TEXT NOT NULL DEFAULT 'pick'
-        CHECK (post_type IN ('pick', 'quarterly_review')),
+        CHECK (post_type IN ('pick', 'quarterly_review', 'weekly_review')),
       status TEXT NOT NULL DEFAULT 'pending'
         CHECK (status IN ('pending', 'draft', 'failed', 'approved', 'rejected')),
       title TEXT,
@@ -284,6 +284,26 @@ export async function runAppMigrations() {
   await pool.query(`
     ALTER TABLE insight
       ADD COLUMN IF NOT EXISTS generation_attempts INT NOT NULL DEFAULT 0
+  `);
+
+  // weekly_review postdates the original CHECK. Same drop-and-readd as
+  // insight_status_check: CREATE TABLE IF NOT EXISTS will not widen an
+  // existing constraint, and the statement then names the full set.
+  await pool.query(`
+    ALTER TABLE insight DROP CONSTRAINT IF EXISTS insight_post_type_check
+  `);
+  await pool.query(`
+    ALTER TABLE insight
+      ADD CONSTRAINT insight_post_type_check
+      CHECK (post_type IN ('pick', 'quarterly_review', 'weekly_review'))
+  `);
+
+  // Confirm-then-send for the Friday review. Stays NULL on pick notes. A
+  // confirmed weekly_review is still status=draft until noon publishes it —
+  // members must not see it, and pick auto-publish must not pick it up.
+  await pool.query(`
+    ALTER TABLE insight
+      ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMPTZ
   `);
 
   /*

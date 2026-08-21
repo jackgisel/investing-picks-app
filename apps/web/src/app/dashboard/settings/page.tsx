@@ -340,7 +340,7 @@ function NotificationsForm() {
       />
       <Toggle
         label="Weekly summary"
-        description="A short Sunday digest of portfolio performance and any moves."
+        description="Friday at noon PT: the week's portfolio review, published on Insights and emailed."
         enabled={prefs.weeklySummary}
         onChange={(v) => update("weeklySummary", v)}
         disabled={!loaded}

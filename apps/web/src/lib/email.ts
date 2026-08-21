@@ -8,13 +8,13 @@ import {
   renderMagicLinkEmail,
   renderMembershipWelcomeEmail,
   renderMarketNoteWelcomeEmail,
-  renderWeeklySummaryEmail,
+  renderWeeklyReviewEmail,
+  renderWeeklyReviewOpsEmail,
   renderPerformanceAlertEmail,
   renderProductUpdateEmail,
   renderJobFailureEmail,
   type PerformanceAlertKind,
   type PickStat,
-  type WeeklyMove,
 } from "@/lib/email-templates";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
@@ -285,46 +285,44 @@ export async function sendMarketNoteWelcomeEmail(args: {
 
 /* ----------------------------- Weekly summary ----------------------------- */
 
+export function weeklySummaryOneClickUrl(token: string): string {
+  return `${SITE_URL}/api/preferences/unsubscribe?token=${encodeURIComponent(token)}&list=weekly`;
+}
+
+/* ----------------------------- Weekly review ------------------------------ */
+
 /**
- * The Sunday digest.
+ * The Friday review mailed to members who kept Weekly summary on.
  *
- * Bulk, so it carries the same List-Unsubscribe pair as the other fan-outs.
- * The token is the pick-alert one because both are member-preference lists on
- * the same user id — but the header points at the digest's own opt-out route,
- * so unsubscribing here turns off the digest and leaves pick alerts alone.
+ * Same List-Unsubscribe pair as the retired Sunday digest, same list, same
+ * token. Unsubscribing here still turns off the weekly mail and leaves pick
+ * alerts alone.
  */
-export async function sendWeeklySummaryEmail(args: {
+export async function sendWeeklyReviewEmail(args: {
   to: string;
   userId: string;
   recipientName: string | null;
-  periodLabel: string;
-  stats: PickStat[];
-  moves: WeeklyMove[];
+  title: string;
+  lede: string;
+  insightSlug: string;
   banner?: string;
 }): Promise<SendResult> {
-  const dashboardUrl = `${SITE_URL}/dashboard`;
+  const articleUrl = `${SITE_URL}/dashboard/insights/${args.insightSlug}`;
   const oneClick = weeklySummaryOneClickUrl(pickAlertToken(args.userId));
-  const html = renderWeeklySummaryEmail({
+  const html = renderWeeklyReviewEmail({
     recipientName: args.recipientName,
-    periodLabel: args.periodLabel,
-    stats: args.stats,
-    moves: args.moves,
-    dashboardUrl,
+    title: args.title,
+    lede: args.lede,
+    articleUrl,
     siteUrl: SITE_URL,
     unsubscribeUrl: `${SITE_URL}/dashboard/settings`,
     banner: args.banner,
   });
-  const movesText = args.moves.length
-    ? args.moves.map((m) => `  ${m.ticker} — ${m.action}${m.when ? ` (${m.when})` : ""}`).join("\n")
-    : "  No trades this week.";
-  const text = `Your ${SITE_NAME} week — ${args.periodLabel}\n\n${args.stats
-    .filter((s) => s.value)
-    .map((s) => `${s.label}: ${s.value}`)
-    .join("\n")}\n\nMoves this week:\n${movesText}\n\nOpen the dashboard: ${dashboardUrl}\n\nYou're receiving this because you opted in to the weekly summary. Manage your preferences: ${SITE_URL}/dashboard/settings`;
+  const text = `${args.title}\n\n${args.lede}\n\nRead the review: ${articleUrl}\n\nYou're receiving this because you opted in to the weekly summary. Manage your preferences: ${SITE_URL}/dashboard/settings`;
 
   return send({
     to: args.to,
-    subject: `Your ${SITE_NAME} week — ${args.periodLabel}`,
+    subject: args.title,
     html,
     text,
     headers: {
@@ -334,8 +332,39 @@ export async function sendWeeklySummaryEmail(args: {
   });
 }
 
-export function weeklySummaryOneClickUrl(token: string): string {
-  return `${SITE_URL}/api/preferences/unsubscribe?token=${encodeURIComponent(token)}&list=weekly`;
+export async function sendWeeklyReviewOpsEmail(args: {
+  to: string[];
+  kind: "ready" | "skipped";
+  periodLabel: string;
+  sendAtLabel: string;
+  weekKey: string;
+  banner?: string;
+}): Promise<SendResult> {
+  if (args.to.length === 0) return { ok: true };
+  const opsUrl = `${SITE_URL}/dashboard/ops/weekly-review`;
+  const html = renderWeeklyReviewOpsEmail({
+    kind: args.kind,
+    periodLabel: args.periodLabel,
+    sendAtLabel: args.sendAtLabel,
+    opsUrl,
+    siteUrl: SITE_URL,
+    banner: args.banner,
+  });
+  const text =
+    args.kind === "ready"
+      ? `Weekly review ready — ${args.periodLabel}\n\nConfirm it before ${args.sendAtLabel} and it will publish at noon PT.\n\nOps: ${opsUrl}`
+      : `Weekly review skipped — ${args.periodLabel}\n\nNoon PT passed without a confirm. The draft is still in ops.\n\nOps: ${opsUrl}`;
+
+  return send({
+    to: args.to,
+    subject:
+      args.kind === "ready"
+        ? `[${SITE_NAME}] Weekly review ready — ${args.periodLabel}`
+        : `[${SITE_NAME}] Weekly review skipped — ${args.periodLabel}`,
+    html,
+    text,
+    idempotencyKey: `outpick-weekly-review-${args.kind}-${args.weekKey}`,
+  });
 }
 
 /* ---------------------------- Performance alert --------------------------- */

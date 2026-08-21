@@ -9,16 +9,18 @@
  * holds types only, and `lib/insights-db.ts` holds the queries.
  */
 
-export type InsightPostType = "pick" | "quarterly_review";
+export type InsightPostType = "pick" | "quarterly_review" | "weekly_review";
 
 /**
  * `pending` — the row exists because a pick does, but has no body yet.
- * `draft`   — Claude wrote one. Publishes itself once `autoPublishAt` passes
- *             unless an admin rejects it first; see `lib/insight-auto-publish`.
+ * `draft`   — Claude wrote one. Pick notes publish themselves once
+ *             `autoPublishAt` passes unless an admin rejects them first; see
+ *             `lib/insight-auto-publish`. Weekly reviews stay in `draft` until
+ *             an admin confirms AND the Friday noon send fires.
  * `failed`  — generation errored; see `generationError`.
  * `approved`— published and announced. Terminal.
- * `rejected`— an admin stopped it inside the review window. Terminal for the
- *             auto-publisher; regenerating moves it back to `draft`.
+ * `rejected`— an admin stopped it. Terminal for the auto-publisher and the
+ *             Friday send; regenerating moves it back to `draft`.
  */
 export type InsightStatus =
   | "pending"
@@ -52,9 +54,15 @@ export type InsightMeta = {
   /**
    * When the auto-publisher will announce this draft. Null on rows that are not
    * awaiting a window (pending, failed, rejected, already approved). Shown in
-   * the ops queue so the deadline is never a surprise.
+   * the ops queue so the deadline is never a surprise. On a weekly review this
+   * is Friday noon PT, and the send still requires `confirmedAt`.
    */
   autoPublishAt: string | null;
+  /**
+   * When an admin armed the Friday send. Null until then. Confirm does not
+   * publish — status stays `draft` so members cannot see the note.
+   */
+  confirmedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -117,6 +125,25 @@ export function insightsForTickers(
   return list.filter(
     (i) => i.ticker !== null && wanted.has(i.ticker.toUpperCase()),
   );
+}
+
+/** Badge copy on the Insights index and the article header. */
+export function insightCategoryLabel(
+  meta: Pick<InsightMeta, "postType" | "ticker">,
+): string {
+  if (meta.postType === "quarterly_review") return "Quarterly review";
+  if (meta.postType === "weekly_review") return "Weekly review";
+  return meta.ticker ? `Pick · ${meta.ticker}` : "Pick";
+}
+
+/**
+ * Slug for a weekly review: `weekly-review-2026-w34`.
+ *
+ * Derived from the ISO week key, not the generated title, so a regenerate
+ * cannot change the URL and a second Friday job can find the same row.
+ */
+export function weeklyReviewSlug(weekKey: string): string {
+  return `weekly-review-${weekKey.toLowerCase()}`;
 }
 
 /**

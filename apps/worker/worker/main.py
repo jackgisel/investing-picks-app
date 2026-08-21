@@ -28,6 +28,8 @@ from worker.jobs.runner import (
     job_daily_marks,
     job_performance_alerts,
     job_weekly_refresh,
+    job_weekly_review_draft,
+    job_weekly_review_publish,
     job_weekly_summary,
     reap_stale_weekly_refreshes,
 )
@@ -89,13 +91,31 @@ def main():
         id="weekly_refresh",
         replace_existing=True,
     )
-    # Sunday 17:00 ET — the digest the settings page has always promised. Late
-    # enough that Saturday's refresh and backfill have landed, so the week it
-    # describes is complete.
+    # Friday 10:00 PT — draft the weekly portfolio review for admin confirm.
+    # Pacific, not the scheduler's default ET, so the two-hour window before
+    # noon PT does not slide with daylight-saving relative to New York.
     scheduler.add_job(
-        job_weekly_summary,
-        CronTrigger(day_of_week="sun", hour=17, minute=0),
-        id="weekly_summary",
+        job_weekly_review_draft,
+        CronTrigger(
+            day_of_week="fri",
+            hour=10,
+            minute=0,
+            timezone="America/Los_Angeles",
+        ),
+        id="weekly_review_draft",
+        replace_existing=True,
+    )
+    # Friday 12:00 PT — publish and email if confirmed; skip and tell the
+    # admins if not. The claim is on the insight row, not this schedule.
+    scheduler.add_job(
+        job_weekly_review_publish,
+        CronTrigger(
+            day_of_week="fri",
+            hour=12,
+            minute=0,
+            timezone="America/Los_Angeles",
+        ),
+        id="weekly_review_publish",
         replace_existing=True,
     )
     # Weekdays 19:00 ET — after daily_marks (18:30) has repriced the book, so a
@@ -142,9 +162,11 @@ def main():
             # Scheduled every 15 min (above); on demand for when you have just
             # shortened the review window and do not want to wait for the tick.
             "auto_publish_insights": job_auto_publish_insights,
-            # Both scheduled; runnable by hand for a first send or after fixing
-            # a template. The weekly digest is still claimed once per ISO week,
-            # so running it twice mails nobody twice.
+            # Scheduled Friday 10:00 / 12:00 PT. On-demand for a first send
+            # or after fixing a draft. weekly_summary is a leftover alias for
+            # the noon publish so an old RUN_JOB_ONCE still does something.
+            "weekly_review_draft": job_weekly_review_draft,
+            "weekly_review_publish": job_weekly_review_publish,
             "weekly_summary": job_weekly_summary,
             "performance_alerts": job_performance_alerts,
             # Not on any schedule — a one-shot repair, dry run unless

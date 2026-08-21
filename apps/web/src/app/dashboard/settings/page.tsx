@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { DisplayNameForm } from "@/components/comments/display-name-form";
 import { requestBillingUrl, type BillingPath } from "@/lib/billing-client";
+import { DataStateCard } from "@/components/ui/data-state";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type NotificationPrefs = {
   newPicks: boolean;
@@ -63,20 +65,19 @@ export default function SettingsPage() {
 
   if (sessionPending) {
     return (
-      <div className="page-measure">
-        <p className="font-mono text-[11px] text-text-dim animate-pulse">
-          LOADING...
-        </p>
+      <div className="page-measure space-y-3" role="status" aria-label="Loading settings">
+        <Skeleton className="h-7 w-40" />
+        <Skeleton className="h-4 w-64" />
+        <Skeleton className="h-40 w-full" />
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="page-measure">
-        <p className="font-sans text-[14px] text-text-muted">
-          You need to be signed in to view settings.
-        </p>
+      <div className="page-measure space-y-5">
+        <h1 className="page-title">Settings</h1>
+        <DataStateCard state="unauthenticated" />
       </div>
     );
   }
@@ -178,7 +179,7 @@ function Section({
     <section>
       <div className="flex items-center gap-2 mb-3">
         <Icon size={14} className="text-accent-green" />
-        <p className="panel-label panel-label-lilac">
+        <p className="panel-label">
           {label}
         </p>
       </div>
@@ -248,8 +249,9 @@ function ProfileForm({
         </p>
       </FieldRow>
 
-      <FieldRow label="NAME">
+      <FieldRow label="NAME" htmlFor="settings-name">
         <input
+          id="settings-name"
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -263,9 +265,9 @@ function ProfileForm({
         <button
           type="submit"
           disabled={!dirty || status.kind === "saving"}
-          className="rounded-pill font-mono text-[11px] bg-accent-green text-on-accent px-5 py-2.5 font-semibold tracking-wider hover:bg-accent-green-hover transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          {status.kind === "saving" ? "SAVING..." : "SAVE NAME"}
+          {status.kind === "saving" ? "Saving…" : "Save name"}
         </button>
         <StatusMessage status={status} />
       </div>
@@ -393,12 +395,12 @@ function Toggle({
         aria-label={label}
         onClick={() => onChange(!enabled)}
         disabled={disabled}
-        className={`shrink-0 relative inline-flex h-6 w-11 items-center transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+        className={`shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
           enabled ? "bg-accent-green" : "bg-bg-tertiary border border-border"
         }`}
       >
         <span
-          className={`inline-block h-4 w-4 transform transition-transform ${
+          className={`inline-block h-4 w-4 rounded-full transform transition-transform ${
             enabled ? "translate-x-6 bg-inverse" : "translate-x-1 bg-text-muted"
           }`}
         />
@@ -513,9 +515,7 @@ function SubscriptionPanel() {
             STATUS
           </p>
           {!loaded ? (
-            <p className="font-mono text-[11px] text-text-dim animate-pulse">
-              LOADING...
-            </p>
+            <Skeleton className="h-5 w-24" />
           ) : (
             <StatusBadge status={status} />
           )}
@@ -585,14 +585,14 @@ function SubscriptionPanel() {
               )
             }
             disabled={billingLoading}
-            className="rounded-pill font-mono text-[11px] bg-accent-green text-on-accent px-5 py-2.5 font-semibold tracking-wider hover:bg-accent-green-hover transition-colors inline-flex items-center gap-2"
+            className="btn-primary inline-flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <CreditCard size={12} />
             {billingLoading
-              ? "OPENING..."
+              ? "Opening…"
               : isActive
-                ? "MANAGE BILLING"
-                : "START MEMBERSHIP"}
+                ? "Manage billing"
+                : "Start membership"}
           </button>
           {billingError && (
             <span className="font-sans text-[12px] text-accent-red">
@@ -748,8 +748,9 @@ function DeleteAccountPanel() {
         </p>
       </div>
 
-      <FieldRow label="TYPE 'DELETE' TO CONFIRM">
+      <FieldRow label="TYPE 'DELETE' TO CONFIRM" htmlFor="settings-delete-confirm">
         <input
+          id="settings-delete-confirm"
           type="text"
           value={confirmText}
           onChange={(e) => setConfirmText(e.target.value)}
@@ -789,14 +790,16 @@ function DeleteAccountPanel() {
 
 function FieldRow({
   label,
+  htmlFor,
   children,
 }: {
   label: string;
+  htmlFor?: string;
   children: React.ReactNode;
 }) {
   return (
     <div>
-      <label className="field-label block mb-2">
+      <label htmlFor={htmlFor} className="field-label block mb-2">
         {label}
       </label>
       {children}

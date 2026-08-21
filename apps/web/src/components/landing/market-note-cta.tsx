@@ -13,7 +13,7 @@ export function MarketNoteCta() {
       <div className="container-op py-16 sm:py-20">
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,480px)] gap-10 lg:gap-16 items-center">
           <div>
-            <p className="section-label section-label-mint">Not ready yet?</p>
+            <p className="section-label">Not ready yet?</p>
             <h2 className="section-title text-[28px] sm:text-[34px] max-w-[440px]">
               Read us for a while first.
             </h2>

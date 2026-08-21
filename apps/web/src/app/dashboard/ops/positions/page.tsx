@@ -212,7 +212,7 @@ export default function OpsPositionsPage() {
   return (
     <div className="space-y-6">
       <header>
-        <p className="panel-label panel-label-coral mb-2">
+        <p className="panel-label mb-2">
           OPS
         </p>
         <h1 className="page-title">Manual book entry</h1>
@@ -249,7 +249,7 @@ export default function OpsPositionsPage() {
 
           {/* --- Inception date ------------------------------------------ */}
           <section className="space-y-3">
-            <h2 className="panel-label panel-label-coral">
+            <h2 className="panel-label">
               Inception date
             </h2>
             <div className="data-card space-y-3">
@@ -301,7 +301,7 @@ export default function OpsPositionsPage() {
 
           {/* --- Add position -------------------------------------------- */}
           <section className="space-y-3">
-            <h2 className="panel-label panel-label-coral">
+            <h2 className="panel-label">
               Add position
             </h2>
             <form
@@ -438,7 +438,7 @@ export default function OpsPositionsPage() {
 
           {/* --- Existing positions -------------------------------------- */}
           <section className="space-y-3">
-            <h2 className="panel-label panel-label-coral">
+            <h2 className="panel-label">
               Positions
             </h2>
             {editError && <p className="text-sm text-accent-red">{editError}</p>}

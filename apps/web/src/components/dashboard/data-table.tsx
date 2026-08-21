@@ -91,7 +91,7 @@ export function PanelHeader({
   children,
 }: {
   label: string;
-  tone?: "yellow" | "peach" | "lilac" | "mint" | "coral";
+  tone?: "yellow" | "lilac" | "mint";
   children?: React.ReactNode;
 }) {
   return (

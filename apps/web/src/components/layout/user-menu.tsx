@@ -26,6 +26,8 @@ export function UserMenu({
   accountName,
   email,
   onSignOut,
+  align = "right",
+  placement = "bottom",
 }: {
   userId: string;
   /** BetterAuth's `name`. Fine here — this menu is only ever shown to the
@@ -34,6 +36,8 @@ export function UserMenu({
   accountName: string | null;
   email: string;
   onSignOut: () => void;
+  align?: "left" | "right";
+  placement?: "top" | "bottom";
 }) {
   const [open, setOpen] = useState(false);
   const { theme, setTheme } = useTheme();
@@ -96,7 +100,9 @@ export function UserMenu({
         <div
           role="menu"
           aria-label="Account"
-          className="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-soft border border-border bg-bg shadow-lg"
+          className={`absolute z-50 w-56 overflow-hidden rounded-soft border border-border bg-bg shadow-lg ${
+            align === "left" ? "left-0" : "right-0"
+          } ${placement === "top" ? "bottom-full mb-2" : "mt-2"}`}
         >
           <div className="border-b border-border px-4 py-3">
             <p className="truncate font-sans text-[13px] font-semibold text-text">

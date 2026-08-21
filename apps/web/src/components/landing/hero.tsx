@@ -1,9 +1,8 @@
 import {
-  SITE_NAME,
   SITE_SUBHEADLINE,
   SITE_TAGLINE,
 } from "@/lib/constants";
-import { OutpickLogo } from "@/components/ui/outpick-logo";
+import { OutpickWordmark } from "@/components/ui/outpick-logo";
 import { PillButton } from "@/components/ui/pill-button";
 import { LivePicksChart } from "@/components/ui/live-picks-chart";
 import { PriceLine } from "./price-line";
@@ -14,21 +13,13 @@ export function Hero() {
       <div className="container-op">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           <div>
-            <p className="section-label section-label-mint mb-6 hero-reveal hero-reveal-1">
+            <p className="section-label mb-6 hero-reveal hero-reveal-1">
               A team of agents, researching around the clock
             </p>
 
-            <div className="flex items-center gap-3.5 mb-8 hero-reveal hero-reveal-2">
-              <OutpickLogo size={40} />
-              <span className="font-sans text-[32px] sm:text-[40px] font-extrabold tracking-[0.1em] text-text uppercase leading-none">
-                {SITE_NAME}
-              </span>
+            <div className="mb-8 hero-reveal hero-reveal-2">
+              <OutpickWordmark size={22} />
             </div>
-
-            <div
-              aria-hidden
-              className="h-0.5 w-12 rounded-full bg-accent-mint mb-7 hero-reveal hero-reveal-3"
-            />
 
             <h1 className="font-sans text-[34px] sm:text-[44px] font-extrabold leading-[1.15] mb-5 tracking-tight max-w-[540px] hero-reveal hero-reveal-3">
               {SITE_TAGLINE}

@@ -1,5 +1,3 @@
-import { CategoryTag } from "@/components/ui/category-tag";
-import { TONE_BORDER, type PastelTone } from "@/lib/tones";
 import { PillButton } from "@/components/ui/pill-button";
 import {
   ResearchDiagram,
@@ -13,7 +11,6 @@ const steps: {
   title: string;
   tag: string;
   description: string;
-  tone: PastelTone;
   Diagram: ComponentType;
 }[] = [
   {
@@ -21,7 +18,6 @@ const steps: {
     tag: "Research",
     description:
       "Fundamentals, financial quality, and cycle context — before anything is published. No hype, no momentum for its own sake.",
-    tone: "yellow",
     Diagram: ResearchDiagram,
   },
   {
@@ -29,7 +25,6 @@ const steps: {
     tag: "Publish",
     description:
       "One high-conviction name with full notes: thesis, financials, cycle context, and why it belongs in a long-term book.",
-    tone: "peach",
     Diagram: PublishDiagram,
   },
   {
@@ -37,7 +32,6 @@ const steps: {
     tag: "Track",
     description:
       "Every position with real-time status. Entries, exits, and conviction — no cherry-picked highlights.",
-    tone: "lilac",
     Diagram: TrackDiagram,
   },
   {
@@ -45,7 +39,6 @@ const steps: {
     tag: "Measure",
     description:
       "The full portfolio against the S&P 500. Every gain and every loss, measured honestly.",
-    tone: "mint",
     Diagram: MeasureDiagram,
   },
 ];
@@ -63,7 +56,7 @@ export function HowItWorks() {
 
       <div className="container-op relative py-20 sm:py-24">
         <div className="max-w-[560px] mb-14 sm:mb-16">
-          <p className="section-label section-label-lilac">How it works</p>
+            <p className="section-label">How it works</p>
           <h2 className="section-title">
             Research you can trust. Results you can verify.
           </h2>
@@ -91,16 +84,14 @@ export function HowItWorks() {
                   i === 1 ? "op-animate-rise-delay-1" : ""
                 }`}
               >
-                <span
-                  className={`relative z-10 font-mono text-[13px] font-bold tracking-[0.14em] text-text-dim lg:flex lg:items-center lg:justify-center lg:h-12 lg:w-12 lg:rounded-full lg:border-2 lg:bg-bg ${
-                    TONE_BORDER[step.tone]
-                  }`}
-                >
+                <span className="relative z-10 font-mono text-[13px] font-bold tracking-[0.14em] text-text-dim lg:flex lg:items-center lg:justify-center lg:h-12 lg:w-12 lg:rounded-full lg:border-2 lg:border-border lg:bg-bg">
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 <div>
                   <div className="mb-3">
-                    <CategoryTag tone={step.tone}>{step.tag}</CategoryTag>
+                    <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">
+                      {step.tag}
+                    </span>
                   </div>
                   <h3 className="font-sans text-[20px] sm:text-[22px] font-bold mb-2 tracking-tight">
                     {step.title}

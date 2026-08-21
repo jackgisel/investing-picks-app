@@ -1,5 +1,4 @@
 import { Hero } from "@/components/landing/hero";
-import { StatsBar } from "@/components/landing/stats-bar";
 import { TrackRecord } from "@/components/landing/track-record";
 import { WhoWeAre } from "@/components/landing/who-we-are";
 import { Audience } from "@/components/landing/audience";
@@ -16,7 +15,6 @@ export default function HomePage() {
   return (
     <>
       <Hero />
-      <StatsBar />
       {/* Proof, then who publishes it. Anyone still reading after the track
           record is asking "who are these people?" — WhoWeAre answers it with
           the record rather than a founder story. */}

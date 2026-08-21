@@ -93,9 +93,8 @@
     @apply max-w-op mx-auto px-6 sm:px-8;
   }
 
-  /* Eyebrow. The leading rule is the smallest place a section can carry a
-     tone — the pastels sit at ~1.6:1 on white, so they mark the label rather
-     than tint the glyphs. Defaults to yellow; add a modifier to override. */
+  /* Eyebrow. Defaults to a neutral rule; mint / lilac / yellow mark live
+     book, research, and simulated surfaces. */
   .section-label {
     @apply font-sans text-[11px] text-text font-bold tracking-[0.18em] mb-3.5 uppercase
            flex items-center gap-2.5;
@@ -103,23 +102,17 @@
 
   .section-label::before {
     content: "";
-    @apply h-1 w-5 rounded-full shrink-0 bg-accent-yellow;
+    @apply h-1 w-5 rounded-full shrink-0 bg-border-strong;
   }
 
-  .section-label-peach::before {
-    @apply bg-accent-peach;
+  .section-label-yellow::before {
+    @apply bg-accent-yellow;
   }
   .section-label-lilac::before {
     @apply bg-accent-lilac;
   }
   .section-label-mint::before {
     @apply bg-accent-mint;
-  }
-  .section-label-coral::before {
-    @apply bg-accent-coral;
-  }
-  .section-label-cyan::before {
-    @apply bg-accent-cyan;
   }
 
   .section-title {
@@ -204,13 +197,8 @@
     @apply max-w-[760px];
   }
 
-  /* Panel eyebrow — the dashboard's counterpart to `.section-label`.
-     The dashboard had reimplemented that eyebrow by hand seventeen times,
-     always monochrome, which is most of why none of the brand pastels
-     appeared anywhere in the product. Each surface gets one stable tone, so
-     the colour identifies where you are instead of decorating at random.
-     Sits at text-muted rather than text-dim: #737373 on the panel ground is
-     4.35:1, under AA for 11px type. */
+  /* Panel eyebrow — mint live book, lilac research, yellow simulated.
+     Everything else stays the neutral rule so colour stays scarce. */
   .panel-label {
     @apply font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-muted
            inline-flex items-center gap-2;
@@ -218,23 +206,17 @@
 
   .panel-label::before {
     content: "";
-    @apply h-1 w-4 rounded-full shrink-0 bg-accent-cyan;
+    @apply h-1 w-4 rounded-full shrink-0 bg-border-strong;
   }
 
   .panel-label-yellow::before {
     @apply bg-accent-yellow;
-  }
-  .panel-label-peach::before {
-    @apply bg-accent-peach;
   }
   .panel-label-lilac::before {
     @apply bg-accent-lilac;
   }
   .panel-label-mint::before {
     @apply bg-accent-mint;
-  }
-  .panel-label-coral::before {
-    @apply bg-accent-coral;
   }
 
   /* The small label above a number inside a tile. Deliberately has no tone

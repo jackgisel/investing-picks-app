@@ -151,7 +151,7 @@ export function WelcomeExperience({
             <CircleCheck size={14} aria-hidden="true" />
             Membership active
           </div>
-          <p className="section-label section-label-mint">Welcome to Outpick</p>
+          <p className="section-label">Welcome to Outpick</p>
           <h1 className="max-w-2xl font-sans text-[42px] sm:text-[64px] font-bold leading-[0.98] tracking-[-0.045em] text-text">
             {firstName ? `${firstName}, you’re in.` : "You’re in."}
           </h1>

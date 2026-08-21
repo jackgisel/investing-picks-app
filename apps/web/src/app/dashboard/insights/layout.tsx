@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Lock } from "lucide-react";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { getAccess } from "@/lib/api-gate";
+import { resolveCallbackPath } from "@/lib/login-redirect";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +29,9 @@ export default async function InsightsLayout({
 
   if (!access.entitled) {
     if (access.reason === "anonymous") {
-      redirect("/login");
+      const pathname =
+        (await headers()).get("x-pathname") ?? "/dashboard/insights";
+      redirect(`/login?next=${encodeURIComponent(resolveCallbackPath(pathname))}`);
     }
     return <MembersOnly />;
   }

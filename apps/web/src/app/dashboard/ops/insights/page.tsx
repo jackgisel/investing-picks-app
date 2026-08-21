@@ -89,7 +89,7 @@ export default function OpsInsightsPage() {
   return (
     <div className="space-y-6">
       <header>
-        <p className="panel-label panel-label-lilac mb-2">OPS</p>
+        <p className="panel-label mb-2">OPS</p>
         <h1 className="page-title">Research notes</h1>
         <p className="text-text-muted mt-2 text-sm max-w-xl">
           Every pick gets a drafted note, and a drafted note publishes and emails
@@ -100,7 +100,7 @@ export default function OpsInsightsPage() {
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-4 flex-wrap">
-          <h2 className="panel-label panel-label-lilac">
+          <h2 className="panel-label">
             AWAITING REVIEW ({queue.length})
           </h2>
           <button
@@ -163,7 +163,7 @@ export default function OpsInsightsPage() {
 
       {sent && (
         <section className="space-y-2">
-          <h2 className="panel-label panel-label-mint">LAST ANNOUNCEMENT</h2>
+          <h2 className="panel-label">LAST ANNOUNCEMENT</h2>
           <div className="data-panel px-4 py-3 space-y-1">
             <p className="text-sm text-text-muted">
               Emailed <span className="font-mono text-text">{sent.sent}</span> of{" "}
@@ -188,7 +188,7 @@ export default function OpsInsightsPage() {
       )}
 
       <section className="space-y-3">
-        <h2 className="panel-label panel-label-coral">
+        <h2 className="panel-label">
           PUBLISHED ({published.length})
         </h2>
         <div className="divide-y divide-border data-panel">

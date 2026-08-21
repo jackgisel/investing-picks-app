@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { AlertCircle, Inbox, Lock, LogIn, RefreshCw } from "lucide-react";
 import { toApiError, type ApiErrorKind } from "@/lib/hooks/api-error";
+import { Skeleton } from "@/components/ui/skeleton";
 
 /**
  * Terminal states for a data-backed panel.
@@ -71,10 +72,13 @@ export function DataState({
 
   if (state === "loading") {
     return (
-      <div className={`px-5 ${pad} text-center`}>
-        <span className="font-sans text-[11px] font-bold tracking-[0.08em] text-text-dim animate-pulse">
-          LOADING...
-        </span>
+      <div
+        className={`px-5 ${pad} flex flex-col items-center gap-2`}
+        role="status"
+        aria-label="Loading"
+      >
+        <Skeleton className="h-3 w-28" />
+        <Skeleton className="h-3 w-40" />
       </div>
     );
   }

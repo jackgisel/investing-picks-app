@@ -80,7 +80,7 @@ export function PositionsClosed() {
   return (
     <div className="pt-4">
       <div className="data-panel">
-        <PanelHeader label="Closed picks" tone="lilac">
+        <PanelHeader label="Closed picks" tone="mint">
           <span className="font-mono text-[10px] text-text-dim">
             {isPending || isError ? "—" : `${sorted?.length ?? 0} CLOSED`}
           </span>

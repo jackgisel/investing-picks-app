@@ -55,7 +55,7 @@ export function LiveStatus() {
           </div>
         </div>
 
-        <div className="flex items-center gap-6">
+        <div className="grid grid-cols-2 sm:flex sm:items-center gap-x-6 gap-y-4">
           <div>
             <span className="field-label block">
               Days live

@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CategoryTag } from "@/components/ui/category-tag";
-import { type PastelTone } from "@/lib/tones";
 
 export const metadata: Metadata = {
   title: "What we are not",
@@ -19,14 +17,12 @@ export const metadata: Metadata = {
  */
 const NOT: {
   label: string;
-  tone: PastelTone;
   title: string;
   body: string;
   instead: string;
 }[] = [
   {
     label: "Not timing",
-    tone: "coral",
     title: "We do not time the market",
     body: "We have no view on where the index goes next quarter, no cash-vs-equities call, and no opinion on whether now is a good moment to be invested. Nobody has demonstrated they can do this reliably, so we do not sell it.",
     instead:
@@ -34,7 +30,6 @@ const NOT: {
   },
   {
     label: "Not prices",
-    tone: "peach",
     title: "We do not call entry and exit points on price",
     body: "No “buy under $40”, no price targets, no stop losses, no support and resistance. A price level is not a reason to own a company, and a thesis that only works below a number was never a thesis about the business.",
     instead:
@@ -42,7 +37,6 @@ const NOT: {
   },
   {
     label: "Not signals",
-    tone: "yellow",
     title: "We do not run an alert service",
     body: "Nothing here is designed to be traded the minute it appears. The book is re-evaluated on a fixed, published cadence — the 1st and 3rd Friday of each month — and there is no urgency premium for acting first.",
     instead:
@@ -50,7 +44,6 @@ const NOT: {
   },
   {
     label: "Not advice",
-    tone: "lilac",
     title: "We are not a broker or a registered adviser",
     body: "We do not know your circumstances, your tax position, or your risk tolerance, and we never tailor anything to them. We hold no client money and execute nothing on your behalf.",
     instead:
@@ -62,7 +55,7 @@ export default function WhatWeAreNotPage() {
   return (
     <div className="container-op py-20 sm:py-24">
       <div className="max-w-[680px]">
-        <p className="section-label section-label-coral">What we are not</p>
+        <p className="section-label">What we are not</p>
         <h1 className="section-title">
           Most of what people expect from a stock site, we don&apos;t do.
         </h1>
@@ -77,9 +70,9 @@ export default function WhatWeAreNotPage() {
       <div className="mt-14 sm:mt-16 grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-12 max-w-[980px]">
         {NOT.map((n) => (
           <div key={n.title}>
-            <CategoryTag tone={n.tone} className="mb-4">
+            <p className="mb-4 font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">
               {n.label}
-            </CategoryTag>
+            </p>
             <h2 className="font-sans text-[17px] sm:text-[18px] font-bold mb-2.5 tracking-tight">
               {n.title}
             </h2>

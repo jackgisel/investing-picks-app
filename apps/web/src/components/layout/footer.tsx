@@ -18,7 +18,7 @@ export function Footer() {
               <p className="font-sans text-[11px] font-bold tracking-[0.16em] uppercase mb-4 flex items-center gap-2.5">
                 <span
                   aria-hidden
-                  className="h-1 w-5 rounded-full bg-accent-yellow shrink-0"
+                  className="h-1 w-5 rounded-full bg-border-strong shrink-0"
                 />
                 Links
               </p>
@@ -69,7 +69,7 @@ export function Footer() {
               <p className="font-sans text-[11px] font-bold tracking-[0.16em] uppercase mb-4 flex items-center gap-2.5">
                 <span
                   aria-hidden
-                  className="h-1 w-5 rounded-full bg-accent-cyan shrink-0"
+                  className="h-1 w-5 rounded-full bg-border-strong shrink-0"
                 />
                 Legal
               </p>

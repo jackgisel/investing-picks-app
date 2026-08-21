@@ -45,7 +45,7 @@ export default function ClaimAdminPage() {
   return (
     <div className="page-measure space-y-6">
       <header>
-        <p className="panel-label panel-label-coral mb-2">
+        <p className="panel-label mb-2">
           Bootstrap
         </p>
         <h1 className="page-title">Claim admin</h1>
@@ -71,7 +71,7 @@ export default function ClaimAdminPage() {
       ) : (
         <form onSubmit={submit} className="data-card space-y-4">
           <label className="block">
-            <span className="panel-label panel-label-coral">
+            <span className="panel-label">
               Bootstrap token
             </span>
             <input

@@ -1,19 +1,15 @@
 import { BACKTEST } from "@/lib/constants";
-import { CategoryTag } from "@/components/ui/category-tag";
-import { TONE_BG, TONE_BORDER, type PastelTone } from "@/lib/tones";
 
 const PILLARS: {
   num: string;
   title: string;
   short: string;
   description: string;
-  tone: PastelTone;
 }[] = [
   {
     num: "01",
     title: "Value over noise",
     short: "VALUE",
-    tone: "yellow",
     description:
       "We buy businesses, not tickers. Every pick starts with durable economics — margins, cash flow, balance sheet strength, and a moat that can survive a bad year.",
   },
@@ -21,7 +17,6 @@ const PILLARS: {
     num: "02",
     title: "Market cycles matter",
     short: "CYCLES",
-    tone: "peach",
     description:
       "The same company can be a buy or a pass depending on where we are in the cycle. Sector rotation, macro regimes, and valuation context come before position size.",
   },
@@ -29,7 +24,6 @@ const PILLARS: {
     num: "03",
     title: "Fundamentals first",
     short: "FUNDAMENTALS",
-    tone: "lilac",
     description:
       "Revenue quality, earnings revisions, and financial health drive every decision. We look for what the market hasn't priced in yet — with evidence behind every claim.",
   },
@@ -37,7 +31,6 @@ const PILLARS: {
     num: "04",
     title: "Conviction with guardrails",
     short: "CONVICTION",
-    tone: "mint",
     description:
       "We hold with intention, but we don't ignore risk. Sector limits, drawdown controls, and sizing keep the book disciplined — so one bad idea can't undo years of research.",
   },
@@ -52,7 +45,7 @@ export function Strategy() {
       <div className="container-op relative py-20 sm:py-24">
         <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-14 lg:gap-20 items-end mb-14 sm:mb-16">
           <div>
-            <p className="section-label section-label-cyan">Our strategy</p>
+            <p className="section-label">Our strategy</p>
             <h2 className="section-title text-[32px] sm:text-[40px] leading-tight max-w-[520px]">
               Value investing for real market cycles.
             </h2>
@@ -72,11 +65,9 @@ export function Strategy() {
                 {PILLARS.map((pillar) => (
                   <div
                     key={pillar.num}
-                    className={`rounded-lg border bg-bg-secondary/30 p-4 sm:p-5 ${TONE_BORDER[pillar.tone]}`}
+                    className="rounded-lg border border-border bg-bg-secondary/30 p-4 sm:p-5"
                   >
-                    <span
-                      className={`inline-block h-2 w-2 rounded-full mb-3 ${TONE_BG[pillar.tone]}`}
-                    />
+                    <span className="inline-block h-2 w-2 rounded-full mb-3 bg-border-strong" />
                     <p className="font-mono text-[10px] text-text-dim tracking-wider">
                       {pillar.num}
                     </p>
@@ -94,17 +85,15 @@ export function Strategy() {
           {PILLARS.map((pillar) => (
             <li
               key={pillar.title}
-              className={`grid grid-cols-1 sm:grid-cols-[56px_minmax(0,200px)_minmax(0,1fr)] gap-4 sm:gap-8 py-7 sm:py-8 items-start border-l-2 pl-5 sm:pl-6 ${
-                TONE_BORDER[pillar.tone]
-              }`}
+              className="grid grid-cols-1 sm:grid-cols-[56px_minmax(0,200px)_minmax(0,1fr)] gap-4 sm:gap-8 py-7 sm:py-8 items-start border-l-2 border-border pl-5 sm:pl-6"
             >
               <span className="font-mono text-[12px] font-bold text-text-dim tracking-wider pt-1">
                 {pillar.num}
               </span>
               <div>
-                <CategoryTag tone={pillar.tone} className="mb-0">
+                <span className="font-sans text-[11px] font-bold tracking-[0.12em] uppercase text-text-dim">
                   {pillar.short}
-                </CategoryTag>
+                </span>
                 <h3 className="font-sans text-[17px] font-bold mt-3 tracking-tight sm:hidden">
                   {pillar.title}
                 </h3>

@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { buildPicksComparison, useChart } from "@/lib/hooks/use-chart";
 import { DataState, resolveDataState } from "@/components/ui/data-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   BenchmarkBasisNote,
   PicksBenchmarkChart,
@@ -38,9 +39,13 @@ export function PerformanceChart({ compact = false }: { compact?: boolean }) {
   if (isPending) {
     return (
       <div
-        className={`data-card ${compact ? "h-56" : "h-80"} flex items-center justify-center`}
+        className={`data-card ${compact ? "h-56" : "h-80"} flex flex-col justify-end gap-3 p-5`}
+        role="status"
+        aria-label="Loading chart"
       >
-        <span className="field-label animate-pulse">Loading chart data…</span>
+        <Skeleton className="h-3 w-40" />
+        <Skeleton className="h-8 w-28" />
+        <Skeleton className="h-full w-full" />
       </div>
     );
   }

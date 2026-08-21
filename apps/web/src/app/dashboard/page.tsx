@@ -157,7 +157,7 @@ export default function DashboardPage() {
               label="POSITIONS"
               value={portfolio ? portfolio.position_count.toString() : "—"}
               icon={Layers}
-              tone="cyan"
+              tone="mint"
               loading={strategyQuery.isPending}
             />
             {/* Reads "—" until there are exits. Zero closed positions is "no
@@ -171,14 +171,14 @@ export default function DashboardPage() {
                   : `${winRate.wins} / ${winRate.total}`
               }
               icon={Trophy}
-              tone="yellow"
+              tone="mint"
               loading={closedQuery.isPending}
             />
             <StatTile
               label="DAYS LIVE"
               value={days.toString()}
               icon={Activity}
-              tone="lilac"
+              tone="mint"
               loading={strategyQuery.isPending}
             />
           </div>
@@ -211,10 +211,9 @@ export default function DashboardPage() {
 
           <InsightsCard holdings={holdings} />
 
-          {/* Recent picks */}
           <div className="data-panel">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-              <span className="panel-label">
+              <span className="panel-label panel-label-mint">
                 RECENT PICKS
               </span>
               <Link
@@ -235,58 +234,57 @@ export default function DashboardPage() {
                   emptyMessage="The next pick lands on the biweekly evaluation. It will show up here first."
                 />
               ) : (
-                recentPicks?.map((p, i) => {
-                  return (
-                    <div
-                      key={`${p.ticker}-${i}`}
-                      className="grid grid-cols-2 sm:grid-cols-3 items-center px-5 py-4 hover:bg-bg-tertiary/50 transition-colors gap-2"
-                    >
+                recentPicks?.map((p, i) => (
+                  <div
+                    key={`${p.ticker}-${i}`}
+                    className="flex items-center justify-between gap-3 px-5 py-4 hover:bg-bg-tertiary/50 transition-colors"
+                  >
+                    <span className="flex min-w-0 flex-col sm:flex-row sm:items-center sm:gap-3">
                       <span className="font-mono text-[14px] font-semibold">
                         {p.ticker}
                       </span>
                       <span className="font-mono text-[11px] text-text-dim">
                         Entered {p.entry_date}
                       </span>
-                      <span
-                        className={`font-mono text-[12px] font-semibold text-right ${pnlClass(
-                          p.pnl_pct,
-                        )}`}
-                      >
-                        {formatPctOrDash(p.pnl_pct)}
-                      </span>
-                    </div>
-                  );
-                })
+                    </span>
+                    <span
+                      className={`shrink-0 font-mono text-[12px] font-semibold tabular-nums ${pnlClass(
+                        p.pnl_pct,
+                      )}`}
+                    >
+                      {formatPctOrDash(p.pnl_pct)}
+                    </span>
+                  </div>
+                ))
               )}
             </div>
           </div>
+
+          <Link
+            href="/dashboard/strategy"
+            className="block data-card hover:bg-bg-tertiary transition-colors group"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="panel-label block mb-1">
+                  METHODOLOGY
+                </span>
+                <p className="font-sans text-[14px] font-semibold">
+                  How the strategy works &middot; Backtrained model data sheet
+                </p>
+                <p className="font-sans text-[12px] text-text-muted mt-1">
+                  Everything above is live performance. The backtrained model is
+                  documented separately so simulation is never mistaken for it.
+                </p>
+              </div>
+              <ArrowUpRight
+                size={18}
+                className="text-text-dim group-hover:opacity-70 transition-colors"
+              />
+            </div>
+          </Link>
         </>
       )}
-
-      {/* Curiosity nudge to Strategy page */}
-      <Link
-        href="/dashboard/strategy"
-        className="block data-card hover:bg-bg-tertiary transition-colors group"
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <span className="panel-label block mb-1">
-              METHODOLOGY
-            </span>
-            <p className="font-sans text-[14px] font-semibold">
-              How the strategy works &middot; Backtrained model data sheet
-            </p>
-            <p className="font-sans text-[12px] text-text-muted mt-1">
-              Everything above is live performance. The backtrained model is
-              documented separately so simulation is never mistaken for it.
-            </p>
-          </div>
-          <ArrowUpRight
-            size={18}
-            className="text-text-dim group-hover:opacity-70 transition-colors"
-          />
-        </div>
-      </Link>
     </div>
   );
 }
@@ -306,7 +304,7 @@ function HoldingsCard({
   return (
     <div className="data-panel">
       <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-        <span className="panel-label">
+        <span className="panel-label panel-label-mint">
           {title}
         </span>
         <Link

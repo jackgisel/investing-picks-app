@@ -23,7 +23,7 @@ export default async function DashboardLayout({
 
   return (
     <DashboardAdminProvider isAdmin={isAdmin}>
-      <div className="flex min-h-[calc(100vh-72px)] bg-bg">
+      <div className="flex min-h-screen bg-bg">
         <Sidebar isAdmin={isAdmin} />
         <div className="flex-1 min-w-0">
           <MobileNav isAdmin={isAdmin} />

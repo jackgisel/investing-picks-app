@@ -27,7 +27,7 @@ export default function DashboardError({
     <div className="space-y-5">
       <h1 className="page-title">Something went wrong</h1>
       <div className="data-card flex flex-col items-start gap-3 py-8">
-        <p className="panel-label panel-label-coral">Render error</p>
+        <p className="panel-label">Render error</p>
         <p className="max-w-[520px] font-sans text-[14px] leading-relaxed text-text-muted">
           This page failed to render. Your data is unaffected — the rest of the
           dashboard still works, and reloading usually clears it.

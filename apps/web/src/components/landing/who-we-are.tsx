@@ -81,7 +81,7 @@ export function WhoWeAre() {
 
       <div className="container-op relative py-20 sm:py-24">
         <div className="max-w-[640px] mb-14 sm:mb-16">
-          <p className="section-label section-label-mint">Who we are</p>
+          <p className="section-label">Who we are</p>
           <h2 className="section-title">
             A research firm with a public track record.
           </h2>

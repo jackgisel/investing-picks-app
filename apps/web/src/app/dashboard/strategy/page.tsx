@@ -135,7 +135,7 @@ export default function StrategyPage() {
               marketing site. Simulated; never blended with live figures. */}
           <section className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="panel-label panel-label-mint">
+              <p className="panel-label panel-label-yellow">
                 The backtrained model
               </p>
               <span className="badge bg-bg-tertiary text-text-muted">
@@ -219,7 +219,7 @@ export default function StrategyPage() {
 
           {/* What we measure */}
           <section className="space-y-3">
-            <p className="panel-label panel-label-mint">
+            <p className="panel-label">
               What we score, and why
             </p>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -244,7 +244,7 @@ export default function StrategyPage() {
 
           {/* The differentiator */}
           <section className="space-y-3">
-            <p className="panel-label panel-label-cyan">
+            <p className="panel-label">
               Everything is judged against its own sector
             </p>
             <SectorRelativeExample />
@@ -252,13 +252,13 @@ export default function StrategyPage() {
 
           {/* How a pick is chosen */}
           <section className="space-y-3">
-            <p className="panel-label panel-label-lilac">How a pick is chosen</p>
+            <p className="panel-label">How a pick is chosen</p>
             <PickFunnel />
           </section>
 
           {/* What happens after */}
           <section className="space-y-3">
-            <p className="panel-label panel-label-peach">
+            <p className="panel-label">
               What happens once we own it
             </p>
             <PositionLifecycle
@@ -283,7 +283,7 @@ export default function StrategyPage() {
 
           {/* Risk contract */}
           <section className="space-y-3">
-            <p className="panel-label panel-label-coral">The risk contract</p>
+            <p className="panel-label">The risk contract</p>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="data-card">
                 <p className="field-label">SECTOR CEILING</p>

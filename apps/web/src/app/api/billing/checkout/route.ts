@@ -24,6 +24,18 @@ import {
 } from "@/lib/subscription";
 
 export async function POST(request: NextRequest) {
+  try {
+    return await createCheckoutResponse(request);
+  } catch (error) {
+    console.error("Checkout failed:", error);
+    return NextResponse.json(
+      { error: "Checkout could not be started" },
+      { status: 502 },
+    );
+  }
+}
+
+async function createCheckoutResponse(request: NextRequest) {
   const appUrl = configuredAppUrl();
   const stripe = getStripe();
   const annualPriceId = process.env.STRIPE_ANNUAL_PRICE_ID?.trim();

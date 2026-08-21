@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { requestBillingUrl } from "@/lib/billing-client";
 
 export function SubscribeRedirect() {
   const [error, setError] = useState<string | null>(null);
@@ -10,18 +11,11 @@ export function SubscribeRedirect() {
     const controller = new AbortController();
     void (async () => {
       try {
-        const response = await fetch("/api/billing/checkout", {
-          method: "POST",
+        const url = await requestBillingUrl("/api/billing/checkout", {
           signal: controller.signal,
+          fallbackError: "Checkout could not be started",
         });
-        const body = (await response.json()) as {
-          url?: string;
-          error?: string;
-        };
-        if (!response.ok || !body.url) {
-          throw new Error(body.error || "Checkout could not be started");
-        }
-        window.location.assign(body.url);
+        window.location.assign(url);
       } catch (reason) {
         if (!controller.signal.aborted) {
           setError(

@@ -247,6 +247,36 @@ describe("billing routes", () => {
     );
   });
 
+  it("returns JSON when Stripe rejects checkout creation", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    state.stripe.checkout.sessions.create.mockRejectedValue(
+      new Error("No such coupon: coupon_founders"),
+    );
+
+    const response = await checkout(request());
+
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({
+      error: "Checkout could not be started",
+    });
+    spy.mockRestore();
+  });
+
+  it("returns JSON when Stripe rejects portal creation", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    state.stripe.billingPortal.sessions.create.mockRejectedValue(
+      new Error("No such customer"),
+    );
+
+    const response = await portal(request());
+
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({
+      error: "Billing could not be opened",
+    });
+    spy.mockRestore();
+  });
+
   it("opens the portal with the configured return URL", async () => {
     const response = await portal(request());
     expect(response.status).toBe(200);

@@ -9,6 +9,18 @@ import { getStripe } from "@/lib/stripe";
 import { getSubscriptionRecord } from "@/lib/subscription";
 
 export async function POST(request: NextRequest) {
+  try {
+    return await createPortalResponse(request);
+  } catch (error) {
+    console.error("Billing portal failed:", error);
+    return NextResponse.json(
+      { error: "Billing could not be opened" },
+      { status: 502 },
+    );
+  }
+}
+
+async function createPortalResponse(request: NextRequest) {
   const appUrl = configuredAppUrl();
   const stripe = getStripe();
   if (!appUrl || !stripe) {

@@ -17,6 +17,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { DisplayNameForm } from "@/components/comments/display-name-form";
+import { requestBillingUrl, type BillingPath } from "@/lib/billing-client";
 
 type NotificationPrefs = {
   newPicks: boolean;
@@ -452,19 +453,11 @@ function SubscriptionPanel() {
     };
   }, []);
 
-  async function openBilling(path: "/api/billing/checkout" | "/api/billing/portal") {
+  async function openBilling(path: BillingPath) {
     setBillingLoading(true);
     setBillingError(null);
     try {
-      const response = await fetch(path, { method: "POST" });
-      const body = (await response.json()) as {
-        url?: string;
-        error?: string;
-      };
-      if (!response.ok || !body.url) {
-        throw new Error(body.error || "Billing could not be opened");
-      }
-      window.location.assign(body.url);
+      window.location.assign(await requestBillingUrl(path));
     } catch (error) {
       setBillingError(
         error instanceof Error ? error.message : "Billing could not be opened",

@@ -195,15 +195,19 @@ describe("billing routes", () => {
 
   it("applies the founders coupon and configured tax behavior with trusted redirects", async () => {
     await checkout(request());
-    expect(state.stripe.checkout.sessions.create).toHaveBeenCalledWith(
+    const [params, options] = state.stripe.checkout.sessions.create.mock.calls[0];
+    expect(params).toEqual(
       expect.objectContaining({
         discounts: [{ coupon: "coupon_founders" }],
-        automatic_tax: { enabled: false },
         success_url: "https://outpick.test/welcome?checkout=success",
         cancel_url: "https://outpick.test/subscribe?checkout=canceled",
       }),
-      { idempotencyKey: "outpick-checkout-user_1-founders" },
     );
+    expect(params).not.toHaveProperty("automatic_tax");
+    expect(params).not.toHaveProperty("customer_update");
+    expect(options).toEqual({
+      idempotencyKey: "outpick-checkout-v2-user_1-founders",
+    });
   });
 
   it("enables automatic tax only when explicitly configured", async () => {
@@ -227,7 +231,7 @@ describe("billing routes", () => {
           founders_offer: "true",
         }),
       }),
-      { idempotencyKey: "outpick-checkout-user_1-production_test" },
+      { idempotencyKey: "outpick-checkout-v2-user_1-production_test" },
     );
   });
 

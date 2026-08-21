@@ -175,7 +175,10 @@ async function createCheckoutResponse(request: NextRequest) {
       // Checkout Sessions default to a 24-hour lifetime, matching Stripe's
       // minimum idempotency retention. Repeated or parallel attempts therefore
       // cannot create two founders-discounted subscriptions.
-      idempotencyKey: `outpick-checkout-${user.id}-${offer}`,
+      // v2: payload no longer sends automatic_tax[enabled]=false, which
+      // Stripe Managed Payments rejects. The previous key would replay that
+      // 400 for 24 hours for anyone who already hit it.
+      idempotencyKey: `outpick-checkout-v2-${user.id}-${offer}`,
     },
   );
   if (!session.url) {

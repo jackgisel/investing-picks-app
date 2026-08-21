@@ -41,9 +41,18 @@ export function buildCheckoutParams(args: {
     ...(args.couponId
       ? { discounts: [{ coupon: args.couponId }] }
       : {}),
-    automatic_tax: { enabled: args.automaticTax },
+    // Never send `automatic_tax: { enabled: false }`. Accounts with Stripe
+    // Managed Payments (the Dashboard default) reject that combination, which
+    // is what blocked /subscribe after sign-up. Omitting the field lets the
+    // account default apply; Managed Payments then handles tax itself.
+    // `customer_update` is also unsupported on Managed Payments sessions.
+    ...(args.automaticTax
+      ? {
+          automatic_tax: { enabled: true as const },
+          customer_update: { address: "auto" as const, name: "auto" as const },
+        }
+      : {}),
     billing_address_collection: "required",
-    customer_update: { address: "auto", name: "auto" },
     metadata,
     subscription_data: { metadata },
     success_url: new URL("/welcome?checkout=success", args.appUrl).toString(),

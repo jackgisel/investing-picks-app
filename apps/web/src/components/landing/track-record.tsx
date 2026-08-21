@@ -107,8 +107,6 @@ export function TrackRecord() {
           </div>
         </div>
 
-        </div>
-
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10 mb-12">
           {/* Live panel — editorial ledger */}
           <div className="relative rounded-soft border border-border overflow-hidden bg-bg">

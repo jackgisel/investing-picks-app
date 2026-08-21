@@ -612,3 +612,60 @@ def test_refresh_marks_survives_a_failing_profile_lookup(db):
 
     assert refresh_marks(db, AngryFMP()) >= 1
     assert db.get(Stock, "AAA").last_price == 11.0
+
+
+def test_refresh_marks_backfills_a_short_comparison_etf(db):
+    """QQQ had five daily marks and no history; Saturday's job was six days away."""
+    from app.services.benchmarks import BENCHMARKS
+
+    class HistoryFMP(FakeFMP):
+        def __init__(self):
+            super().__init__({t: 100.0 for t in BENCHMARKS})
+            self.history_asked: list[str] = []
+
+        def historical_prices(self, ticker, from_date=None):
+            self.history_asked.append(ticker)
+            start = from_date or (date.today() - timedelta(days=430))
+            out = []
+            day = start
+            while day < date.today():
+                if day.weekday() < 5:
+                    out.append({"date": day.isoformat(), "close": 500.0})
+                day += timedelta(days=1)
+            return out
+
+    fmp = HistoryFMP()
+    refresh_marks(db, fmp)
+
+    assert "QQQ" in fmp.history_asked
+    qqq_bars = db.query(PriceBar).filter(PriceBar.ticker == "QQQ").count()
+    assert qqq_bars > 50, "daily marks still left QQQ with only today's quote"
+
+
+def test_refresh_marks_does_not_refetch_a_covered_benchmark(db):
+    """A full QQQ series is the daily-marks job's to keep fresh, not to re-download."""
+    from app.services.benchmarks import BENCHMARKS
+
+    for i in range(200):
+        db.add(
+            PriceBar(
+                ticker="QQQ",
+                date=date.today() - timedelta(days=i + 1),
+                close=500.0,
+            )
+        )
+    db.commit()
+
+    class HistoryFMP(FakeFMP):
+        def __init__(self):
+            super().__init__({t: 100.0 for t in BENCHMARKS})
+            self.history_asked: list[str] = []
+
+        def historical_prices(self, ticker, from_date=None):
+            self.history_asked.append(ticker)
+            return []
+
+    fmp = HistoryFMP()
+    refresh_marks(db, fmp)
+    assert "QQQ" not in fmp.history_asked
+    assert set(fmp.history_asked) <= set(BENCHMARKS)

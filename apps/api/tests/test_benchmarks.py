@@ -158,6 +158,44 @@ def test_published_benchmarks_include_nasdaq():
     assert list(BENCHMARKS)[:2] == ["SPY", "QQQ"]
 
 
+def test_a_benchmark_that_cannot_price_the_first_pick_is_omitted(db, portfolio):
+    """QQQ with only this week's marks printed -100% on the landing chart.
+
+    Daily quotes landed, so len(closes) >= 2 passed, but every April cash flow
+    was unmappable. units stayed 0 while deployed stayed the full book.
+    """
+    _buy(db, portfolio, "AAA", date(2026, 4, 10), 1000.0, 100.0)
+    _buy(db, portfolio, "BBB", date(2026, 8, 21), 1000.0, 50.0)
+    _bar(db, "AAA", date(2026, 4, 10), 100.0)
+    _bar(db, "AAA", date(2026, 8, 21), 110.0)
+    for d, px in (
+        (date(2026, 8, 17), 0.01),
+        (date(2026, 8, 18), 0.01),
+        (date(2026, 8, 19), 0.01),
+        (date(2026, 8, 20), 0.01),
+        (date(2026, 8, 21), 550.0),
+    ):
+        _bar(db, "QQQ", d, px)
+    db.commit()
+
+    out = benchmark_series(db, portfolio.id, {"QQQ": "Nasdaq-100"})
+    assert "QQQ" not in out["series"]
+    assert "QQQ" not in out["labels"]
+
+
+def test_a_benchmark_priced_from_the_first_pick_is_published(db, portfolio):
+    """Control: the same book with QQQ history back to entry is a real series."""
+    _buy(db, portfolio, "AAA", date(2026, 4, 10), 1000.0, 100.0)
+    _bar(db, "AAA", date(2026, 4, 10), 100.0)
+    _bar(db, "AAA", date(2026, 8, 21), 110.0)
+    _bar(db, "QQQ", date(2026, 4, 10), 500.0)
+    _bar(db, "QQQ", date(2026, 8, 21), 550.0)
+    db.commit()
+
+    out = benchmark_series(db, portfolio.id, {"QQQ": "Nasdaq-100"})
+    assert out["series"]["QQQ"][-1]["return_pct"] == pytest.approx(10.0, abs=0.01)
+
+
 def test_entry_date_beats_trade_timestamp(db, portfolio):
     """The bug that collapsed the chart to a single point.
 

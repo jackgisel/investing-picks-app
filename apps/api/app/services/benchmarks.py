@@ -112,7 +112,7 @@ def deployment_schedule(db: Session, portfolio_id: int = 1) -> list[CashFlow]:
 
 def _closes(db: Session, ticker: str) -> dict[date, float]:
     rows = db.query(PriceBar).filter(PriceBar.ticker == ticker).all()
-    return {r.date: r.close for r in rows if r.close}
+    return {r.date: r.close for r in rows if r.close and r.close > 0}
 
 
 def _price_on_or_before(closes: dict[date, float], sessions: list[date], when: date) -> float | None:
@@ -152,9 +152,20 @@ def benchmark_series(
             log.warning("No usable price history for benchmark %s; omitting", ticker)
             continue
         sessions = sorted(closes)
+        first_flow = min(f.when for f in flows)
+        # A handful of recent daily marks is enough to pass `len(closes) >= 2`
+        # but not enough to price an April entry. QQQ shipped that way: units
+        # stayed 0 while the denominator was the full book, so Nasdaq-100
+        # printed -100% (then -90.91% the day a new pick finally mapped).
+        if _price_on_or_before(closes, sessions, first_flow) is None:
+            log.warning(
+                "Benchmark %s has no price on or before first pick %s; omitting",
+                ticker,
+                first_flow,
+            )
+            continue
 
         # Convert each cash flow into benchmark units bought at that date's close.
-        units = 0.0
         committed = 0.0
         lots: list[tuple[date, float]] = []  # (entry, units)
         for f in flows:
@@ -174,7 +185,6 @@ def benchmark_series(
             continue
 
         rows: list[dict] = []
-        first_flow = min(f.when for f in flows)
         for session in sessions:
             if session < first_flow:
                 continue

@@ -194,3 +194,26 @@ def test_a_comparison_etf_without_a_stock_row_is_still_covered(db, portfolio):
     assert "QQQ" in fmp.asked
     assert "VTI" in fmp.asked
     assert "SPY" in fmp.asked
+
+
+def test_backfill_fetches_benchmarks_before_the_universe_budget_runs_out(db, portfolio):
+    """A newly added comparison ETF must not sit behind hundreds of stale names."""
+    for i in range(8):
+        db.add(Stock(ticker=f"U{i}", market_cap=1e9 + i, is_active=True))
+    db.commit()
+
+    fmp = _StubFMP()
+    backfill_price_history(db, fmp, min_bars=20, max_tickers=len(BENCHMARKS))
+
+    assert set(fmp.asked) == set(BENCHMARKS)
+    assert all(not t.startswith("U") for t in fmp.asked)
+
+
+def test_backfill_drops_a_non_positive_close(db, portfolio):
+    class ZeroFMP:
+        def historical_prices(self, ticker, from_date=None):
+            day = (TODAY - timedelta(days=2)).isoformat()
+            return [{"date": day, "close": 0, "adjClose": 0}]
+
+    backfill_price_history(db, ZeroFMP(), min_bars=20)
+    assert db.query(PriceBar).count() == 0

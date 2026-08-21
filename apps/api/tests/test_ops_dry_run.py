@@ -56,6 +56,7 @@ def test_dry_run_returns_universe_diagnostics(client):
     assert universe["revisions_gate"] == "B+"
     assert universe["scored_tickers"] == 1
     assert universe["held_with_scores"] == 1
+    assert universe["held_unscored"] == []
     # The only score grades F on revisions, so nothing clears a B+ gate.
     assert universe["passing_revisions_gate"] == 0
 
@@ -67,6 +68,16 @@ def test_dry_run_counts_scores_that_clear_the_gate(client, db):
 
     universe = client.get("/api/ops/dry-run", headers=OPS_HEADERS).json()["universe"]
     assert universe["passing_revisions_gate"] == 1
+
+
+def test_dry_run_names_an_unscored_holding(client, db, portfolio):
+    """An open position missing from the latest score run must be named."""
+    make_position(db, portfolio, "WDC", shares=10, avg_cost=10.0, current_price=12.0)
+
+    universe = client.get("/api/ops/dry-run", headers=OPS_HEADERS).json()["universe"]
+    assert universe["held_with_scores"] == 1
+    assert [row["ticker"] for row in universe["held_unscored"]] == ["WDC"]
+    assert universe["held_unscored"][0]["reason"]
 
 
 def test_dry_run_writes_nothing(client, db):

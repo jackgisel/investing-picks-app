@@ -179,6 +179,25 @@ export default function OpsEvaluationsPage() {
               {" · "}
               {dry.data.signals?.length ?? 0} signals
             </p>
+            {(dry.data.universe?.held_unscored || []).length > 0 && (
+              <div className="rounded-soft border border-accent-red/40 bg-accent-red/5 p-3 space-y-1">
+                <p className="text-sm text-accent-red">
+                  Unrated holdings. Sell rules skip these names.
+                </p>
+                <ul className="space-y-1">
+                  {dry.data.universe.held_unscored.map(
+                    (row: { ticker: string; reason: string }) => (
+                      <li key={row.ticker} className="text-sm flex gap-3">
+                        <span className="font-mono text-text w-16 shrink-0">
+                          {row.ticker}
+                        </span>
+                        <span className="text-text-muted">{row.reason}</span>
+                      </li>
+                    ),
+                  )}
+                </ul>
+              </div>
+            )}
             <ul className="space-y-2">
               {(dry.data.signals || []).map((s: { action: string; ticker: string; reason: string }, i: number) => (
                 <li key={i} className="text-sm flex gap-3">

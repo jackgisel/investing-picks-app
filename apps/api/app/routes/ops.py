@@ -639,6 +639,16 @@ def dry_run_preview(simulate: bool = False, db: Session = Depends(get_db)):
     # any holding with no score and `_buy_signals` iterates the ranked list, so
     # an unscored universe yields zero signals and zero explanation.
     scored_held = sum(1 for t in state.positions if t in scores)
+    held_unscored: list[dict] = []
+    try:
+        from worker.services.scoring import diagnose_unscored_holdings
+
+        held_unscored = [
+            {"ticker": row.ticker, "reason": row.reason}
+            for row in diagnose_unscored_holdings(db, params)
+        ]
+    except Exception as e:  # pragma: no cover - diagnostic must never 500
+        log.warning("Could not diagnose unrated holdings: %s", e)
     return {
         "diagnosis": _universe_diagnosis(db, len(scores)),
         "simulation": simulation,
@@ -653,6 +663,7 @@ def dry_run_preview(simulate: bool = False, db: Session = Depends(get_db)):
             "scored_tickers": len(scores),
             "ranked_candidates": len(ranked),
             "held_with_scores": scored_held,
+            "held_unscored": held_unscored,
             # Estimate revisions need two fundamentals snapshots spanning the
             # lookback, so on a fresh database this factor is null for the whole
             # universe, grades "F", and fails min_revisions_grade — blocking

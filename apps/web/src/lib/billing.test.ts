@@ -152,9 +152,7 @@ describe("Checkout parameters and browser origin", () => {
       customer: "cus_1",
       line_items: [{ price: "price_annual", quantity: 1 }],
       discounts: [{ coupon: "coupon_founders" }],
-      automatic_tax: { enabled: false },
       billing_address_collection: "required",
-      customer_update: { address: "auto", name: "auto" },
       metadata: {
         outpick_user_id: "user_1",
         founders_offer: "true",
@@ -170,6 +168,22 @@ describe("Checkout parameters and browser origin", () => {
       success_url: "https://outpick.xyz/welcome?checkout=success",
       cancel_url: "https://outpick.xyz/subscribe?checkout=canceled",
     });
+    expect(params).not.toHaveProperty("automatic_tax");
+    expect(params).not.toHaveProperty("customer_update");
+  });
+
+  it("opts into classic Stripe Tax only when asked", () => {
+    const params = buildCheckoutParams({
+      appUrl,
+      userId: "user_1",
+      customerId: "cus_1",
+      annualPriceId: "price_annual",
+      couponId: null,
+      offer: "standard",
+      automaticTax: true,
+    });
+    expect(params.automatic_tax).toEqual({ enabled: true });
+    expect(params.customer_update).toEqual({ address: "auto", name: "auto" });
   });
 
   it("omits discounts after founders eligibility ends", () => {

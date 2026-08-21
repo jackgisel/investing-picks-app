@@ -13,7 +13,9 @@ export async function GET() {
 
   await ensureMigrations();
   return NextResponse.json({
-    insights: await listInsights({ includeUnpublished: true }),
+    insights: (await listInsights({ includeUnpublished: true })).filter(
+      (i) => i.postType !== "weekly_review",
+    ),
   });
 }
 

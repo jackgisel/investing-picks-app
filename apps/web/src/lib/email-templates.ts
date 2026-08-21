@@ -523,21 +523,21 @@ export type WeeklyMove = {
   when: string;
 };
 
+/* --------------------------- Weekly review -------------------------------- */
+
 /**
- * The Sunday digest.
+ * The Friday member email: the written review, not the retired stats digest.
  *
- * Percentages only, and no position sizes — the same rule the research notes
- * and every published surface follow. Returns are what matter; absolute capital
- * is the reader's own business, and a digest is not where that changes.
+ * Same bones as the pick alert — eyebrow, title, lede, button to the note —
+ * without a ticker at display size, because this is a book-level piece.
  */
-export function renderWeeklySummaryEmail(args: {
+export function renderWeeklyReviewEmail(args: {
   recipientName: string | null;
-  /** e.g. "3–9 August 2026". */
-  periodLabel: string;
-  stats: PickStat[];
-  moves: WeeklyMove[];
-  dashboardUrl: string;
+  title: string;
+  lede: string;
+  articleUrl: string;
   siteUrl: string;
+  periodLabel?: string;
   unsubscribeUrl?: string;
   banner?: string;
 }): string {
@@ -545,66 +545,59 @@ export function renderWeeklySummaryEmail(args: {
     ? `Hi ${escapeHtml(args.recipientName.split(" ")[0])},`
     : "Hi there,";
 
-  const stats = args.stats.filter((s) => s.value);
-  const statCells = stats
-    .map((s) => {
-      const colour =
-        s.direction === "up" ? GREEN : s.direction === "down" ? RED : TEXT;
-      const cls =
-        s.direction === "up" ? "dm-up" : s.direction === "down" ? "dm-down" : "dm-text";
-      return `
-        <td width="${Math.floor(100 / stats.length)}%" style="padding:0 12px 0 0;vertical-align:top;">
-          ${fieldLabel(s.label)}
-          <p class="${cls}" style="margin:0;font-family:${FONT_MONO};font-size:20px;font-weight:600;color:${colour};">${escapeHtml(s.value)}</p>
-        </td>`;
-    })
-    .join("");
-
-  const statBlock = stats.length
-    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 26px 0;"><tr>${statCells}</tr></table>`
-    : "";
-
-  // A week with no trades is the normal case for a biweekly strategy, and
-  // saying so plainly is better than an empty box that reads as a bug.
-  const movesBlock = args.moves.length
-    ? card(`
-        ${fieldLabel(`Moves this week (${args.moves.length})`)}
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-          ${args.moves
-            .map(
-              (m) => `
-            <tr>
-              <td style="padding:7px 0;font-family:${FONT_MONO};font-size:15px;font-weight:600;color:${TEXT};" class="dm-text">${escapeHtml(m.ticker)}</td>
-              <td align="right" style="padding:7px 0;font-family:${FONT_SANS};font-size:13px;color:${TEXT_MUTED};" class="dm-muted">
-                ${escapeHtml(m.action)}${m.when ? ` · ${escapeHtml(m.when)}` : ""}
-              </td>
-            </tr>`,
-            )
-            .join("")}
-        </table>`)
-    : card(`
-        ${fieldLabel("Moves this week")}
-        <p class="dm-muted" style="margin:0;font-family:${FONT_SANS};font-size:14px;color:${TEXT_MUTED};line-height:1.6;">
-          No trades. The strategy evaluates on a fixed cadence and holds through
-          the weeks in between — most weeks look like this one.
-        </p>`);
-
   const body = `
-    ${eyebrow("Weekly summary", "mint")}
-    ${heading(`The week of ${args.periodLabel}`)}
-    ${paragraph(greeting, 22)}
-    ${statBlock}
-    ${movesBlock}
-    ${pillButton(args.dashboardUrl, "Open the dashboard")}
+    ${eyebrow("Weekly review", "mint")}
+    ${heading(args.title)}
+    ${paragraph(greeting, 14)}
+    ${paragraph(escapeHtml(args.lede), 26)}
+    ${pillButton(args.articleUrl, "Read the review")}
+    ${fallbackLink(args.articleUrl)}
   `;
 
   return shell({
-    preview: `Your ${SITE_NAME} week: ${stats[0]?.value ?? "portfolio update"}`,
+    preview: args.title,
     bodyHtml: body,
     siteUrl: args.siteUrl,
     unsubscribe: args.unsubscribeUrl
       ? { url: args.unsubscribeUrl, label: "Unsubscribe" }
       : undefined,
+    banner: args.banner,
+  });
+}
+
+/**
+ * Admin-only: the 10am draft is ready, or noon ran and nobody confirmed.
+ *
+ * Same channel as job-failure mail. Not a mailing list, no unsubscribe.
+ */
+export function renderWeeklyReviewOpsEmail(args: {
+  kind: "ready" | "skipped";
+  periodLabel: string;
+  sendAtLabel: string;
+  opsUrl: string;
+  siteUrl: string;
+  banner?: string;
+}): string {
+  const ready = args.kind === "ready";
+  const title = ready
+    ? `Weekly review ready — ${args.periodLabel}`
+    : `Weekly review skipped — ${args.periodLabel}`;
+  const body = `
+    ${eyebrow(ready ? "Draft ready" : "Send skipped", ready ? "mint" : "coral")}
+    ${heading(title)}
+    ${paragraph(
+      ready
+        ? `A draft of this week's portfolio review is waiting. Confirm it before ${escapeHtml(args.sendAtLabel)} and it will publish on Insights and email paid subscribers at noon PT. If you do not confirm, it will not go out.`
+        : `Noon PT passed without a confirm, so this week's review was not published and was not emailed. The draft is still in ops if you want to confirm and send it now.`,
+      24,
+    )}
+    ${pillButton(args.opsUrl, "Open weekly review")}
+  `;
+
+  return shell({
+    preview: title,
+    bodyHtml: body,
+    siteUrl: args.siteUrl,
     banner: args.banner,
   });
 }

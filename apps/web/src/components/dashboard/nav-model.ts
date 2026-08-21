@@ -7,6 +7,7 @@ import {
   FileText,
   Megaphone,
   Wallet,
+  CalendarDays,
   type LucideIcon,
 } from "lucide-react";
 
@@ -73,6 +74,11 @@ const NAV_GROUPS: readonly NavGroup[] = [
         label: "Research notes",
         href: "/dashboard/ops/insights",
         icon: FileText,
+      },
+      {
+        label: "Weekly review",
+        href: "/dashboard/ops/weekly-review",
+        icon: CalendarDays,
       },
       {
         label: "Product updates",

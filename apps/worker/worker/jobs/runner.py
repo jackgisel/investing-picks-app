@@ -119,16 +119,41 @@ def sync_insight_drafts() -> dict:
     )
 
 
-def job_weekly_summary():
-    """Mail the Sunday digest.
+def job_weekly_review_draft():
+    """Ask the web app to draft this week's Friday portfolio review.
 
-    One send per ISO week is enforced by a claim in the web app's
-    `email_dispatch`, not by this schedule — so a redeploy that fires the job
-    twice, or an operator running it by hand, still mails the list once.
+    The web app owns the note, the editor and the Anthropic client. A firing
+    that never lands is picked up by the operator's Draft button or the next
+    Friday; failing the worker process over a model timeout would be worse.
     """
     return _post_to_web_app(
-        "/api/internal/email/weekly-summary", "Weekly summary", 300.0
+        "/api/internal/insights/weekly-review/draft",
+        "Weekly review draft",
+        600.0,
     )
+
+
+def job_weekly_review_publish():
+    """Publish the Friday review if an admin confirmed it.
+
+    Unconfirmed drafts are left alone and the web app emails the admins that
+    the week was skipped. The claim lives on the insight row, so a redeploy
+    that fires this twice still mails the list once.
+    """
+    return _post_to_web_app(
+        "/api/internal/insights/weekly-review/publish",
+        "Weekly review publish",
+        300.0,
+    )
+
+
+def job_weekly_summary():
+    """Alias for operators who still have RUN_JOB_ONCE=weekly_summary.
+
+    The Sunday stats digest is gone. This name now fires the Friday publish
+    path, which no-ops when the week was already sent or never confirmed.
+    """
+    return job_weekly_review_publish()
 
 
 def job_performance_alerts():

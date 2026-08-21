@@ -9,6 +9,7 @@ import { Callout, KeyTakeaway, LI, Lede, P, TLDR, UL } from "@/components/blog/p
 import { getAdminUser } from "@/lib/admin";
 import { getAccess } from "@/lib/api-gate";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
+import { insightCategoryLabel } from "@/lib/insights";
 import { getInsightBySlug } from "@/lib/insights-db";
 import { CompanyLogo } from "@/components/ui/company-logo";
 
@@ -80,17 +81,14 @@ export default async function InsightDetailPage({
   });
   if (!insight) notFound();
 
-  const categoryLabel =
-    insight.postType === "quarterly_review"
-      ? "Quarterly review"
-      : insight.ticker
-        ? `Pick · ${insight.ticker}`
-        : "Pick";
+  const categoryLabel = insightCategoryLabel(insight);
 
   const tone =
-    insight.postType === "quarterly_review"
-      ? "bg-accent-lilac/15"
-      : "bg-accent-yellow/15";
+    insight.postType === "weekly_review"
+      ? "bg-accent-mint/15"
+      : insight.postType === "quarterly_review"
+        ? "bg-accent-lilac/15"
+        : "bg-accent-yellow/15";
 
   const dateLabel = insight.publishedAt ?? insight.createdAt;
 
@@ -171,13 +169,27 @@ export default async function InsightDetailPage({
             be published without it. */}
         <Callout variant="warning" title="Educational disclaimer">
           <P>
-            This note explains why {insight.ticker ?? "this position"} is in the{" "}
-            {SITE_NAME} live portfolio. It is educational research, not a
-            recommendation to buy or sell. See the{" "}
-            <Link href="/dashboard" className="underline">
-              dashboard
-            </Link>{" "}
-            for the live book.
+            {insight.postType === "weekly_review" ? (
+              <>
+                This note is a weekly review of the {SITE_NAME} live portfolio.
+                It is educational research, not a recommendation to buy or sell.
+                See the{" "}
+                <Link href="/dashboard" className="underline">
+                  dashboard
+                </Link>{" "}
+                for the live book.
+              </>
+            ) : (
+              <>
+                This note explains why {insight.ticker ?? "this position"} is in
+                the {SITE_NAME} live portfolio. It is educational research, not a
+                recommendation to buy or sell. See the{" "}
+                <Link href="/dashboard" className="underline">
+                  dashboard
+                </Link>{" "}
+                for the live book.
+              </>
+            )}
           </P>
         </Callout>
 

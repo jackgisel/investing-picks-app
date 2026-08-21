@@ -20,7 +20,7 @@ interface DbInsightRow {
   id: string;
   slug: string;
   ticker: string | null;
-  post_type: "pick" | "quarterly_review";
+  post_type: "pick" | "quarterly_review" | "weekly_review";
   status: InsightStatus;
   title: string | null;
   description: string | null;
@@ -36,13 +36,14 @@ interface DbInsightRow {
   published_at: Date | null;
   email_sent_at: Date | null;
   auto_publish_at: Date | null;
+  confirmed_at: Date | null;
   created_at: Date;
   updated_at: Date;
 }
 
 const META_COLUMNS = `id, slug, ticker, post_type, status, title, description,
   reading_time, tags, author, quarter, published_at, auto_publish_at,
-  created_at, updated_at`;
+  confirmed_at, created_at, updated_at`;
 
 const FULL_COLUMNS = `${META_COLUMNS}, lede, tldr, body_md, key_takeaway,
   generation_error, email_sent_at`;
@@ -63,6 +64,7 @@ function toMeta(r: DbInsightRow): InsightMeta {
     quarter: r.quarter,
     publishedAt: r.published_at ? r.published_at.toISOString() : null,
     autoPublishAt: r.auto_publish_at ? r.auto_publish_at.toISOString() : null,
+    confirmedAt: r.confirmed_at ? r.confirmed_at.toISOString() : null,
     createdAt: r.created_at.toISOString(),
     updatedAt: r.updated_at.toISOString(),
   };
@@ -187,8 +189,12 @@ export async function listPendingInsights(): Promise<InsightMeta[]> {
   const { rows } = await pool.query<DbInsightRow>(
     `SELECT ${META_COLUMNS}
        FROM insight
-      WHERE status = 'pending'
-         OR (status = 'failed' AND generation_attempts < $1)
+      WHERE post_type = 'pick'
+        AND ticker IS NOT NULL
+        AND (
+          status = 'pending'
+          OR (status = 'failed' AND generation_attempts < $1)
+        )
       ORDER BY (status = 'failed'), created_at ASC`,
     [MAX_GENERATION_ATTEMPTS],
   );
@@ -214,7 +220,11 @@ export async function listPendingInsights(): Promise<InsightMeta[]> {
  * was rejected and then regenerated, which gets a fresh window because the
  * text an admin rejected is no longer the text that would go out.
  *
- * @param windowHours  Hours before the sweep may announce it.
+ * @param windowHours  Hours before the sweep may announce it. Ignored when
+ *   `autoPublishAt` is passed — weekly reviews stamp Friday noon PT instead
+ *   of a sliding window.
+ * @param autoPublishAt  Absolute deadline. Regenerating a weekly review keeps
+ *   the same Friday noon rather than pushing the send.
  */
 export async function saveDraft(
   id: string,
@@ -222,6 +232,7 @@ export async function saveDraft(
   sourceFacts: unknown,
   slug?: string,
   windowHours: number = reviewWindowHours(),
+  autoPublishAt?: Date,
 ): Promise<Insight | null> {
   const { rows } = await pool.query<DbInsightRow>(
     `UPDATE insight
@@ -241,7 +252,13 @@ export async function saveDraft(
             -- failures, so a note that eventually drafts starts clean if it is
             -- ever regenerated later.
             generation_attempts = 0,
-            auto_publish_at = NOW() + ($12::numeric * INTERVAL '1 hour')
+            auto_publish_at = COALESCE(
+              $13::timestamptz,
+              NOW() + ($12::numeric * INTERVAL '1 hour')
+            ),
+            -- Regenerating disarms a Friday confirm. Edits through
+            -- updateInsightFields do not.
+            confirmed_at = NULL
       WHERE id = $1
         -- An approved note is immutable through this path. Regenerating one
         -- would silently rewrite something subscribers were already mailed.
@@ -260,6 +277,7 @@ export async function saveDraft(
       JSON.stringify(sourceFacts ?? null),
       slug ?? null,
       windowHours,
+      autoPublishAt ?? null,
     ],
   );
   return rows[0] ? toInsight(rows[0]) : null;
@@ -404,10 +422,115 @@ export async function rejectInsight(id: string): Promise<Insight | null> {
     `UPDATE insight
         SET status = 'rejected',
             auto_publish_at = NULL,
+            confirmed_at = NULL,
             updated_at = NOW()
       WHERE id = $1
         AND status = 'draft'
         AND email_sent_at IS NULL
+      RETURNING ${FULL_COLUMNS}`,
+    [id],
+  );
+  return rows[0] ? toInsight(rows[0]) : null;
+}
+
+/* --------------------------- Weekly reviews ------------------------------- */
+
+/**
+ * Placeholder row for this week's Friday review.
+ *
+ * Slug is the unique key (`weekly-review-2026-w34`). A second Friday 10am
+ * firing, or an operator pressing Draft, hits the conflict and returns null
+ * so the caller loads the existing row instead of making another.
+ */
+export async function createPendingWeeklyReview(
+  slug: string,
+  autoPublishAt: Date,
+): Promise<InsightMeta | null> {
+  const { rows } = await pool.query<DbInsightRow>(
+    `INSERT INTO insight (slug, post_type, status, auto_publish_at)
+     VALUES ($1, 'weekly_review', 'pending', $2)
+     ON CONFLICT (slug) DO NOTHING
+     RETURNING ${META_COLUMNS}`,
+    [slug, autoPublishAt],
+  );
+  return rows[0] ? toMeta(rows[0]) : null;
+}
+
+export async function listWeeklyReviews(): Promise<InsightMeta[]> {
+  const { rows } = await pool.query<DbInsightRow>(
+    `SELECT ${META_COLUMNS}
+       FROM insight
+      WHERE post_type = 'weekly_review'
+      ORDER BY COALESCE(published_at, created_at) DESC`,
+  );
+  return rows.map(toMeta);
+}
+
+/**
+ * Arm the Friday send. Does not publish.
+ *
+ * Completeness is in the WHERE clause so a half-written row cannot be armed
+ * and then surprise noon. Returns null when the row is not an unsent draft.
+ */
+export async function confirmWeeklyReview(id: string): Promise<Insight | null> {
+  const { rows } = await pool.query<DbInsightRow>(
+    `UPDATE insight
+        SET confirmed_at = NOW(),
+            updated_at = NOW()
+      WHERE id = $1
+        AND post_type = 'weekly_review'
+        AND status = 'draft'
+        AND email_sent_at IS NULL
+        AND title IS NOT NULL
+        AND description IS NOT NULL
+        AND body_md IS NOT NULL
+      RETURNING ${FULL_COLUMNS}`,
+    [id],
+  );
+  return rows[0] ? toInsight(rows[0]) : null;
+}
+
+/** Disarm before noon. No-op on a row that is already published. */
+export async function unconfirmWeeklyReview(
+  id: string,
+): Promise<Insight | null> {
+  const { rows } = await pool.query<DbInsightRow>(
+    `UPDATE insight
+        SET confirmed_at = NULL,
+            updated_at = NOW()
+      WHERE id = $1
+        AND post_type = 'weekly_review'
+        AND status = 'draft'
+        AND email_sent_at IS NULL
+        AND confirmed_at IS NOT NULL
+      RETURNING ${FULL_COLUMNS}`,
+    [id],
+  );
+  return rows[0] ? toInsight(rows[0]) : null;
+}
+
+/**
+ * The Friday noon claim. Same shape as `claimForPublish`, plus the confirm
+ * gate: an unconfirmed draft cannot win this UPDATE no matter what its
+ * deadline says.
+ */
+export async function claimForWeeklyReviewPublish(
+  id: string,
+): Promise<Insight | null> {
+  const { rows } = await pool.query<DbInsightRow>(
+    `UPDATE insight
+        SET status = 'approved',
+            published_at = COALESCE(published_at, NOW()),
+            email_sent_at = NOW(),
+            updated_at = NOW()
+      WHERE id = $1
+        AND post_type = 'weekly_review'
+        AND status = 'draft'
+        AND confirmed_at IS NOT NULL
+        AND email_sent_at IS NULL
+        AND title IS NOT NULL
+        AND description IS NOT NULL
+        AND body_md IS NOT NULL
       RETURNING ${FULL_COLUMNS}`,
     [id],
   );

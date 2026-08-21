@@ -3,13 +3,16 @@ import { requireAdmin } from "@/lib/admin";
 import { PUBLIC_API_BASE } from "@/lib/api-config";
 import { SITE_URL } from "@/lib/constants";
 import type { PickStat } from "@/lib/email-templates";
-import { getInsightByTicker } from "@/lib/insights-db";
+import { getInsightBySlug, getInsightByTicker } from "@/lib/insights-db";
+import { isoWeekKey } from "@/lib/email-dispatch";
+import { weeklyReviewSlug } from "@/lib/insights";
 import {
   sendDeleteAccountEmail,
   sendMarketNoteWelcomeEmail,
   sendMembershipWelcomeEmail,
   sendNewPickEmail,
   sendVerifyEmail,
+  sendWeeklyReviewEmail,
   type SendResult,
 } from "@/lib/email";
 
@@ -94,6 +97,7 @@ const TEMPLATES = [
   "verify",
   "membership-welcome",
   "new-pick",
+  "weekly-review",
   "delete-account",
   "market-note",
 ] as const;
@@ -139,6 +143,23 @@ async function sendOne(
           insight?.description ??
           "Sent from /api/ops/email-test. No published insight matched the most recent pick, so this fell back to placeholder copy.",
         insightSlug: insight?.slug ?? "",
+        banner: BANNER,
+      });
+    }
+    case "weekly-review": {
+      const review = await getInsightBySlug(
+        weeklyReviewSlug(isoWeekKey()),
+        { includeUnpublished: true },
+      );
+      return sendWeeklyReviewEmail({
+        to,
+        userId,
+        recipientName: name,
+        title: review?.title ?? "Weekly review: a test of the Friday email",
+        lede:
+          review?.lede ??
+          "Sent from /api/ops/email-test. No draft for this week, so this fell back to placeholder copy.",
+        insightSlug: review?.slug ?? weeklyReviewSlug(isoWeekKey()),
         banner: BANNER,
       });
     }

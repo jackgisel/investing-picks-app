@@ -5,6 +5,7 @@ import {
   renderMembershipWelcomeEmail,
   renderNewPickEmail,
   renderVerifyEmail,
+  renderWeeklyReviewEmail,
 } from "@/lib/email-templates";
 
 const SITE = "https://outpick.xyz";
@@ -23,8 +24,18 @@ const pick = () =>
     siteUrl: SITE,
   });
 
+const review = () =>
+  renderWeeklyReviewEmail({
+    recipientName: "Jack Gisel",
+    title: "Weekly review: a quiet week in a biweekly book",
+    lede: "Nothing fired. The grades did not change.",
+    articleUrl: `${SITE}/dashboard/insights/weekly-review-2026-w34`,
+    siteUrl: SITE,
+  });
+
 const all = () => [
   pick(),
+  review(),
   renderVerifyEmail({ name: null, verifyUrl: `${SITE}/v`, siteUrl: SITE }),
   renderDeleteAccountEmail({ name: "Jack", confirmUrl: `${SITE}/d`, siteUrl: SITE }),
   renderMarketNoteWelcomeEmail({ unsubscribeUrl: `${SITE}/u`, siteUrl: SITE }),
@@ -161,5 +172,17 @@ describe("new pick email", () => {
       banner: "Test send — not a live alert",
     });
     expect(banner).toContain("Test send");
+  });
+});
+
+describe("weekly review email", () => {
+  it("leads with the article, not a ticker", () => {
+    const html = review();
+    expect(html).toContain("Weekly review");
+    expect(html).toContain("Weekly review: a quiet week in a biweekly book");
+    expect(html).toContain("Read the review");
+    expect(html).toContain("/dashboard/insights/weekly-review-2026-w34");
+    expect(html).not.toContain("font-size:56px");
+    expect(html).not.toContain("$");
   });
 });

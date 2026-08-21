@@ -1,7 +1,7 @@
 import Link from "next/link";
 
+import { insightCategoryLabel, type InsightMeta } from "@/lib/insights";
 import { listInsights } from "@/lib/insights-db";
-import type { InsightMeta } from "@/lib/insights";
 import { CompanyLogo } from "@/components/ui/company-logo";
 
 function formatDate(iso: string): string {
@@ -13,11 +13,6 @@ function formatDate(iso: string): string {
   });
 }
 
-function categoryLabel(meta: InsightMeta): string {
-  if (meta.postType === "quarterly_review") return "Quarterly review";
-  return meta.ticker ? `Pick · ${meta.ticker}` : "Pick";
-}
-
 function InsightCard({
   meta,
   featured = false,
@@ -26,9 +21,11 @@ function InsightCard({
   featured?: boolean;
 }) {
   const tone =
-    meta.postType === "quarterly_review"
-      ? "bg-accent-lilac/15"
-      : "bg-accent-yellow/15";
+    meta.postType === "weekly_review"
+      ? "bg-accent-mint/15"
+      : meta.postType === "quarterly_review"
+        ? "bg-accent-lilac/15"
+        : "bg-accent-yellow/15";
 
   return (
     <Link
@@ -39,7 +36,7 @@ function InsightCard({
         <span
           className={`inline-flex items-center rounded-lg px-2.5 py-1 font-sans text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted ${tone}`}
         >
-          {categoryLabel(meta)}
+          {insightCategoryLabel(meta)}
         </span>
         {meta.ticker ? (
           <CompanyLogo ticker={meta.ticker} size={featured ? "lg" : "md"} />

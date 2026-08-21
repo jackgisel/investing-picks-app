@@ -1,29 +1,24 @@
 import { NextResponse } from "next/server";
-import { ensureMigrations } from "@/lib/auth";
 import { requireInternalSecret } from "@/lib/internal-auth";
-import { sendWeeklySummary } from "@/lib/weekly-summary";
 
 export const dynamic = "force-dynamic";
 
 /**
- * The worker's Sunday tick for the digest.
+ * Retired. The Sunday stats digest is the Friday weekly review now.
  *
- * Safe to call repeatedly: one send per ISO week is enforced by the claim in
- * `email_dispatch`, not by the schedule, so a redeploy that fires the job twice
- * mails the list once.
+ * Left as a 410 so a worker that has not been redeployed yet fails loudly
+ * instead of silently mailing the old template. The replacement is
+ * POST /api/internal/insights/weekly-review/publish.
  */
 export async function POST(req: Request) {
   const guard = requireInternalSecret(req);
   if (!guard.ok) return guard.response;
 
-  await ensureMigrations();
-  try {
-    const result = await sendWeeklySummary();
-    return NextResponse.json(result);
-  } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Weekly summary failed" },
-      { status: 502 },
-    );
-  }
+  return NextResponse.json(
+    {
+      error:
+        "The Sunday weekly summary is retired. POST /api/internal/insights/weekly-review/publish instead.",
+    },
+    { status: 410 },
+  );
 }

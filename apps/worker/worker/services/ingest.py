@@ -68,6 +68,97 @@ def first_present(row: dict, *keys):
 CLOSE_FIELDS = ("adjClose", "close")
 
 
+def parse_historical_bars(
+    ticker: str, rows: list[dict], start: date, cutoff: date
+) -> tuple[list[dict], int, int]:
+    """Turn an FMP historical-price payload into `price_bars` rows.
+
+    Returns `(bars, rows_seen, rows_adjusted)`. Zero and negative closes are
+    dropped — they are data holes, not sessions.
+    """
+    bars: list[dict] = []
+    seen = 0
+    adjusted = 0
+    for row in rows or []:
+        seen += 1
+        if row.get("adjClose") is not None:
+            adjusted += 1
+        raw_date = row.get("date")
+        close = first_present(row, *CLOSE_FIELDS)
+        if not raw_date or close is None:
+            continue
+        try:
+            bar_date = date.fromisoformat(str(raw_date)[:10])
+            close = float(close)
+        except (TypeError, ValueError):
+            continue
+        if close <= 0 or bar_date >= cutoff or bar_date < start:
+            continue
+        bars.append({"ticker": ticker, "date": bar_date, "close": close})
+    return bars, seen, adjusted
+
+
+def ingest_ticker_history(
+    db: Session, fmp: FMPClient, ticker: str, start: date, cutoff: date
+) -> tuple[int, int, int]:
+    """Fetch one ticker's history and insert missing bars.
+
+    Returns `(rows_seen, rows_adjusted, bars_attempted)`.
+    """
+    rows = fmp.historical_prices(ticker, start)
+    bars, seen, adjusted = parse_historical_bars(ticker, rows, start, cutoff)
+    inserted = 0
+    if bars:
+        unique = {(b["ticker"], b["date"]): b for b in bars}
+        inserted = bulk_insert_price_bars(db, list(unique.values()))
+    return seen, adjusted, inserted
+
+
+def ensure_benchmark_history(
+    db: Session,
+    fmp: FMPClient,
+    lookback_days: int = 430,
+    min_bars: int = 200,
+) -> dict:
+    """Give comparison ETFs a real series instead of waiting until Saturday.
+
+    `refresh_marks` only writes today. QQQ was added to BENCHMARKS on a Sunday;
+    `backfill_prices` had already run that Saturday, so the landing chart
+    published five live quotes against April cash flows and Nasdaq-100 printed
+    -100%. This fetch is four tickers, only when a series is short, and skips
+    today so it never overwrites the live mark written below.
+    """
+    fetch = getattr(fmp, "historical_prices", None)
+    if not callable(fetch):
+        return {"tickers": 0, "bars": 0}
+
+    start = date.today() - timedelta(days=lookback_days)
+    cutoff = date.today()
+    coverage = {
+        ticker: int(n or 0)
+        for ticker, n in (
+            db.query(PriceBar.ticker, func.count(PriceBar.id))
+            .filter(PriceBar.ticker.in_(list(BENCHMARKS)))
+            .group_by(PriceBar.ticker)
+            .all()
+        )
+    }
+    fetched = 0
+    inserted = 0
+    for ticker in BENCHMARKS:
+        if coverage.get(ticker, 0) >= min_bars:
+            continue
+        try:
+            _seen, _adjusted, n = ingest_ticker_history(db, fmp, ticker, start, cutoff)
+        except FMPAccessError:
+            log.exception("historical prices unavailable; stopping benchmark backfill")
+            break
+        fetched += 1
+        inserted += n
+        log.info("Benchmark history %s: %s bars attempted", ticker, n)
+    return {"tickers": fetched, "bars": inserted}
+
+
 def upsert_price_bar(db: Session, ticker: str, bar_date: date, close: float) -> PriceBar:
     """Insert-or-update one daily bar.
 
@@ -656,13 +747,19 @@ def backfill_price_history(
             return start
         return max(start, newest - timedelta(days=overlap_days))
 
-    candidates = [t for (t,) in universe if _is_short(t) or _is_stale(t)]
-    # Holdings and comparison ETFs may have no Stock row (hand-entered picks,
-    # MAGS/QQQ never admitted to the universe). Without this they freeze at the
-    # last snapshot-backfill date and the Mag 7 line simply stops.
-    for ticker in sorted(held | set(BENCHMARKS)):
-        if ticker not in candidates and (_is_short(ticker) or _is_stale(ticker)):
-            candidates.append(ticker)
+    # Comparison ETFs and holdings first. The universe can be hundreds of stale
+    # names; with max_tickers set they used to consume the whole budget and a
+    # newly added benchmark (QQQ) never got a history fetch.
+    priority = [
+        t for t in sorted(held | set(BENCHMARKS)) if _is_short(t) or _is_stale(t)
+    ]
+    seen_priority = set(priority)
+    rest = [
+        t
+        for (t,) in universe
+        if t not in seen_priority and (_is_short(t) or _is_stale(t))
+    ]
+    candidates = priority + rest
     tickers = candidates[:max_tickers] if max_tickers is not None else candidates
     short = sum(1 for t in tickers if _is_short(t))
 
@@ -672,37 +769,15 @@ def backfill_price_history(
     rows_adjusted = 0
     for ticker in tickers:
         try:
-            rows = fmp.historical_prices(ticker, _fetch_from(ticker))
+            seen, adjusted, n = ingest_ticker_history(
+                db, fmp, ticker, _fetch_from(ticker), cutoff
+            )
         except FMPAccessError:
             log.exception("historical prices unavailable on this plan; stopping")
             break
-        bars: list[dict] = []
-        for row in rows or []:
-            raw_date = row.get("date")
-            # CLOSE_FIELDS, resolved with first_present rather than
-            # `row.get("adjClose", row.get("close"))`: the latter returns None
-            # for a row that carries `"adjClose": null` alongside a perfectly
-            # usable `close`, and the `close is None` guard below then drops the
-            # bar outright.
-            close = first_present(row, *CLOSE_FIELDS)
-            rows_seen += 1
-            if row.get("adjClose") is not None:
-                rows_adjusted += 1
-            if not raw_date or close is None:
-                continue
-            try:
-                bar_date = date.fromisoformat(str(raw_date)[:10])
-                close = float(close)
-            except (TypeError, ValueError):
-                continue
-            if bar_date >= cutoff or bar_date < start:
-                continue
-            bars.append({"ticker": ticker, "date": bar_date, "close": close})
-        if bars:
-            # Dedupe within the payload; ON CONFLICT cannot resolve two rows
-            # with the same key inside a single statement.
-            unique = {(b["ticker"], b["date"]): b for b in bars}
-            inserted += bulk_insert_price_bars(db, list(unique.values()))
+        rows_seen += seen
+        rows_adjusted += adjusted
+        inserted += n
         fetched += 1
         if fetched % 25 == 0:
             log.info("Price backfill progress: %s/%s tickers", fetched, len(tickers))
@@ -742,6 +817,7 @@ def backfill_price_history(
 
 def refresh_marks(db: Session, fmp: FMPClient) -> int:
     """Update marks for open positions, recent candidates, and comparison ETFs."""
+    ensure_benchmark_history(db, fmp)
     portfolio = ensure_default_portfolio(db)
     pos_tickers = [
         p.ticker

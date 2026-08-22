@@ -44,11 +44,9 @@ export default function DcaPage() {
       <div>
         <h1 className="page-title">Weekly $1,000</h1>
         <p className="mt-1 max-w-[640px] font-sans text-[13px] leading-relaxed text-text-dim">
-          A sample, not the live book. Same $1,000 every Friday, starting the
-          first week the live book had a BUY. One side buys VOO and holds it.
-          The other splits that cash across open positions still rated BUY or
-          STRONG BUY. Older names get more weeks of adds; recent names start
-          smaller. The live product remains one pick every two weeks.
+          Admin preview. Live sample from 21 Aug, not a reconstructed history.
+          $1,000 every Friday into VOO versus the live book&apos;s open BUY
+          names. Members will see this after a few weeks of marks.
         </p>
       </div>
 
@@ -58,7 +56,7 @@ export default function DcaPage() {
           error={perfQuery.error}
           onRetry={() => void perfQuery.refetch()}
           emptyTitle="No deposits yet"
-          emptyMessage="The sample starts on the first Friday after the live book's inception."
+          emptyMessage="The first Friday deposit is in. The chart needs two weeks before it draws."
         />
       ) : (
         <>

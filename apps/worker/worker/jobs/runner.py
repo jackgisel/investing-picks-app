@@ -618,7 +618,7 @@ def job_dca_backfill():
     """Replay Friday DCA sessions from live inception through the last session.
 
     On-demand via RUN_JOB_ONCE=dca_backfill. Wipes the sample books and replays
-    every Friday so a mandate change can rebuild from the live open table.
+    from DCA_START (the live start, not the live book's inception).
     """
 
     def _run(db: Session):

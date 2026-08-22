@@ -55,10 +55,11 @@ KIND_DCA_PICKS = "dca_picks"
 
 DCA_WEEKLY_AMOUNT = 1_000.0
 DCA_VOO_TICKER = "VOO"
-# Live book inception. The first Friday on/after this (holiday-adjusted) is
-# session one. 2026-04-03 is Good Friday, so that week lands on Thursday.
-DCA_START = date(2026, 4, 1)
-DCA_FIRST_SESSION = date(2026, 4, 2)
+# First live Friday we actually run the sample. Earlier history is not
+# reconstructed; ratings only exist from late July and the open table cannot
+# be priced fairly before that.
+DCA_START = date(2026, 8, 21)
+DCA_FIRST_SESSION = date(2026, 8, 21)
 
 VOO_PORTFOLIO_NAME = "Weekly $1,000 · VOO"
 PICKS_PORTFOLIO_NAME = "Weekly $1,000 · Open buys"
@@ -142,6 +143,8 @@ def _ensure_book(
     if existing:
         if existing.name != name:
             existing.name = name
+        if existing.inception_date != inception:
+            existing.inception_date = inception
         return existing
     taken = db.get(Portfolio, id_hint)
     row = Portfolio(
@@ -626,6 +629,7 @@ def reset_dca_books(db: Session) -> dict[str, int]:
         book.cash = 0.0
         book.peak_equity = 0.0
         book.is_drawdown_halted = False
+        book.inception_date = first_dca_session()
     db.commit()
     return {
         "trades": int(n_trades or 0),

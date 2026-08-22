@@ -99,6 +99,13 @@ def _seed_session(db, as_of: date, *, names: dict[str, tuple[float, float]]):
     db.commit()
 
 
+def test_live_start_is_not_the_backtest():
+    from app.services.dca import DCA_FIRST_SESSION, first_dca_session
+
+    assert first_dca_session() == date(2026, 8, 21)
+    assert DCA_FIRST_SESSION == date(2026, 8, 21)
+
+
 def test_holiday_friday_uses_the_prior_session():
     """3 Apr 2026 is Good Friday; the weekly pass lands on Thursday."""
     friday = date(2026, 4, 3)

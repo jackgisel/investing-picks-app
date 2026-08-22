@@ -112,7 +112,6 @@ describe("visibleGroups", () => {
     expect(flatten(groups).map((i) => i.label)).toEqual([
       "Dashboard",
       "Positions",
-      "Weekly $1k",
       "Insights",
       "Strategy",
       "Settings",
@@ -123,6 +122,7 @@ describe("visibleGroups", () => {
   it("leaks no admin href to a non-admin", () => {
     const hrefs = flatten(visibleGroups(false)).map((i) => i.href);
     expect(hrefs.some((h) => h.startsWith("/dashboard/ops"))).toBe(false);
+    expect(hrefs).not.toContain("/dashboard/dca");
   });
 
   it("gives an admin a separate, labelled group", () => {
@@ -134,6 +134,7 @@ describe("visibleGroups", () => {
       "/dashboard/ops/book",
       "/dashboard/ops/insights",
       "/dashboard/ops/weekly-review",
+      "/dashboard/dca",
       "/dashboard/ops/product-updates",
     ]);
   });

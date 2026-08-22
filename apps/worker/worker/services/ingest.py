@@ -31,6 +31,13 @@ REVISION_LOOKBACK_DAYS = 21
 # scored on a fabricated factor. A weekly refresh clears it comfortably.
 MIN_REVISION_LOOKBACK_DAYS = 5
 
+# FMP's fiscal year-end date on the same FY can move by a few days (Western
+# Digital's Friday-nearest-June-30 jumped 2027-06-27 → 2027-07-03). Exact
+# string equality then treated it as a rollover, nulled revisions, and the
+# coverage floor unrated a held name. Real next-year periods are ~365 days
+# apart, so a two-week window is jitter, not a new year.
+PERIOD_MATCH_TOLERANCE_DAYS = 14
+
 
 def first_present(row: dict, *keys):
     """First key in `keys` carrying a non-None value, else None.
@@ -403,27 +410,58 @@ def backfill_holding_earnings(
     return result
 
 
-def _prior_estimate_snapshot(db: Session, ticker: str, as_of: date) -> Fundamentals | None:
-    """Most recent stored fundamentals at least REVISION_LOOKBACK_DAYS old.
+def _parse_period(raw) -> date | None:
+    if not raw:
+        return None
+    try:
+        return date.fromisoformat(str(raw)[:10])
+    except ValueError:
+        return None
 
-    Falls back to the oldest snapshot strictly before `as_of` so that a young
-    history still yields a (shorter-window) revision rather than nothing.
+
+def periods_match(current, prior) -> bool:
+    """True when two estimatePeriod values are the same fiscal year.
+
+    Exact string match first. Then a date window, because FMP restates the
+    year-end by a few days without changing the year.
+    """
+    if current is None or prior is None:
+        return False
+    if current == prior:
+        return True
+    left, right = _parse_period(current), _parse_period(prior)
+    if left is None or right is None:
+        return False
+    return abs((left - right).days) <= PERIOD_MATCH_TOLERANCE_DAYS
+
+
+def _prior_estimate_snapshot(
+    db: Session, ticker: str, as_of: date, period
+) -> Fundamentals | None:
+    """Best earlier snapshot of the same fiscal period.
+
+    Prefer one at least REVISION_LOOKBACK_DAYS old. If the 21-day row is a
+    different year (a real rollover) but a newer same-period snapshot exists
+    past MIN_REVISION_LOOKBACK_DAYS, use that — otherwise the first weeks of
+    a new period, or a year-end date restatement, leave the ticker unrated.
     """
     cutoff = as_of - timedelta(days=REVISION_LOOKBACK_DAYS)
-    row = (
-        db.query(Fundamentals)
-        .filter(Fundamentals.ticker == ticker, Fundamentals.as_of <= cutoff)
-        .order_by(Fundamentals.as_of.desc(), Fundamentals.id.desc())
-        .first()
-    )
-    if row:
-        return row
-    return (
+    min_as_of = as_of - timedelta(days=MIN_REVISION_LOOKBACK_DAYS)
+    rows = (
         db.query(Fundamentals)
         .filter(Fundamentals.ticker == ticker, Fundamentals.as_of < as_of)
-        .order_by(Fundamentals.as_of.asc(), Fundamentals.id.asc())
-        .first()
+        .order_by(Fundamentals.as_of.desc(), Fundamentals.id.desc())
+        .all()
     )
+    fallback = None
+    for row in rows:
+        if not periods_match(period, (row.data or {}).get("estimatePeriod")):
+            continue
+        if row.as_of <= cutoff:
+            return row
+        if row.as_of <= min_as_of and fallback is None:
+            fallback = row
+    return fallback
 
 
 def _pct_change(current, prior) -> float | None:
@@ -454,19 +492,16 @@ def compute_estimate_revisions(
     consensus, not a consensus history, so a genuine revision cannot be computed
     on the very first fundamentals refresh for a ticker. We derive it from our
     own stored `Fundamentals` history instead, which means the factor is null
-    (grade "F") until a ticker has two snapshots spanning the lookback, and null
-    again for one cycle when the forward fiscal period rolls over. Null revisions
-    fail `min_revisions_grade: "B+"`, so buys are blocked rather than made on a
-    factor the backtest never used. `score_universe` logs coverage each run.
+    until a ticker has two snapshots of the same fiscal period spanning the
+    lookback. A real next-year rollover stays null until that pair exists.
+    A restated year-end date on the same FY is not a rollover.
     """
     period = current.get("estimatePeriod")
     if not period:
         return {}
-    prior_row = _prior_estimate_snapshot(db, ticker, as_of)
+    prior_row = _prior_estimate_snapshot(db, ticker, as_of, period)
     prior = (prior_row.data or {}) if prior_row else {}
-    if not prior or prior.get("estimatePeriod") != period:
-        return {}
-    if (as_of - prior_row.as_of).days < MIN_REVISION_LOOKBACK_DAYS:
+    if not prior:
         return {}
     out: dict = {}
     eps_rev = _pct_change(current.get("epsEstimateAvg"), prior.get("epsEstimateAvg"))
@@ -481,6 +516,52 @@ def compute_estimate_revisions(
         out["revisionBasisDate"] = prior_row.as_of.isoformat()
         out["revisionLookbackDays"] = (as_of - prior_row.as_of).days
     return out
+
+
+def recompute_latest_revisions(db: Session, as_of: date | None = None) -> int:
+    """Rewrite revision fields on each ticker's newest snapshot from history.
+
+    Scoring reads `epsRevisionPct` / `revenueRevisionPct` off that JSON. A
+    lookback that treated a restated year-end date as a rollover stored nulls
+    even when a same-period pair existed, and a rescore would keep reading
+    them. Recomputing here heals without another FMP call.
+    """
+    as_of = as_of or date.today()
+    latest = (
+        db.query(
+            Fundamentals.ticker,
+            func.max(Fundamentals.as_of).label("as_of"),
+        )
+        .filter(Fundamentals.as_of <= as_of)
+        .group_by(Fundamentals.ticker)
+        .subquery()
+    )
+    patched = 0
+    for row in (
+        db.query(Fundamentals)
+        .join(
+            latest,
+            (Fundamentals.ticker == latest.c.ticker)
+            & (Fundamentals.as_of == latest.c.as_of),
+        )
+    ):
+        data = dict(row.data or {})
+        estimate = {
+            "estimatePeriod": data.get("estimatePeriod"),
+            "epsEstimateAvg": data.get("epsEstimateAvg"),
+            "revenueEstimateAvg": data.get("revenueEstimateAvg"),
+        }
+        revision = compute_estimate_revisions(db, row.ticker, estimate, row.as_of)
+        if not revision:
+            continue
+        if all(data.get(key) == value for key, value in revision.items()):
+            continue
+        data.update(revision)
+        row.data = data
+        patched += 1
+    if patched:
+        db.flush()
+    return patched
 
 
 def _sum_field(rows: list[dict], field: str) -> float | None:

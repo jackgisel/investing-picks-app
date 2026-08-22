@@ -118,11 +118,10 @@ def test_market_cap_below_the_floor_is_named(db, portfolio):
 
 
 def test_missing_revisions_on_a_held_name_is_named(db, portfolio):
-    """min_factor_coverage = 1.0 turns a fiscal-period rollover into unrated.
+    """min_factor_coverage = 1.0 turns a missing revisions factor into unrated.
 
-    compute_estimate_revisions returns {} when the forward period changes, and
-    the coverage floor then refuses to write a CompositeScore row. That is how
-    a name that cleared every buy gate can sit unrated a month later.
+    A real next-year period with no same-FY pair still returns {}, and the
+    coverage floor then refuses to write a CompositeScore row.
     """
     make_position(db, portfolio, "WDC", shares=10, avg_cost=10.0, current_price=12.0)
     _stock(db, "WDC")

@@ -13,6 +13,8 @@ from worker.services.ingest import (
     _latest_reported_earnings,
     backfill_holding_earnings,
     compute_estimate_revisions,
+    periods_match,
+    recompute_latest_revisions,
     refresh_marks,
     upsert_price_bar,
 )
@@ -416,6 +418,73 @@ def test_no_revision_without_history_or_across_period_rollover(db):
     # Prior snapshot exists but for a different fiscal period.
     _store(db, "AAA", today - timedelta(days=30), "2025-12-31", 1.80, 900.0)
     assert compute_estimate_revisions(db, "AAA", current, today) == {}
+
+
+def test_year_end_date_jitter_is_not_a_period_rollover():
+    assert periods_match("2027-07-03", "2027-07-03")
+    assert periods_match("2027-07-03", "2027-06-27")
+    assert not periods_match("2026-12-31", "2025-12-31")
+    assert not periods_match("2027-07-03", None)
+
+
+def test_revision_survives_fmp_year_end_date_restatement(db):
+    """Western Digital 21 Aug 2026: same FY, year-end moved by six days."""
+    today = date(2026, 8, 21)
+    _store(db, "WDC", date(2026, 7, 31), "2027-06-27", 18.70, 1_000.0)
+    current = {
+        "estimatePeriod": "2027-07-03",
+        "epsEstimateAvg": 20.21,
+        "revenueEstimateAvg": 1_100.0,
+    }
+    out = compute_estimate_revisions(db, "WDC", current, today)
+    assert out["epsRevisionPct"] == pytest.approx((20.21 - 18.70) / 18.70)
+    assert out["revisionLookbackDays"] == 21
+    assert out["revisionBasisDate"] == "2026-07-31"
+
+
+def test_revision_uses_same_period_when_21_day_row_is_a_real_rollover(db):
+    """A true next-year period must not block a later same-period pair."""
+    today = date(2026, 8, 21)
+    _store(db, "AAA", date(2026, 7, 31), "2026-12-31", 1.80, 900.0)
+    _store(db, "AAA", date(2026, 8, 8), "2027-12-31", 2.00, 1000.0)
+    current = {
+        "estimatePeriod": "2027-12-31",
+        "epsEstimateAvg": 2.20,
+        "revenueEstimateAvg": 1100.0,
+    }
+    out = compute_estimate_revisions(db, "AAA", current, today)
+    assert out["epsRevisionPct"] == pytest.approx(0.10)
+    assert out["revisionLookbackDays"] == 13
+    assert out["revisionBasisDate"] == "2026-08-08"
+
+
+def test_recompute_latest_revisions_fills_nulls_left_by_the_old_lookup(db):
+    today = date(2026, 8, 21)
+    _store(db, "WDC", date(2026, 7, 31), "2027-06-27", 18.70, 1_000.0)
+    db.add(
+        Fundamentals(
+            ticker="WDC",
+            as_of=today,
+            data={
+                "estimatePeriod": "2027-07-03",
+                "epsEstimateAvg": 20.21,
+                "revenueEstimateAvg": 1_100.0,
+                "epsRevisionPct": None,
+                "revenueRevisionPct": None,
+            },
+        )
+    )
+    db.commit()
+
+    patched = recompute_latest_revisions(db, today)
+    assert patched == 1
+    latest = (
+        db.query(Fundamentals)
+        .filter(Fundamentals.ticker == "WDC", Fundamentals.as_of == today)
+        .one()
+    )
+    assert latest.data["epsRevisionPct"] == pytest.approx((20.21 - 18.70) / 18.70)
+    assert latest.data["revisionLookbackDays"] == 21
 
 
 def test_revision_falls_back_to_oldest_snapshot_when_history_is_young(db):

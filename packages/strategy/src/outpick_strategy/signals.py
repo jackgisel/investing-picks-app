@@ -724,15 +724,15 @@ def evaluate_dca_sells(
     params: StrategyParams | None = None,
     as_of: date | None = None,
 ) -> list[Signal]:
-    """Sell-side only for the weekly DCA sample book.
+    """Removal rules only for the weekly DCA sample book.
 
-    Weight trims and removal rules, no buys, no recycle, no daily-sell flag.
-    The DCA book adds to live open BUY names with fresh cash every Friday, so
-    the live evaluator's `max_adds_per_evaluation=1` path must not run on it.
+    Equal-weight Friday adds are the sizing. The live book's 15% cap would
+    trim names back to 12% and dump the proceeds into whoever just joined,
+    which is the opposite of dollar-cost averaging.
     """
     params = params or StrategyParams()
     as_of = as_of or portfolio.as_of or date.today()
-    return _sell_side_signals(portfolio, scores, params, as_of)
+    return _removal_signals(portfolio, scores, params, as_of)
 
 
 def _sell_side_signals(

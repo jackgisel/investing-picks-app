@@ -223,6 +223,24 @@ def test_evaluate_dca_sells_fires_without_the_daily_flag():
     assert not any(s.action == Action.BUY for s in signals)
 
 
+def test_evaluate_dca_sells_does_not_weight_trim():
+    """Weekly equal-weight is the sizing; the live 15% cap must not recycle."""
+    positions = {
+        t: PositionState(
+            ticker=t,
+            shares=25,
+            avg_cost=100,
+            current_price=100,
+            initial_investment=2500,
+        )
+        for t in ("AAA", "BBB", "CCC", "DDD")
+    }
+    scores = {t: _score(t, 4.5) for t in positions}
+    portfolio = PortfolioState(cash=0, positions=positions, as_of=date(2026, 8, 7))
+    signals = evaluate_dca_sells(portfolio, scores, RUN118_PARAMS)
+    assert signals == []
+
+
 def test_sector_cap_blocks_buy():
     params = RUN118_PARAMS
     # max 50 * 0.3 = 15; fill 15 tech names then try another tech

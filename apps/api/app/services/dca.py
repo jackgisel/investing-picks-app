@@ -435,6 +435,10 @@ def _deposit(db: Session, portfolio: Portfolio, as_of: date) -> PortfolioContrib
 
 
 def _upsert_snapshot(db: Session, portfolio: Portfolio, as_of: date) -> None:
+    # SessionLocal is autoflush=False. Buys and sells sit pending until commit,
+    # so a query here would snapshot the pre-fill book: cash already spent,
+    # positions not visible, total_value = 0.
+    db.flush()
     positions = db.query(Position).filter(Position.portfolio_id == portfolio.id).all()
     invested = sum(p.market_value for p in positions)
     cash = portfolio.cash or 0.0
@@ -547,10 +551,29 @@ def _run_picks_friday(db: Session, portfolio: Portfolio, as_of: date) -> dict:
 def run_dca_friday(
     db: Session, as_of: date, *, commit: bool = True
 ) -> dict:
-    """One Friday session for both sample books. Idempotent per book/date."""
+    """One Friday session for both sample books. Idempotent per book/date.
+
+    Both books skip the week when the live book has no BUY / STRONG BUY
+    names, so they keep the same contributed capital.
+    """
     voo, picks = ensure_dca_portfolios(db)
+    universe = buy_universe(db, as_of)
+    if not universe:
+        log.info("DCA %s: no live open BUY names; skipping both books", as_of)
+        skipped = {"skipped": "no_open_buys", "as_of": str(as_of)}
+        if commit:
+            db.commit()
+        return {"as_of": str(as_of), "voo": {**skipped, "kind": KIND_DCA_VOO}, "picks": {**skipped, "kind": KIND_DCA_PICKS}}
     voo_result = _run_voo_friday(db, voo, as_of)
     picks_result = _run_picks_friday(db, picks, as_of)
+    n_weeks = (
+        db.query(PortfolioContribution)
+        .filter(PortfolioContribution.portfolio_id == voo.id)
+        .count()
+    )
+    if n_weeks == 1:
+        voo.inception_date = as_of
+        picks.inception_date = as_of
     if commit:
         db.commit()
     return {"as_of": str(as_of), "voo": voo_result, "picks": picks_result}

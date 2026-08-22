@@ -253,6 +253,8 @@ def test_second_run_on_the_same_friday_is_a_noop(db):
 def test_holiday_week_deposits_on_thursday(db):
     session = date(2026, 4, 2)
     _seed_session(db, session, names={"AAA": (4.5, 10.0)})
+    _live_fill(db, "AAA", session)
+    db.commit()
     run_dca_friday(db, session)
     voo = portfolio_by_kind(db, KIND_DCA_VOO)
     row = (
@@ -306,3 +308,40 @@ def test_performance_payload_is_wealth_not_return_on_seed(db):
     assert payload["picks"]["value"] == DCA_WEEKLY_AMOUNT
     assert payload["delta"]["dollars"] == 0
     assert payload["series"][0]["contributed"] == DCA_WEEKLY_AMOUNT
+    assert payload["series"][0]["picks"] == DCA_WEEKLY_AMOUNT
+    assert payload["series"][0]["voo"] == DCA_WEEKLY_AMOUNT
+
+
+def test_week_without_open_buys_does_not_deposit(db):
+    day = date(2026, 4, 10)
+    _seed_session(db, day, names={"UNHELD": (4.5, 10.0)})
+    result = run_dca_friday(db, day)
+    assert result["voo"]["skipped"] == "no_open_buys"
+    assert result["picks"]["skipped"] == "no_open_buys"
+    assert db.query(PortfolioContribution).count() == 0
+    assert db.query(Position).count() == 0
+
+
+def test_dca_does_not_trim_overweight_names(db):
+    week1 = date(2026, 4, 10)
+    week2 = date(2026, 4, 17)
+    _seed_session(db, week1, names={"AAA": (4.5, 10.0), "BBB": (4.4, 20.0)})
+    _live_fill(db, "AAA", week1)
+    _live_fill(db, "BBB", week1)
+    db.commit()
+    run_dca_friday(db, week1)
+    _seed_session(db, week2, names={"AAA": (4.5, 11.0), "BBB": (4.4, 21.0)})
+    run_dca_friday(db, week2)
+
+    picks = portfolio_by_kind(db, KIND_DCA_PICKS)
+    sells = (
+        db.query(Trade)
+        .filter(Trade.portfolio_id == picks.id, Trade.side == "sell")
+        .count()
+    )
+    assert sells == 0
+    held = {p.ticker: p for p in db.query(Position).filter(Position.portfolio_id == picks.id)}
+    assert set(held) == {"AAA", "BBB"}
+    assert abs((held["AAA"].initial_investment or 0) - 1000.0) < 1e-6
+    assert abs((held["BBB"].initial_investment or 0) - 1000.0) < 1e-6
+

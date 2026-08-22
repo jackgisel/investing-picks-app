@@ -44,11 +44,11 @@ export default function DcaPage() {
       <div>
         <h1 className="page-title">Weekly $1,000</h1>
         <p className="mt-1 max-w-[640px] font-sans text-[13px] leading-relaxed text-text-dim">
-          A sample, not the live book. Both portfolios receive $1,000 every
-          Friday. One buys VOO and holds it. The other splits that cash across
-          the live book&apos;s open positions that are still rated BUY or
-          STRONG BUY that day, and still sells on the live book&apos;s exit
-          rules. The live product remains one pick every two weeks.
+          A sample, not the live book. Same $1,000 every Friday, starting the
+          first week the live book had a BUY. One side buys VOO and holds it.
+          The other splits that cash across open positions still rated BUY or
+          STRONG BUY. Older names get more weeks of adds; recent names start
+          smaller. The live product remains one pick every two weeks.
         </p>
       </div>
 
@@ -156,6 +156,7 @@ function HoldingsTable({
                 </span>
               ) : null}
             </th>
+            <th className="field-label px-4 py-2.5">First add</th>
             <th className="field-label px-4 py-2.5 text-right">Return</th>
           </tr>
         </thead>
@@ -184,6 +185,9 @@ function HoldingsTable({
                 ) : (
                   <span className="text-text-dim">—</span>
                 )}
+              </td>
+              <td className="px-4 py-2.5 font-mono text-[13px] tabular-nums text-text-muted">
+                {row.entry_date ?? "—"}
               </td>
               <td
                 className={`px-4 py-2.5 text-right font-mono text-[13px] tabular-nums ${pnlClass(row.pnl_pct)}`}

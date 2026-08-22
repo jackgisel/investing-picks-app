@@ -11,6 +11,7 @@ import {
   resolveDataState,
 } from "@/components/ui/data-state";
 import { SectorAllocation } from "@/components/dashboard/sector-allocation";
+import { asShareOfInvested } from "@/components/dashboard/sector-model";
 import {
   PanelHeader,
   SortableHead,
@@ -70,7 +71,9 @@ export function PositionsOpen() {
   // instead of waiting on it.
   const insights = useInsights().data?.insights ?? [];
   const { data: strategy, isPending, isError, error } = strategyQuery;
-  const holdings = strategy?.holdings;
+  const holdings = strategy?.holdings
+    ? asShareOfInvested(strategy.holdings)
+    : undefined;
 
   const [sortKey, setSortKey] = useState<SortKey>("pnl_pct");
   const [sortDir, setSortDir] = useState<SortDir>("desc");

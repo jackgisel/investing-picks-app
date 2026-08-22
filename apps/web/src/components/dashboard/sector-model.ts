@@ -49,6 +49,41 @@ export function groupBySector(holdings: readonly Holding[]): SectorSlice[] {
 }
 
 /**
+ * Rebase an equity-including-cash weight onto the open book.
+ *
+ * The API reports market_value / (cash + invested). Subscribers see mix of
+ * what we own, so cash is dropped from the denominator here and nowhere else.
+ */
+export function shareOfInvested(
+  weightPct: number,
+  investedTotal: number,
+): number {
+  return investedTotal > 0 ? (weightPct / investedTotal) * 100 : 0;
+}
+
+/** Sum of API `weight_pct` values — the invested share of equity. */
+export function investedWeightTotal(
+  holdings: readonly Pick<Holding, "weight_pct">[],
+): number {
+  return holdings.reduce((n, h) => n + (h.weight_pct ?? 0), 0);
+}
+
+/**
+ * Copy of holdings whose `weight_pct` is a share of currently invested
+ * capital. Missing weights stay missing so the table can still render "—".
+ */
+export function asShareOfInvested<T extends Pick<Holding, "weight_pct">>(
+  holdings: readonly T[],
+): T[] {
+  const total = investedWeightTotal(holdings);
+  return holdings.map((h) =>
+    typeof h.weight_pct === "number"
+      ? { ...h, weight_pct: shareOfInvested(h.weight_pct, total) }
+      : h,
+  );
+}
+
+/**
  * How many positions one sector may hold.
  *
  * `sector_concentration` reads like a share of the book and is not one. The

@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { activeHref, covers, flatten, visibleGroups } from "./nav-model";
 import {
+  asShareOfInvested,
   groupBySector,
+  investedWeightTotal,
   sectorPositionCap,
+  shareOfInvested,
   UNCLASSIFIED,
 } from "./sector-model";
 import { actionMeta } from "./trade-action";
@@ -197,6 +200,53 @@ describe("groupBySector", () => {
 
   it("returns nothing for an empty book", () => {
     expect(groupBySector([])).toEqual([]);
+  });
+});
+
+describe("shareOfInvested", () => {
+  it("returns 0 when nothing is invested", () => {
+    expect(shareOfInvested(1.9, 0)).toBe(0);
+    expect(shareOfInvested(1.9, -1)).toBe(0);
+  });
+
+  it("is 100% for a single name", () => {
+    expect(shareOfInvested(1.9, 1.9)).toBe(100);
+  });
+
+  it("rebases cash-drag weights onto the open book", () => {
+    // 1.9 + 1.2 + 1.0 + 1.0 + 0.9 + 0.9 = 6.9, a trimmed version of the
+    // 12.9% invested screenshot: each figure is a share of equity, not of 50.
+    const weights = [1.9, 1.2, 1.0, 1.0, 0.9, 0.9];
+    const total = weights.reduce((n, w) => n + w, 0);
+    const rebased = weights.map((w) => shareOfInvested(w, total));
+    expect(rebased[0]).toBeCloseTo((1.9 / 6.9) * 100);
+    expect(rebased.reduce((n, w) => n + w, 0)).toBeCloseTo(100);
+  });
+
+  it("sums API weights as the invested total", () => {
+    expect(
+      investedWeightTotal([
+        { weight_pct: 7.9 },
+        { weight_pct: 1.2 },
+        { weight_pct: 1.0 },
+        { weight_pct: 1.0 },
+        { weight_pct: 0.9 },
+        { weight_pct: 0.9 },
+      ]),
+    ).toBeCloseTo(12.9);
+    expect(investedWeightTotal([])).toBe(0);
+    expect(investedWeightTotal([{ weight_pct: undefined }])).toBe(0);
+  });
+
+  it("rewrites holdings and leaves missing weights missing", () => {
+    const [a, b, blank] = asShareOfInvested([
+      { ticker: "A", weight_pct: 7.9 },
+      { ticker: "B", weight_pct: 5.0 },
+      { ticker: "C" },
+    ]);
+    expect(a.weight_pct).toBeCloseTo((7.9 / 12.9) * 100);
+    expect(b.weight_pct).toBeCloseTo((5.0 / 12.9) * 100);
+    expect(blank.weight_pct).toBeUndefined();
   });
 });
 

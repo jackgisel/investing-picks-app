@@ -284,7 +284,7 @@ export default function StrategyPage() {
           {/* Risk contract */}
           <section className="space-y-3">
             <p className="panel-label">The risk contract</p>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="data-card">
                 <p className="field-label">SECTOR CEILING</p>
                 <p className="mt-1.5 font-mono text-xl font-bold tabular-nums text-text">
@@ -297,16 +297,6 @@ export default function StrategyPage() {
                 <p className="mt-2 font-sans text-[12px] leading-relaxed text-text-dim">
                   The most positions we will hold in any one sector. Checked on
                   every buy, not reviewed after the fact.
-                </p>
-              </div>
-              <div className="data-card">
-                <p className="field-label">MAX POSITIONS</p>
-                <p className="mt-1.5 font-mono text-xl font-bold tabular-nums text-text">
-                  {maxPositions ?? "—"}
-                </p>
-                <p className="mt-2 font-sans text-[12px] leading-relaxed text-text-dim">
-                  A ceiling on how thin the book can get. Conviction shows up as
-                  what we buy, never as an oversized bet.
                 </p>
               </div>
               <div className="data-card">
@@ -380,7 +370,6 @@ export default function StrategyPage() {
                   <p className="field-label">POSITIONS OPEN</p>
                   <p className="mt-1.5 font-mono text-[14px] font-semibold tabular-nums text-text">
                     {data?.position_count ?? data?.portfolio?.position_count ?? "—"}
-                    <span className="text-text-dim"> / {maxPositions ?? "—"}</span>
                   </p>
                 </div>
               </div>

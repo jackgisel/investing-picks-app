@@ -16,7 +16,7 @@ export function SectorAllocation({
   maxPositions?: number | null;
 }) {
   const slices = groupBySector(holdings);
-  const invested = slices.reduce((n, s) => n + s.weightPct, 0);
+  const names = slices.reduce((n, s) => n + s.count, 0);
   const cap = sectorPositionCap(sectorCap, maxPositions);
   // Unclassified is not a sector, so it cannot breach a sector cap.
   const breached =
@@ -31,13 +31,11 @@ export function SectorAllocation({
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 mb-4">
         <span className="panel-label panel-label-mint">Sector exposure</span>
         <span className="font-mono text-[11px] text-text-dim tabular-nums">
-          {slices.length} sector{slices.length === 1 ? "" : "s"} ·{" "}
-          {invested.toFixed(1)}% invested
+          {slices.length} sector{slices.length === 1 ? "" : "s"} · {names}{" "}
+          {names === 1 ? "name" : "names"}
         </span>
       </div>
 
-      {/* Widths are shares of equity, so the bar deliberately does not fill
-          when the book is holding cash. */}
       <div
         className="flex h-2.5 w-full gap-0.5 mb-4 overflow-hidden rounded-full bg-bg-tertiary"
         role="img"

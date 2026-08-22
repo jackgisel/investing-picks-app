@@ -13,6 +13,7 @@ import {
   formatDayMonth,
   formatPct,
   formatPctOrDash,
+  formatUsd,
   formatWeekdayDate,
   foundersDealDaysRemaining,
   isFoundersDealActive,
@@ -74,6 +75,18 @@ describe("formatPct / formatPctOrDash", () => {
 
   it("honours a digit override", () => {
     expect(formatPct(12.345, 1)).toBe("+12.3%");
+  });
+});
+
+describe("formatUsd", () => {
+  it("renders an unknown as a dash", () => {
+    expect(formatUsd(null)).toBe("—");
+    expect(formatUsd(undefined)).toBe("—");
+  });
+
+  it("formats whole dollars", () => {
+    expect(formatUsd(12450)).toBe("$12,450");
+    expect(formatUsd(-200)).toBe("-$200");
   });
 });
 

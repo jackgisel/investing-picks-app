@@ -99,6 +99,35 @@ def test_refresh_marks_quotes_every_comparison_etf(db):
         assert stock is not None
         assert stock.is_etf is True
         assert db.query(PriceBar).filter(PriceBar.ticker == ticker).one().close == 100.0
+    assert "VOO" in fmp.requested
+
+
+def test_refresh_marks_marks_every_book(db):
+    """A VOO lot on the DCA book used to stay stuck at its entry price."""
+    from app.db.models import Portfolio
+    from app.services.dca import KIND_DCA_VOO, ensure_dca_portfolios
+
+    ensure_dca_portfolios(db)
+    voo = db.query(Portfolio).filter(Portfolio.kind == KIND_DCA_VOO).one()
+    db.add(
+        Position(
+            portfolio_id=voo.id,
+            ticker="VOO",
+            shares=2.0,
+            avg_cost=500.0,
+            current_price=500.0,
+        )
+    )
+    db.commit()
+
+    fmp = FakeFMP({"VOO": 510.0, "SPY": 500.0})
+    refresh_marks(db, fmp)
+    pos = (
+        db.query(Position)
+        .filter(Position.portfolio_id == voo.id, Position.ticker == "VOO")
+        .one()
+    )
+    assert pos.current_price == 510.0
 
 
 # ---------------------------------------------------------------------------
@@ -737,4 +766,6 @@ def test_refresh_marks_does_not_refetch_a_covered_benchmark(db):
     fmp = HistoryFMP()
     refresh_marks(db, fmp)
     assert "QQQ" not in fmp.history_asked
-    assert set(fmp.history_asked) <= set(BENCHMARKS)
+    from worker.services.ingest import INGEST_ETFS
+
+    assert set(fmp.history_asked) <= set(INGEST_ETFS)

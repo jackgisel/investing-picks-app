@@ -576,3 +576,57 @@ def job_biweekly_evaluate():
             fmp.close()
 
     return _track("biweekly_evaluate", _run)
+
+
+def dca_target_friday(today: date) -> date | None:
+    """This week's calendar Friday, or None on weekends.
+
+    Same week-scoped trick as biweekly_evaluate: the trigger fires every
+    weekday so a holiday Friday can move to Thursday.
+    """
+    if today.weekday() > 4:
+        return None
+    return today + timedelta(days=4 - today.weekday())
+
+
+def job_dca_friday():
+    def _run(db: Session):
+        today = date.today()
+        if not is_trading_day(today):
+            log.info("%s is not a trading day; skipping DCA", today)
+            return {"skipped": "not_a_trading_day"}
+        target = dca_target_friday(today)
+        if target is None or not is_effective_run_day(target, today):
+            log.info(
+                "%s is not the effective DCA day for target %s; skipping",
+                today,
+                target,
+            )
+            return {"skipped": "not_effective_run_day", "target": str(target)}
+
+        from worker.services.market_calendar import last_trading_day_on_or_before
+        from app.services.dca import run_dca_friday
+
+        ensure_default_portfolio(db, get_settings().initial_cash)
+        session = last_trading_day_on_or_before(target)
+        return run_dca_friday(db, session)
+
+    return _track("dca_friday", _run)
+
+
+def job_dca_backfill():
+    """Replay Friday DCA sessions from live inception through the last session.
+
+    On-demand via RUN_JOB_ONCE=dca_backfill. Idempotent: weeks already deposited
+    are skipped.
+    """
+
+    def _run(db: Session):
+        from worker.services.market_calendar import last_trading_day_on_or_before
+        from app.services.dca import DCA_START, backfill_dca
+
+        ensure_default_portfolio(db, get_settings().initial_cash)
+        end = last_trading_day_on_or_before(date.today())
+        return backfill_dca(db, start=DCA_START, end=end)
+
+    return _track("dca_backfill", _run)

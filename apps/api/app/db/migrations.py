@@ -41,6 +41,52 @@ def _add_column(engine: Engine, table: str, column: str, ddl: str) -> None:
             log.debug("Could not add %s.%s; assuming it exists", table, column)
 
 
+def _ensure_portfolio_contributions(engine: Engine) -> None:
+    """Create the DCA deposit ledger if this database predates the table.
+
+    The worker boots with `ensure_schema` and never `create_all`, so a new table
+    that only lives on the model would be missing until the API process came up.
+    """
+    from sqlalchemy import inspect
+
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        if inspector.has_table("portfolio_contributions"):
+            return
+        sqlite = engine.dialect.name == "sqlite"
+        pk = "INTEGER PRIMARY KEY" if sqlite else "SERIAL PRIMARY KEY"
+        amount = "FLOAT" if sqlite else "DOUBLE PRECISION"
+        try:
+            conn.execute(
+                text(
+                    f"""
+                    CREATE TABLE portfolio_contributions (
+                        id {pk},
+                        portfolio_id INTEGER NOT NULL REFERENCES portfolios (id),
+                        date DATE NOT NULL,
+                        amount {amount} NOT NULL,
+                        UNIQUE (portfolio_id, date)
+                    )
+                    """
+                )
+            )
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_portfolio_contributions_portfolio_id "
+                    "ON portfolio_contributions (portfolio_id)"
+                )
+            )
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_portfolio_contributions_date "
+                    "ON portfolio_contributions (date)"
+                )
+            )
+            log.info("Created portfolio_contributions")
+        except Exception:
+            log.debug("Could not create portfolio_contributions; assuming it exists")
+
+
 def _columns(conn, table: str) -> list[dict]:
     from sqlalchemy import inspect
 
@@ -56,3 +102,5 @@ def ensure_schema(engine: Engine) -> None:
     # way to record that a failure was reported, and would mail the admins the
     # same failure every time it ran.
     _add_column(engine, "job_runs", "alerted_at", "TIMESTAMP WITH TIME ZONE")
+    _add_column(engine, "portfolios", "kind", "VARCHAR(16) DEFAULT 'live'")
+    _ensure_portfolio_contributions(engine)

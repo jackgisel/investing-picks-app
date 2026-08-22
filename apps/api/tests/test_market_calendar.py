@@ -131,6 +131,24 @@ def test_exactly_one_weekday_runs_per_evaluation_week():
         assert len(runs) == 1, f"week of {monday}: {runs}"
 
 
+def test_dca_target_friday_is_every_week():
+    from worker.jobs.runner import dca_target_friday
+
+    assert dca_target_friday(date(2026, 7, 8)) == date(2026, 7, 10)
+    assert dca_target_friday(date(2026, 7, 10)) == date(2026, 7, 10)
+    assert dca_target_friday(date(2026, 7, 11)) is None  # Saturday
+
+
+def test_dca_holiday_friday_runs_thursday():
+    from worker.jobs.runner import dca_target_friday
+
+    thursday = date(2026, 4, 2)
+    friday = date(2026, 4, 3)  # Good Friday
+    assert dca_target_friday(thursday) == friday
+    assert is_effective_run_day(friday, thursday)
+    assert not is_effective_run_day(friday, friday)
+
+
 def test_holiday_friday_moves_the_run_to_thursday():
     from worker.jobs.runner import biweekly_target_friday
 

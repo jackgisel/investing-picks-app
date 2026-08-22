@@ -7,7 +7,7 @@ from app.config import get_settings
 from app.db import models  # noqa: F401 — register metadata
 from app.db.migrations import ensure_schema
 from app.db.session import Base, SessionLocal, engine
-from app.routes import ops, public_v1
+from app.routes import dca, ops, public_v1
 from app.services.portfolio import ensure_default_portfolio
 
 
@@ -34,6 +34,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(public_v1.router)
+app.include_router(dca.router)
 app.include_router(ops.router)
 
 

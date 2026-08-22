@@ -271,10 +271,10 @@ def test_refresh_marks_ignores_scores_from_an_earlier_date(db):
     # Current candidates plus every comparison ETF, with no duplicate slots
     # consumed by yesterday's scores. MAGS/VTI/QQQ used to be omitted here,
     # which is why the Mag 7 line froze weeks behind the picks curve.
-    from app.services.benchmarks import BENCHMARKS
+    from worker.services.ingest import INGEST_ETFS
 
-    assert len(fmp.requested) == 100 + len(BENCHMARKS)
-    assert set(BENCHMARKS).issubset(fmp.requested)
+    assert len(fmp.requested) == 100 + len(INGEST_ETFS)
+    assert set(INGEST_ETFS).issubset(fmp.requested)
 
 
 # ---------------------------------------------------------------------------

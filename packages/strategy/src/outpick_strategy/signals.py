@@ -715,7 +715,35 @@ def evaluate_sells_only(
     if not params.enable_daily_sell_pass:
         return []
     as_of = as_of or portfolio.as_of or date.today()
-    signals: list[Signal] = []
-    signals.extend(_weight_trim_signals(portfolio, params))
-    signals.extend(_removal_signals(portfolio, scores, params, as_of))
+    return _sell_side_signals(portfolio, scores, params, as_of)
+
+
+def evaluate_dca_sells(
+    portfolio: PortfolioState,
+    scores: dict[str, ScoreSnapshot],
+    params: StrategyParams | None = None,
+    as_of: date | None = None,
+) -> list[Signal]:
+    """Sell-side only for the weekly DCA sample book.
+
+    Weight trims and removal rules, no buys, no recycle, no daily-sell flag.
+    The DCA book buys the whole BUY list with fresh cash every Friday, so the
+    live evaluator's `max_adds_per_evaluation=1` path must not run on it.
+    """
+    params = params or StrategyParams()
+    as_of = as_of or portfolio.as_of or date.today()
+    return _sell_side_signals(portfolio, scores, params, as_of)
+
+
+def _sell_side_signals(
+    portfolio: PortfolioState,
+    scores: dict[str, ScoreSnapshot],
+    params: StrategyParams,
+    as_of: date,
+) -> list[Signal]:
+    weight_trims = _weight_trim_signals(portfolio, params)
+    removals = _removal_signals(portfolio, scores, params, as_of)
+    exiting_now = {s.ticker for s in removals if s.action == Action.FULL_SELL}
+    signals = [t for t in weight_trims if t.ticker not in exiting_now]
+    signals.extend(removals)
     return signals

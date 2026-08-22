@@ -85,7 +85,9 @@ def _position_to_state(p: Position) -> PositionState:
     )
 
 
-def load_portfolio_state(db: Session, portfolio: Portfolio) -> PortfolioState:
+def load_portfolio_state(
+    db: Session, portfolio: Portfolio, as_of: date | None = None
+) -> PortfolioState:
     positions = {
         p.ticker: _position_to_state(p)
         for p in db.query(Position).filter(Position.portfolio_id == portfolio.id).all()
@@ -95,7 +97,7 @@ def load_portfolio_state(db: Session, portfolio: Portfolio) -> PortfolioState:
         positions=positions,
         peak_equity=portfolio.peak_equity,
         is_drawdown_halted=portfolio.is_drawdown_halted,
-        as_of=date.today(),
+        as_of=as_of or date.today(),
     )
 
 
@@ -328,15 +330,21 @@ QR_VELOCITY_LOOKBACK_DAYS = 7
 
 
 def load_latest_scores(db: Session) -> dict[str, ScoreSnapshot]:
-    """Current score per ticker, plus its rating a lookback window ago.
+    """Current score per ticker, plus its rating a lookback window ago."""
+    return load_scores_as_of(db, None)
 
-    Scoped to two `as_of` dates: the newest, and the newest that is at least
-    QR_VELOCITY_LOOKBACK_DAYS older. Previously this loaded the entire
-    `composite_scores` table and treated the second row it happened to see for
-    a ticker as "prior", so two scoring runs on the same day made prior ==
-    today and neutered the rating-drop exits.
+
+def load_scores_as_of(
+    db: Session, as_of: date | None
+) -> dict[str, ScoreSnapshot]:
+    """Scores on `as_of` (or the newest date on or before it).
+
+    `as_of=None` means the latest row in the table, matching `load_latest_scores`.
     """
-    current_date = db.query(func.max(CompositeScore.as_of)).scalar()
+    current_q = db.query(func.max(CompositeScore.as_of))
+    if as_of is not None:
+        current_q = current_q.filter(CompositeScore.as_of <= as_of)
+    current_date = current_q.scalar()
     if current_date is None:
         return {}
 
@@ -450,9 +458,12 @@ def apply_signals(
     portfolio: Portfolio,
     signals: list[Signal],
     evaluation: Evaluation,
+    as_of: date | None = None,
 ) -> list[Trade]:
     """Simulate fills at current_price marks."""
     trades: list[Trade] = []
+    fill_date = as_of or date.today()
+    fill_ts = datetime(fill_date.year, fill_date.month, fill_date.day, 20, 0, tzinfo=timezone.utc)
     positions = {
         p.ticker: p
         for p in db.query(Position).filter(Position.portfolio_id == portfolio.id).all()
@@ -502,6 +513,7 @@ def apply_signals(
                 notional=notional,
                 reason=sig.reason,
                 action=sig.action.value,
+                timestamp=fill_ts,
             )
             db.add(trade)
             trades.append(trade)
@@ -556,6 +568,7 @@ def apply_signals(
                 notional=notional,
                 reason=sig.reason,
                 action=sig.action.value,
+                timestamp=fill_ts,
             )
             db.add(trade)
             trades.append(trade)
@@ -587,7 +600,7 @@ def apply_signals(
                     shares=shares,
                     avg_cost=price,
                     current_price=price,
-                    entry_date=date.today(),
+                    entry_date=fill_date,
                     initial_investment=notional,
                     sector=sector,
                 )
@@ -797,6 +810,13 @@ def ensure_schema(db: Session, force: bool = False) -> None:
                     conn.execute(
                         text("ALTER TABLE portfolios ADD COLUMN inception_date DATE")
                     )
+                if "kind" not in cols:
+                    conn.execute(
+                        text(
+                            "ALTER TABLE portfolios ADD COLUMN kind "
+                            "VARCHAR(16) DEFAULT 'live'"
+                        )
+                    )
 
             if "composite_scores" in tables:
                 covered = [
@@ -860,16 +880,19 @@ def ensure_schema(db: Session, force: bool = False) -> None:
 def ensure_default_portfolio(db: Session, initial_cash: float = 100_000.0) -> Portfolio:
     ensure_schema(db)
     portfolio = db.get(Portfolio, 1)
-    if portfolio:
-        return portfolio
-    portfolio = Portfolio(
-        id=1,
-        name="AP Strategy",
-        cash=initial_cash,
-        peak_equity=initial_cash,
-        params_json=RUN118_PARAMS.to_dict(),
-    )
-    db.add(portfolio)
-    db.commit()
-    db.refresh(portfolio)
+    if not portfolio:
+        portfolio = Portfolio(
+            id=1,
+            name="AP Strategy",
+            cash=initial_cash,
+            peak_equity=initial_cash,
+            params_json=RUN118_PARAMS.to_dict(),
+            kind="live",
+        )
+        db.add(portfolio)
+        db.commit()
+        db.refresh(portfolio)
+    from app.services.dca import ensure_dca_portfolios
+
+    ensure_dca_portfolios(db)
     return portfolio

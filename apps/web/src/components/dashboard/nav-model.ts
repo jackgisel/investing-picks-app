@@ -8,6 +8,7 @@ import {
   Megaphone,
   Wallet,
   CalendarDays,
+  Repeat,
   type LucideIcon,
 } from "lucide-react";
 
@@ -49,6 +50,7 @@ const NAV_GROUPS: readonly NavGroup[] = [
     items: [
       { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
       { label: "Positions", href: "/dashboard/positions", icon: Briefcase },
+      { label: "Weekly $1k", href: "/dashboard/dca", icon: Repeat },
       { label: "Insights", href: "/dashboard/insights", icon: FileText },
       { label: "Strategy", href: "/dashboard/strategy", icon: BookOpen },
       { label: "Settings", href: "/dashboard/settings", icon: Settings },

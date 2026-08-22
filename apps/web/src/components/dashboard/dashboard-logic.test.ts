@@ -112,6 +112,7 @@ describe("visibleGroups", () => {
     expect(flatten(groups).map((i) => i.label)).toEqual([
       "Dashboard",
       "Positions",
+      "Weekly $1k",
       "Insights",
       "Strategy",
       "Settings",

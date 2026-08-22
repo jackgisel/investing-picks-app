@@ -37,10 +37,16 @@ class Portfolio(Base):
     # Day the live book started. Editable from the admin ops UI; the web app
     # falls back to LIVE_PORTFOLIO.inceptionISO when this is null.
     inception_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # live | dca_voo | dca_picks. Jobs that call evaluate() must ignore
+    # anything other than live — the DCA books have a different buy mandate.
+    kind: Mapped[str] = mapped_column(String(16), default="live", server_default="live")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     positions: Mapped[list[Position]] = relationship(back_populates="portfolio")
     trades: Mapped[list[Trade]] = relationship(back_populates="portfolio")
+    contributions: Mapped[list["PortfolioContribution"]] = relationship(
+        back_populates="portfolio"
+    )
 
 
 class Position(Base):
@@ -110,6 +116,23 @@ class PortfolioSnapshot(Base):
     total_value: Mapped[float] = mapped_column(Float)
     spy_value: Mapped[float | None] = mapped_column(Float, nullable=True)
     position_count: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class PortfolioContribution(Base):
+    """One weekly deposit into a DCA sample book.
+
+    Unique per (portfolio, session date) so a Friday pass is idempotent.
+    """
+
+    __tablename__ = "portfolio_contributions"
+    __table_args__ = (UniqueConstraint("portfolio_id", "date"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    portfolio_id: Mapped[int] = mapped_column(ForeignKey("portfolios.id"), index=True)
+    date: Mapped[date] = mapped_column(Date, index=True)
+    amount: Mapped[float] = mapped_column(Float)
+
+    portfolio: Mapped[Portfolio] = relationship(back_populates="contributions")
 
 
 class Stock(Base):

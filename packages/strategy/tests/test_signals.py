@@ -9,6 +9,7 @@ from outpick_strategy import (
     RUN118_PARAMS,
     ScoreSnapshot,
     evaluate,
+    evaluate_dca_sells,
     evaluate_sells_only,
 )
 
@@ -203,6 +204,23 @@ def test_daily_sell_pass_off_by_default():
     portfolio = PortfolioState(cash=10_000, positions={"LOSER": pos})
     scores = {"LOSER": _score("LOSER", 1.0)}
     assert evaluate_sells_only(portfolio, scores, RUN118_PARAMS) == []
+
+
+def test_evaluate_dca_sells_fires_without_the_daily_flag():
+    """The DCA sample reuses live exits, not the optional daily sell pass."""
+    pos = PositionState(
+        ticker="LOSER",
+        shares=10,
+        avg_cost=50,
+        current_price=40,
+        entry_date=date.today(),
+        initial_investment=5000,
+    )
+    portfolio = PortfolioState(cash=10_000, positions={"LOSER": pos})
+    scores = {"LOSER": _score("LOSER", 1.0)}
+    signals = evaluate_dca_sells(portfolio, scores, RUN118_PARAMS)
+    assert any(s.action == Action.FULL_SELL and s.ticker == "LOSER" for s in signals)
+    assert not any(s.action == Action.BUY for s in signals)
 
 
 def test_sector_cap_blocks_buy():

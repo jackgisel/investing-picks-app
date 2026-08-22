@@ -25,6 +25,8 @@ from worker.jobs.runner import (
     job_backfill_snapshots,
     job_biweekly_evaluate,
     job_daily_marks,
+    job_dca_backfill,
+    job_dca_friday,
     job_performance_alerts,
     job_weekly_refresh,
     job_weekly_review_draft,
@@ -151,6 +153,16 @@ def main():
         id="biweekly_evaluate",
         replace_existing=True,
     )
+    # Weekdays 18:45 ET — after daily_marks (18:30) has written Friday closes
+    # and scores, so the sample books fill against the session that just ended.
+    # The job itself decides whether today is this week's Friday session
+    # (holiday Fridays move to Thursday).
+    scheduler.add_job(
+        job_dca_friday,
+        CronTrigger(day_of_week="mon-fri", hour=18, minute=45),
+        id="dca_friday",
+        replace_existing=True,
+    )
 
     log.info("Worker scheduler started")
     if os.environ.get("RUN_JOB_ONCE"):
@@ -176,6 +188,8 @@ def main():
             # Scheduled weekly (above); also runnable on demand for the
             # first load, which is much larger than a weekly top-up.
             "backfill_prices": job_backfill_prices,
+            "dca_friday": job_dca_friday,
+            "dca_backfill": job_dca_backfill,
         }[name]()
         return
 

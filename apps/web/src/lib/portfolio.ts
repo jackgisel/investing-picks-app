@@ -53,6 +53,17 @@ export function formatPctOrDash(n: number | null | undefined, digits = 2) {
   return typeof n === "number" ? formatPct(n, digits) : "—";
 }
 
+/** Compact USD. `$12,450` / `-$200`. Null becomes an em dash. */
+export function formatUsd(n: number | null | undefined, digits = 0): string {
+  if (typeof n !== "number" || Number.isNaN(n)) return "—";
+  return n.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+}
+
 /**
  * The colour for a P&L figure.
  *

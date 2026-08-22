@@ -15,7 +15,7 @@ from conftest import make_position
 
 from app.db.models import PriceBar, Stock
 from app.services.benchmarks import BENCHMARKS
-from worker.services.ingest import backfill_price_history, bulk_insert_price_bars
+from worker.services.ingest import INGEST_ETFS, backfill_price_history, bulk_insert_price_bars
 
 TODAY = date.today()
 
@@ -108,8 +108,8 @@ def test_backfill_skips_today_and_well_covered_tickers(db, portfolio):
     assert "FULL" not in fmp.asked, "re-fetched a ticker that already had history"
     # Comparison ETFs have no Stock row and no bars here, so they are short
     # and must be fetched — that is the MAGS-gap fix.
-    assert set(BENCHMARKS).issubset(fmp.asked)
-    assert result["tickers"] == 1 + len(BENCHMARKS)
+    assert set(INGEST_ETFS).issubset(fmp.asked)
+    assert result["tickers"] == 1 + len(INGEST_ETFS)
 
     # Today belongs to refresh_marks; the backfill must not write it.
     assert (
@@ -135,7 +135,7 @@ def test_a_long_but_stale_series_is_topped_up(db, portfolio):
     result = backfill_price_history(db, fmp, min_bars=20, max_stale_days=5)
 
     assert "STALE" in fmp.asked, "a long-but-frozen series was never topped up"
-    assert result["stale"] == 1 and result["short"] == len(BENCHMARKS)
+    assert result["stale"] == 1 and result["short"] == len(INGEST_ETFS)
 
 
 def test_a_stale_top_up_fetches_incrementally(db, portfolio):
@@ -169,7 +169,7 @@ def test_a_fresh_but_short_series_still_gets_full_history(db, portfolio):
 
     assert "SHORT" in fmp.asked, "a fresh but too-short series was skipped"
     assert fmp.asked_from["SHORT"] == TODAY - timedelta(days=430)
-    assert result["short"] == 1 + len(BENCHMARKS)
+    assert result["short"] == 1 + len(INGEST_ETFS)
 
 
 def test_a_held_ticker_outside_the_universe_is_still_covered(db, portfolio):
@@ -194,6 +194,7 @@ def test_a_comparison_etf_without_a_stock_row_is_still_covered(db, portfolio):
     assert "QQQ" in fmp.asked
     assert "VTI" in fmp.asked
     assert "SPY" in fmp.asked
+    assert "VOO" in fmp.asked
 
 
 def test_backfill_fetches_benchmarks_before_the_universe_budget_runs_out(db, portfolio):
@@ -203,9 +204,9 @@ def test_backfill_fetches_benchmarks_before_the_universe_budget_runs_out(db, por
     db.commit()
 
     fmp = _StubFMP()
-    backfill_price_history(db, fmp, min_bars=20, max_tickers=len(BENCHMARKS))
+    backfill_price_history(db, fmp, min_bars=20, max_tickers=len(INGEST_ETFS))
 
-    assert set(fmp.asked) == set(BENCHMARKS)
+    assert set(fmp.asked) == set(INGEST_ETFS)
     assert all(not t.startswith("U") for t in fmp.asked)
 
 

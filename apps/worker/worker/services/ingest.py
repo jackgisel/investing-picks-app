@@ -18,6 +18,10 @@ from worker.services.market_calendar import last_trading_day_on_or_before
 
 log = logging.getLogger(__name__)
 
+#: Comparison ETFs that must keep a daily bar, including VOO for the DCA sample.
+#: Not the same set as BENCHMARKS — VOO must not appear on the live picks chart.
+INGEST_ETFS: tuple[str, ...] = (*BENCHMARKS, "VOO")
+
 # How far back to look for the consensus estimate we compare against. Weekly
 # fundamentals refreshes mean roughly one snapshot per 7 days, so ~3 weeks
 # approximates the conventional 1-month revision window.
@@ -37,6 +41,11 @@ MIN_REVISION_LOOKBACK_DAYS = 5
 # coverage floor unrated a held name. Real next-year periods are ~365 days
 # apart, so a two-week window is jitter, not a new year.
 PERIOD_MATCH_TOLERANCE_DAYS = 14
+
+
+def held_tickers(db: Session) -> set[str]:
+    """Open position tickers across every book, not just the live one."""
+    return {row[0] for row in db.query(Position.ticker).distinct().all()}
 
 
 def first_present(row: dict, *keys):
@@ -132,8 +141,8 @@ def ensure_benchmark_history(
     `refresh_marks` only writes today. QQQ was added to BENCHMARKS on a Sunday;
     `backfill_prices` had already run that Saturday, so the landing chart
     published five live quotes against April cash flows and Nasdaq-100 printed
-    -100%. This fetch is four tickers, only when a series is short, and skips
-    today so it never overwrites the live mark written below.
+    -100%. This fetch is a handful of tickers, only when a series is short, and
+    skips today so it never overwrites the live mark written below.
     """
     fetch = getattr(fmp, "historical_prices", None)
     if not callable(fetch):
@@ -145,14 +154,14 @@ def ensure_benchmark_history(
         ticker: int(n or 0)
         for ticker, n in (
             db.query(PriceBar.ticker, func.count(PriceBar.id))
-            .filter(PriceBar.ticker.in_(list(BENCHMARKS)))
+            .filter(PriceBar.ticker.in_(list(INGEST_ETFS)))
             .group_by(PriceBar.ticker)
             .all()
         )
     }
     fetched = 0
     inserted = 0
-    for ticker in BENCHMARKS:
+    for ticker in INGEST_ETFS:
         if coverage.get(ticker, 0) >= min_bars:
             continue
         try:
@@ -634,11 +643,9 @@ def refresh_fundamentals(db: Session, fmp: FMPClient, max_tickers: int = 400) ->
     # Held positions are ALWAYS refreshed, whatever their size. Ranking by market
     # cap alone dropped 7 of 8 real holdings outside the cut, and an unscored
     # holding is invisible to `_removal_signals` (it skips any position with no
-    # score) — the book would silently stop being evaluated for sells.
-    held = {
-        row[0]
-        for row in db.query(Position.ticker).filter(Position.portfolio_id == 1).all()
-    }
+    # score) — the book would silently stop being evaluated for sells. Every
+    # book, not just the live one: the DCA sample needs scores to fire exits.
+    held = held_tickers(db)
     # NULLS LAST matters: Postgres sorts NULL first on DESC, so unpriced shells
     # would otherwise consume the budget ahead of the largest real companies.
     ranked = (
@@ -809,10 +816,7 @@ def backfill_price_history(
         .order_by(Stock.market_cap.desc().nullslast())
         .all()
     )
-    held = {
-        row[0]
-        for row in db.query(Position.ticker).filter(Position.portfolio_id == 1).all()
-    }
+    held = held_tickers(db)
 
     def _is_short(ticker: str) -> bool:
         return coverage.get(ticker, (0, None))[0] < min_bars
@@ -832,7 +836,7 @@ def backfill_price_history(
     # names; with max_tickers set they used to consume the whole budget and a
     # newly added benchmark (QQQ) never got a history fetch.
     priority = [
-        t for t in sorted(held | set(BENCHMARKS)) if _is_short(t) or _is_stale(t)
+        t for t in sorted(held | set(INGEST_ETFS)) if _is_short(t) or _is_stale(t)
     ]
     seen_priority = set(priority)
     rest = [
@@ -899,11 +903,8 @@ def backfill_price_history(
 def refresh_marks(db: Session, fmp: FMPClient) -> int:
     """Update marks for open positions, recent candidates, and comparison ETFs."""
     ensure_benchmark_history(db, fmp)
-    portfolio = ensure_default_portfolio(db)
-    pos_tickers = [
-        p.ticker
-        for p in db.query(Position).filter(Position.portfolio_id == portfolio.id).all()
-    ]
+    ensure_default_portfolio(db)
+    pos_tickers = list(held_tickers(db))
     # Top scored candidates, by RATING, from the latest scoring date.
     #
     # This was `ORDER BY composite_scores.id DESC LIMIT 100` with no as_of
@@ -931,11 +932,11 @@ def refresh_marks(db: Session, fmp: FMPClient) -> int:
         if latest_as_of is not None
         else []
     )
-    held_tickers = set(pos_tickers)
+    held = set(pos_tickers)
     # Comparison ETFs must be marked every session. SPY already was; MAGS and
     # VTI were only written during snapshot backfill, so their series stopped
     # weeks before the picks curve and the Mag 7 line looked like missing data.
-    tickers = list({*pos_tickers, *[c[0] for c in candidates], *BENCHMARKS})
+    tickers = list({*pos_tickers, *[c[0] for c in candidates], *INGEST_ETFS})
     quotes = fmp.batch_quotes(tickers)
     # Date the bar to the session it actually belongs to. FMP returns the last
     # close when the market is shut, so stamping it with date.today() invented a
@@ -963,7 +964,7 @@ def refresh_marks(db: Session, fmp: FMPClient) -> int:
                 ticker=ticker,
                 name=q.get("name"),
                 is_active=True,
-                is_etf=ticker in BENCHMARKS,
+                is_etf=ticker in INGEST_ETFS,
             )
             db.add(stock)
         # Backfill market cap whenever it is unknown, including on rows this
@@ -1002,7 +1003,7 @@ def refresh_marks(db: Session, fmp: FMPClient) -> int:
         # sector already set, and SPY is a benchmark that legitimately has none
         # — looking it up every run would spend a call and log a warning
         # forever for a row that is not a candidate for anything.
-        if not stock.sector and ticker in held_tickers:
+        if not stock.sector and ticker in held:
             try:
                 profile = fmp.profile(ticker)
             except Exception:  # never let a marks run die on one lookup
@@ -1024,44 +1025,57 @@ def refresh_marks(db: Session, fmp: FMPClient) -> int:
 
     db.flush()
 
-    # Update open position marks
+    # Update open position marks on every book.
     marked = 0
-    for p in db.query(Position).filter(Position.portfolio_id == portfolio.id).all():
+    open_positions = db.query(Position).all()
+    for p in open_positions:
         stock = db.get(Stock, p.ticker)
         if stock and stock.last_price:
             p.current_price = stock.last_price
             marked += 1
         else:
             log.warning("No mark available for held position %s", p.ticker)
-    log.info("Marked %s/%s open positions", marked, len(pos_tickers))
+    log.info("Marked %s/%s open positions", marked, len(open_positions))
 
-    # Snapshot
+    spy = db.get(Stock, "SPY")
+    spy_px = spy.last_price if spy else None
+    for portfolio in db.query(Portfolio).all():
+        _upsert_daily_snapshot(db, portfolio, today, spy_px)
+    db.commit()
+    log.info("Updated %s marks", n)
+    return n
+
+
+def _upsert_daily_snapshot(
+    db: Session, portfolio: Portfolio, as_of: date, spy_px: float | None
+) -> None:
     positions = db.query(Position).filter(Position.portfolio_id == portfolio.id).all()
     invested = sum(p.market_value for p in positions)
-    spy = db.get(Stock, "SPY")
+    cash = portfolio.cash or 0.0
     existing = (
         db.query(PortfolioSnapshot)
-        .filter(PortfolioSnapshot.portfolio_id == portfolio.id, PortfolioSnapshot.date == today)
+        .filter(
+            PortfolioSnapshot.portfolio_id == portfolio.id,
+            PortfolioSnapshot.date == as_of,
+        )
         .first()
     )
     if existing:
-        existing.cash = portfolio.cash
+        existing.cash = cash
         existing.invested_value = invested
-        existing.total_value = portfolio.cash + invested
+        existing.total_value = cash + invested
         existing.position_count = len(positions)
-        existing.spy_value = spy.last_price if spy else None
+        existing.spy_value = spy_px
     else:
         db.add(
             PortfolioSnapshot(
                 portfolio_id=portfolio.id,
-                date=today,
-                cash=portfolio.cash,
+                date=as_of,
+                cash=cash,
                 invested_value=invested,
-                total_value=portfolio.cash + invested,
-                spy_value=spy.last_price if spy else None,
+                total_value=cash + invested,
+                spy_value=spy_px,
                 position_count=len(positions),
             )
         )
-    db.commit()
-    log.info("Updated %s marks", n)
-    return n
+

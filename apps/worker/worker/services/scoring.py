@@ -408,9 +408,9 @@ def _missing_factor_reason(missing: list[str]) -> str:
     names = ", ".join(missing)
     if missing == ["revisions"]:
         return (
-            "missing factors: revisions. Revisions go null for one cycle when "
-            "the forward fiscal period rolls over, and min_factor_coverage = 1.0 "
-            "then refuses to rate the ticker."
+            "missing factors: revisions. Revisions stay null until two "
+            "snapshots of the same fiscal period span the lookback, and "
+            "min_factor_coverage = 1.0 then refuses to rate the ticker."
         )
     if missing == ["momentum"]:
         return (
@@ -549,8 +549,13 @@ def preview_scores(
 
 
 def score_universe(db: Session, params: StrategyParams | None = None) -> int:
+    from worker.services.ingest import recompute_latest_revisions
+
     params = params or RUN118_PARAMS
     as_of = date.today()
+    patched = recompute_latest_revisions(db, as_of)
+    if patched:
+        log.info("Recomputed revisions on %d latest snapshots", patched)
 
     scored, missing_factor, considered = compute_scores(db, params, as_of)
     if not considered:

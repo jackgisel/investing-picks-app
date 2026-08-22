@@ -727,8 +727,8 @@ def evaluate_dca_sells(
     """Sell-side only for the weekly DCA sample book.
 
     Weight trims and removal rules, no buys, no recycle, no daily-sell flag.
-    The DCA book buys the whole BUY list with fresh cash every Friday, so the
-    live evaluator's `max_adds_per_evaluation=1` path must not run on it.
+    The DCA book adds to live open BUY names with fresh cash every Friday, so
+    the live evaluator's `max_adds_per_evaluation=1` path must not run on it.
     """
     params = params or StrategyParams()
     as_of = as_of or portfolio.as_of or date.today()

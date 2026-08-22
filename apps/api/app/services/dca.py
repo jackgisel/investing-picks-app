@@ -3,8 +3,9 @@
 Two parallel virtual books, identical deposits, different buy mandates:
 
   * `dca_voo`   — buy only VOO, never sell
-  * `dca_picks` — split cash across every BUY / STRONG BUY name that day,
-                  then apply the live book's sell rules
+  * `dca_picks` — split cash across the live book's open positions that are
+                  still rated BUY or STRONG BUY that day, then apply the
+                  live book's sell rules
 
 Neither book goes through `evaluate()`. That path enforces one add per cycle.
 """
@@ -26,15 +27,19 @@ from outpick_strategy import (
 
 from app.db.models import (
     CompositeScore,
+    Evaluation,
     Portfolio,
     PortfolioContribution,
     PortfolioSnapshot,
     Position,
     PriceBar,
+    SignalReason,
+    SignalRow,
     Stock,
     Trade,
 )
 from app.services.portfolio import (
+    SHARE_EPSILON,
     apply_signals,
     load_portfolio_state,
     load_scores_as_of,
@@ -56,7 +61,7 @@ DCA_START = date(2026, 4, 1)
 DCA_FIRST_SESSION = date(2026, 4, 2)
 
 VOO_PORTFOLIO_NAME = "Weekly $1,000 · VOO"
-PICKS_PORTFOLIO_NAME = "Weekly $1,000 · BUY list"
+PICKS_PORTFOLIO_NAME = "Weekly $1,000 · Open buys"
 
 
 def _market_calendar():
@@ -135,6 +140,8 @@ def _ensure_book(
 ) -> Portfolio:
     existing = portfolio_by_kind(db, kind)
     if existing:
+        if existing.name != name:
+            existing.name = name
         return existing
     taken = db.get(Portfolio, id_hint)
     row = Portfolio(
@@ -173,8 +180,66 @@ def scores_as_of_date(db: Session, as_of: date) -> date | None:
     )
 
 
+def _trade_session_date(trade: Trade) -> date | None:
+    stamped = trade.timestamp
+    if stamped is None:
+        return None
+    if stamped.tzinfo is None:
+        stamped = stamped.replace(tzinfo=timezone.utc)
+    return stamped.date()
+
+
+def live_portfolio(db: Session) -> Portfolio | None:
+    return portfolio_by_kind(db, KIND_LIVE) or db.get(Portfolio, 1)
+
+
+def live_open_tickers(db: Session, as_of: date) -> list[str]:
+    """Live-book tickers that were still open on `as_of`.
+
+    Rebuilt from fills so a Friday backfill sees that day's open table, not
+    today's. Imported lots with no trade history use `entry_date`.
+    """
+    live = live_portfolio(db)
+    if live is None:
+        return []
+
+    shares: dict[str, float] = {}
+    traded: set[str] = set()
+    for trade in db.query(Trade).filter(Trade.portfolio_id == live.id):
+        session = _trade_session_date(trade)
+        if session is None or session > as_of:
+            continue
+        traded.add(trade.ticker)
+        qty = trade.shares or 0.0
+        if trade.side == "buy":
+            shares[trade.ticker] = shares.get(trade.ticker, 0.0) + qty
+        else:
+            shares[trade.ticker] = shares.get(trade.ticker, 0.0) - qty
+
+    open_names = {ticker for ticker, qty in shares.items() if qty > SHARE_EPSILON}
+    today = date.today()
+    for pos in db.query(Position).filter(Position.portfolio_id == live.id):
+        if pos.ticker in traded:
+            continue
+        if not pos.shares or pos.shares <= SHARE_EPSILON:
+            continue
+        if pos.entry_date is not None:
+            if pos.entry_date <= as_of:
+                open_names.add(pos.ticker)
+        elif as_of >= today:
+            open_names.add(pos.ticker)
+    return sorted(open_names)
+
+
 def buy_universe(db: Session, as_of: date) -> list[str]:
-    """Tickers rated BUY or STRONG BUY on the latest score date ≤ `as_of`."""
+    """Live open positions rated BUY or STRONG BUY as of `as_of`.
+
+    The badge threshold (`quant_rating >= 3.5`), not evaluate()'s 4.0 gate.
+    Names on the scored BUY list that the live book does not hold are ignored.
+    """
+    held = live_open_tickers(db, as_of)
+    if not held:
+        return []
     score_date = scores_as_of_date(db, as_of)
     if score_date is None:
         return []
@@ -182,6 +247,7 @@ def buy_universe(db: Session, as_of: date) -> list[str]:
         db.query(CompositeScore.ticker)
         .filter(
             CompositeScore.as_of == score_date,
+            CompositeScore.ticker.in_(held),
             CompositeScore.quant_rating >= SIGNAL_THRESHOLDS["buy"],
         )
         .order_by(CompositeScore.ticker.asc())
@@ -455,7 +521,7 @@ def _run_picks_friday(db: Session, portfolio: Portfolio, as_of: date) -> dict:
     universe = buy_universe(db, as_of)
     if not universe:
         log.warning(
-            "DCA picks %s: no BUY/STRONG BUY universe (no scores?); carrying cash",
+            "DCA picks %s: no live open BUY/STRONG BUY names; carrying cash",
             as_of,
         )
     trades, missing = _equal_weight_buys(
@@ -463,7 +529,7 @@ def _run_picks_friday(db: Session, portfolio: Portfolio, as_of: date) -> dict:
         portfolio,
         universe,
         as_of,
-        reason="Weekly DCA: BUY list",
+        reason="Weekly DCA: live open BUY",
         evaluation_id=ev.id,
     )
     _upsert_snapshot(db, portfolio, as_of)
@@ -490,10 +556,75 @@ def run_dca_friday(
     return {"as_of": str(as_of), "voo": voo_result, "picks": picks_result}
 
 
+def reset_dca_books(db: Session) -> dict[str, int]:
+    """Wipe sample-book fills so a backfill can replay from scratch."""
+    voo, picks = ensure_dca_portfolios(db)
+    ids = [voo.id, picks.id]
+    eval_ids = [
+        eid
+        for (eid,) in db.query(Evaluation.id)
+        .filter(Evaluation.portfolio_id.in_(ids))
+        .all()
+    ]
+    n_trades = db.query(Trade).filter(Trade.portfolio_id.in_(ids)).delete(
+        synchronize_session=False
+    )
+    sig_ids: list[int] = []
+    if eval_ids:
+        sig_ids = [
+            sid
+            for (sid,) in db.query(SignalRow.id)
+            .filter(SignalRow.evaluation_id.in_(eval_ids))
+            .all()
+        ]
+    if sig_ids:
+        db.query(SignalReason).filter(SignalReason.signal_id.in_(sig_ids)).delete(
+            synchronize_session=False
+        )
+    if eval_ids:
+        db.query(SignalRow).filter(SignalRow.evaluation_id.in_(eval_ids)).delete(
+            synchronize_session=False
+        )
+        db.query(Evaluation).filter(Evaluation.id.in_(eval_ids)).delete(
+            synchronize_session=False
+        )
+    n_contrib = (
+        db.query(PortfolioContribution)
+        .filter(PortfolioContribution.portfolio_id.in_(ids))
+        .delete(synchronize_session=False)
+    )
+    db.query(PortfolioSnapshot).filter(PortfolioSnapshot.portfolio_id.in_(ids)).delete(
+        synchronize_session=False
+    )
+    n_pos = db.query(Position).filter(Position.portfolio_id.in_(ids)).delete(
+        synchronize_session=False
+    )
+    for book in (voo, picks):
+        book.cash = 0.0
+        book.peak_equity = 0.0
+        book.is_drawdown_halted = False
+    db.commit()
+    return {
+        "trades": int(n_trades or 0),
+        "contributions": int(n_contrib or 0),
+        "positions": int(n_pos or 0),
+    }
+
+
 def backfill_dca(
-    db: Session, start: date | None = None, end: date | None = None
+    db: Session,
+    start: date | None = None,
+    end: date | None = None,
+    *,
+    reset: bool = True,
 ) -> dict:
-    """Replay every Friday session from `start` through `end` inclusive."""
+    """Replay every Friday session from `start` through `end` inclusive.
+
+    Defaults to wiping the sample books first. The weekly Friday job does not
+    call this; it only adds the new week.
+    """
+    if reset:
+        reset_dca_books(db)
     start = start or DCA_START
     if end is None:
         end = _market_calendar()(date.today())

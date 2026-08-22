@@ -617,8 +617,8 @@ def job_dca_friday():
 def job_dca_backfill():
     """Replay Friday DCA sessions from live inception through the last session.
 
-    On-demand via RUN_JOB_ONCE=dca_backfill. Idempotent: weeks already deposited
-    are skipped.
+    On-demand via RUN_JOB_ONCE=dca_backfill. Wipes the sample books and replays
+    every Friday so a mandate change can rebuild from the live open table.
     """
 
     def _run(db: Session):

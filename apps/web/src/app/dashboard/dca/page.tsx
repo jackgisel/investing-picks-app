@@ -46,9 +46,9 @@ export default function DcaPage() {
         <p className="mt-1 max-w-[640px] font-sans text-[13px] leading-relaxed text-text-dim">
           A sample, not the live book. Both portfolios receive $1,000 every
           Friday. One buys VOO and holds it. The other splits that cash across
-          every name rated BUY or STRONG BUY that day, and still sells on the
-          live book&apos;s exit rules. The live product remains one pick every
-          two weeks.
+          the live book&apos;s open positions that are still rated BUY or
+          STRONG BUY that day, and still sells on the live book&apos;s exit
+          rules. The live product remains one pick every two weeks.
         </p>
       </div>
 
@@ -71,7 +71,7 @@ export default function DcaPage() {
               loading={perfQuery.isPending}
             />
             <StatTile
-              label="BUY LIST"
+              label="OPEN BUYS"
               value={formatUsd(perf?.picks?.value ?? null)}
               icon={TrendingUp}
               tone="mint"
@@ -88,7 +88,7 @@ export default function DcaPage() {
               loading={perfQuery.isPending}
             />
             <StatTile
-              label="BUY LIST − VOO"
+              label="OPEN BUYS − VOO"
               value={
                 delta == null
                   ? "—"
@@ -108,7 +108,7 @@ export default function DcaPage() {
           <DcaWealthChart series={perf?.series ?? []} />
 
           <section className="space-y-3">
-            <p className="panel-label panel-label-mint">BUY list holdings</p>
+            <p className="panel-label panel-label-mint">Open buy holdings</p>
             <HoldingsTable
               rows={holdings?.picks ?? []}
               loading={holdQuery.isPending}
@@ -136,7 +136,7 @@ function HoldingsTable({
   if (rows.length === 0) {
     return (
       <div className="data-card px-5 py-8 text-center font-sans text-[13px] text-text-muted">
-        No open names yet. They appear after the first Friday with a BUY list.
+        No open names yet. They appear after a Friday when the live book holds a BUY.
       </div>
     );
   }

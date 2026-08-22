@@ -63,7 +63,7 @@ export function DcaWealthChart({ series }: { series: DcaPoint[] }) {
   return (
     <div className="data-card p-4 sm:p-5">
       <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2">
-        <LegendSwatch color={colors.picks} label="BUY list" />
+        <LegendSwatch color={colors.picks} label="Open buys" />
         <LegendSwatch color={colors.voo} dash="7 4" label="VOO" />
         <LegendSwatch color={colors.contributed} dash="2 4" label="Deposited" />
       </div>
@@ -93,7 +93,7 @@ export function DcaWealthChart({ series }: { series: DcaPoint[] }) {
             <Line
               type="monotone"
               dataKey="picks"
-              name="BUY list"
+              name="Open buys"
               stroke={colors.picks}
               strokeWidth={2.25}
               dot={false}

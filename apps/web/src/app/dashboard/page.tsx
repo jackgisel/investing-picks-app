@@ -264,8 +264,8 @@ export default function DashboardPage() {
             href="/dashboard/strategy"
             className="block data-card hover:bg-bg-tertiary transition-colors group"
           >
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
                 <span className="panel-label block mb-1">
                   METHODOLOGY
                 </span>
@@ -279,7 +279,7 @@ export default function DashboardPage() {
               </div>
               <ArrowUpRight
                 size={18}
-                className="text-text-dim group-hover:opacity-70 transition-colors"
+                className="mt-1 shrink-0 text-text-dim group-hover:opacity-70 transition-colors"
               />
             </div>
           </Link>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { HScroll } from "@/components/ui/h-scroll";
 
 export interface TabDef<T extends string> {
   id: T;
@@ -41,42 +42,46 @@ export function Tabs<T extends string>({
   }
 
   return (
-    <div
-      role="tablist"
-      aria-label={label}
-      onKeyDown={onKeyDown}
-      className="flex items-center gap-1 border-b border-border"
-    >
-      {tabs.map((tab) => {
-        const selected = tab.id === value;
-        return (
-          <button
-            key={tab.id}
-            ref={(el) => {
-              refs.current[tab.id] = el;
-            }}
-            role="tab"
-            type="button"
-            id={`tab-${tab.id}`}
-            aria-selected={selected}
-            aria-controls={`panel-${tab.id}`}
-            tabIndex={selected ? 0 : -1}
-            onClick={() => onChange(tab.id)}
-            className={`-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 font-sans text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 focus-visible:ring-offset-bg ${
-              selected
-                ? "border-accent-mint text-text"
-                : "border-transparent text-text-dim hover:text-text-muted"
-            }`}
-          >
-            {tab.label}
-            {tab.badge && (
-              <span className="font-mono text-[10px] tabular-nums text-text-dim">
-                {tab.badge}
-              </span>
-            )}
-          </button>
-        );
-      })}
+    <div className="border-b border-border">
+      <HScroll innerClassName="flex items-center gap-1">
+        <div
+          role="tablist"
+          aria-label={label}
+          onKeyDown={onKeyDown}
+          className="flex min-w-max items-center gap-1"
+        >
+        {tabs.map((tab) => {
+          const selected = tab.id === value;
+          return (
+            <button
+              key={tab.id}
+              ref={(el) => {
+                refs.current[tab.id] = el;
+              }}
+              role="tab"
+              type="button"
+              id={`tab-${tab.id}`}
+              aria-selected={selected}
+              aria-controls={`panel-${tab.id}`}
+              tabIndex={selected ? 0 : -1}
+              onClick={() => onChange(tab.id)}
+              className={`-mb-px flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-4 py-2.5 font-sans text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 focus-visible:ring-offset-bg ${
+                selected
+                  ? "border-accent-mint text-text"
+                  : "border-transparent text-text-dim hover:text-text-muted"
+              }`}
+            >
+              {tab.label}
+              {tab.badge && (
+                <span className="font-mono text-[10px] tabular-nums text-text-dim">
+                  {tab.badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      </HScroll>
     </div>
   );
 }

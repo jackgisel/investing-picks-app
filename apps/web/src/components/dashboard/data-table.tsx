@@ -29,16 +29,18 @@ export function SortableHead<K extends string>({
   sortKey,
   sortDir,
   onSort,
+  stickyFirst = false,
 }: {
   columns: readonly Column<K>[];
   sortKey: K;
   sortDir: SortDir;
   onSort: (key: K) => void;
+  stickyFirst?: boolean;
 }) {
   return (
     <thead>
       <tr>
-        {columns.map((col) => {
+        {columns.map((col, index) => {
           const isSorted = col.sortKey !== undefined && col.sortKey === sortKey;
           return (
             <th
@@ -53,7 +55,9 @@ export function SortableHead<K extends string>({
                     ? "none"
                     : undefined
               }
-              className="border-b border-border bg-bg px-5 py-3 text-left font-sans text-[10px] font-bold tracking-[0.12em] text-text-dim"
+              className={`border-b border-border bg-bg px-3 py-3 text-left font-sans text-[10px] font-bold tracking-[0.12em] text-text-dim sm:px-5${
+                stickyFirst && index === 0 ? " sticky-col" : ""
+              }`}
             >
               <span className="flex flex-col gap-0.5">
                 {col.sortKey ? (
@@ -130,7 +134,7 @@ export function FilterChips<T extends string>({
   label: string;
 }) {
   return (
-    <div className="flex items-center gap-2" role="group" aria-label={label}>
+    <div className="flex flex-wrap items-center gap-2" role="group" aria-label={label}>
       {options.map((opt) => (
         <button
           key={opt}

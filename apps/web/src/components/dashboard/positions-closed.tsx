@@ -15,6 +15,7 @@ import {
   type Column,
   type SortDir,
 } from "@/components/dashboard/data-table";
+import { HScroll } from "@/components/ui/h-scroll";
 import { formatPctOrDash, pnlClass } from "@/lib/portfolio";
 import { insightForTicker } from "@/lib/insights";
 import { useInsights } from "@/lib/hooks/use-insights";
@@ -86,13 +87,14 @@ export function PositionsClosed() {
           </span>
         </PanelHeader>
 
-        <div className="overflow-x-auto">
+        <HScroll>
           <table className="w-full">
             <SortableHead
               columns={COLUMNS}
               sortKey={sortKey}
               sortDir={sortDir}
               onSort={toggleSort}
+              stickyFirst
             />
             <tbody>
               {hasDataState(state) ? (
@@ -111,9 +113,9 @@ export function PositionsClosed() {
                   return (
                     <tr
                       key={`${p.ticker}-${p.entry_date}-${i}`}
-                      className="border-b border-border transition-colors last:border-b-0 hover:bg-bg-tertiary/50"
+                      className="group border-b border-border transition-colors last:border-b-0 hover:bg-bg-tertiary/50"
                     >
-                      <td className="px-5 py-3.5">
+                      <td className="sticky-col px-3 py-3.5 group-hover:bg-bg-tertiary sm:px-5">
                         <span className="flex items-center gap-2.5">
                           <CompanyLogo ticker={p.ticker} size="sm" />
                           {slug ? (
@@ -132,23 +134,23 @@ export function PositionsClosed() {
                           )}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5 font-mono text-[12px] text-text-muted">
+                      <td className="px-3 py-3.5 font-mono text-[12px] text-text-muted sm:px-5">
                         {p.entry_date}
                       </td>
-                      <td className="px-5 py-3.5 font-mono text-[12px] text-text-muted">
+                      <td className="px-3 py-3.5 font-mono text-[12px] text-text-muted sm:px-5">
                         {p.exit_date ?? "—"}
                       </td>
-                      <td className="px-5 py-3.5 font-mono text-[12px] tabular-nums text-text-muted">
+                      <td className="px-3 py-3.5 font-mono text-[12px] tabular-nums text-text-muted sm:px-5">
                         {heldFor(p.entry_date, p.exit_date)}
                       </td>
                       <td
-                        className={`px-5 py-3.5 font-mono text-[13px] font-semibold tabular-nums ${pnlClass(
+                        className={`px-3 py-3.5 font-mono text-[13px] font-semibold tabular-nums sm:px-5 ${pnlClass(
                           p.pnl_pct,
                         )}`}
                       >
                         {formatPctOrDash(p.pnl_pct)}
                       </td>
-                      <td className="max-w-[260px] truncate px-5 py-3.5 font-sans text-[11px] text-text-dim">
+                      <td className="max-w-[260px] truncate px-3 py-3.5 font-sans text-[11px] text-text-dim sm:px-5">
                         {p.exit_reason || "—"}
                       </td>
                     </tr>
@@ -157,7 +159,7 @@ export function PositionsClosed() {
               )}
             </tbody>
           </table>
-        </div>
+        </HScroll>
       </div>
     </div>
   );

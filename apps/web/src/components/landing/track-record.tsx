@@ -13,6 +13,7 @@ import {
   PUBLIC_CAGR_MIN_DAYS,
 } from "@/lib/portfolio";
 import { CompanyLogo } from "@/components/ui/company-logo";
+import { HScroll } from "@/components/ui/h-scroll";
 
 const backtestSecondary = [
   { label: "Win rate", value: BACKTEST.winRate, green: true },
@@ -306,11 +307,14 @@ export function TrackRecord() {
                 {BACKTEST.winnersCircle} total
               </span>
             </div>
-            <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 snap-x snap-mandatory">
+            <HScroll
+              className="-mx-1"
+              innerClassName="flex gap-3 px-1 pb-2 snap-x snap-mandatory"
+            >
               {WINNERS_CIRCLE.slice(0, 4).map((w, i) => (
                 <div
                   key={`${w.ticker}-${i}`}
-                  className="snap-start shrink-0 min-w-[160px] rounded-soft border border-border bg-bg px-5 py-4"
+                  className="w-[72%] max-w-[220px] shrink-0 snap-start rounded-soft border border-border bg-bg px-5 py-4"
                 >
                   <div className="mb-3 flex items-center gap-2.5">
                     <CompanyLogo ticker={w.ticker} size="sm" />
@@ -324,7 +328,7 @@ export function TrackRecord() {
                   </p>
                 </div>
               ))}
-            </div>
+            </HScroll>
             <p className="font-sans text-[11px] text-text-dim mt-4 leading-relaxed max-w-[560px]">
               Concentrated by design, not diversified: four of these five
               doubles came from a single macro theme (Argentine equities,

@@ -79,13 +79,13 @@ export function InsightsCard({ holdings }: { holdings?: readonly Holding[] }) {
 
   return (
     <div className="data-panel">
-      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
-        <span className="panel-label panel-label-lilac">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
+        <span className="panel-label panel-label-lilac min-w-0">
           {onHoldings ? "Research on positions in the book" : "Latest research"}
         </span>
         <Link
           href="/dashboard/insights"
-          className="flex items-center gap-1 font-sans text-[10px] font-bold tracking-[0.08em] text-text underline underline-offset-2 hover:opacity-70"
+          className="flex shrink-0 items-center gap-1 font-sans text-[10px] font-bold tracking-[0.08em] text-text underline underline-offset-2 hover:opacity-70"
         >
           ALL INSIGHTS <ArrowUpRight size={10} />
         </Link>

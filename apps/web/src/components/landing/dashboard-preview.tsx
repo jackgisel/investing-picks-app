@@ -4,6 +4,7 @@ import { BACKTEST, FINAL_HOLDINGS, WINNERS_CIRCLE } from "@/lib/constants";
 import { PillButton } from "@/components/ui/pill-button";
 import { useSession } from "@/lib/auth-client";
 import { CompanyLogo } from "@/components/ui/company-logo";
+import { HScroll } from "@/components/ui/h-scroll";
 
 /**
  * Every figure here is from the backtrained model — simulated, not a live
@@ -58,7 +59,45 @@ export function DashboardPreview() {
           </div>
 
           <div className="relative">
-            <div className="overflow-x-auto">
+            <div className="divide-y divide-border md:hidden">
+              {FINAL_HOLDINGS.map((h, i) => {
+                const isNegative = h.ret.startsWith("-");
+                return (
+                  <div
+                    key={`${h.ticker}-${i}`}
+                    className="flex items-start justify-between gap-3 px-5 py-3.5"
+                  >
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <span className="font-mono text-[11px] text-text-dim">
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <CompanyLogo ticker={h.ticker} size="xs" />
+                      <span className="min-w-0">
+                        <span className="block font-mono text-[14px] font-semibold">
+                          {h.ticker}
+                        </span>
+                        <span className="block font-mono text-[11px] text-text-dim">
+                          {h.entry}
+                        </span>
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-right">
+                      <span
+                        className={`block font-mono text-[13px] font-semibold ${
+                          isNegative ? "text-accent-red" : "text-accent-green"
+                        }`}
+                      >
+                        {h.ret}
+                      </span>
+                      <span className="block font-mono text-[11px] text-text-dim">
+                        {h.fromPeak} from peak
+                      </span>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <HScroll className="hidden md:block">
               <table className="w-full min-w-[520px]">
                 <thead>
                   <tr className="border-b border-border">
@@ -109,7 +148,7 @@ export function DashboardPreview() {
                   })}
                 </tbody>
               </table>
-            </div>
+            </HScroll>
 
             {/* Winners row */}
             <div className="border-t border-border px-6 sm:px-7 py-5 bg-bg-secondary/20">

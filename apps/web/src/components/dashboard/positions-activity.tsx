@@ -14,6 +14,7 @@ import {
   FilterChips,
   PanelHeader,
 } from "@/components/dashboard/data-table";
+import { HScroll } from "@/components/ui/h-scroll";
 import { actionMeta } from "./trade-action";
 import { CompanyLogo } from "@/components/ui/company-logo";
 
@@ -69,7 +70,7 @@ export function PositionsActivity() {
           </div>
         </PanelHeader>
 
-        <div className="overflow-x-auto">
+        <HScroll>
           <table className="w-full">
             <thead>
               <tr>
@@ -79,11 +80,13 @@ export function PositionsActivity() {
                   "ACTION",
                   "REASON",
                   ...(isAdmin ? ["EVAL"] : []),
-                ].map((h) => (
+                ].map((h, index) => (
                   <th
                     key={h}
                     scope="col"
-                    className="border-b border-border bg-bg px-5 py-3 text-left font-mono text-[10px] font-medium tracking-[1.5px] text-text-dim"
+                    className={`border-b border-border bg-bg px-3 py-3 text-left font-mono text-[10px] font-medium tracking-[1.5px] text-text-dim sm:px-5${
+                      index === 0 ? " sticky-col" : ""
+                    }`}
                   >
                     {h}
                   </th>
@@ -108,27 +111,27 @@ export function PositionsActivity() {
                   return (
                     <tr
                       key={`${t.ticker}-${t.date}-${i}`}
-                      className="border-b border-border transition-colors last:border-b-0 hover:bg-bg-tertiary/50"
+                      className="group border-b border-border transition-colors last:border-b-0 hover:bg-bg-tertiary/50"
                     >
-                      <td className="whitespace-nowrap px-5 py-3 font-mono text-[12px] text-text-muted">
+                      <td className="sticky-col whitespace-nowrap px-3 py-3 font-mono text-[12px] text-text-muted group-hover:bg-bg-tertiary sm:px-5">
                         {t.date.slice(0, 10)}
                       </td>
-                      <td className="px-5 py-3">
+                      <td className="px-3 py-3 sm:px-5">
                         <span className="flex items-center gap-2.5 font-mono text-[14px] font-semibold">
                           <CompanyLogo ticker={t.ticker} size="xs" />
                           <span>{t.ticker}</span>
                         </span>
                       </td>
-                      <td className="whitespace-nowrap px-5 py-3">
+                      <td className="whitespace-nowrap px-3 py-3 sm:px-5">
                         <span className={`badge ${meta.badge}`}>
                           {meta.label}
                         </span>
                       </td>
-                      <td className="max-w-[420px] truncate px-5 py-3 font-sans text-[12px] text-text-muted">
+                      <td className="max-w-[420px] truncate px-3 py-3 font-sans text-[12px] text-text-muted sm:px-5">
                         {t.reason || "—"}
                       </td>
                       {isAdmin && (
-                        <td className="whitespace-nowrap px-5 py-3 font-mono text-[11px]">
+                        <td className="whitespace-nowrap px-3 py-3 font-mono text-[11px] sm:px-5">
                           {t.evaluation_id === null ? (
                             <span className="text-text-dim">—</span>
                           ) : (
@@ -147,7 +150,7 @@ export function PositionsActivity() {
               )}
             </tbody>
           </table>
-        </div>
+        </HScroll>
 
         {totalPages > 1 && (
           <div className="flex items-center justify-between border-t border-border px-5 py-3">

@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment } from "react";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ import {
 import { OutpickWordmark } from "@/components/ui/outpick-logo";
 import { UserMenu } from "@/components/layout/user-menu";
 import { useSession, signOut } from "@/lib/auth-client";
+import { HScroll } from "@/components/ui/h-scroll";
 
 function AccountMenu({
   align = "left",
@@ -98,59 +99,81 @@ export function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
   );
 }
 
+function navPillClass(isActive: boolean) {
+  return cn(
+    "flex items-center gap-2 px-3.5 py-2 text-[12px] font-sans font-semibold whitespace-nowrap rounded-pill transition-colors",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
+    isActive
+      ? "bg-inverse text-inverse-fg"
+      : "text-text-muted hover:text-text bg-bg-secondary",
+  );
+}
+
 export function MobileNav({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();
   const groups = visibleGroups(isAdmin);
-  const items = flatten(groups);
-  const active = activeHref(pathname, items);
-  // The strip is one scrolling row, so the admin group is marked by a rule
-  // before its first item rather than by a heading.
-  const adminStartsAt = groups[0]?.items.length ?? 0;
+  const memberItems = groups[0]?.items ?? [];
+  const adminItems = groups.find((g) => g.adminOnly)?.items ?? [];
+  const active = activeHref(pathname, flatten(groups));
+  const adminNavRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const nav = adminNavRef.current;
+    if (!nav) return;
+    const current = nav.querySelector("[aria-current='page']");
+    if (!(current instanceof HTMLElement)) return;
+    const left =
+      current.offsetLeft - (nav.clientWidth - current.offsetWidth) / 2;
+    nav.scrollTo({ left: Math.max(0, left) });
+  }, [pathname]);
 
   return (
-    <div className="lg:hidden border-b border-border bg-bg">
-      <div className="flex items-center justify-between gap-3 px-4 h-14">
+    <div className="lg:hidden border-b border-border bg-bg pt-[env(safe-area-inset-top)]">
+      <div className="flex h-14 items-center justify-between gap-3 px-4">
         <Link href="/" className="inline-flex min-w-0">
           <OutpickWordmark size={18} />
         </Link>
         <AccountMenu align="right" placement="bottom" />
       </div>
-      <nav aria-label="Dashboard" className="overflow-x-auto">
-        <div className="flex items-center gap-1.5 px-4 pb-3">
-          {items.map((item, i) => {
+      <nav aria-label="Dashboard" className="px-4 pb-3">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {memberItems.map((item) => {
             const isActive = item.href === active;
             return (
-              <Fragment key={item.href}>
-                {items.length > adminStartsAt && i === adminStartsAt && (
-                  <span
-                    className="mx-1 h-5 w-px shrink-0 self-center bg-border"
-                    aria-hidden
-                  />
-                )}
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={isActive ? "page" : undefined}
+                className={navPillClass(isActive)}
+              >
+                <item.icon size={14} />
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
+        {adminItems.length > 0 && (
+          <HScroll
+            className="mt-2 -mx-4"
+            innerClassName="flex items-center gap-1.5 px-4"
+            scrollRef={adminNavRef}
+          >
+            {adminItems.map((item) => {
+              const isActive = item.href === active;
+              return (
                 <Link
+                  key={item.href}
                   href={item.href}
                   aria-current={isActive ? "page" : undefined}
-                  ref={
-                    isActive
-                      ? (el) =>
-                          el?.scrollIntoView({ block: "nearest", inline: "center" })
-                      : undefined
-                  }
-                  className={cn(
-                    "flex items-center gap-2 px-3.5 py-2 text-[12px] font-sans font-semibold whitespace-nowrap rounded-pill transition-colors",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
-                    isActive
-                      ? "bg-inverse text-inverse-fg"
-                      : "text-text-muted hover:text-text bg-bg-secondary"
-                  )}
+                  className={navPillClass(isActive)}
                 >
                   <item.icon size={14} />
                   {item.label}
                 </Link>
-              </Fragment>
-            );
-          })}
-        </div>
+              );
+            })}
+          </HScroll>
+        )}
       </nav>
     </div>
   );

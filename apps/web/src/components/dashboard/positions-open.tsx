@@ -18,6 +18,7 @@ import {
   type Column,
   type SortDir,
 } from "@/components/dashboard/data-table";
+import { HScroll } from "@/components/ui/h-scroll";
 import {
   comparePnl,
   formatDayMonth,
@@ -144,13 +145,14 @@ export function PositionsOpen() {
           </span>
         </PanelHeader>
 
-        <div className="overflow-x-auto">
+        <HScroll>
           <table className="w-full">
             <SortableHead
               columns={columns}
               sortKey={sortKey}
               sortDir={sortDir}
               onSort={toggleSort}
+              stickyFirst
             />
             <tbody>
               {hasDataState(state) ? (
@@ -175,9 +177,9 @@ export function PositionsOpen() {
                         h.entry_date ??
                         `anonymous-holding-${index}`
                       }
-                      className="border-b border-border transition-colors last:border-b-0 hover:bg-bg-tertiary/50"
+                      className="group border-b border-border transition-colors last:border-b-0 hover:bg-bg-tertiary/50"
                     >
-                      <td className="px-5 py-3.5">
+                      <td className="sticky-col px-3 py-3.5 group-hover:bg-bg-tertiary sm:px-5">
                         <span className="flex items-center gap-2.5">
                           <CompanyLogo ticker={h.ticker} size="sm" />
                           <span className="flex items-center gap-2">
@@ -209,17 +211,17 @@ export function PositionsOpen() {
                           </span>
                         </span>
                       </td>
-                      <td className="whitespace-nowrap px-5 py-3.5 font-sans text-[12px] text-text-muted">
+                      <td className="whitespace-nowrap px-3 py-3.5 font-sans text-[12px] text-text-muted sm:px-5">
                         {h.sector?.trim() || (
                           <span className="text-text-dim">Unclassified</span>
                         )}
                       </td>
-                      <td className="px-5 py-3.5 font-mono text-[12px] tabular-nums text-text-muted">
+                      <td className="px-3 py-3.5 font-mono text-[12px] tabular-nums text-text-muted sm:px-5">
                         {typeof h.weight_pct === "number"
                           ? `${h.weight_pct.toFixed(1)}%`
                           : "—"}
                       </td>
-                      <td className="px-5 py-3.5">
+                      <td className="px-3 py-3.5 sm:px-5">
                         {signal ? (
                           <span
                             className={`badge ${signalBadgeClass(signal)}`}
@@ -240,14 +242,14 @@ export function PositionsOpen() {
                           </span>
                         )}
                       </td>
-                      <td className="px-5 py-3.5 font-mono text-[12px] text-text-muted">
+                      <td className="px-3 py-3.5 font-mono text-[12px] text-text-muted sm:px-5">
                         {h.entry_date ?? "—"}
                       </td>
-                      <td className="px-5 py-3.5 font-mono text-[12px] tabular-nums text-text-muted">
+                      <td className="px-3 py-3.5 font-mono text-[12px] tabular-nums text-text-muted sm:px-5">
                         {daysHeld(h.entry_date)}
                       </td>
                       <td
-                        className={`px-5 py-3.5 font-mono text-[13px] font-semibold tabular-nums ${pnlClass(
+                        className={`px-3 py-3.5 font-mono text-[13px] font-semibold tabular-nums sm:px-5 ${pnlClass(
                           h.pnl_pct,
                         )}`}
                       >
@@ -259,7 +261,7 @@ export function PositionsOpen() {
               )}
             </tbody>
           </table>
-        </div>
+        </HScroll>
       </div>
     </div>
   );

@@ -145,8 +145,8 @@ export function SectorRelativeExample() {
       <div className="space-y-4">
         {rows.map((r) => (
           <div key={r.sector}>
-            <div className="mb-1.5 flex items-baseline justify-between gap-3">
-              <span className="flex items-center gap-2">
+            <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+              <span className="flex min-w-0 flex-wrap items-center gap-2">
                 <span
                   className={`h-2 w-2 rounded-full ${TONE_BG[r.tone]}`}
                   aria-hidden

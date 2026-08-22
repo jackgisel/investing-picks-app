@@ -70,7 +70,7 @@ export default function LoginPage() {
 
   if (linkSentTo) {
     return (
-      <div className="min-h-[calc(100vh-72px)] flex items-center justify-center px-4 py-16">
+      <div className="min-h-[calc(100dvh-72px)] flex items-center justify-center px-4 py-16">
         <div className="w-full max-w-md text-center">
           <div className="mx-auto mb-7 flex h-16 w-16 items-center justify-center rounded-full bg-accent-mint text-on-accent">
             <MailCheck size={28} strokeWidth={1.8} aria-hidden="true" />
@@ -126,7 +126,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-72px)] flex items-center justify-center px-4 py-16">
+    <div className="min-h-[calc(100dvh-72px)] flex items-center justify-center px-4 py-16">
       <div className="w-full max-w-sm">
         <div className="text-center mb-10">
           <Link href="/">

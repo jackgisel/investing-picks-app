@@ -67,10 +67,15 @@
   html {
     @apply bg-bg text-text;
     scroll-behavior: smooth;
+    touch-action: manipulation;
   }
 
   body {
     @apply font-sans antialiased;
+  }
+
+  html.cookie-banner-visible body {
+    padding-bottom: var(--cookie-banner-h, 8rem);
   }
 
   ::selection {
@@ -78,7 +83,7 @@
   }
 
   ::-webkit-scrollbar {
-    @apply w-1.5;
+    @apply h-1.5 w-1.5;
   }
   ::-webkit-scrollbar-track {
     @apply bg-bg;
@@ -181,6 +186,49 @@
      full-bleed table. Replaces the `soft-card !p-0 overflow-hidden` idiom. */
   .data-panel {
     @apply bg-bg-secondary/60 border border-border rounded-xl overflow-hidden;
+  }
+
+  /* Horizontal scroller with a right-edge fade so leftover columns are
+     obviously there. Inner `.h-scroll` is the overflowing child. */
+  .h-scroll {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+  .h-scroll-fade {
+    position: relative;
+  }
+  .h-scroll-fade::after {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 1.75rem;
+    background: linear-gradient(
+      to left,
+      rgb(var(--color-bg) / 0.95),
+      transparent
+    );
+  }
+  .data-panel .h-scroll-fade::after {
+    background: linear-gradient(
+      to left,
+      rgb(var(--color-bg-secondary) / 0.95),
+      transparent
+    );
+  }
+
+  /* Frozen first column on wide tables. bg-bg matches thead so the ticker
+     stays readable while the rest of the row slides under it. */
+  .sticky-col {
+    @apply sticky left-0 z-[1] bg-bg;
+    box-shadow: 6px 0 8px -6px rgb(0 0 0 / 0.18);
+  }
+  .dark .sticky-col {
+    box-shadow: 6px 0 8px -6px rgb(0 0 0 / 0.55);
   }
 
   /* One <h1> scale for every dashboard page. There used to be two — text-xl

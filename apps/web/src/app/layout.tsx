@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Outfit, IBM_Plex_Mono } from "next/font/google";
 import "@/styles/globals.css";
 import { SITE_NAME, SITE_DESCRIPTION, SITE_URL, SITE_TAGLINE } from "@/lib/constants";
@@ -35,6 +35,12 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 const TITLE = `${SITE_NAME} — ${SITE_TAGLINE}`;
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   title: {

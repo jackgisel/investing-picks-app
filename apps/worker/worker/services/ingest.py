@@ -356,6 +356,40 @@ def _latest_reported_earnings(reports: list[dict], as_of: date) -> dict:
     }
 
 
+
+def _price_target_consensus(row: dict | None) -> dict:
+    """Street price-target band from FMP consensus, if present.
+
+    Subscriber-facing context only — never a scoring input. Field names vary
+    slightly across FMP generations; accept the common aliases.
+    """
+    if not row:
+        return {}
+    low = first_present(row, "targetLow", "priceTargetLow", "targetLowPrice")
+    high = first_present(row, "targetHigh", "priceTargetHigh", "targetHighPrice")
+    mean = first_present(
+        row,
+        "targetConsensus",
+        "targetMedian",
+        "priceTargetConsensus",
+        "priceTargetAverage",
+        "priceTargetMedian",
+    )
+    count = first_present(
+        row, "numberOfAnalysts", "analystsCount", "priceTargetAnalystCount"
+    )
+    out: dict = {}
+    if low is not None:
+        out["priceTargetLow"] = low
+    if mean is not None:
+        out["priceTargetMean"] = mean
+    if high is not None:
+        out["priceTargetHigh"] = high
+    if count is not None:
+        out["priceTargetAnalystCount"] = count
+    return out
+
+
 def backfill_holding_earnings(
     db: Session, fmp: FMPClient, *, as_of: date | None = None, commit: bool = True
 ) -> dict[str, int]:
@@ -666,6 +700,7 @@ def refresh_fundamentals(db: Session, fmp: FMPClient, max_tickers: int = 400) ->
     revisions_available = 0
     growth_available = 0
     earnings_supported = True
+    price_targets_supported = True
     # Growth is one endpoint among several here. `_get` raises FMPAccessError on
     # 401/402/403 so a plan restriction can never masquerade as "no data" — but
     # unhandled that would abort refresh_fundamentals and take the rest of
@@ -710,6 +745,18 @@ def refresh_fundamentals(db: Session, fmp: FMPClient, max_tickers: int = 400) ->
                     "actual-versus-estimate data will remain unavailable"
                 )
                 earnings_supported = False
+        # Street price targets are subscriber-facing context (insights,
+        # fundamentals tab, pick email), not a scoring factor. Restrict to
+        # held names so the weekly refresh does not add hundreds of calls.
+        if price_targets_supported and s.ticker in held:
+            try:
+                data.update(_price_target_consensus(fmp.price_target_consensus(s.ticker)))
+            except FMPAccessError:
+                log.exception(
+                    "price-target-consensus is not available on this FMP plan; "
+                    "Street range will remain unavailable"
+                )
+                price_targets_supported = False
         if not data:
             continue
         # Update in place: (ticker, as_of) is unique, so a second run on the

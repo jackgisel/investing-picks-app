@@ -41,6 +41,11 @@ export interface Holding {
     eps_actual: number | null;
     eps_report_estimate: number | null;
     eps_surprise_pct: number | null;
+    mark: number | null;
+    price_target_low: number | null;
+    price_target_mean: number | null;
+    price_target_high: number | null;
+    price_target_analyst_count: number | null;
   } | null;
 }
 

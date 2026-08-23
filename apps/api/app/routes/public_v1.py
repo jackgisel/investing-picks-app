@@ -160,6 +160,17 @@ def _finite_number(value) -> float | None:
     return number if math.isfinite(number) else None
 
 
+
+def _with_live_mark(facts: dict | None, mark: float | None) -> dict | None:
+    """Stamp the holding's live mark onto company fundamentals when present."""
+    if facts is None:
+        return None
+    live = _finite_number(mark)
+    if live is None:
+        return facts
+    return {**facts, "mark": live}
+
+
 def _latest_fundamentals_by_ticker(
     db: Session, tickers: list[str]
 ) -> dict[str, dict]:
@@ -205,6 +216,13 @@ def _latest_fundamentals_by_ticker(
             return None
         return round((actual - estimate) / abs(estimate) * 100, 2)
 
+    marks = {
+        ticker: last_price
+        for ticker, last_price in db.query(Stock.ticker, Stock.last_price)
+        .filter(Stock.ticker.in_(tickers))
+        .all()
+    }
+
     result: dict[str, dict] = {}
     for row in rows:
         data = row.data or {}
@@ -227,6 +245,15 @@ def _latest_fundamentals_by_ticker(
             "eps_actual": _finite_number(data.get("epsActual")),
             "eps_report_estimate": _finite_number(data.get("epsEstimated")),
             "eps_surprise_pct": surprise(data, "epsActual", "epsEstimated"),
+            # Street price-target consensus vs the latest mark. Display context
+            # only — never an Outpick target.
+            "mark": _finite_number(marks.get(row.ticker)),
+            "price_target_low": _finite_number(data.get("priceTargetLow")),
+            "price_target_mean": _finite_number(data.get("priceTargetMean")),
+            "price_target_high": _finite_number(data.get("priceTargetHigh")),
+            "price_target_analyst_count": _finite_number(
+                data.get("priceTargetAnalystCount")
+            ),
         }
     return result
 
@@ -282,7 +309,7 @@ def get_strategy(db: Session = Depends(get_db)):
             "is_house_money": bool(p.is_house_money),
             "weight_pct": round(p.market_value / equity * 100, 2) if equity else 0,
             "sector": p.sector or sectors.get(p.ticker),
-            "fundamentals": fundamentals.get(p.ticker),
+            "fundamentals": _with_live_mark(fundamentals.get(p.ticker), p.current_price),
         }
         for p in positions
     ]

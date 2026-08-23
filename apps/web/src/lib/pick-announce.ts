@@ -1,5 +1,8 @@
 import { sendNewPickEmail } from "@/lib/email";
+import type { PickStat } from "@/lib/email-templates";
 import { getOptedInRecipients } from "@/lib/preferences";
+import { formatStreetPrice } from "@/lib/street-range";
+import { fetchStreetRangeForTicker } from "@/lib/street-range-server";
 
 /**
  * Mail every opted-in member about a pick.
@@ -32,6 +35,20 @@ export async function announcePick(args: {
     return { sent: 0, failed: 0, total: 0, errors: [] };
   }
 
+  const street = await fetchStreetRangeForTicker(args.ticker);
+  const stats: PickStat[] = [];
+  if (street) {
+    if (street.mark !== null) {
+      stats.push({ label: "Mark", value: formatStreetPrice(street.mark) });
+    }
+    stats.push({ label: "Street low", value: formatStreetPrice(street.low) });
+    stats.push({
+      label: "Street mean",
+      value: formatStreetPrice(street.mean),
+    });
+    stats.push({ label: "Street high", value: formatStreetPrice(street.high) });
+  }
+
   // Resend's free tier is ~2 req/sec; chunks of 5 with awaits is conservative.
   const CHUNK = 5;
   let sent = 0;
@@ -46,6 +63,7 @@ export async function announcePick(args: {
           userId: r.id,
           recipientName: r.name,
           ticker: args.ticker,
+          stats: stats.length ? stats : undefined,
           articleTitle: args.title,
           articleDescription: args.description,
           insightSlug: args.insightSlug,

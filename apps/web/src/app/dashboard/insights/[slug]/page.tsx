@@ -12,6 +12,8 @@ import { SITE_NAME, SITE_URL } from "@/lib/constants";
 import { insightCategoryLabel } from "@/lib/insights";
 import { getInsightBySlug } from "@/lib/insights-db";
 import { CompanyLogo } from "@/components/ui/company-logo";
+import { StreetRangeBand } from "@/components/street-range-band";
+import { fetchStreetRangeForTicker } from "@/lib/street-range-server";
 
 type Params = { slug: string };
 
@@ -92,6 +94,11 @@ export default async function InsightDetailPage({
 
   const dateLabel = insight.publishedAt ?? insight.createdAt;
 
+  const streetRange =
+    insight.postType === "pick"
+      ? await fetchStreetRangeForTicker(insight.ticker)
+      : null;
+
   return (
     // The shell is 1400px wide for tables; long-form prose is not, so the
     // article caps itself at a reading measure. prose.tsx already holds its
@@ -161,6 +168,12 @@ export default async function InsightDetailPage({
             </UL>
           </TLDR>
         )}
+
+        {streetRange ? (
+          <div className="mb-10">
+            <StreetRangeBand range={streetRange} />
+          </div>
+        ) : null}
 
         {insight.bodyMd && <MarkdownProse markdown={insight.bodyMd} />}
 

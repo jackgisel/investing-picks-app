@@ -9,6 +9,11 @@ import {
 import { PanelHeader } from "@/components/dashboard/data-table";
 import { HScroll } from "@/components/ui/h-scroll";
 import { useStrategy, type Holding } from "@/lib/hooks/use-strategy";
+import { streetRangeFromFundamentals } from "@/lib/street-range";
+import {
+  StreetRangeBand,
+  StreetRangeInline,
+} from "@/components/street-range-band";
 
 function signedPct(value: number | null): string {
   if (value === null) return "—";
@@ -121,6 +126,7 @@ function Metric({
 function FundamentalsCard({ holding }: { holding: Holding }) {
   const facts = holding.fundamentals;
   const fy = fiscalLabel(facts?.estimate_period ?? null);
+  const street = streetRangeFromFundamentals(facts);
 
   return (
     <article className="border-b border-border px-4 py-4 last:border-b-0">
@@ -211,6 +217,12 @@ function FundamentalsCard({ holding }: { holding: Holding }) {
             </Metric>
           </div>
         </div>
+
+        {street ? (
+          <div>
+            <StreetRangeBand range={street} />
+          </div>
+        ) : null}
       </div>
     </article>
   );
@@ -219,6 +231,7 @@ function FundamentalsCard({ holding }: { holding: Holding }) {
 function FundamentalsRow({ holding }: { holding: Holding }) {
   const facts = holding.fundamentals;
   const fy = fiscalLabel(facts?.estimate_period ?? null);
+  const street = streetRangeFromFundamentals(facts);
 
   return (
     <tr className="border-b border-border transition-colors last:border-b-0 hover:bg-bg-tertiary/50">
@@ -274,6 +287,11 @@ function FundamentalsRow({ holding }: { holding: Holding }) {
         <span className="ml-1.5 font-mono text-[9px] text-text-dim">{fy}</span>
         <Revision value={facts?.eps_revision_pct ?? null} />
       </td>
+      <td className="border-l border-border px-5 py-4">
+        {street ? <StreetRangeInline range={street} /> : (
+          <span className="font-mono text-[13px] text-text-dim">—</span>
+        )}
+      </td>
     </tr>
   );
 }
@@ -320,7 +338,7 @@ export function PositionsFundamentals() {
               ))}
             </div>
             <HScroll className="hidden md:block">
-              <table className="w-full min-w-[1120px]">
+              <table className="w-full min-w-[1280px]">
                 <thead>
                   <tr className="border-b border-border bg-bg">
                     <th rowSpan={2} className="px-5 py-3 text-left align-bottom font-mono text-[10px] font-medium tracking-[1.5px] text-text-dim">
@@ -334,6 +352,9 @@ export function PositionsFundamentals() {
                     </th>
                     <th colSpan={2} className="border-l border-border px-5 py-2.5 text-left font-mono text-[9px] font-medium tracking-[1.5px] text-text-dim">
                       FORWARD CONSENSUS
+                    </th>
+                    <th rowSpan={2} className="border-l border-border px-5 py-3 text-left align-bottom font-mono text-[10px] font-medium tracking-[1.5px] text-text-dim">
+                      STREET RANGE
                     </th>
                   </tr>
                   <tr className="border-b border-border bg-bg">
@@ -365,7 +386,9 @@ export function PositionsFundamentals() {
           consensus estimate available for that announcement. Reported growth
           compares the latest trailing four quarters with the prior four.
           Forward consensus is the current analyst average for the labeled
-          fiscal year; revision is its change from the prior snapshot.
+          fiscal year; revision is its change from the prior snapshot. Street
+          range is analyst price-target consensus versus the latest mark — not
+          an Outpick target.
         </p>
       </div>
     </div>

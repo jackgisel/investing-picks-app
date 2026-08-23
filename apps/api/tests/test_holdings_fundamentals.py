@@ -40,6 +40,10 @@ def test_holding_publishes_latest_company_fundamentals(db, portfolio):
         revenueEstimated=1_250_000_000,
         epsActual=2.5,
         epsEstimated=2.0,
+        priceTargetLow=90.0,
+        priceTargetMean=120.0,
+        priceTargetHigh=150.0,
+        priceTargetAnalystCount=18,
     )
 
     facts = get_strategy(db)["holdings"][0]["fundamentals"]
@@ -60,6 +64,11 @@ def test_holding_publishes_latest_company_fundamentals(db, portfolio):
         "eps_actual": 2.5,
         "eps_report_estimate": 2.0,
         "eps_surprise_pct": 25.0,
+        "mark": 12.0,
+        "price_target_low": 90.0,
+        "price_target_mean": 120.0,
+        "price_target_high": 150.0,
+        "price_target_analyst_count": 18.0,
     }
 
 

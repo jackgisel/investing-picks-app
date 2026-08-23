@@ -236,5 +236,11 @@ class FMPClient:
         data = self._get("earnings", {"symbol": ticker, "limit": limit})
         return data if isinstance(data, list) else []
 
+    def price_target_consensus(self, ticker: str) -> dict | None:
+        """Analyst price-target high / low / consensus for one symbol."""
+        return self._first(
+            self._get("price-target-consensus", {"symbol": ticker})
+        )
+
     def close(self):
         self._client.close()

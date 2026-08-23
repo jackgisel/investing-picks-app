@@ -90,6 +90,11 @@ function pickStats(pick: Pick | null): PickStat[] {
     });
   }
   stats.push({ label: "Status", value: "Open position" });
+  // Sample Street band so the test mail exercises the Risk/Reward layout.
+  stats.push({ label: "Mark", value: "$190.00" });
+  stats.push({ label: "Street low", value: "$210.00" });
+  stats.push({ label: "Street mean", value: "$230.00" });
+  stats.push({ label: "Street high", value: "$250.00" });
   return stats;
 }
 

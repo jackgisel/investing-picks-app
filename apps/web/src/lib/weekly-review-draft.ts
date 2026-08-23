@@ -42,7 +42,7 @@ Five sections, in this order, each introduced by an H2:
 
 ## Hard rules
 - **Never a portfolio dollar figure.** No position size, no share count, no entry or exit price, no portfolio value, no dollar P&L. Express our side in percentages only. Company financials in dollars (revenue, free cash flow, market cap) are fine if they appear in the payload; the ban is on OUR book, not on the businesses.
-- Never state or imply a price target.
+- Never state or imply an Outpick price target. If the payload includes analyst price-target consensus (Street low/mean/high), you may cite it as third-party context — never as our target.
 - Never use urgency, hype, or second-person exhortation ("you should buy", "don't miss"). The reader is deciding for themselves.
 - Every number you cite must appear in the payload. If you want a figure you were not given, write around it or say it is not available.
 - Where a holding is down or a grade is weak, say so. A review that only argues one side is worse than useless.

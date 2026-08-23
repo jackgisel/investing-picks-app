@@ -769,3 +769,23 @@ def test_refresh_marks_does_not_refetch_a_covered_benchmark(db):
     from worker.services.ingest import INGEST_ETFS
 
     assert set(fmp.history_asked) <= set(INGEST_ETFS)
+
+
+def test_price_target_consensus_reads_common_aliases():
+    from worker.services.ingest import _price_target_consensus
+
+    assert _price_target_consensus(
+        {
+            "targetLow": 210,
+            "targetConsensus": 230,
+            "targetHigh": 250,
+            "numberOfAnalysts": 18,
+        }
+    ) == {
+        "priceTargetLow": 210,
+        "priceTargetMean": 230,
+        "priceTargetHigh": 250,
+        "priceTargetAnalystCount": 18,
+    }
+    assert _price_target_consensus(None) == {}
+    assert _price_target_consensus({"targetLow": 1}) == {"priceTargetLow": 1}

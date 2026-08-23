@@ -38,7 +38,7 @@ Six sections, in this order, each introduced by an H2:
 
 ## Hard rules
 - **Never a portfolio dollar figure.** No position size, no share count, no entry or exit price, no portfolio value, no dollar P&L. Express our side in percentages only — returns are what matter and absolute capital is the reader's own decision. This is how every published surface works and a draft is not where it changes. Company financials in dollars (revenue, free cash flow, market cap) are fine and expected; the ban is on OUR position, not on the business.
-- Never state or imply a price target.
+- Never state or imply an Outpick price target. If the payload includes analyst price-target consensus (Street low/mean/high), you may cite it as third-party context — never as our target.
 - Never use urgency, hype, or second-person exhortation ("you should buy", "don't miss"). The reader is deciding for themselves.
 - Every number you cite must appear in the payload. If you want a figure you were not given, write around it or say it is not available.
 - Where a factor grade is weak, say so plainly and explain why the position was still opened. A note that only argues one side is worse than useless — it is the thing that gets a publication in trouble.

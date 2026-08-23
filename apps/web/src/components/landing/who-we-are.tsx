@@ -1,4 +1,4 @@
-import { BACKTEST } from "@/lib/constants";
+import Link from "next/link";
 import { CategoryTag } from "@/components/ui/category-tag";
 import { type PastelTone } from "@/lib/tones";
 
@@ -12,7 +12,7 @@ const PRINCIPLES: {
     label: "The record",
     tone: "mint",
     title: "We publish the record, not the personalities",
-    body: "No founder story, no headshots, no track record you have to take on faith. The backtrained model, the picks, and the live example portfolio are all on this site — that is the credential. Judge the work.",
+    body: "No founder story, no headshots, no track record you have to take on faith. Every pick, every exit, and the live example portfolio are published — that is the credential. Judge the work.",
   },
   {
     label: "Funding",
@@ -24,13 +24,13 @@ const PRINCIPLES: {
     label: "The losses",
     tone: "peach",
     title: "Losers stay on the page",
-    body: `We publish the backtrained model's max drawdown (${BACKTEST.maxDrawdown}) and win rate (${BACKTEST.winRate}, simulated) alongside every position that went against us. A track record without losses in it is a marketing asset, not a track record.`,
+    body: "Every position that went against us stays visible. A track record without losses in it is a marketing asset, not a track record.",
   },
   {
     label: "The method",
     tone: "lilac",
     title: "Tested before it was sold",
-    body: `The model was trained on one period and tested on data it had never seen (${BACKTEST.validationStart} – ${BACKTEST.validationEnd}) before we put a dollar behind it or charged anyone for it.`,
+    body: "The model was tested on data it had never seen before we put a dollar behind it or charged anyone for it. The walk-forward numbers and live book are on the track record page for anyone who wants to dig in.",
   },
 ];
 
@@ -56,13 +56,13 @@ const COMPARISON: {
     dimension: "Track record",
     index: "The market, by definition",
     newsletter: "Selected highlights",
-    outpick: "Backtrained model + live example portfolio, published",
+    outpick: "Live example portfolio, published in full",
   },
   {
     dimension: "Risk disclosed",
     index: "Market risk",
     newsletter: "Rarely published",
-    outpick: `Sharpe ${BACKTEST.sharpe} · max DD ${BACKTEST.maxDrawdown} (backtrained model, simulated)`,
+    outpick: "Wins and losses both shown",
   },
   {
     dimension: "What it costs",
@@ -89,7 +89,15 @@ export function WhoWeAre() {
             Outpick is an independent equity research publication. We are not a
             broker, not a registered adviser, and not a personality selling
             access to themselves. We do one thing: research US-listed businesses,
-            publish what we find, and keep score in the open.
+            publish what we find, and keep score in the open. The full live book
+            and walk-forward model are on the{" "}
+            <Link
+              href="/track-record"
+              className="font-semibold text-text underline decoration-accent-green/40 underline-offset-4 hover:decoration-accent-green"
+            >
+              track record
+            </Link>
+            .
           </p>
         </div>
 

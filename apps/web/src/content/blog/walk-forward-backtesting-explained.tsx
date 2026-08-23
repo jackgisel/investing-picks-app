@@ -35,6 +35,7 @@ const article: Article = {
     tags: ["backtesting", "walk-forward", "methodology"],
     readingTime: 7,
     author: "Outpick Research",
+    cover: "/art/covers/walk-forward-backtesting-explained.png",
   },
   Content: () => (
     <Prose>
@@ -218,7 +219,7 @@ const article: Article = {
         no opportunity to memorize the data. It is the only portion that
         should be treated as evidence the strategy generalizes. You can dig
         into the full numbers on the{" "}
-        <A href="/#track-record">track record page</A>.
+        <A href="/track-record">track record page</A>.
       </P>
       <P>
         That out-of-sample result is also why the live example portfolio

@@ -22,6 +22,8 @@
  */
 
 import { SITE_NAME } from "@/lib/constants";
+import { ART, artAbsoluteUrl, artForKey } from "@/lib/art";
+import { artForWeek } from "@/lib/art-pool";
 
 /* Light — :root in globals.css */
 const BG = "#FFFFFF";
@@ -137,6 +139,11 @@ function shell(args: {
   /** Thin strip above the header. Used by the ops test send. */
   banner?: string;
   unsubscribe?: { url: string; label: string };
+  /**
+   * Absolute URL of a dithered landscape for the content-mail masthead.
+   * Omit on transactional mail (verify, magic link, delete, ops alerts).
+   */
+  artUrl?: string;
 }): string {
   const preview = escapeHtml(args.preview);
   const banner = args.banner
@@ -145,6 +152,19 @@ function shell(args: {
            ${escapeHtml(args.banner)}
          </div>
        </td></tr>`
+    : "";
+
+  const artBand = args.artUrl
+    ? `<tr>
+         <td style="padding:0;line-height:0;font-size:0;">
+           <img
+             src="${escapeHtml(args.artUrl)}"
+             width="600"
+             alt=""
+             style="display:block;width:100%;max-width:600px;height:auto;border:0;outline:none;text-decoration:none;"
+           />
+         </td>
+       </tr>`
     : "";
 
   return `<!doctype html>
@@ -190,7 +210,7 @@ function shell(args: {
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="dm-body" style="background:${BG_SOFT};">
     <tr>
       <td align="center" style="padding:28px 16px 48px 16px;">
-        <table role="presentation" class="container dm-shell" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:${BG};border-radius:20px;">
+        <table role="presentation" class="container dm-shell" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:${BG};border-radius:20px;overflow:hidden;">
           ${banner}
           <!-- Header -->
           <tr>
@@ -209,6 +229,7 @@ function shell(args: {
               </table>
             </td>
           </tr>
+          ${artBand}
           <!-- Body -->
           <tr>
             <td class="px-7 py-9" style="padding:32px 30px 34px 30px;">
@@ -265,6 +286,8 @@ export function renderNewPickEmail(args: {
   articleUrl: string;
   siteUrl: string;
   banner?: string;
+  /** ISO week key (`2026-W35`) — prefers the pre-generated weekly pool art. */
+  weekKey?: string;
 }): string {
   const greeting = args.recipientName
     ? `Hi ${escapeHtml(args.recipientName.split(" ")[0])},`
@@ -319,6 +342,10 @@ export function renderNewPickEmail(args: {
     bodyHtml: body,
     siteUrl: args.siteUrl,
     banner: args.banner,
+    artUrl: artAbsoluteUrl(
+      args.weekKey ? artForWeek(args.weekKey) : artForKey(args.ticker),
+      args.siteUrl,
+    ),
   });
 }
 
@@ -468,6 +495,7 @@ export function renderMembershipWelcomeEmail(args: {
     bodyHtml: body,
     siteUrl: args.siteUrl,
     banner: args.banner,
+    artUrl: artAbsoluteUrl(ART[2], args.siteUrl),
   });
 }
 
@@ -497,7 +525,7 @@ export function renderMarketNoteWelcomeEmail(args: {
       `While you wait for the first one, our track record — backtest, live book, wins and losses — is published in full on the site.`,
       26
     )}
-    ${pillButton(`${args.siteUrl}/#track-record`, "See the track record")}
+    ${pillButton(`${args.siteUrl}/track-record`, "See the track record")}
 
     <p class="dm-dim" style="margin:0;font-family:${FONT_SANS};font-size:12px;color:${TEXT_DIM};line-height:1.6;">
       Didn't sign up? <a href="${args.unsubscribeUrl}" class="dm-text" style="color:${TEXT};text-decoration:underline;">Remove yourself here</a> — one click, no questions.
@@ -510,6 +538,7 @@ export function renderMarketNoteWelcomeEmail(args: {
     siteUrl: args.siteUrl,
     unsubscribe: { url: args.unsubscribeUrl, label: "Unsubscribe" },
     banner: args.banner,
+    artUrl: artAbsoluteUrl(ART[3], args.siteUrl),
   });
 }
 
@@ -540,6 +569,8 @@ export function renderWeeklyReviewEmail(args: {
   periodLabel?: string;
   unsubscribeUrl?: string;
   banner?: string;
+  /** ISO week key (`2026-W35`) — prefers the pre-generated weekly pool art. */
+  weekKey?: string;
 }): string {
   const greeting = args.recipientName
     ? `Hi ${escapeHtml(args.recipientName.split(" ")[0])},`
@@ -562,6 +593,10 @@ export function renderWeeklyReviewEmail(args: {
       ? { url: args.unsubscribeUrl, label: "Unsubscribe" }
       : undefined,
     banner: args.banner,
+    artUrl: artAbsoluteUrl(
+      args.weekKey ? artForWeek(args.weekKey) : artForKey(args.title),
+      args.siteUrl,
+    ),
   });
 }
 
@@ -713,6 +748,7 @@ export function renderProductUpdateEmail(args: {
       ? { url: args.unsubscribeUrl, label: "Unsubscribe" }
       : undefined,
     banner: args.banner,
+    artUrl: artAbsoluteUrl(ART[1], args.siteUrl),
   });
 }
 

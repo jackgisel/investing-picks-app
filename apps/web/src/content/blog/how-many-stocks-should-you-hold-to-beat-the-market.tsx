@@ -35,6 +35,7 @@ const article: Article = {
     tags: ["portfolio construction", "diversification", "concentration"],
     readingTime: 8,
     author: "Outpick Research",
+    cover: "/art/covers/how-many-stocks-should-you-hold-to-beat-the-market.png",
   },
   Content: () => (
     <Prose>

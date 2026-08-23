@@ -24,6 +24,9 @@ export async function generateMetadata({
   if (!article) return {};
 
   const url = `${SITE_URL}/blog/${article.meta.slug}`;
+  const cover = article.meta.cover
+    ? `${SITE_URL}${article.meta.cover}`
+    : undefined;
 
   return {
     title: article.meta.title,
@@ -40,11 +43,13 @@ export async function generateMetadata({
       modifiedTime: article.meta.updatedAt ?? article.meta.publishedAt,
       authors: article.meta.author ? [article.meta.author] : undefined,
       tags: article.meta.tags,
+      ...(cover ? { images: [{ url: cover }] } : {}),
     },
     twitter: {
       card: "summary_large_image",
       title: article.meta.title,
       description: article.meta.description,
+      ...(cover ? { images: [cover] } : {}),
     },
   };
 }
@@ -69,6 +74,9 @@ export default async function BlogPostPage({
     description: meta.description,
     datePublished: meta.publishedAt,
     dateModified: meta.updatedAt ?? meta.publishedAt,
+    ...(meta.cover
+      ? { image: [`${SITE_URL}${meta.cover}`] }
+      : {}),
     author: {
       "@type": "Organization",
       name: meta.author ?? "Outpick Research",

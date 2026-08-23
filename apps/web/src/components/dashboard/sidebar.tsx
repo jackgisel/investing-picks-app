@@ -51,7 +51,7 @@ export function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
   return (
     <aside className="hidden w-60 shrink-0 border-r border-border bg-bg lg:sticky lg:top-0 lg:flex lg:h-screen lg:self-start lg:flex-col lg:overflow-y-auto">
       <div className="px-5 pt-5 pb-3">
-        <Link href="/" className="inline-flex">
+        <Link href="/dashboard" className="inline-flex">
           <OutpickWordmark size={20} />
         </Link>
       </div>
@@ -130,7 +130,7 @@ export function MobileNav({ isAdmin = false }: { isAdmin?: boolean }) {
   return (
     <div className="lg:hidden border-b border-border bg-bg pt-[env(safe-area-inset-top)]">
       <div className="flex h-14 items-center justify-between gap-3 px-4">
-        <Link href="/" className="inline-flex min-w-0">
+        <Link href="/dashboard" className="inline-flex min-w-0">
           <OutpickWordmark size={18} />
         </Link>
         <AccountMenu align="right" placement="bottom" />

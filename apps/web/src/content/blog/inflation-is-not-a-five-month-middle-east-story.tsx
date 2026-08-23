@@ -36,6 +36,7 @@ const article: Article = {
     tags: ["inflation", "Fed", "fiscal", "macro"],
     readingTime: 11,
     author: "Outpick Research",
+    cover: "/art/covers/inflation-is-not-a-five-month-middle-east-story.png",
   },
   Content: () => (
     <Prose>

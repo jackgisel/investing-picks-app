@@ -35,6 +35,7 @@ const article: Article = {
     tags: ["10x", "growth", "asymmetric upside"],
     readingTime: 8,
     author: "Outpick Research",
+    cover: "/art/covers/how-to-find-10x-stocks-as-a-long-term-investor.png",
   },
   Content: () => (
     <Prose>
@@ -225,7 +226,7 @@ const article: Article = {
         for the same period — a cumulative excess return of +167 points over
         3.8 years, simulated. You can see the live example portfolio on the{" "}
         <A href="/dashboard">dashboard</A> and the full methodology on the{" "}
-        <A href="/#track-record">track record page</A>.
+        <A href="/track-record">track record page</A>.
       </P>
 
       <FAQList

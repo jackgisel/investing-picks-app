@@ -1,17 +1,18 @@
 import { CompanyLogo } from "@/components/ui/company-logo";
+import { CategoryTag } from "@/components/ui/category-tag";
+import { BACKTEST, FINAL_HOLDINGS, WINNERS_CIRCLE } from "@/lib/constants";
 import { TONE_BG, type PastelTone } from "@/lib/tones";
 
 /**
- * Compact, token-built visuals for the "how it works" steps — replacing a
- * set of stock illustrations (a person at a desk, a celebration around an
- * envelope) with small honest renderings of the product itself: what gets
- * scored, what a note looks like, what a live position looks like, what the
- * comparison looks like. Nothing here is real data — it's the shape of the
- * real thing, in the same visual language the dashboard actually uses.
+ * Cropped dashboard panels for the homepage loop — same tokens as the product,
+ * static shapes only. No live data, no invented live performance figures.
  */
 
-const CARD_CLASS =
-  "h-full w-full rounded-soft border border-border bg-bg p-4 sm:p-5 flex flex-col justify-center";
+const PANEL =
+  "h-full w-full overflow-hidden rounded-xl border border-border bg-bg-secondary/60 flex flex-col";
+
+const PANEL_HEAD =
+  "px-4 py-2.5 border-b border-border bg-bg-secondary/80 font-sans text-[10px] font-bold tracking-[0.12em] uppercase text-text-dim";
 
 const FACTORS: { label: string; pct: number; tone: PastelTone }[] = [
   { label: "Growth", pct: 82, tone: "mint" },
@@ -23,21 +24,30 @@ const FACTORS: { label: string; pct: number; tone: PastelTone }[] = [
 
 export function ResearchDiagram() {
   return (
-    <div className={CARD_CLASS}>
-      <div className="space-y-2.5">
-        {FACTORS.map((f) => (
-          <div key={f.label} className="flex items-center gap-2.5">
-            <span className="font-mono text-[9px] text-text-dim w-[62px] shrink-0 truncate">
-              {f.label}
-            </span>
-            <div className="h-1.5 flex-1 rounded-full bg-bg-tertiary overflow-hidden">
-              <div
-                className={`h-full rounded-full ${TONE_BG[f.tone]}`}
-                style={{ width: `${f.pct}%` }}
-              />
+    <div className={PANEL}>
+      <div className={PANEL_HEAD}>Universe scan</div>
+      <div className="flex flex-1 flex-col justify-center px-4 py-4 sm:px-5 sm:py-5">
+        <p className="mb-4 font-mono text-[22px] font-bold leading-none text-text">
+          ~3,600
+          <span className="ml-1.5 font-sans text-[11px] font-semibold tracking-normal text-text-dim">
+            US-listed names
+          </span>
+        </p>
+        <div className="space-y-2">
+          {FACTORS.map((f) => (
+            <div key={f.label} className="flex items-center gap-2.5">
+              <span className="w-[72px] shrink-0 truncate font-mono text-[9px] text-text-dim">
+                {f.label}
+              </span>
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-bg-tertiary">
+                <div
+                  className={`h-full rounded-full ${TONE_BG[f.tone]}`}
+                  style={{ width: `${f.pct}%` }}
+                />
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -45,84 +55,151 @@ export function ResearchDiagram() {
 
 export function PublishDiagram() {
   return (
-    <div className={CARD_CLASS}>
-      <div className="flex items-center gap-2 mb-3">
-        <CompanyLogo ticker="CRS" size="xs" />
-        <span className="font-mono text-[12px] font-bold">CRS</span>
-        <span className="badge bg-accent-green-soft text-accent-green ml-auto">
-          New
+    <div className={PANEL}>
+      <div className={`${PANEL_HEAD} flex items-center justify-between gap-2`}>
+        <span>Research note</span>
+        <CategoryTag tone="mint" className="!text-[9px] !px-2 !py-0.5">
+          New pick
+        </CategoryTag>
+      </div>
+      <div className="flex flex-1 flex-col px-4 py-4 sm:px-5 sm:py-5">
+        <div className="mb-3 flex items-center gap-2.5">
+          <CompanyLogo ticker="CRS" size="sm" />
+          <div>
+            <p className="font-mono text-[14px] font-bold leading-none">CRS</p>
+            <p className="mt-0.5 font-sans text-[10px] text-text-dim">
+              Carpenter Technology
+            </p>
+          </div>
+        </div>
+        <p className="mb-3 font-sans text-[13px] font-semibold leading-snug text-text">
+          Specialty alloys with pricing power the market still underweights
+        </p>
+        <div className="mt-auto space-y-1.5 border-t border-border pt-3">
+          <p className="font-sans text-[10px] font-bold uppercase tracking-[0.1em] text-text-dim">
+            In the note
+          </p>
+          <p className="font-sans text-[11px] leading-relaxed text-text-muted">
+            Thesis · financials · cycle context · exit rules
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function TrackDiagram() {
+  const rows: { ticker: string; status: "Open" | "Closed" }[] = [
+    { ticker: "CRS", status: "Open" },
+    { ticker: "FIX", status: "Open" },
+    { ticker: "YPF", status: "Closed" },
+  ];
+  return (
+    <div className={PANEL}>
+      <div className={`${PANEL_HEAD} flex items-center justify-between`}>
+        <span>Example portfolio</span>
+        <span className="relative flex h-1.5 w-1.5" aria-hidden>
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-green opacity-60" />
+          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-accent-green" />
         </span>
       </div>
-      <div className="h-2 w-4/5 rounded bg-bg-tertiary mb-3" />
-      <div className="space-y-1.5">
-        <div className="h-1.5 w-full rounded bg-bg-tertiary/70" />
-        <div className="h-1.5 w-[90%] rounded bg-bg-tertiary/70" />
-        <div className="h-1.5 w-2/3 rounded bg-bg-tertiary/70" />
-      </div>
-    </div>
-  );
-}
-
-/**
- * Real tickers (they're names, not performance claims), no invented return
- * figures — this page is not a client component and has no live data to
- * draw on, and hardcoding a number here would drift from the real one
- * exactly the way the blog posts already did once.
- */
-export function TrackDiagram() {
-  const rows: { ticker: string; up: boolean }[] = [
-    { ticker: "CRS", up: true },
-    { ticker: "IRS", up: true },
-    { ticker: "AGI", up: true },
-  ];
-  return (
-    <div className={CARD_CLASS}>
-      <div className="space-y-2.5">
+      <div className="divide-y divide-border">
         {rows.map((r) => (
-          <div key={r.ticker} className="flex items-center gap-2.5">
-            <span className="relative flex h-1.5 w-1.5 shrink-0" aria-hidden>
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-green opacity-60" />
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-accent-green" />
+          <div
+            key={r.ticker}
+            className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5"
+          >
+            <span className="flex min-w-0 items-center gap-2.5">
+              <CompanyLogo ticker={r.ticker} size="xs" />
+              <span className="font-mono text-[13px] font-semibold">
+                {r.ticker}
+              </span>
             </span>
-            <span className="font-mono text-[11px] font-semibold w-10 shrink-0">
-              {r.ticker}
+            <span
+              className={`badge !py-1 !text-[10px] ${
+                r.status === "Open"
+                  ? "bg-accent-green-soft text-accent-green"
+                  : "bg-bg-tertiary text-text-dim"
+              }`}
+            >
+              {r.status}
             </span>
-            <div className="h-1.5 flex-1 rounded-full bg-bg-tertiary overflow-hidden ml-2">
-              <div
-                className="h-full rounded-full bg-accent-green"
-                style={{ width: "68%" }}
-                aria-hidden
-              />
-            </div>
           </div>
         ))}
       </div>
+      <p className="mt-auto border-t border-border px-4 py-2.5 font-sans text-[10px] text-text-dim sm:px-5">
+        Every entry, trim, and exit stays on the page
+      </p>
     </div>
   );
 }
 
-/** Schematic only — no invented percentages for either series. */
+/** Closed picks from the backtrained model — winners and losers both shown. */
 export function MeasureDiagram() {
-  const rows = [
-    { label: "Picks", pct: 78, tone: true },
-    { label: "S&P 500", pct: 46, tone: false },
-  ];
+  const winners = WINNERS_CIRCLE.slice(0, 3);
+  const losers = FINAL_HOLDINGS.filter((h) => h.ret.startsWith("-")).slice(0, 3);
+
   return (
-    <div className={CARD_CLASS}>
-      <div className="space-y-4">
-        {rows.map((r) => (
-          <div key={r.label}>
-            <p className="font-sans text-[10px] font-bold text-text-dim uppercase tracking-[0.08em] mb-1.5">
-              {r.label}
-            </p>
-            <div className="h-2 w-full rounded-full bg-bg-tertiary overflow-hidden">
-              <div
-                className={`h-full rounded-full ${r.tone ? "bg-accent-green" : "bg-text-dim"}`}
-                style={{ width: `${r.pct}%` }}
-              />
-            </div>
-          </div>
-        ))}
+    <div className={PANEL}>
+      <div className={`${PANEL_HEAD} flex items-center justify-between gap-2`}>
+        <span>Closed picks</span>
+        <span className="font-mono text-[9px] font-semibold normal-case tracking-normal text-text-dim">
+          {BACKTEST.wins}W / {BACKTEST.losses}L
+        </span>
+      </div>
+      <div className="flex flex-1 flex-col px-4 py-3 sm:px-5 sm:py-4">
+        <p className="mb-3 font-sans text-[10px] font-bold uppercase tracking-[0.12em] text-text-dim">
+          Backtrained model · simulated
+        </p>
+
+        <p className="mb-2 font-sans text-[10px] font-bold uppercase tracking-[0.1em] text-accent-green">
+          Winners
+        </p>
+        <ul className="mb-4 divide-y divide-border border-y border-border">
+          {winners.map((w) => (
+            <li
+              key={w.ticker}
+              className="flex items-center justify-between gap-3 py-2.5"
+            >
+              <span className="flex min-w-0 items-center gap-2">
+                <CompanyLogo ticker={w.ticker} size="xs" />
+                <span className="font-mono text-[12px] font-semibold">
+                  {w.ticker}
+                </span>
+              </span>
+              <span className="font-mono text-[12px] font-semibold tabular-nums text-accent-green">
+                {w.ret}
+              </span>
+            </li>
+          ))}
+        </ul>
+
+        <p className="mb-2 font-sans text-[10px] font-bold uppercase tracking-[0.1em] text-accent-red">
+          Losers
+        </p>
+        <ul className="divide-y divide-border border-y border-border">
+          {losers.map((l) => (
+            <li
+              key={l.ticker}
+              className="flex items-center justify-between gap-3 py-2.5"
+            >
+              <span className="flex min-w-0 items-center gap-2">
+                <CompanyLogo ticker={l.ticker} size="xs" />
+                <span className="font-mono text-[12px] font-semibold">
+                  {l.ticker}
+                </span>
+              </span>
+              <span className="font-mono text-[12px] font-semibold tabular-nums text-accent-red">
+                {l.ret}
+              </span>
+            </li>
+          ))}
+        </ul>
+
+        <p className="mt-auto pt-3 font-sans text-[10px] leading-relaxed text-text-dim">
+          {BACKTEST.closedPicks} closed picks · {BACKTEST.startDate} –{" "}
+          {BACKTEST.endDate}
+        </p>
       </div>
     </div>
   );

@@ -33,6 +33,7 @@ const article: Article = {
     tags: ["cadence", "process", "biweekly"],
     readingTime: 7,
     author: "Outpick Research",
+    cover: "/art/covers/why-we-publish-one-stock-pick-every-two-weeks.png",
   },
   Content: () => (
     <Prose>

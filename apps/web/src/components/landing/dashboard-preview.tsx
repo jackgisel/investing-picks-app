@@ -195,7 +195,7 @@ export function DashboardPreview() {
                   members-only.
                 </p>
                 {unlocked ? (
-                  <PillButton href="/#pricing" arrow>
+                  <PillButton href="/pricing" arrow>
                     See membership
                   </PillButton>
                 ) : (
@@ -203,7 +203,7 @@ export function DashboardPreview() {
                     <PillButton href="/login" arrow>
                       Create a free account
                     </PillButton>
-                    <PillButton href="/#pricing" variant="outline">
+                    <PillButton href="/pricing" variant="outline">
                       See membership
                     </PillButton>
                   </div>

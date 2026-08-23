@@ -109,7 +109,7 @@ export default function WhatWeAreNotPage() {
           <Link href="/#strategy" className="btn-primary">
             How the method works
           </Link>
-          <Link href="/#pricing" className="btn-outline">
+          <Link href="/pricing" className="btn-outline">
             See membership
           </Link>
         </div>

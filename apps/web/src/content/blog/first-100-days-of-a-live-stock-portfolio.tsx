@@ -33,6 +33,7 @@ const article: Article = {
     tags: ["live portfolio", "track record", "process"],
     readingTime: 8,
     author: "Outpick Research",
+    cover: "/art/covers/first-100-days-of-a-live-stock-portfolio.png",
   },
   Content: () => (
     <Prose>

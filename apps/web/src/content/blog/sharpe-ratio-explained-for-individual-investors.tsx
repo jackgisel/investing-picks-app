@@ -36,6 +36,7 @@ const article: Article = {
     tags: ["sharpe ratio", "risk-adjusted return", "metrics"],
     readingTime: 7,
     author: "Outpick Research",
+    cover: "/art/covers/sharpe-ratio-explained-for-individual-investors.png",
   },
   Content: () => (
     <Prose>
@@ -184,7 +185,7 @@ const article: Article = {
         over comparable windows. The total return over that same period was
         +250.39%, simulated, with a maximum drawdown of 27.38%. You can see
         the full track record on our{" "}
-        <A href="/#track-record">track record page</A>.
+        <A href="/track-record">track record page</A>.
       </P>
       <StatGrid
         stats={[

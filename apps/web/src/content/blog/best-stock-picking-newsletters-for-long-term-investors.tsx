@@ -35,6 +35,7 @@ const article: Article = {
     tags: ["stock picking", "newsletters", "buyer guide"],
     readingTime: 8,
     author: "Outpick Research",
+    cover: "/art/covers/best-stock-picking-newsletters-for-long-term-investors.png",
   },
   Content: () => (
     <Prose>
@@ -265,7 +266,7 @@ const article: Article = {
         <A href="/dashboard">dashboard</A>, a walk-forward backtest with a
         clearly labeled out-of-sample period, and losses published alongside
         wins on the{" "}
-        <A href="/#track-record">track record page</A>. Judge us against this
+        <A href="/track-record">track record page</A>. Judge us against this
         checklist, not against our marketing. That is the entire point.
       </P>
       <P>

@@ -1,17 +1,41 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import Image from "next/image";
 import { signIn } from "@/lib/auth-client";
 import { OutpickWordmark } from "@/components/ui/outpick-logo";
 import Link from "next/link";
 import { MailCheck } from "lucide-react";
 import { resolveCallbackPath } from "@/lib/login-redirect";
+import { LOGIN_ART } from "@/lib/art";
 
 /** Where the magic link should land after it verifies. */
 function resolveCallbackURL(): string {
   if (typeof window === "undefined") return "/subscribe";
   return resolveCallbackPath(
     new URLSearchParams(window.location.search).get("next"),
+  );
+}
+
+function LoginShell({ children }: { children: ReactNode }) {
+  return (
+    <div className="relative min-h-[calc(100dvh-72px)] overflow-hidden">
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <Image
+          src={LOGIN_ART.src}
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover object-[50%_40%]"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-bg/85 via-bg/75 to-bg/90 dark:from-bg/90 dark:via-bg/80 dark:to-bg/95" />
+        <div className="absolute inset-0 bg-gradient-to-r from-bg/40 via-transparent to-bg/40" />
+      </div>
+      <div className="relative flex min-h-[calc(100dvh-72px)] items-center justify-center px-4 py-16">
+        {children}
+      </div>
+    </div>
   );
 }
 
@@ -70,7 +94,7 @@ export default function LoginPage() {
 
   if (linkSentTo) {
     return (
-      <div className="min-h-[calc(100dvh-72px)] flex items-center justify-center px-4 py-16">
+      <LoginShell>
         <div className="w-full max-w-md text-center">
           <div className="mx-auto mb-7 flex h-16 w-16 items-center justify-center rounded-full bg-accent-mint text-on-accent">
             <MailCheck size={28} strokeWidth={1.8} aria-hidden="true" />
@@ -86,7 +110,7 @@ export default function LoginPage() {
             <span className="font-semibold text-text">{linkSentTo}</span>.
             Click it and you&apos;re in — nothing to remember, nothing to type.
           </p>
-          <div className="soft-card mt-8 text-left">
+          <div className="soft-card mt-8 text-left bg-bg/80 backdrop-blur-sm">
             <p className="field-label mb-2">WHAT HAPPENS NEXT</p>
             <p className="font-sans text-[14px] leading-relaxed text-text-muted">
               The link signs you in, opens your membership payment page, and
@@ -121,12 +145,12 @@ export default function LoginPage() {
             Use a different email
           </button>
         </div>
-      </div>
+      </LoginShell>
     );
   }
 
   return (
-    <div className="min-h-[calc(100dvh-72px)] flex items-center justify-center px-4 py-16">
+    <LoginShell>
       <div className="w-full max-w-sm">
         <div className="text-center mb-10">
           <Link href="/">
@@ -137,7 +161,10 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-4 rounded-soft bg-bg/80 p-6 backdrop-blur-sm sm:p-7"
+        >
           <div>
             <label
               htmlFor="login-name"
@@ -203,6 +230,6 @@ export default function LoginPage() {
           </p>
         </form>
       </div>
-    </div>
+    </LoginShell>
   );
 }

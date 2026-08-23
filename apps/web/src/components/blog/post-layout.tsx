@@ -2,6 +2,8 @@ import Link from "next/link";
 import { ReactNode } from "react";
 import { ArrowLeft } from "lucide-react";
 import type { ArticleMeta, Article } from "@/lib/blog";
+import { artForArticle } from "@/lib/art";
+import { ArtMasthead } from "@/components/art/art-masthead";
 import { ArticleCard } from "./article-card";
 import { CategoryTag, type PastelTone } from "@/components/ui/category-tag";
 import { MarketNoteSignup } from "@/components/marketing/market-note-signup";
@@ -33,10 +35,13 @@ export function PostLayout({
   related: Article[];
   children: ReactNode;
 }) {
+  const art = artForArticle(meta);
+
   return (
     <article>
-      <header className="border-b border-border">
-        <div className="container-op pt-14 pb-16">
+      <header className="relative border-b border-border overflow-hidden">
+        <ArtMasthead art={art} size="md" className="-mb-10 sm:-mb-14" />
+        <div className="relative container-op pt-4 pb-16">
           <Link
             href="/blog"
             className="inline-flex items-center gap-2 font-sans text-[12px] font-bold tracking-[0.1em] uppercase text-text-dim hover:text-text transition-colors mb-10"

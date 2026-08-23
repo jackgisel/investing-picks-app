@@ -35,6 +35,7 @@ const article: Article = {
     tags: ["alpha", "beta", "active management"],
     readingTime: 8,
     author: "Outpick Research",
+    cover: "/art/covers/alpha-vs-beta-what-active-stock-picking-actually-buys-you.png",
   },
   Content: () => (
     <Prose>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
@@ -37,12 +38,12 @@ export function PillButton({
       {arrow && (
         <span
           className={cn(
-            "inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] transition-transform duration-200 group-hover:translate-x-0.5",
+            "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-transform duration-200 group-hover:translate-x-0.5",
             variant === "solid" ? "bg-inverse-fg/20" : "bg-text/10",
           )}
           aria-hidden
         >
-          →
+          <ArrowRight size={11} strokeWidth={2.5} className="block" />
         </span>
       )}
     </>

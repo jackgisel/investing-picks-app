@@ -36,6 +36,7 @@ const article: Article = {
     tags: ["argentina", "emerging markets", "contrarian"],
     readingTime: 8,
     author: "Outpick Research",
+    cover: "/art/covers/argentina-stocks-the-quiet-engine-of-our-best-trades.png",
   },
   Content: () => (
     <Prose>

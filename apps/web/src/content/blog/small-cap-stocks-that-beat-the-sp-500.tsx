@@ -35,6 +35,7 @@ const article: Article = {
     tags: ["small cap", "research", "growth"],
     readingTime: 8,
     author: "Outpick Research",
+    cover: "/art/covers/small-cap-stocks-that-beat-the-sp-500.png",
   },
   Content: () => (
     <Prose>
@@ -227,7 +228,7 @@ const article: Article = {
         Outpick publishes one pick every two weeks — roughly 26 per year — and we
         hold winners for multi-year periods. You can see the live portfolio and
         track record on the <A href="/dashboard">dashboard</A> or the{" "}
-        <A href="/#track-record">public track record</A>.
+        <A href="/track-record">public track record</A>.
       </P>
 
       <FAQList

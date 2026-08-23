@@ -35,6 +35,7 @@ const article: Article = {
     tags: ["alpha", "strategy", "s&p 500"],
     readingTime: 8,
     author: "Outpick Research",
+    cover: "/art/covers/how-to-outperform-the-sp-500-with-stock-picks.png",
   },
   Content: () => (
     <Prose>
@@ -222,7 +223,7 @@ const article: Article = {
         biweekly newsletter cadence means you make one informed decision every two weeks, not one
         panicked decision every two days. Our live example portfolio went public on April 1, 2026 —
         real trades, on our own capital, tracked in public on the{" "}
-        <A href="/#track-record">track record page</A>. If you want the comparison to other
+        <A href="/track-record">track record page</A>. If you want the comparison to other
         services before deciding, see{" "}
         <A href="/blog/best-stock-picking-newsletters-for-long-term-investors">
           best stock-picking newsletters for long-term investors

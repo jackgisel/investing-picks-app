@@ -35,6 +35,7 @@ const article: Article = {
     tags: ["roi", "stock picking", "fees"],
     readingTime: 8,
     author: "Outpick Research",
+    cover: "/art/covers/is-paying-for-a-stock-picking-service-worth-it.png",
   },
   Content: () => (
     <Prose>
@@ -105,7 +106,7 @@ const article: Article = {
       <P>
         Less than one percent. That is the alpha hurdle at $100k. For
         perspective, our{" "}
-        <A href="/#track-record">walk-forward backtest</A> ran from June 2022
+        <A href="/track-record">walk-forward backtest</A> ran from June 2022
         through April 2026 and generated roughly 21% of alpha per year relative
         to the S&amp;P 500. We are not promising that number going forward, and{" "}
         <A href="/blog/walk-forward-backtesting-explained">

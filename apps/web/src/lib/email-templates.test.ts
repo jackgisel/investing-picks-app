@@ -168,7 +168,8 @@ describe("new pick email", () => {
     // The payload text survives as inert escaped characters — what must not
     // survive is the markup, so assert on the tags rather than the substring.
     expect(html).not.toContain("<script>");
-    expect(html).not.toContain("<img");
+    expect(html).not.toContain("<script");
+    expect(html).not.toMatch(/<img[^>]+onerror=/i);
     expect(html).toContain("&lt;script&gt;");
     expect(html).toContain("&lt;img");
   });
@@ -185,6 +186,25 @@ describe("new pick email", () => {
       banner: "Test send — not a live alert",
     });
     expect(banner).toContain("Test send");
+  });
+
+  it("includes a dithered art masthead for content mail", () => {
+    const html = pick();
+    expect(html).toContain("/art/");
+    expect(html).toMatch(/<img[\s\S]*src="https:\/\/outpick\.xyz\/art\/[^"]+\.png"/);
+  });
+
+  it("prefers the weekly pool when a weekKey is provided", () => {
+    const html = renderNewPickEmail({
+      recipientName: null,
+      ticker: "AAA",
+      articleTitle: "t",
+      articleDescription: "d",
+      articleUrl: SITE,
+      siteUrl: SITE,
+      weekKey: "2026-W35",
+    });
+    expect(html).toContain("/art/pool/2026-W35.png");
   });
 });
 

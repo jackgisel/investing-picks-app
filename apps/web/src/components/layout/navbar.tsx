@@ -13,13 +13,13 @@ import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
   { label: "Strategy", href: "/#strategy" },
-  { label: "Pricing", href: "/#pricing" },
+  { label: "Pricing", href: "/pricing" },
   { label: "Blog", href: "/blog" },
 ] as const;
 
 const MOBILE_EXTRA_LINKS = [
-  { label: "Track record", href: "/#track-record" },
-  { label: "How it works", href: "/#how-it-works" },
+  { label: "Track record", href: "/track-record" },
+  { label: "How it works", href: "/#what-how" },
   { label: "FAQ", href: "/#faq" },
 ] as const;
 
@@ -63,7 +63,7 @@ export function Navbar() {
     >
       <div className="flex h-[calc(72px+env(safe-area-inset-top))] items-center justify-between container-op pt-[env(safe-area-inset-top)]">
         <div className="flex items-center gap-7 min-w-0">
-          <Link href="/" className="shrink-0">
+          <Link href={session ? "/dashboard" : "/"} className="shrink-0">
             <OutpickWordmark />
           </Link>
 

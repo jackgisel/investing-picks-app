@@ -35,6 +35,7 @@ const article: Article = {
     tags: ["long-term investing", "strategy", "time"],
     readingTime: 8,
     author: "Outpick Research",
+    cover: "/art/covers/how-to-beat-the-sp-500-without-becoming-a-day-trader.png",
   },
   Content: () => (
     <Prose>
@@ -238,7 +239,7 @@ const article: Article = {
               <>
                 Yes. A biweekly cadence generates roughly 26 new ideas per year, which is plenty to
                 rotate a 20-to-25 stock portfolio without forcing low-conviction trades. Our{" "}
-                <A href="/#track-record">track record page</A> shows the results in full detail.
+                <A href="/track-record">track record page</A> shows the results in full detail.
               </>
             ),
           },

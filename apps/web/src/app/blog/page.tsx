@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { articles } from "@/lib/blog";
+import { artForArticle } from "@/lib/art";
+import { ArtMasthead } from "@/components/art/art-masthead";
 import { ArticleCard } from "@/components/blog/article-card";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
 
@@ -22,11 +24,13 @@ export const metadata: Metadata = {
 
 export default function BlogIndexPage() {
   const [featured, ...rest] = articles;
+  const indexArt = featured ? artForArticle(featured.meta) : artForArticle({ slug: "blog" });
 
   return (
     <>
-      <section className="border-b border-border">
-        <div className="container-op pt-20 pb-14">
+      <section className="relative border-b border-border overflow-hidden">
+        <ArtMasthead art={indexArt} size="lg" className="-mb-16 sm:-mb-20" />
+        <div className="relative container-op pt-6 pb-14">
           <p className="section-label mb-5">Outpick research</p>
           <h1 className="font-sans text-[40px] sm:text-[48px] font-extrabold leading-[1.1] tracking-tight mb-6 max-w-[780px] uppercase">
             Research for investors who outgrew the index.

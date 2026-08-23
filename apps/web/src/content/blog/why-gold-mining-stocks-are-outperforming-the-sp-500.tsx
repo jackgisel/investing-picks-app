@@ -36,6 +36,7 @@ const article: Article = {
     tags: ["gold", "miners", "macro"],
     readingTime: 8,
     author: "Outpick Research",
+    cover: "/art/covers/why-gold-mining-stocks-are-outperforming-the-sp-500.png",
   },
   Content: () => (
     <Prose>

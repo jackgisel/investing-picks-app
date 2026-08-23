@@ -1,6 +1,8 @@
 import { Resend } from "resend";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
 import { pickAlertToken } from "@/lib/pick-alerts";
+import { isoWeekKey } from "@/lib/email-dispatch";
+import { weekKeyFromInsightSlug } from "@/lib/art-pool";
 import {
   renderNewPickEmail,
   renderDeleteAccountEmail,
@@ -120,6 +122,7 @@ export async function sendNewPickEmail(args: {
     articleUrl,
     siteUrl: SITE_URL,
     banner: args.banner,
+    weekKey: isoWeekKey(),
   });
   const text = `New ${SITE_NAME} pick — ${args.ticker}\n\n${args.articleTitle}\n\n${args.articleDescription}\n\nRead the full research: ${articleUrl}\n\nYou're receiving this because you opted in to new pick alerts. Manage your preferences: ${SITE_URL}/dashboard/settings`;
 
@@ -269,7 +272,7 @@ export async function sendMarketNoteWelcomeEmail(args: {
     siteUrl: SITE_URL,
     banner: args.banner,
   });
-  const text = `You're on the list.\n\nEvery week we send one short read: what the model is seeing across ~3,600 US-listed stocks, which sectors are scoring, and what we make of it.\n\nTo be clear about what this is: the note is market commentary, not our picks. Published picks, the live portfolio, and the full research archive are for members only.\n\nOur track record is published in full: ${SITE_URL}/#track-record\n\nUnsubscribe any time: ${unsubscribeUrl}`;
+  const text = `You're on the list.\n\nEvery week we send one short read: what the model is seeing across ~3,600 US-listed stocks, which sectors are scoring, and what we make of it.\n\nTo be clear about what this is: the note is market commentary, not our picks. Published picks, the live portfolio, and the full research archive are for members only.\n\nOur track record is published in full: ${SITE_URL}/track-record\n\nUnsubscribe any time: ${unsubscribeUrl}`;
 
   return send({
     to: args.to,
@@ -317,6 +320,7 @@ export async function sendWeeklyReviewEmail(args: {
     siteUrl: SITE_URL,
     unsubscribeUrl: `${SITE_URL}/dashboard/settings`,
     banner: args.banner,
+    weekKey: weekKeyFromInsightSlug(args.insightSlug) ?? undefined,
   });
   const text = `${args.title}\n\n${args.lede}\n\nRead the review: ${articleUrl}\n\nYou're receiving this because you opted in to the weekly summary. Manage your preferences: ${SITE_URL}/dashboard/settings`;
 

@@ -1,8 +1,7 @@
 import { Hero } from "@/components/landing/hero";
-import { TrackRecord } from "@/components/landing/track-record";
+import { WhatHow } from "@/components/landing/what-how";
 import { WhoWeAre } from "@/components/landing/who-we-are";
 import { Audience } from "@/components/landing/audience";
-import { HowItWorks } from "@/components/landing/how-it-works";
 import { Strategy } from "@/components/landing/strategy";
 import { DashboardPreview } from "@/components/landing/dashboard-preview";
 import { WhatWeAreNot } from "@/components/landing/what-we-are-not";
@@ -15,13 +14,11 @@ export default function HomePage() {
   return (
     <>
       <Hero />
-      {/* Proof, then who publishes it. Anyone still reading after the track
-          record is asking "who are these people?" — WhoWeAre answers it with
-          the record rather than a founder story. */}
-      <TrackRecord />
+      {/* What Outpick is and how the loop works. Deep proof (live ledger +
+          walk-forward model) lives on /track-record. */}
+      <WhatHow />
       <WhoWeAre />
       <Audience />
-      <HowItWorks />
       <Strategy />
       <DashboardPreview />
       {/* Immediately before pricing on purpose: someone who wants alerts and

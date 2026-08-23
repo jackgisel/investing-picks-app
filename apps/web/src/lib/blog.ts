@@ -30,6 +30,11 @@ export type ArticleMeta = {
   readingTime: number;
   /** Author name */
   author?: string;
+  /**
+   * Optional unique dithered cover under /public (e.g. /art/covers/slug.png).
+   * When omitted, the shared ART pool is hashed from the slug as a fallback.
+   */
+  cover?: string;
 };
 
 export type Article = {

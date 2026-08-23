@@ -49,13 +49,16 @@ export function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
   const active = activeHref(pathname, flatten(groups));
 
   return (
-    <aside className="hidden w-60 shrink-0 border-r border-border bg-bg lg:sticky lg:top-0 lg:flex lg:h-screen lg:self-start lg:flex-col lg:overflow-y-auto">
-      <div className="px-5 pt-5 pb-3">
+    <aside className="hidden w-60 shrink-0 border-r border-border bg-bg lg:sticky lg:top-0 lg:flex lg:h-screen lg:self-start lg:flex-col lg:overflow-hidden">
+      <div className="shrink-0 px-5 pt-5 pb-3">
         <Link href="/dashboard" className="inline-flex">
           <OutpickWordmark size={20} />
         </Link>
       </div>
-      <nav aria-label="Dashboard" className="flex-1 py-3 px-3">
+      <nav
+        aria-label="Dashboard"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-3 px-3"
+      >
         {groups.map((group) => (
           <div
             key={group.label ?? "product"}
@@ -92,7 +95,7 @@ export function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
           </div>
         ))}
       </nav>
-      <div className="mt-auto border-t border-border px-4 py-4">
+      <div className="mt-auto shrink-0 border-t border-border px-4 py-4">
         <AccountMenu />
       </div>
     </aside>

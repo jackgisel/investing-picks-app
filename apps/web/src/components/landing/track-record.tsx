@@ -272,13 +272,6 @@ export function TrackRecord() {
               see the badge above.
             </p>
             <p>
-              <strong className="text-text">A team of agents, researching around the clock.</strong>{" "}
-              Every two weeks our research pipeline scores ~3,600 US-listed
-              stocks on growth, revisions, profitability, momentum, and
-              valuation, then publishes one name with full research when the
-              framework agrees.
-            </p>
-            <p>
               <strong className="text-text">Winners run, losers get cut.</strong>{" "}
               Position sizing and risk guardrails keep the book disciplined,
               but we don&apos;t cap upside on names that pay back their cost

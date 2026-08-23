@@ -1,5 +1,7 @@
 export const SITE_NAME = "Outpick";
 export const SITE_URL = "https://outpick.xyz";
+/** Human inbox. Product mail still sends from email@ via Resend. */
+export const SUPPORT_EMAIL = "hello@outpick.xyz";
 export const SITE_TAGLINE = "Intentional investing beyond the index.";
 export const SITE_SUBHEADLINE =
   "Value-based stock research for investors who outgrew index funds.";

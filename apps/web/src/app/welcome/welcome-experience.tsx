@@ -10,6 +10,7 @@ import {
   Mail,
   RefreshCw,
 } from "lucide-react";
+import { SUPPORT_EMAIL } from "@/lib/constants";
 
 type State = "waiting" | "active" | "delayed";
 
@@ -129,7 +130,7 @@ export function WelcomeExperience({
               >
                 Try again
               </button>
-              <a href="mailto:email@outpick.xyz" className="btn-outline">
+              <a href={`mailto:${SUPPORT_EMAIL}`} className="btn-outline">
                 Contact support
               </a>
             </div>

@@ -432,16 +432,16 @@ describe("calendar date formatting", () => {
   // implementation renders the 6th for every viewer west of Greenwich and the
   // dashboard quietly promises picks a day early.
   it("does not shift the date across timezones", () => {
-    expect(formatDayMonth("2026-08-07")).toBe("7 Aug");
-    expect(formatWeekdayDate("2026-08-07")).toBe("Fri 7 Aug");
+    expect(formatDayMonth("2026-08-07")).toBe("Aug 7");
+    expect(formatWeekdayDate("2026-08-07")).toBe("Fri, Aug 7");
   });
 
   it("formats a scoring date", () => {
-    expect(formatDayMonth("2026-07-26")).toBe("26 Jul");
+    expect(formatDayMonth("2026-07-26")).toBe("Jul 26");
   });
 
   it("accepts a full timestamp and keeps the calendar day", () => {
-    expect(formatDayMonth("2026-01-01T23:30:00Z")).toBe("1 Jan");
+    expect(formatDayMonth("2026-01-01T23:30:00Z")).toBe("Jan 1");
   });
 
   it("returns null rather than 'Invalid Date' for missing or junk input", () => {

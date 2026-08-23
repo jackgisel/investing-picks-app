@@ -2,7 +2,15 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import { PUBLIC_API_BASE } from "@/lib/api-config";
-import { SITE_NAME } from "@/lib/constants";
+import { SITE_NAME, SITE_URL } from "@/lib/constants";
+import {
+  CONTENT_DATE_AND_VISUAL_RULES,
+  formatQuantRating,
+  QUANT_RATING_MAX,
+  QUANT_RATING_MIN,
+  quantRatingExplainerUrl,
+  quantRatingPromptRules,
+} from "@/lib/content-draft";
 import { isoWeekKey } from "@/lib/email-dispatch";
 import type { InsightDraftFields } from "@/lib/insights";
 import {
@@ -46,15 +54,19 @@ Five sections, in this order, each introduced by an H2:
 - Never use urgency, hype, or second-person exhortation ("you should buy", "don't miss"). The reader is deciding for themselves.
 - Every number you cite must appear in the payload. If you want a figure you were not given, write around it or say it is not available.
 - Where a holding is down or a grade is weak, say so. A review that only argues one side is worse than useless.
-- No headings beyond H2. No tables. No images. No code.
+- No headings beyond H2. No images. No code fences.
+
+${quantRatingPromptRules(SITE_URL)}
+
+${CONTENT_DATE_AND_VISUAL_RULES}
 
 ## Voice
 Plain, specific, unhurried. Short paragraphs. Prefer the concrete noun to the abstract one. Write for a reader who is intelligent about business but not a professional analyst, and who is paying for judgement rather than a data dump. This is a review of a week, not a victory lap and not an apology.
 
 ## Output
-- \`bodyMd\` is GitHub-flavoured markdown containing ONLY the five sections: \`## Heading\` plus paragraphs, bullet lists, **bold**, and links. No front matter, no title (that is its own field), no closing disclaimer (the site adds one).
+- \`bodyMd\` is GitHub-flavoured markdown containing ONLY the five sections: \`## Heading\` plus paragraphs, bullet lists, **bold**, links, and at most one short markdown table (largest movers when it helps). No front matter, no title (that is its own field), no closing disclaimer (the site adds one).
 - \`lede\` is a single opening sentence or two, rendered above the body in larger type. It is not part of \`bodyMd\`.
-- \`tldr\` is exactly five short bullets — the week in brief.
+- \`tldr\` is exactly five short bullets — the Highlights box at the top of the note.
 - \`keyTakeaway\` is one or two sentences closing the note.
 - \`title\` follows the house pattern: "Weekly review: <a specific claim about this week>". No ticker-as-title.
 - \`description\` is one sentence, roughly 155 characters, used as the deck and the meta description.
@@ -123,11 +135,14 @@ export type WeeklyReviewFacts = {
     weight_pct: number | null;
     sector: string | null;
     quant_rating: number | null;
+    quant_rating_display: string | null;
     signal: string | null;
     entry_date: string | null;
   }[];
   moves: { ticker: string; action: string; when: string }[];
   next_evaluation_date: string | null;
+  quant_rating_scale: { min: number; max: number };
+  quant_rating_explainer_url: string;
 };
 
 async function getJson<T>(path: string): Promise<T | null> {
@@ -192,12 +207,14 @@ export async function fetchWeeklyReviewFacts(
     .filter((h): h is Holding & { ticker: string } => Boolean(h.ticker))
     .map((h) => {
       const pick = ratings.get(h.ticker.toUpperCase());
+      const quantRating = roundPct(pick?.quant_rating);
       return {
         ticker: h.ticker.toUpperCase(),
         pnl_pct: roundPct(h.pnl_pct),
         weight_pct: roundPct(h.weight_pct),
         sector: h.sector ?? null,
-        quant_rating: roundPct(pick?.quant_rating),
+        quant_rating: quantRating,
+        quant_rating_display: formatQuantRating(quantRating),
         signal: pick?.signal ?? null,
         entry_date: h.entry_date ?? pick?.entry_date ?? null,
       };
@@ -220,6 +237,8 @@ export async function fetchWeeklyReviewFacts(
     holdings,
     moves: movesInWeek(tradesBody?.trades ?? [], now),
     next_evaluation_date: strategy?.next_evaluation_date ?? null,
+    quant_rating_scale: { min: QUANT_RATING_MIN, max: QUANT_RATING_MAX },
+    quant_rating_explainer_url: quantRatingExplainerUrl(SITE_URL),
   };
 }
 

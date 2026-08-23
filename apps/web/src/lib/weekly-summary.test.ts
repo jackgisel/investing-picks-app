@@ -91,6 +91,14 @@ describe("movesInWeek", () => {
     expect(moves[0].action).toBe("Sold");
   });
 
+  it("formats trade dates American month-first", () => {
+    const moves = movesInWeek(
+      [{ ticker: "WDC", side: "buy", date: "2026-08-05" }],
+      weekEnd,
+    );
+    expect(moves[0].when).toBe("Wed, Aug 5");
+  });
+
   it("ignores rows with no ticker or no date", () => {
     expect(
       movesInWeek(
@@ -107,13 +115,13 @@ describe("movesInWeek", () => {
 describe("periodLabel", () => {
   it("collapses the month when the week does not span one", () => {
     expect(periodLabel(new Date("2026-08-09T00:00:00Z"))).toBe(
-      "3–9 August 2026",
+      "August 3–9, 2026",
     );
   });
 
   it("names both months when it does", () => {
     expect(periodLabel(new Date("2026-08-02T00:00:00Z"))).toBe(
-      "27 July–2 August 2026",
+      "July 27–August 2, 2026",
     );
   });
 });

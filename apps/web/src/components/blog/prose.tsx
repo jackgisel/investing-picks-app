@@ -323,11 +323,18 @@ export function FAQList({
   );
 }
 
+/**
+ * Opening bullet box on research notes and blog posts.
+ *
+ * Label is "Highlights" — clearer than TL;DR for readers who never used that
+ * abbreviation. The export keeps the old name so existing blog JSX does not
+ * churn; new generated insights use the same component.
+ */
 export function TLDR({ children }: { children: ReactNode }) {
   return (
     <div className="my-10 max-w-[680px] border border-border bg-bg-secondary px-7 py-6">
       <p className="font-sans text-[10px] font-bold text-accent-green tracking-[0.14em] mb-3 uppercase">
-        TL;DR
+        Highlights
       </p>
       <div className="font-sans text-[14px] text-text-muted leading-[1.7] [&>p+p]:mt-3">
         {children}
@@ -335,3 +342,6 @@ export function TLDR({ children }: { children: ReactNode }) {
     </div>
   );
 }
+
+/** Alias for new authored content — same chrome as {@link TLDR}. */
+export const Highlights = TLDR;

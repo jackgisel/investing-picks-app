@@ -115,22 +115,22 @@ function parseCalendarDate(iso: string): Date | null {
   return d;
 }
 
-/** `2026-07-26` -> `26 Jul`. Null when the input is not a calendar date. */
+/** `2026-07-26` -> `Jul 26`. Null when the input is not a calendar date. */
 export function formatDayMonth(iso: string | null | undefined): string | null {
   const d = iso ? parseCalendarDate(iso) : null;
   return d
-    ? d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+    ? d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
     : null;
 }
 
-/** `2026-08-07` -> `Fri 7 Aug`. Null when the input is not a calendar date. */
+/** `2026-08-07` -> `Fri, Aug 7`. Null when the input is not a calendar date. */
 export function formatWeekdayDate(iso: string | null | undefined): string | null {
   const d = iso ? parseCalendarDate(iso) : null;
   return d
-    ? d.toLocaleDateString("en-GB", {
+    ? d.toLocaleDateString("en-US", {
         weekday: "short",
-        day: "numeric",
         month: "short",
+        day: "numeric",
       })
     : null;
 }

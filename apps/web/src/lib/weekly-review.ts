@@ -95,13 +95,13 @@ export function isPastFridayNoon(from: Date = new Date()): boolean {
   return from.getTime() >= fridayNoonPacific(from).getTime();
 }
 
-/** "12:00 PM PT on Friday 21 Aug" — the deadline shown in ops and admin mail. */
+/** "12:00 PM PDT on Friday, Aug 21" — the deadline shown in ops and admin mail. */
 export function fridayNoonLabel(from: Date = new Date()): string {
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat("en-US", {
     timeZone: PACIFIC,
     weekday: "long",
-    day: "numeric",
     month: "short",
+    day: "numeric",
     hour: "numeric",
     minute: "2-digit",
     timeZoneName: "short",

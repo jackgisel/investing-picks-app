@@ -1,5 +1,7 @@
+import { formatQuantRating } from "@/lib/content-draft";
 import { sendNewPickEmail } from "@/lib/email";
 import type { PickStat } from "@/lib/email-templates";
+import { fetchQuantRatingForTicker } from "@/lib/insight-viz-data";
 import { getOptedInRecipients } from "@/lib/preferences";
 import { formatStreetPrice } from "@/lib/street-range";
 import { fetchStreetRangeForTicker } from "@/lib/street-range-server";
@@ -35,8 +37,15 @@ export async function announcePick(args: {
     return { sent: 0, failed: 0, total: 0, errors: [] };
   }
 
-  const street = await fetchStreetRangeForTicker(args.ticker);
+  const [street, quant] = await Promise.all([
+    fetchStreetRangeForTicker(args.ticker),
+    fetchQuantRatingForTicker(args.ticker),
+  ]);
   const stats: PickStat[] = [];
+  const ratingLabel = quant ? formatQuantRating(quant.rating) : null;
+  if (ratingLabel) {
+    stats.push({ label: "Quant rating", value: ratingLabel });
+  }
   if (street) {
     if (street.mark !== null) {
       stats.push({ label: "Mark", value: formatStreetPrice(street.mark) });

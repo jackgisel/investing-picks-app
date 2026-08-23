@@ -4,13 +4,22 @@ import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { CommentThread } from "@/components/comments/comment-thread";
+import {
+  QuantRatingMeter,
+  WeekVsSpyBars,
+} from "@/components/blog/insight-viz";
 import { MarkdownProse } from "@/components/blog/markdown-prose";
 import { Callout, KeyTakeaway, LI, Lede, P, TLDR, UL } from "@/components/blog/prose";
 import { getAdminUser } from "@/lib/admin";
 import { getAccess } from "@/lib/api-gate";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
-import { insightCategoryLabel } from "@/lib/insights";
+import { isoWeekKey } from "@/lib/email-dispatch";
+import { insightCategoryLabel, weeklyReviewSlug } from "@/lib/insights";
 import { getInsightBySlug } from "@/lib/insights-db";
+import {
+  fetchQuantRatingForTicker,
+  fetchWeekVsSpy,
+} from "@/lib/insight-viz-data";
 import { CompanyLogo } from "@/components/ui/company-logo";
 import { StreetRangeBand } from "@/components/street-range-band";
 import { fetchStreetRangeForTicker } from "@/lib/street-range-server";
@@ -99,6 +108,17 @@ export default async function InsightDetailPage({
       ? await fetchStreetRangeForTicker(insight.ticker)
       : null;
 
+  const quantRating =
+    insight.postType === "pick"
+      ? await fetchQuantRatingForTicker(insight.ticker)
+      : null;
+
+  const weekVsSpy =
+    insight.postType === "weekly_review" &&
+    insight.slug === weeklyReviewSlug(isoWeekKey())
+      ? await fetchWeekVsSpy()
+      : null;
+
   return (
     // The shell is 1400px wide for tables; long-form prose is not, so the
     // article caps itself at a reading measure. prose.tsx already holds its
@@ -168,6 +188,20 @@ export default async function InsightDetailPage({
             </UL>
           </TLDR>
         )}
+
+        {quantRating ? (
+          <QuantRatingMeter
+            rating={quantRating.rating}
+            asOf={quantRating.asOf}
+          />
+        ) : null}
+
+        {weekVsSpy ? (
+          <WeekVsSpyBars
+            bookChangePct={weekVsSpy.bookChangePct}
+            spyChangePct={weekVsSpy.spyChangePct}
+          />
+        ) : null}
 
         {streetRange ? (
           <div className="mb-10">

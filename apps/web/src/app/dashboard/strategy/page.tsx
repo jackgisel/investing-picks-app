@@ -226,7 +226,7 @@ export default function StrategyPage() {
               {FACTORS.map((f) => (
                 <FactorCard key={f.name} {...f} />
               ))}
-              <div className="data-card flex flex-col justify-center bg-transparent">
+              <div id="quant-rating" className="data-card flex flex-col justify-center bg-transparent scroll-mt-24">
                 <p className="font-sans text-[13px] leading-relaxed text-text-muted">
                   The five are combined into a single{" "}
                   <span className="font-semibold text-text">1–5 rating</span>{" "}

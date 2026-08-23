@@ -931,6 +931,16 @@ def research_facts(ticker: str, db: Session = Depends(get_db)):
         "score": {
             "as_of": score.as_of.isoformat() if score.as_of else None,
             "quant_rating": score.quant_rating,
+            # Always pair the number with its scale. Drafting prompts cite this
+            # as "X.X / 5" and deep-link the explainer — a bare float is easy
+            # for a model to reprint without context.
+            "quant_rating_display": (
+                f"{round(score.quant_rating, 1):g} / 5"
+                if score.quant_rating is not None
+                else None
+            ),
+            "quant_rating_scale": {"min": 1, "max": 5},
+            "quant_rating_explainer_url": "https://outpick.xyz/dashboard/strategy#quant-rating",
             "composite": score.composite,
             "valuation_grade": score.valuation_grade,
             "growth_grade": score.growth_grade,

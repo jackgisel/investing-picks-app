@@ -424,7 +424,7 @@ function Editor({
       </div>
 
       <div>
-        <label className={labelClass}>TLDR — one per line</label>
+        <label className={labelClass}>Highlights — one per line</label>
         <textarea
           className={`${inputClass} min-h-[110px]`}
           value={(form.tldr ?? []).join("\n")}

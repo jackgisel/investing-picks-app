@@ -519,7 +519,7 @@ export type WeeklyMove = {
   ticker: string;
   /** "Bought" / "Sold" — plain reader-facing words, never internal actions. */
   action: string;
-  /** e.g. "Mon 3 Aug". Empty is fine; the row just loses its date. */
+  /** e.g. "Mon, Aug 3". Empty is fine; the row just loses its date. */
   when: string;
 };
 

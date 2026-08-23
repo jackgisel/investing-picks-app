@@ -16,19 +16,19 @@ type ApiTrade = {
   date?: string | null;
 };
 
-/** "3–9 August 2026" — the week the review covers. */
+/** "August 3–9, 2026" — the week the review covers (American month-first). */
 export function periodLabel(weekEnd: Date): string {
   const start = new Date(weekEnd);
   start.setDate(start.getDate() - 6);
-  const month = new Intl.DateTimeFormat("en-GB", {
+  const month = new Intl.DateTimeFormat("en-US", {
     month: "long",
     timeZone: "UTC",
   });
   const sameMonth = start.getUTCMonth() === weekEnd.getUTCMonth();
-  const left = sameMonth
-    ? `${start.getUTCDate()}`
-    : `${start.getUTCDate()} ${month.format(start)}`;
-  return `${left}–${weekEnd.getUTCDate()} ${month.format(weekEnd)} ${weekEnd.getUTCFullYear()}`;
+  if (sameMonth) {
+    return `${month.format(weekEnd)} ${start.getUTCDate()}–${weekEnd.getUTCDate()}, ${weekEnd.getUTCFullYear()}`;
+  }
+  return `${month.format(start)} ${start.getUTCDate()}–${month.format(weekEnd)} ${weekEnd.getUTCDate()}, ${weekEnd.getUTCFullYear()}`;
 }
 
 /**
@@ -84,10 +84,10 @@ export function movesInWeek(trades: ApiTrade[], weekEnd: Date): WeeklyMove[] {
       // recycle, winners_circle_trim) describes machinery a subscriber has no
       // reason to decode, and leaking it has bitten this codebase before.
       action: t.side === "sell" ? "Sold" : "Bought",
-      when: new Intl.DateTimeFormat("en-GB", {
+      when: new Intl.DateTimeFormat("en-US", {
         weekday: "short",
-        day: "numeric",
         month: "short",
+        day: "numeric",
         timeZone: "UTC",
       }).format(new Date(t.date!)),
     }));

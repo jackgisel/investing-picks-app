@@ -70,6 +70,28 @@ export function MarkdownProse({ markdown }: { markdown: string }) {
               </Callout>
             );
           },
+          table: ({ children }) => (
+            <div className="my-8 max-w-[680px] overflow-x-auto">
+              <table className="w-full border-collapse text-left">{children}</table>
+            </div>
+          ),
+          thead: ({ children }) => (
+            <thead className="border-b border-border">{children}</thead>
+          ),
+          tbody: ({ children }) => <tbody>{children}</tbody>,
+          tr: ({ children }) => (
+            <tr className="border-b border-border/70 last:border-0">{children}</tr>
+          ),
+          th: ({ children }) => (
+            <th className="px-0 py-2.5 pr-6 font-mono text-[10px] font-medium uppercase tracking-[1.2px] text-text-dim">
+              {children}
+            </th>
+          ),
+          td: ({ children }) => (
+            <td className="px-0 py-2.5 pr-6 font-sans text-[14px] tabular-nums text-text-muted">
+              {children}
+            </td>
+          ),
           code: ({ children }) => (
             <code className="font-mono text-[13px] text-accent-green bg-bg-secondary px-1.5 py-0.5">
               {children}

@@ -42,6 +42,7 @@ const DRAFT: Insight = {
   createdAt: "2026-07-17T00:00:00.000Z",
   updatedAt: "2026-07-17T00:00:00.000Z",
   confirmedAt: null,
+  publicSampleAt: null,
   lede: "A lede.",
   tldr: ["a", "b", "c", "d", "e"],
   bodyMd: "## Business overview\n\nText.",

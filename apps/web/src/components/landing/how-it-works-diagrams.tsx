@@ -1,6 +1,5 @@
 import { CompanyLogo } from "@/components/ui/company-logo";
 import { CategoryTag } from "@/components/ui/category-tag";
-import { BACKTEST, FINAL_HOLDINGS, WINNERS_CIRCLE } from "@/lib/constants";
 import { TONE_BG, type PastelTone } from "@/lib/tones";
 
 /**
@@ -134,71 +133,67 @@ export function TrackDiagram() {
   );
 }
 
-/** Closed picks from the backtrained model — winners and losers both shown. */
+/**
+ * The exit note — a static mock of the section that makes a close checkable.
+ *
+ * Replaced a "closed picks" panel that showed simulated backtest winners and
+ * losers. Step 04 is about telling members when we sell, and a panel of
+ * simulated results was answering a question nobody on this page had asked.
+ *
+ * Shapes only. No live figures and no invented ones — the ticker is redacted
+ * for the same reason.
+ */
 export function MeasureDiagram() {
-  const winners = WINNERS_CIRCLE.slice(0, 3);
-  const losers = FINAL_HOLDINGS.filter((h) => h.ret.startsWith("-")).slice(0, 3);
+  const sections = [
+    "What we owned",
+    "What changed",
+    "The rule that closed it",
+    "What it returned",
+  ];
 
   return (
     <div className={PANEL}>
       <div className={`${PANEL_HEAD} flex items-center justify-between gap-2`}>
-        <span>Closed picks</span>
-        <span className="font-mono text-[9px] font-semibold normal-case tracking-normal text-text-dim">
-          {BACKTEST.wins}W / {BACKTEST.losses}L
+        <span>Exit note</span>
+        <span className="rounded-lg bg-accent-peach/20 px-2 py-0.5 font-sans text-[9px] font-bold normal-case tracking-normal text-text-muted">
+          Position closed
         </span>
       </div>
-      <div className="flex flex-1 flex-col px-4 py-3 sm:px-5 sm:py-4">
-        <p className="mb-3 font-sans text-[10px] font-bold uppercase tracking-[0.12em] text-text-dim">
-          Backtrained model · simulated
-        </p>
 
-        <p className="mb-2 font-sans text-[10px] font-bold uppercase tracking-[0.1em] text-accent-green">
-          Winners
-        </p>
-        <ul className="mb-4 divide-y divide-border border-y border-border">
-          {winners.map((w) => (
-            <li
-              key={w.ticker}
-              className="flex items-center justify-between gap-3 py-2.5"
-            >
-              <span className="flex min-w-0 items-center gap-2">
-                <CompanyLogo ticker={w.ticker} size="xs" />
-                <span className="font-mono text-[12px] font-semibold">
-                  {w.ticker}
-                </span>
-              </span>
-              <span className="font-mono text-[12px] font-semibold tabular-nums text-accent-green">
-                {w.ret}
-              </span>
-            </li>
-          ))}
-        </ul>
+      <div className="flex flex-1 flex-col px-4 py-3.5 sm:px-5 sm:py-4">
+        <div className="mb-3.5 flex items-center gap-2.5">
+          <span
+            aria-hidden
+            className="h-7 w-7 shrink-0 rounded-md bg-bg-tertiary ring-1 ring-inset ring-border"
+          />
+          <div className="min-w-0 flex-1">
+            <span
+              aria-hidden
+              className="block h-2 w-16 rounded-full bg-border-light"
+            />
+            <span
+              aria-hidden
+              className="mt-1.5 block h-2 w-24 rounded-full bg-border-light/70"
+            />
+          </div>
+        </div>
 
-        <p className="mb-2 font-sans text-[10px] font-bold uppercase tracking-[0.1em] text-accent-red">
-          Losers
-        </p>
         <ul className="divide-y divide-border border-y border-border">
-          {losers.map((l) => (
-            <li
-              key={l.ticker}
-              className="flex items-center justify-between gap-3 py-2.5"
-            >
-              <span className="flex min-w-0 items-center gap-2">
-                <CompanyLogo ticker={l.ticker} size="xs" />
-                <span className="font-mono text-[12px] font-semibold">
-                  {l.ticker}
-                </span>
-              </span>
-              <span className="font-mono text-[12px] font-semibold tabular-nums text-accent-red">
-                {l.ret}
+          {sections.map((label) => (
+            <li key={label} className="flex items-center gap-2.5 py-2.5">
+              <span
+                aria-hidden
+                className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent-peach"
+              />
+              <span className="font-sans text-[11px] font-semibold text-text-muted">
+                {label}
               </span>
             </li>
           ))}
         </ul>
 
         <p className="mt-auto pt-3 font-sans text-[10px] leading-relaxed text-text-dim">
-          {BACKTEST.closedPicks} closed picks · {BACKTEST.startDate} –{" "}
-          {BACKTEST.endDate}
+          Published every time a position closes — including the ones that lost
         </p>
       </div>
     </div>

@@ -25,10 +25,10 @@ export function Footer() {
               <ul className="space-y-2.5">
                 <li>
                   <Link
-                    href="/#strategy"
+                    href="/strategy"
                     className="font-sans text-[13px] font-semibold tracking-[0.08em] uppercase text-text-muted hover:text-text transition-colors"
                   >
-                    Strategy
+                    How we invest
                   </Link>
                 </li>
                 <li>
@@ -41,7 +41,7 @@ export function Footer() {
                 </li>
                 <li>
                   <Link
-                    href="/#market-note"
+                    href="/market-note"
                     className="font-sans text-[13px] font-semibold tracking-[0.08em] uppercase text-text-muted hover:text-text transition-colors"
                   >
                     Market Note
@@ -53,6 +53,22 @@ export function Footer() {
                     className="font-sans text-[13px] font-semibold tracking-[0.08em] uppercase text-text-muted hover:text-text transition-colors"
                   >
                     Pricing
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/track-record"
+                    className="font-sans text-[13px] font-semibold tracking-[0.08em] uppercase text-text-muted hover:text-text transition-colors"
+                  >
+                    Track record
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/faq"
+                    className="font-sans text-[13px] font-semibold tracking-[0.08em] uppercase text-text-muted hover:text-text transition-colors"
+                  >
+                    FAQ
                   </Link>
                 </li>
                 <li>

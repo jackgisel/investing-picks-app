@@ -153,6 +153,36 @@ def job_weekly_review_publish():
     )
 
 
+def job_market_note_prepare():
+    """Open the coming week's Market Note row and nag if nothing is ready.
+
+    Runs a couple of days before the Monday send so there is time to write it.
+    The web app decides whether to actually mail the reminder — a nag that
+    fires whether or not the work is done is a nag people filter.
+    """
+    return _post_to_web_app(
+        "/api/internal/market-note/prepare",
+        "Market Note prepare",
+        120.0,
+    )
+
+
+def job_market_note_send():
+    """Mail the confirmed Market Note to the free list.
+
+    A week with nothing confirmed is a skip, not a failure: the admins are told
+    and the list hears nothing. The send is never allowed to bypass the confirm
+    gate, because mailing a half-written note on a schedule is worse than
+    missing a week. Claims live on the issue row and in the dispatch ledger, so
+    a redeploy that fires this twice still mails the list once.
+    """
+    return _post_to_web_app(
+        "/api/internal/market-note/send",
+        "Market Note send",
+        600.0,
+    )
+
+
 def job_weekly_summary():
     """Alias for operators who still have RUN_JOB_ONCE=weekly_summary.
 

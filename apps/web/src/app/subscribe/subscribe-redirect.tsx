@@ -30,7 +30,7 @@ export function SubscribeRedirect() {
   }, []);
 
   return (
-    <div className="min-h-[calc(100dvh-72px)] flex items-center justify-center px-4 py-16">
+    <div className="min-h-[calc(100dvh-var(--nav-h))] flex items-center justify-center px-4 py-16">
       <div className="soft-card w-full max-w-md text-center">
         {error ? (
           <>

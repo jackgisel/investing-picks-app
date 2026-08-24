@@ -20,7 +20,9 @@ import { pool } from "@/lib/db";
 export type DispatchKind =
   | "weekly_summary"
   | "performance_alert"
-  | "job_failure";
+  | "job_failure"
+  /** The free weekly Market Note. Keyed by ISO week. */
+  | "market_note";
 
 /**
  * Claim the right to send `kind`/`key`. True exactly once.

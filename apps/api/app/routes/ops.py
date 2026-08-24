@@ -27,6 +27,7 @@ from app.db.models import (
 from app.db.session import get_db
 from app.services.portfolio import (
     ensure_default_portfolio,
+    exit_basis,
     load_latest_scores,
     load_portfolio_state,
     params_from_portfolio,
@@ -983,6 +984,203 @@ def research_facts(ticker: str, db: Session = Depends(get_db)):
             "reason": entry_trade.reason,
         }
         if entry_trade
+        else None,
+    }
+
+
+@router.get("/exit-facts/{ticker}", dependencies=[Depends(require_ops_key)])
+def exit_facts(ticker: str, exit_date: str, db: Session = Depends(get_db)):
+    """Everything known about one CLOSED round trip, for drafting its exit note.
+
+    The mirror of `research_facts`, and it exists for the same reason: the web
+    app owns the writing, this service owns the tables, and nothing in apps/web
+    reads an API-owned table.
+
+    Keyed on ticker + exit date rather than ticker alone because a name can be
+    bought, sold, re-bought and sold again — each round trip is its own note.
+    `exit_basis` is what makes the return honest: it walks every open lot under
+    average-cost accounting, so a position that was added to at a higher price
+    reports the round trip's real result rather than the last lot's.
+
+    `missing` carries the same weight it does on the buy side. A position that
+    was closed by hand has no sell Signal and therefore no rule checks, and the
+    drafting prompt must be told that rather than left to infer a rule fired.
+    """
+    symbol = ticker.strip().upper()
+    missing: list[str] = []
+
+    try:
+        wanted = date.fromisoformat(exit_date[:10])
+    except ValueError:
+        raise HTTPException(status_code=400, detail="exit_date must be YYYY-MM-DD")
+
+    trades = (
+        db.query(Trade).filter(Trade.portfolio_id == 1, Trade.ticker == symbol).all()
+    )
+    sell = next(
+        (
+            t
+            for t in trades
+            if t.side == "sell"
+            and t.timestamp is not None
+            and t.timestamp.date() == wanted
+        ),
+        None,
+    )
+    if sell is None:
+        raise HTTPException(
+            status_code=404, detail=f"No {symbol} sell on {wanted.isoformat()}"
+        )
+
+    # Average-cost basis across every lot this exit closed, not the last buy.
+    lot = exit_basis(
+        db.query(Trade).filter(Trade.portfolio_id == 1).all()
+    ).get(sell.id) or {}
+    avg_cost = lot.get("avg_cost")
+    opened = lot.get("opened")
+    if avg_cost is None:
+        missing.append("cost_basis")
+    if opened is None:
+        missing.append("entry_date")
+
+    stock = db.query(Stock).filter(Stock.ticker == symbol).first()
+    if stock is None:
+        missing.append("stock_profile")
+
+    # The score as it stood when we sold, not today's. A note explaining an exit
+    # must cite the evidence that existed at the time.
+    score = (
+        db.query(CompositeScore)
+        .filter(CompositeScore.ticker == symbol, CompositeScore.as_of <= wanted)
+        .order_by(CompositeScore.as_of.desc())
+        .first()
+    )
+    if score is None:
+        missing.append("composite_score_at_exit")
+
+    fundamentals = (
+        db.query(Fundamentals)
+        .filter(Fundamentals.ticker == symbol, Fundamentals.as_of <= wanted)
+        .order_by(Fundamentals.as_of.desc())
+        .first()
+    )
+    if fundamentals is None:
+        missing.append("fundamentals")
+
+    # The sell signal and the rule checks behind it — the audit trail that makes
+    # "why we sold" checkable rather than a story.
+    signal = (
+        db.query(SignalRow)
+        .options(joinedload(SignalRow.reasons))
+        .join(Evaluation, Evaluation.id == SignalRow.evaluation_id)
+        .filter(
+            SignalRow.ticker == symbol,
+            SignalRow.action.in_(
+                ("full_sell", "partial_sell", "trim", "recycle_trim")
+            ),
+            SignalRow.executed == True,  # noqa: E712
+        )
+        .order_by(Evaluation.created_at.desc())
+        .first()
+    )
+    if signal is None:
+        missing.append("sell_signal_and_rule_checks")
+
+    entry_trade = (
+        db.query(Trade)
+        .filter(Trade.portfolio_id == 1, Trade.ticker == symbol, Trade.side == "buy")
+        .order_by(Trade.timestamp.asc())
+        .first()
+    )
+    if entry_trade is None:
+        missing.append("entry_trade")
+
+    return_pct = (
+        round((sell.price - avg_cost) / avg_cost * 100, 2)
+        if avg_cost and sell.price
+        else None
+    )
+    held_days = (sell.timestamp.date() - opened.date()).days if opened else None
+
+    return {
+        "ticker": symbol,
+        "missing": missing,
+        "stock": {
+            "name": stock.name,
+            "sector": stock.sector,
+            "industry": stock.industry,
+            "market_cap": stock.market_cap,
+        }
+        if stock
+        else None,
+        # Percentages and dates only. Same rule as the buy side: never a share
+        # count, a fill price or a dollar P&L for OUR position.
+        "round_trip": {
+            "entry_date": opened.date().isoformat() if opened else None,
+            "exit_date": sell.timestamp.date().isoformat(),
+            "held_days": held_days,
+            "return_pct": return_pct,
+            "outcome": (
+                None if return_pct is None else "gain" if return_pct >= 0 else "loss"
+            ),
+            "closes_position": bool(lot.get("closes_position")),
+        },
+        "exit_trade": {
+            "action": sell.action,
+            "reason": sell.reason,
+            "date": sell.timestamp.date().isoformat(),
+        },
+        "entry": {
+            "date": entry_trade.timestamp.date().isoformat()
+            if entry_trade and entry_trade.timestamp
+            else None,
+            "action": entry_trade.action if entry_trade else None,
+            "reason": entry_trade.reason if entry_trade else None,
+        }
+        if entry_trade
+        else None,
+        "score_at_exit": {
+            "as_of": score.as_of.isoformat() if score.as_of else None,
+            "quant_rating": score.quant_rating,
+            "quant_rating_display": (
+                f"{round(score.quant_rating, 1):g} / 5"
+                if score.quant_rating is not None
+                else None
+            ),
+            "quant_rating_scale": {"min": 1, "max": 5},
+            "composite": score.composite,
+            "valuation_grade": score.valuation_grade,
+            "growth_grade": score.growth_grade,
+            "profitability_grade": score.profitability_grade,
+            "momentum_grade": score.momentum_grade,
+            "revisions_grade": score.revisions_grade,
+            "sector": score.sector,
+        }
+        if score
+        else None,
+        "fundamentals": {
+            "as_of": fundamentals.as_of.isoformat() if fundamentals.as_of else None,
+            "data": fundamentals.data,
+        }
+        if fundamentals
+        else None,
+        "sell_signal": {
+            "action": signal.action,
+            "reason": signal.reason,
+            "score_json": signal.score_json,
+            "metadata_json": signal.metadata_json,
+            "rule_checks": [
+                {
+                    "rule_id": r.rule_id,
+                    "passed": r.passed,
+                    "inputs": r.inputs,
+                    "threshold": r.threshold,
+                    "message": r.message,
+                }
+                for r in signal.reasons
+            ],
+        }
+        if signal
         else None,
     }
 

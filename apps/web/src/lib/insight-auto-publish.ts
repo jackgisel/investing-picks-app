@@ -1,4 +1,4 @@
-import { announcePick } from "@/lib/pick-announce";
+import { announceExit, announcePick } from "@/lib/pick-announce";
 import { claimForPublish, listDraftsDueForPublish } from "@/lib/insights-db";
 import { autoPublishEnabled } from "@/lib/review-window";
 
@@ -75,12 +75,20 @@ export async function autoPublishDueDrafts(): Promise<AutoPublishResult> {
         });
         continue;
       }
-      const sent = await announcePick({
-        ticker: claimed.ticker!,
-        title: claimed.title!,
-        description: claimed.description!,
-        insightSlug: claimed.slug,
-      });
+      const sent =
+        claimed.postType === "exit"
+          ? await announceExit({
+              ticker: claimed.ticker!,
+              title: claimed.title!,
+              description: claimed.description!,
+              insightSlug: claimed.slug,
+            })
+          : await announcePick({
+              ticker: claimed.ticker!,
+              title: claimed.title!,
+              description: claimed.description!,
+              insightSlug: claimed.slug,
+            });
       result.published.push({
         ticker,
         slug: claimed.slug,

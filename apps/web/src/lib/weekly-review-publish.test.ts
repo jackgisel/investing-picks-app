@@ -53,6 +53,7 @@ const DRAFT: Insight = {
   publishedAt: null,
   autoPublishAt: "2026-08-21T19:00:00.000Z",
   confirmedAt: null,
+  publicSampleAt: null,
   createdAt: "2026-08-21T17:00:00.000Z",
   updatedAt: "2026-08-21T17:00:00.000Z",
   lede: "A quiet week in a biweekly book.",
@@ -103,6 +104,7 @@ describe("publishWeeklyReview", () => {
     const confirmed = {
       ...DRAFT,
       confirmedAt: "2026-08-21T18:00:00.000Z",
+      publicSampleAt: null,
     };
     getInsightBySlug.mockResolvedValue(confirmed);
     claimForWeeklyReviewPublish.mockResolvedValue({
@@ -129,6 +131,7 @@ describe("publishWeeklyReview", () => {
     getInsightBySlug.mockResolvedValue({
       ...DRAFT,
       confirmedAt: "2026-08-21T18:00:00.000Z",
+      publicSampleAt: null,
     });
     claimForWeeklyReviewPublish.mockResolvedValue(null);
 
@@ -143,6 +146,7 @@ describe("publishWeeklyReview", () => {
       ...DRAFT,
       status: "approved",
       confirmedAt: "2026-08-21T18:00:00.000Z",
+      publicSampleAt: null,
       emailSentAt: "2026-08-21T19:00:00.000Z",
     });
 
@@ -158,6 +162,7 @@ describe("publishWeeklyReview", () => {
     getInsightBySlug.mockResolvedValue({
       ...DRAFT,
       confirmedAt: "2026-08-21T18:00:00.000Z",
+      publicSampleAt: null,
     });
 
     const result = await publishWeeklyReview({ now: FRIDAY });
@@ -170,6 +175,7 @@ describe("publishWeeklyReview", () => {
     const confirmed = {
       ...DRAFT,
       confirmedAt: FRIDAY.toISOString(),
+      publicSampleAt: null,
     };
     getInsightById.mockResolvedValue(confirmed);
     claimForWeeklyReviewPublish.mockResolvedValue({

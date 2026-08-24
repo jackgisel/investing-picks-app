@@ -3,6 +3,7 @@
 import { useStrategy } from "@/lib/hooks/use-strategy";
 import { useChart } from "@/lib/hooks/use-chart";
 import { BACKTEST, WINNERS_CIRCLE, WINNERS_CIRCLE_EXITS } from "@/lib/constants";
+import { BacktestHoldings } from "./backtest-holdings";
 import { useInceptionDate } from "@/lib/hooks/use-inception";
 import {
   computePortfolioReturnPct,
@@ -257,8 +258,17 @@ export function TrackRecord() {
           </div>
         </div>
 
-        {/* Explainer + winners strip */}
+        {/* Final holdings, moved here off the homepage. This is the deep proof
+            page, which is where a table of simulated positions belongs. */}
         <div className="border-t border-border pt-12 sm:pt-14">
+          <p className="font-sans text-[11px] font-bold tracking-[0.14em] uppercase text-text mb-6">
+            Every name the model ended holding
+          </p>
+          <BacktestHoldings />
+        </div>
+
+        {/* Explainer + winners strip */}
+        <div className="border-t border-border pt-12 sm:pt-14 mt-12 sm:mt-14">
           <p className="font-sans text-[11px] font-bold tracking-[0.14em] uppercase text-text mb-6">
             How the backtrained model and live example portfolio work
           </p>

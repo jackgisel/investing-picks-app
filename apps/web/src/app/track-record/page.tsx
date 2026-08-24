@@ -5,6 +5,10 @@ import { PillButton } from "@/components/ui/pill-button";
 import { BACKTEST } from "@/lib/constants";
 
 export const metadata: Metadata = {
+  // The root layout sets a site-wide canonical and Next merges rather
+  // than replaces it, so every page that omits this declares the homepage
+  // as its canonical URL.
+  alternates: { canonical: "/track-record" },
   title: "Track record",
   description: `Live example portfolio and ${BACKTEST.yearsCovered}-year walk-forward backtrained model — wins, losses, and performance vs the S&P 500, published in full.`,
 };

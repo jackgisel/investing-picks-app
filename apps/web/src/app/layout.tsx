@@ -54,6 +54,7 @@ export const metadata: Metadata = {
     "stock picks",
     "stock research",
     "value investing",
+    "long term investing",
     "equity research",
     "beat the S&P 500",
     "investment newsletter",

@@ -5,11 +5,14 @@ import { isoWeekKey } from "@/lib/email-dispatch";
 import { weekKeyFromInsightSlug } from "@/lib/art-pool";
 import {
   renderNewPickEmail,
+  renderExitNoteEmail,
   renderDeleteAccountEmail,
   renderVerifyEmail,
   renderMagicLinkEmail,
   renderMembershipWelcomeEmail,
   renderMarketNoteWelcomeEmail,
+  renderMarketNoteIssueEmail,
+  renderMarketNoteOpsEmail,
   renderWeeklyReviewEmail,
   renderWeeklyReviewOpsEmail,
   renderPerformanceAlertEmail,
@@ -144,6 +147,55 @@ export async function sendNewPickEmail(args: {
   });
 }
 
+/* --------------------------------- Exit notes -------------------------------- */
+
+export async function sendExitNoteEmail(args: {
+  to: string;
+  /** Recipient's user id — signs the one-click unsubscribe token. */
+  userId: string;
+  recipientName: string | null;
+  ticker: string;
+  articleTitle: string;
+  articleDescription: string;
+  /** Slug of the /dashboard/insights exit note. */
+  insightSlug: string;
+  /** Round-trip return, pre-formatted (e.g. "+38.2%"). */
+  returnLabel?: string | null;
+  /** Test-send marker; omitted on real sends. */
+  banner?: string;
+}): Promise<SendResult> {
+  const articleUrl = `${SITE_URL}/dashboard/insights/${args.insightSlug}`;
+  const html = renderExitNoteEmail({
+    recipientName: args.recipientName,
+    ticker: args.ticker,
+    articleTitle: args.articleTitle,
+    articleDescription: args.articleDescription,
+    articleUrl,
+    siteUrl: SITE_URL,
+    returnLabel: args.returnLabel,
+    banner: args.banner,
+  });
+  const closing = args.returnLabel
+    ? `${args.ticker} closed at ${args.returnLabel}.`
+    : `${args.ticker} is closed.`;
+  const text = `Position closed — ${args.ticker}\n\n${closing}\n\n${args.articleTitle}\n\n${args.articleDescription}\n\nRead the exit note: ${articleUrl}\n\nYou're receiving this because you opted in to pick alerts. Manage your preferences: ${SITE_URL}/dashboard/settings`;
+
+  // Same bulk-send obligations as the pick announcement: it fans out to the
+  // whole opted-in list, so it carries the same List-Unsubscribe pair.
+  const oneClick = pickAlertOneClickUrl(pickAlertToken(args.userId));
+
+  return send({
+    to: args.to,
+    subject: `Position closed: ${args.ticker} — ${args.articleTitle}`,
+    html,
+    text,
+    headers: {
+      "List-Unsubscribe": `<${oneClick}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    },
+  });
+}
+
 /* -------------------------- Delete account verification -------------------------- */
 
 export async function sendDeleteAccountEmail(args: {
@@ -261,6 +313,40 @@ export function marketNoteOneClickUrl(token: string): string {
   return `${SITE_URL}/api/market-note/unsubscribe?token=${encodeURIComponent(token)}`;
 }
 
+export async function sendMarketNoteIssueEmail(args: {
+  to: string;
+  /** The subscriber's own token — this list is addresses, not accounts. */
+  token: string;
+  subject: string;
+  lede: string | null;
+  bodyMd: string;
+  weekKey?: string;
+  banner?: string;
+}): Promise<SendResult> {
+  const unsubscribeUrl = marketNoteUnsubscribeUrl(args.token);
+  const html = renderMarketNoteIssueEmail({
+    subject: args.subject,
+    lede: args.lede,
+    bodyMd: args.bodyMd,
+    unsubscribeUrl,
+    siteUrl: SITE_URL,
+    weekKey: args.weekKey,
+    banner: args.banner,
+  });
+  const text = `${args.subject}\n\n${args.lede ? args.lede + "\n\n" : ""}${args.bodyMd}\n\nThis note is market commentary, not investment advice, and never our picks — those are members-only.\n\nUnsubscribe any time: ${unsubscribeUrl}`;
+
+  return send({
+    to: args.to,
+    subject: args.subject,
+    html,
+    text,
+    headers: {
+      "List-Unsubscribe": `<${marketNoteOneClickUrl(args.token)}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    },
+  });
+}
+
 export async function sendMarketNoteWelcomeEmail(args: {
   to: string;
   token: string;
@@ -272,7 +358,7 @@ export async function sendMarketNoteWelcomeEmail(args: {
     siteUrl: SITE_URL,
     banner: args.banner,
   });
-  const text = `You're on the list.\n\nEvery week we send one short read: what the model is seeing across ~3,600 US-listed stocks, which sectors are scoring, and what we make of it.\n\nTo be clear about what this is: the note is market commentary, not our picks. Published picks, the live portfolio, and the full research archive are for members only.\n\nOur track record is published in full: ${SITE_URL}/track-record\n\nUnsubscribe any time: ${unsubscribeUrl}`;
+  const text = `You're on the list.\n\nEvery Monday we send one short read: what the model is seeing across ~3,600 US-listed stocks, which sectors are scoring, and what we make of it.\n\nTo be clear about what this is: the note is market commentary, not our picks. Published picks, the live portfolio, and the full research archive are for members only.\n\nOur track record is published in full: ${SITE_URL}/track-record\n\nUnsubscribe any time: ${unsubscribeUrl}`;
 
   return send({
     to: args.to,
@@ -368,6 +454,34 @@ export async function sendWeeklyReviewOpsEmail(args: {
     html,
     text,
     idempotencyKey: `outpick-weekly-review-${args.kind}-${args.weekKey}`,
+  });
+}
+
+export async function sendMarketNoteOpsEmail(args: {
+  to: string[];
+  kind: "reminder" | "skipped" | "sent";
+  weekKey: string;
+  detail?: string;
+  banner?: string;
+}): Promise<SendResult> {
+  if (args.to.length === 0) return { ok: true };
+  const opsUrl = `${SITE_URL}/dashboard/ops/market-note`;
+  const html = renderMarketNoteOpsEmail({
+    kind: args.kind,
+    weekKey: args.weekKey,
+    opsUrl,
+    siteUrl: SITE_URL,
+    detail: args.detail,
+    banner: args.banner,
+  });
+
+  return send({
+    to: args.to,
+    subject: `[${SITE_NAME}] Market Note ${args.kind} — ${args.weekKey}`,
+    html,
+    text: `Market Note ${args.kind} — ${args.weekKey}\n\n${args.detail ?? ""}\n\nOps: ${opsUrl}`,
+    // Admin mail, but still one-per-event: a worker restart must not re-send.
+    idempotencyKey: `outpick-market-note-${args.kind}-${args.weekKey}`,
   });
 }
 

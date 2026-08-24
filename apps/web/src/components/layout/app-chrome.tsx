@@ -5,8 +5,15 @@ import { usePathname } from "next/navigation";
 /** Route prefixes that are product surfaces, not marketing pages. */
 const APP_PREFIXES = ["/dashboard"];
 
-/** Full-viewport marketing pages — nav stays, footer would force scroll. */
-const NO_FOOTER = new Set(["/pricing", "/login"]);
+/**
+ * Full-viewport marketing pages — nav stays, footer would force scroll.
+ *
+ * /pricing used to be in here. It is the highest-intent page on the site and
+ * carried no Terms or Privacy link of its own, so on mobile the checkout page
+ * was a navigational dead end. The single-viewport look is worth less than
+ * that.
+ */
+const NO_FOOTER = new Set(["/login"]);
 
 export function isAppRoute(pathname: string): boolean {
   return APP_PREFIXES.some((p) => pathname.startsWith(p));

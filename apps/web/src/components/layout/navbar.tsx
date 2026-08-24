@@ -12,15 +12,16 @@ import { useSession, signOut } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
-  { label: "Strategy", href: "/#strategy" },
+  { label: "How we invest", href: "/strategy" },
+  { label: "Track record", href: "/track-record" },
   { label: "Pricing", href: "/pricing" },
   { label: "Blog", href: "/blog" },
 ] as const;
 
 const MOBILE_EXTRA_LINKS = [
-  { label: "Track record", href: "/track-record" },
-  { label: "How it works", href: "/#what-how" },
-  { label: "FAQ", href: "/#faq" },
+  { label: "Sample research", href: "/#sample-research" },
+  { label: "Market Note", href: "/market-note" },
+  { label: "FAQ", href: "/faq" },
 ] as const;
 
 const MOBILE_LINKS = [...NAV_LINKS, ...MOBILE_EXTRA_LINKS] as const;
@@ -61,7 +62,7 @@ export function Navbar() {
           : "z-50 bg-bg/95 backdrop-blur-sm",
       )}
     >
-      <div className="flex h-[calc(72px+env(safe-area-inset-top))] items-center justify-between container-op pt-[env(safe-area-inset-top)]">
+      <div className="flex h-[var(--nav-h)] items-center justify-between container-op pt-[env(safe-area-inset-top)]">
         <div className="flex items-center gap-7 min-w-0">
           <Link href={session ? "/dashboard" : "/"} className="shrink-0">
             <OutpickWordmark />
@@ -114,7 +115,7 @@ export function Navbar() {
       {mobileOpen && (
         <div
           id="mobile-nav-sheet"
-          className="fixed inset-x-0 bottom-0 top-[calc(72px+env(safe-area-inset-top))] z-[110] overflow-y-auto overscroll-contain bg-bg px-6 py-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] md:hidden"
+          className="fixed inset-x-0 bottom-0 top-[var(--nav-h)] z-[110] overflow-y-auto overscroll-contain bg-bg px-6 py-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] md:hidden"
         >
           {MOBILE_LINKS.map((link) => (
             <Link

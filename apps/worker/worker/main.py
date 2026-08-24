@@ -27,6 +27,8 @@ from worker.jobs.runner import (
     job_daily_marks,
     job_dca_backfill,
     job_dca_friday,
+    job_market_note_prepare,
+    job_market_note_send,
     job_performance_alerts,
     job_weekly_refresh,
     job_weekly_review_draft,
@@ -121,6 +123,34 @@ def main():
         id="weekly_review_publish",
         replace_existing=True,
     )
+    # Saturday 10:00 PT — open the coming week's Market Note and nag if nothing
+    # is ready. Two days of runway before the Monday send, and the web app only
+    # mails the reminder when there is actually nothing confirmed.
+    scheduler.add_job(
+        job_market_note_prepare,
+        CronTrigger(
+            day_of_week="sat",
+            hour=10,
+            minute=0,
+            timezone="America/Los_Angeles",
+        ),
+        id="market_note_prepare",
+        replace_existing=True,
+    )
+    # Monday 06:00 PT — the free Market Note goes out before the US open, which
+    # is the point of a Monday note. Pacific for the same daylight-saving reason
+    # as the weekly review. Unconfirmed weeks are skipped, not sent.
+    scheduler.add_job(
+        job_market_note_send,
+        CronTrigger(
+            day_of_week="mon",
+            hour=6,
+            minute=0,
+            timezone="America/Los_Angeles",
+        ),
+        id="market_note_send",
+        replace_existing=True,
+    )
     # Weekdays 19:00 ET — after daily_marks (18:30) has repriced the book, so a
     # milestone is measured against the session's close rather than yesterday's.
     scheduler.add_job(
@@ -181,6 +211,8 @@ def main():
             "weekly_review_draft": job_weekly_review_draft,
             "weekly_review_publish": job_weekly_review_publish,
             "weekly_summary": job_weekly_summary,
+            "market_note_prepare": job_market_note_prepare,
+            "market_note_send": job_market_note_send,
             "performance_alerts": job_performance_alerts,
             # Not on any schedule — a one-shot repair, dry run unless
             # BACKFILL_COMMIT is set.

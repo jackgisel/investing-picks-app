@@ -9,7 +9,12 @@
  * holds types only, and `lib/insights-db.ts` holds the queries.
  */
 
-export type InsightPostType = "pick" | "quarterly_review" | "weekly_review";
+export type InsightPostType =
+  | "pick"
+  | "quarterly_review"
+  | "weekly_review"
+  /** The other half of a pick: the position closed, and why. */
+  | "exit";
 
 /**
  * `pending` — the row exists because a pick does, but has no body yet.
@@ -63,6 +68,12 @@ export type InsightMeta = {
    * publish — status stays `draft` so members cannot see the note.
    */
   confirmedAt: string | null;
+  /**
+   * Set when this note is the public specimen for its post type — served
+   * unauthenticated at /research/<slug> and linked from the landing page. At
+   * most one pick note and one exit note carry it.
+   */
+  publicSampleAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -133,6 +144,9 @@ export function insightCategoryLabel(
 ): string {
   if (meta.postType === "quarterly_review") return "Quarterly review";
   if (meta.postType === "weekly_review") return "Weekly review";
+  if (meta.postType === "exit") {
+    return meta.ticker ? `Exit · ${meta.ticker}` : "Exit";
+  }
   return meta.ticker ? `Pick · ${meta.ticker}` : "Pick";
 }
 
@@ -144,6 +158,31 @@ export function insightCategoryLabel(
  */
 export function weeklyReviewSlug(weekKey: string): string {
   return `weekly-review-${weekKey.toLowerCase()}`;
+}
+
+/**
+ * Slug for an exit note: `exit-avgo-2026-08-14`.
+ *
+ * Keyed on ticker + exit date rather than the title, for the same reason the
+ * weekly slug is keyed on the week: a regenerate must not move the URL, and the
+ * sync has to be able to ask "does this round trip already have a note?"
+ * without guessing. The date also makes re-entry safe — buying a name back and
+ * selling it again is a different note, not a collision.
+ */
+export function exitSlug(ticker: string, exitDate: string): string {
+  return `exit-${ticker.toLowerCase()}-${exitDate.slice(0, 10)}`;
+}
+
+/**
+ * The exit date back out of an exit slug, or null if it does not carry one.
+ *
+ * The slug is the stable key for an exit note — it is set at row creation and
+ * never moves — so it is also the only place the sweep can recover which round
+ * trip a pending row belongs to without a column of its own.
+ */
+export function exitDateFromSlug(slug: string): string | null {
+  const m = /-(\d{4}-\d{2}-\d{2})$/.exec(slug);
+  return m ? m[1] : null;
 }
 
 /**

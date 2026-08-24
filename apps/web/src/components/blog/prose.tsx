@@ -293,13 +293,16 @@ export function InlineCTA({
 
 export function FAQList({
   items,
+  /** Section heading. Override when several lists sit on one page. */
+  title = "Frequently asked questions",
 }: {
   items: { q: string; a: ReactNode }[];
+  title?: string;
 }) {
   return (
     <div className="my-12 max-w-[680px]">
       <h2 className="font-sans text-[24px] font-bold tracking-tight text-text mb-6">
-        Frequently asked questions
+        {title}
       </h2>
       <div className="border-t border-border">
         {items.map((item, i) => (

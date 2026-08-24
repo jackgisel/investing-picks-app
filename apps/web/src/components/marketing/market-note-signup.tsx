@@ -52,7 +52,7 @@ export function MarketNoteSignup({
       setStatus("done");
       setMessage(
         body.status === "already"
-          ? "You're already on the list — next note lands this week."
+          ? "You're already on the list — the next note lands Monday."
           : "You're in. Check your inbox for a confirmation."
       );
       setEmail("");
@@ -76,7 +76,7 @@ export function MarketNoteSignup({
           {message}
         </p>
         <p className="font-sans text-[13px] text-text-muted leading-relaxed">
-          One short read a week. Unsubscribe from any email in one click.
+          One short read every Monday. Unsubscribe in one click.
         </p>
       </div>
     );
@@ -156,7 +156,7 @@ export function MarketNoteSignup({
     >
       <p className="section-label section-label-lilac">The Market Note</p>
       <h3 className="font-sans text-[20px] sm:text-[22px] font-bold tracking-tight mb-2.5">
-        One short read, every week. Free.
+        One short read, every Monday. Free.
       </h3>
       <p className="font-sans text-[14px] text-text-muted leading-relaxed mb-6 max-w-[46ch]">
         What the model is seeing across ~3,600 US-listed stocks, which sectors

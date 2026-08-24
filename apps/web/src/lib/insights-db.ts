@@ -4,6 +4,7 @@ import type {
   Insight,
   InsightDraftFields,
   InsightMeta,
+  InsightPostType,
   InsightStatus,
 } from "@/lib/insights";
 
@@ -20,7 +21,7 @@ interface DbInsightRow {
   id: string;
   slug: string;
   ticker: string | null;
-  post_type: "pick" | "quarterly_review" | "weekly_review";
+  post_type: InsightPostType;
   status: InsightStatus;
   title: string | null;
   description: string | null;
@@ -37,13 +38,14 @@ interface DbInsightRow {
   email_sent_at: Date | null;
   auto_publish_at: Date | null;
   confirmed_at: Date | null;
+  public_sample_at: Date | null;
   created_at: Date;
   updated_at: Date;
 }
 
 const META_COLUMNS = `id, slug, ticker, post_type, status, title, description,
   reading_time, tags, author, quarter, published_at, auto_publish_at,
-  confirmed_at, created_at, updated_at`;
+  confirmed_at, public_sample_at, created_at, updated_at`;
 
 const FULL_COLUMNS = `${META_COLUMNS}, lede, tldr, body_md, key_takeaway,
   generation_error, email_sent_at`;
@@ -65,6 +67,9 @@ function toMeta(r: DbInsightRow): InsightMeta {
     publishedAt: r.published_at ? r.published_at.toISOString() : null,
     autoPublishAt: r.auto_publish_at ? r.auto_publish_at.toISOString() : null,
     confirmedAt: r.confirmed_at ? r.confirmed_at.toISOString() : null,
+    publicSampleAt: r.public_sample_at
+      ? r.public_sample_at.toISOString()
+      : null,
     createdAt: r.created_at.toISOString(),
     updatedAt: r.updated_at.toISOString(),
   };
@@ -167,6 +172,106 @@ export async function createPendingInsight(
 }
 
 /**
+ * Create the placeholder row for a closed round trip that has no exit note yet.
+ *
+ * Unlike `createPendingInsight` there is no unique index on (ticker) to lean
+ * on — a ticker can be bought and sold repeatedly, so several exit notes for
+ * one name are legitimate. Idempotency comes from the slug instead, which the
+ * caller derives from ticker + exit date via `exitSlug()`.
+ */
+export async function createPendingExitInsight(
+  ticker: string,
+  slug: string,
+): Promise<InsightMeta | null> {
+  const { rows } = await pool.query<DbInsightRow>(
+    `INSERT INTO insight (slug, ticker, post_type, status)
+     VALUES ($1, UPPER($2), 'exit', 'pending')
+     ON CONFLICT (slug) DO NOTHING
+     RETURNING ${META_COLUMNS}`,
+    [slug, ticker],
+  );
+  return rows[0] ? toMeta(rows[0]) : null;
+}
+
+/* ---------------------------- Public samples ----------------------------- */
+
+/**
+ * The nominated public specimens, newest first.
+ *
+ * Both conditions matter and neither is redundant: `public_sample_at` is the
+ * editorial choice, `status = 'approved'` is the guarantee that an unreviewed
+ * draft cannot reach an unauthenticated page even if someone nominates one.
+ */
+export async function listPublicSampleInsights(): Promise<InsightMeta[]> {
+  const { rows } = await pool.query<DbInsightRow>(
+    `SELECT ${META_COLUMNS}
+       FROM insight
+      WHERE public_sample_at IS NOT NULL
+        AND status = 'approved'
+      ORDER BY post_type ASC`,
+  );
+  return rows.map(toMeta);
+}
+
+/** One public specimen by slug. The only insight query with no auth behind it. */
+export async function getPublicSampleBySlug(
+  slug: string,
+): Promise<Insight | null> {
+  const { rows } = await pool.query<DbInsightRow>(
+    `SELECT ${FULL_COLUMNS}
+       FROM insight
+      WHERE slug = $1
+        AND public_sample_at IS NOT NULL
+        AND status = 'approved'`,
+    [slug],
+  );
+  return rows[0] ? toInsight(rows[0]) : null;
+}
+
+/**
+ * Nominate (or withdraw) a note as the public sample for its post type.
+ *
+ * Clears any existing sample of the same type in the same statement rather than
+ * relying on the caller to do it — `insight_public_sample_idx` would otherwise
+ * reject the second nomination and the ops UI would show an opaque failure.
+ */
+export async function setPublicSample(
+  id: string,
+  on: boolean,
+): Promise<void> {
+  if (!on) {
+    await pool.query(
+      `UPDATE insight SET public_sample_at = NULL, updated_at = NOW()
+        WHERE id = $1`,
+      [id],
+    );
+    return;
+  }
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      `UPDATE insight SET public_sample_at = NULL, updated_at = NOW()
+        WHERE public_sample_at IS NOT NULL
+          AND post_type = (SELECT post_type FROM insight WHERE id = $1)
+          AND id <> $1`,
+      [id],
+    );
+    await client.query(
+      `UPDATE insight SET public_sample_at = NOW(), updated_at = NOW()
+        WHERE id = $1 AND status = 'approved'`,
+      [id],
+    );
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+/**
  * How many times the sweep will try to draft one note before giving up.
  *
  * A ticker whose facts genuinely cannot be drafted — the API has no profile for
@@ -185,18 +290,20 @@ export const MAX_GENERATION_ATTEMPTS = 3;
  * notes unsent. `failed` rows come last so a fresh pick is never stuck behind
  * a retry of a broken one.
  */
-export async function listPendingInsights(): Promise<InsightMeta[]> {
+export async function listPendingInsights(
+  postType: InsightPostType = "pick",
+): Promise<InsightMeta[]> {
   const { rows } = await pool.query<DbInsightRow>(
     `SELECT ${META_COLUMNS}
        FROM insight
-      WHERE post_type = 'pick'
+      WHERE post_type = $2
         AND ticker IS NOT NULL
         AND (
           status = 'pending'
           OR (status = 'failed' AND generation_attempts < $1)
         )
       ORDER BY (status = 'failed'), created_at ASC`,
-    [MAX_GENERATION_ATTEMPTS],
+    [MAX_GENERATION_ATTEMPTS, postType],
   );
   return rows.map(toMeta);
 }
@@ -394,7 +501,10 @@ export async function listDraftsDueForPublish(
         AND email_sent_at IS NULL
         AND auto_publish_at IS NOT NULL
         AND auto_publish_at <= NOW()
-        AND post_type = 'pick'
+        -- Exits ride the same window as picks. A closed position that never
+        -- announces itself is the failure mode publishing exits exists to
+        -- prevent; the caller branches on post_type to pick the right mailer.
+        AND post_type IN ('pick', 'exit')
         AND ticker IS NOT NULL
         AND title IS NOT NULL
         AND description IS NOT NULL

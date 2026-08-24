@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { ensureMigrations } from "@/lib/auth";
-import { regenerateInsight } from "@/lib/insight-sync";
+import { regenerateExitInsight, regenerateInsight } from "@/lib/insight-sync";
 import { getInsightById } from "@/lib/insights-db";
 
 export const dynamic = "force-dynamic";
@@ -35,13 +35,19 @@ export async function POST(
   }
   if (!insight.ticker) {
     return NextResponse.json(
-      { error: "Only pick notes can be generated from facts." },
+      { error: "Only pick and exit notes can be generated from facts." },
       { status: 400 },
     );
   }
 
   try {
-    await regenerateInsight(id, insight.ticker);
+    // An exit note is drafted from a different facts bundle and a different
+    // prompt, and its slug must not move — see regenerateExitInsight.
+    if (insight.postType === "exit") {
+      await regenerateExitInsight(id, insight.ticker, insight.slug);
+    } else {
+      await regenerateInsight(id, insight.ticker);
+    }
   } catch (e) {
     // regenerateInsight already recorded this against the row, so the queue
     // shows it too — this just surfaces it to the admin who clicked.

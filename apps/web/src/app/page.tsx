@@ -1,33 +1,38 @@
 import { Hero } from "@/components/landing/hero";
+import { MarketNoteBand } from "@/components/landing/market-note-band";
+import { LivePicks } from "@/components/landing/live-picks";
 import { WhatHow } from "@/components/landing/what-how";
-import { WhoWeAre } from "@/components/landing/who-we-are";
-import { Audience } from "@/components/landing/audience";
-import { Strategy } from "@/components/landing/strategy";
-import { DashboardPreview } from "@/components/landing/dashboard-preview";
+import { SampleResearch } from "@/components/landing/sample-research";
+import { Philosophy } from "@/components/landing/philosophy";
 import { WhatWeAreNot } from "@/components/landing/what-we-are-not";
 import { Pricing } from "@/components/landing/pricing";
-import { MarketNoteCta } from "@/components/landing/market-note-cta";
-import { FAQ } from "@/components/landing/faq";
 import { Disclaimer } from "@/components/landing/disclaimer";
+
+// SampleResearch reads the nominated public samples. Hourly is far more often
+// than that nomination changes, and it keeps the homepage static for everyone
+// else.
+export const revalidate = 3600;
 
 export default function HomePage() {
   return (
     <>
       <Hero />
-      {/* What Outpick is and how the loop works. Deep proof (live ledger +
-          walk-forward model) lives on /track-record. */}
+      {/* The only free thing on the site, directly under the hero rather than
+          below the price where it only caught people who had already declined
+          to buy. */}
+      <MarketNoteBand />
+      {/* Live proof before any argument about method. Replaced the simulated
+          backtest table that used to sit further down. */}
+      <LivePicks />
       <WhatHow />
-      <WhoWeAre />
-      <Audience />
-      <Strategy />
-      <DashboardPreview />
+      {/* Two complete notes, published in the open — the claim in WhatHow that
+          we write up every open and every close, made checkable. */}
+      <SampleResearch />
+      <Philosophy />
       {/* Immediately before pricing on purpose: someone who wants alerts and
           price targets should self-select out here, not after paying. */}
       <WhatWeAreNot />
       <Pricing />
-      {/* Catches the visitor who just decided not to pay today. */}
-      <MarketNoteCta />
-      <FAQ />
       <Disclaimer />
     </>
   );

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ban, ExternalLink, RefreshCw, Send, Sparkles } from "lucide-react";
+import { Ban, ExternalLink, Globe, RefreshCw, Send, Sparkles } from "lucide-react";
 import type { Insight, InsightMeta, InsightStatus } from "@/lib/insights";
 
 const inputClass =
@@ -352,6 +352,22 @@ function Editor({
     onError: (e: Error) => setError(e.message),
   });
 
+  const publicSample = useMutation({
+    mutationFn: async (on: boolean) => {
+      const res = await fetch(`/api/ops/insights/${id}/public-sample`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ on }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? `Failed (${res.status})`);
+      setForm((body as { insight: Insight }).insight);
+      return body as { insight: Insight };
+    },
+    onSuccess: invalidate,
+    onError: (e: Error) => setError(e.message),
+  });
+
   const approve = useMutation({
     mutationFn: async () => {
       const res = await fetch(`/api/ops/insights/${id}/approve`, {
@@ -491,6 +507,36 @@ function Editor({
         >
           <ExternalLink size={12} /> Preview
         </Link>
+
+        {form.status === "approved" && (
+          <button
+            type="button"
+            onClick={() => {
+              const on = !form.publicSampleAt;
+              if (
+                !on ||
+                window.confirm(
+                  `Publish this note at /research/${form.slug} for anyone, signed in or not?\n\nIt becomes the public sample for its type and replaces the current one.`,
+                )
+              ) {
+                publicSample.mutate(on);
+              }
+            }}
+            disabled={publicSample.isPending}
+            className={`btn-outline !py-2 !px-4 !text-[11px] disabled:opacity-50 ${
+              form.publicSampleAt
+                ? "!border-accent-cyan !text-accent-cyan"
+                : ""
+            }`}
+          >
+            <Globe size={12} />
+            {publicSample.isPending
+              ? "Saving…"
+              : form.publicSampleAt
+                ? "Public sample"
+                : "Make public sample"}
+          </button>
+        )}
 
         <button
           type="button"

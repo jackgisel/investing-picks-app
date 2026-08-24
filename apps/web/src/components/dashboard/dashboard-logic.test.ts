@@ -37,6 +37,7 @@ function note(ticker: string | null, publishedAt: string): InsightMeta {
     // Approved notes have no pending deadline — the send already happened.
     autoPublishAt: null,
     confirmedAt: null,
+    publicSampleAt: null,
     createdAt: publishedAt,
     updatedAt: publishedAt,
   };
@@ -137,6 +138,7 @@ describe("visibleGroups", () => {
       "/dashboard/ops/book",
       "/dashboard/ops/insights",
       "/dashboard/ops/weekly-review",
+      "/dashboard/ops/market-note",
       "/dashboard/dca",
       "/dashboard/ops/product-updates",
     ]);

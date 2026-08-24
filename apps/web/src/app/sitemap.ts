@@ -1,8 +1,9 @@
 import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/lib/constants";
 import { articles } from "@/lib/blog";
+import { listPublicSampleInsights } from "@/lib/insights-db";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
 
   const staticRoutes: MetadataRoute.Sitemap = [
@@ -23,6 +24,38 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: now,
       changeFrequency: "daily",
       priority: 0.8,
+    },
+    // /pricing and /track-record were missing from this list entirely — the
+    // two highest-intent pages on the site.
+    {
+      url: `${SITE_URL}/pricing`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.9,
+    },
+    {
+      url: `${SITE_URL}/track-record`,
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 0.9,
+    },
+    {
+      url: `${SITE_URL}/strategy`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    {
+      url: `${SITE_URL}/faq`,
+      lastModified: now,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+    {
+      url: `${SITE_URL}/market-note`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.7,
     },
     {
       url: `${SITE_URL}/what-we-are-not`,
@@ -57,5 +90,16 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.7,
   }));
 
-  return [...staticRoutes, ...blogRoutes];
+  // The nominated public research samples — the only insight URLs that are
+  // indexable. Never fail the whole sitemap over them.
+  const sampleRoutes: MetadataRoute.Sitemap = (
+    await listPublicSampleInsights().catch(() => [])
+  ).map((s) => ({
+    url: `${SITE_URL}/research/${s.slug}`,
+    lastModified: new Date(s.updatedAt),
+    changeFrequency: "monthly" as const,
+    priority: 0.8,
+  }));
+
+  return [...staticRoutes, ...blogRoutes, ...sampleRoutes];
 }

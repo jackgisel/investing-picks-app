@@ -19,7 +19,7 @@ function resolveCallbackURL(): string {
 
 function LoginShell({ children }: { children: ReactNode }) {
   return (
-    <div className="relative min-h-[calc(100dvh-72px)] overflow-hidden">
+    <div className="relative min-h-[calc(100dvh-var(--nav-h))] overflow-hidden">
       <div aria-hidden className="pointer-events-none absolute inset-0">
         <Image
           src={LOGIN_ART.src}
@@ -32,7 +32,7 @@ function LoginShell({ children }: { children: ReactNode }) {
         <div className="absolute inset-0 bg-gradient-to-b from-bg/85 via-bg/75 to-bg/90 dark:from-bg/90 dark:via-bg/80 dark:to-bg/95" />
         <div className="absolute inset-0 bg-gradient-to-r from-bg/40 via-transparent to-bg/40" />
       </div>
-      <div className="relative flex min-h-[calc(100dvh-72px)] items-center justify-center px-4 py-16">
+      <div className="relative flex min-h-[calc(100dvh-var(--nav-h))] items-center justify-center px-4 py-16">
         {children}
       </div>
     </div>

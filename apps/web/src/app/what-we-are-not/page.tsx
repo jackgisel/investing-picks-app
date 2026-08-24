@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/what-we-are-not" },
   title: "What we are not",
   description:
     "Outpick is an equity research firm. We do not time the market, call entry and exit prices, or send trade signals. Here is exactly what that means.",
@@ -106,7 +107,7 @@ export default function WhatWeAreNotPage() {
         </p>
 
         <div className="mt-8 flex flex-wrap gap-3">
-          <Link href="/#strategy" className="btn-primary">
+          <Link href="/strategy" className="btn-primary">
             How the method works
           </Link>
           <Link href="/pricing" className="btn-outline">

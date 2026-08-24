@@ -100,7 +100,7 @@ export function WelcomeExperience({
 
   if (state !== "active") {
     return (
-      <div className="min-h-[calc(100dvh-72px)] flex items-center justify-center px-5 py-20">
+      <div className="min-h-[calc(100dvh-var(--nav-h))] flex items-center justify-center px-5 py-20">
         <div className="w-full max-w-xl text-center">
           <div className="mx-auto mb-7 flex h-16 w-16 items-center justify-center rounded-full bg-accent-yellow text-on-accent">
             <RefreshCw

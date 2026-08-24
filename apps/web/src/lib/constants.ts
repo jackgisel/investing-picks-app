@@ -6,7 +6,7 @@ export const SITE_TAGLINE = "Intentional investing beyond the index.";
 export const SITE_SUBHEADLINE =
   "Value-based stock research for investors who outgrew index funds.";
 export const SITE_DESCRIPTION =
-  "Outpick is a stock research team for investors who outgrew index funds. Value-based picks grounded in business fundamentals and market cycles — researched, tracked, and published every two weeks.";
+  "Outpick is a stock research team for investors who outgrew index funds. Value-based research into businesses worth owning for years — one name every two weeks, a live book you can audit, and a written note every time a position closes.";
 
 export const PRICING = {
   annual: 1000,

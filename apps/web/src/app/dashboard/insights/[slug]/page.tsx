@@ -8,19 +8,17 @@ import {
   QuantRatingMeter,
   WeekVsSpyBars,
 } from "@/components/blog/insight-viz";
-import { MarkdownProse } from "@/components/blog/markdown-prose";
-import { Callout, KeyTakeaway, LI, Lede, P, TLDR, UL } from "@/components/blog/prose";
+import { InsightBody, InsightHeader } from "@/components/blog/insight-article";
 import { getAdminUser } from "@/lib/admin";
 import { getAccess } from "@/lib/api-gate";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
 import { isoWeekKey } from "@/lib/email-dispatch";
-import { insightCategoryLabel, weeklyReviewSlug } from "@/lib/insights";
+import { weeklyReviewSlug } from "@/lib/insights";
 import { getInsightBySlug } from "@/lib/insights-db";
 import {
   fetchQuantRatingForTicker,
   fetchWeekVsSpy,
 } from "@/lib/insight-viz-data";
-import { CompanyLogo } from "@/components/ui/company-logo";
 import { StreetRangeBand } from "@/components/street-range-band";
 import { fetchStreetRangeForTicker } from "@/lib/street-range-server";
 
@@ -66,15 +64,6 @@ export async function generateMetadata({
   };
 }
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    timeZone: "UTC",
-  });
-}
-
 export default async function InsightDetailPage({
   params,
 }: {
@@ -91,17 +80,6 @@ export default async function InsightDetailPage({
     includeUnpublished: admin !== null,
   });
   if (!insight) notFound();
-
-  const categoryLabel = insightCategoryLabel(insight);
-
-  const tone =
-    insight.postType === "weekly_review"
-      ? "bg-accent-mint/15"
-      : insight.postType === "quarterly_review"
-        ? "bg-accent-lilac/15"
-        : "bg-accent-yellow/15";
-
-  const dateLabel = insight.publishedAt ?? insight.createdAt;
 
   const streetRange =
     insight.postType === "pick"
@@ -144,108 +122,34 @@ export default async function InsightDetailPage({
         </div>
       )}
 
-      <header className="mt-6 border-b border-border pb-8">
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          <span
-            className={`inline-flex items-center rounded-lg px-2.5 py-1 font-sans text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted ${tone}`}
-          >
-            {categoryLabel}
-          </span>
-          <span className="font-mono text-[11px] text-text-dim">
-            {formatDate(dateLabel)}
-            {insight.quarter ? ` · ${insight.quarter}` : ""}
-            {insight.readingTime ? ` · ${insight.readingTime} min read` : ""}
-          </span>
-        </div>
+      <InsightHeader insight={insight} />
 
-        <div className="flex items-start gap-4 sm:gap-5">
-          {insight.ticker ? (
-            <CompanyLogo ticker={insight.ticker} size="lg" priority />
-          ) : null}
-          <div className="min-w-0 flex-1">
-            <h1 className="font-sans text-[28px] font-bold leading-[1.2] tracking-tight text-text sm:text-[32px]">
-              {insight.title ?? insight.slug}
-            </h1>
+      <InsightBody
+        insight={insight}
+        viz={
+          <>
+            {quantRating ? (
+              <QuantRatingMeter
+                rating={quantRating.rating}
+                asOf={quantRating.asOf}
+              />
+            ) : null}
 
-            {insight.description && (
-              <p className="mt-4 font-sans text-[16px] leading-[1.6] text-text-muted">
-                {insight.description}
-              </p>
-            )}
-          </div>
-        </div>
-      </header>
+            {weekVsSpy ? (
+              <WeekVsSpyBars
+                bookChangePct={weekVsSpy.bookChangePct}
+                spyChangePct={weekVsSpy.spyChangePct}
+              />
+            ) : null}
 
-      <div className="pt-10">
-        {insight.lede && <Lede>{insight.lede}</Lede>}
-
-        {insight.tldr.length > 0 && (
-          <TLDR>
-            <UL>
-              {insight.tldr.map((line, i) => (
-                <LI key={i}>{line}</LI>
-              ))}
-            </UL>
-          </TLDR>
-        )}
-
-        {quantRating ? (
-          <QuantRatingMeter
-            rating={quantRating.rating}
-            asOf={quantRating.asOf}
-          />
-        ) : null}
-
-        {weekVsSpy ? (
-          <WeekVsSpyBars
-            bookChangePct={weekVsSpy.bookChangePct}
-            spyChangePct={weekVsSpy.spyChangePct}
-          />
-        ) : null}
-
-        {streetRange ? (
-          <div className="mb-10">
-            <StreetRangeBand range={streetRange} />
-          </div>
-        ) : null}
-
-        {insight.bodyMd && <MarkdownProse markdown={insight.bodyMd} />}
-
-        {/* Fixed template, not authored content. It was identical in all eight
-            hand-written notes, and making it a column would mean a note could
-            be published without it. */}
-        <Callout variant="warning" title="Educational disclaimer">
-          <P>
-            {insight.postType === "weekly_review" ? (
-              <>
-                This note is a weekly review of the {SITE_NAME} live portfolio.
-                It is educational research, not a recommendation to buy or sell.
-                See the{" "}
-                <Link href="/dashboard" className="underline">
-                  dashboard
-                </Link>{" "}
-                for the live book.
-              </>
-            ) : (
-              <>
-                This note explains why {insight.ticker ?? "this position"} is in
-                the {SITE_NAME} live portfolio. It is educational research, not a
-                recommendation to buy or sell. See the{" "}
-                <Link href="/dashboard" className="underline">
-                  dashboard
-                </Link>{" "}
-                for the live book.
-              </>
-            )}
-          </P>
-        </Callout>
-
-        {insight.keyTakeaway && (
-          <KeyTakeaway>
-            <P>{insight.keyTakeaway}</P>
-          </KeyTakeaway>
-        )}
-      </div>
+            {streetRange ? (
+              <div className="mb-10">
+                <StreetRangeBand range={streetRange} />
+              </div>
+            ) : null}
+          </>
+        }
+      />
 
       <CommentThread subjectType="insight" subjectSlug={insight.slug} />
     </article>

@@ -292,6 +292,7 @@ def get_strategy(db: Session = Depends(get_db)):
     total_return = total_return_pct(db, portfolio)
     picks = picks_return(db, portfolio)
     sectors = _sector_by_ticker(db, [p.ticker for p in positions])
+    names = _name_by_ticker(db, [p.ticker for p in positions])
     fundamentals = _latest_fundamentals_by_ticker(
         db, [p.ticker for p in positions]
     )
@@ -309,6 +310,7 @@ def get_strategy(db: Session = Depends(get_db)):
             "is_house_money": bool(p.is_house_money),
             "weight_pct": round(p.market_value / equity * 100, 2) if equity else 0,
             "sector": p.sector or sectors.get(p.ticker),
+            "name": names.get(p.ticker),
             "fundamentals": _with_live_mark(fundamentals.get(p.ticker), p.current_price),
         }
         for p in positions
@@ -349,6 +351,21 @@ def get_strategy(db: Session = Depends(get_db)):
         # simply between cycles.
         "next_evaluation_date": next_evaluation_friday(date.today()).isoformat(),
     }
+
+
+def _name_by_ticker(db: Session, tickers: list[str]) -> dict[str, str | None]:
+    """Company name from the `stocks` reference table, keyed by ticker.
+
+    Same read-time-fallback reasoning as `_sector_by_ticker`: `stocks` is the
+    canonical reference and is refreshed from the FMP profile on every ingest.
+    Carried on holdings so the marketing side can label a position with a name
+    rather than a bare ticker — the reader we are pitching owns index funds and
+    does not necessarily know what AVGO is.
+    """
+    if not tickers:
+        return {}
+    rows = db.query(Stock.ticker, Stock.name).filter(Stock.ticker.in_(tickers)).all()
+    return {ticker: name for ticker, name in rows}
 
 
 def _sector_by_ticker(db: Session, tickers: list[str]) -> dict[str, str | None]:

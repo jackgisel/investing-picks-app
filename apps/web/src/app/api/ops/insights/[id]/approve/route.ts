@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { ensureMigrations } from "@/lib/auth";
-import { announcePick } from "@/lib/pick-announce";
+import { announceExit, announcePick } from "@/lib/pick-announce";
 import { claimForPublish, getInsightById } from "@/lib/insights-db";
 
 export const dynamic = "force-dynamic";
@@ -56,7 +56,7 @@ export async function POST(
   }
   if (!before.ticker) {
     return NextResponse.json(
-      { error: "Only pick notes can be announced." },
+      { error: "Only pick and exit notes can be announced." },
       { status: 400 },
     );
   }
@@ -75,12 +75,20 @@ export async function POST(
     );
   }
 
-  const result = await announcePick({
-    ticker: claimed.ticker!,
-    title: claimed.title!,
-    description: claimed.description!,
-    insightSlug: claimed.slug,
-  });
+  const result =
+    claimed.postType === "exit"
+      ? await announceExit({
+          ticker: claimed.ticker!,
+          title: claimed.title!,
+          description: claimed.description!,
+          insightSlug: claimed.slug,
+        })
+      : await announcePick({
+          ticker: claimed.ticker!,
+          title: claimed.title!,
+          description: claimed.description!,
+          insightSlug: claimed.slug,
+        });
 
   return NextResponse.json({
     ok: result.failed === 0,

@@ -292,10 +292,72 @@ export async function runAppMigrations() {
   await pool.query(`
     ALTER TABLE insight DROP CONSTRAINT IF EXISTS insight_post_type_check
   `);
+  // 'exit' postdates the widening above. Same drop-and-readd for the same
+  // reason. An exit note is the other half of a pick note: the position closed,
+  // and this is the rule that closed it. Deliberately NOT covered by
+  // insight_pick_ticker_idx — that index is scoped to post_type = 'pick', and a
+  // ticker can be bought, sold and bought again, so a ticker legitimately has
+  // many exit notes. Slug uniqueness is the only constraint they need.
   await pool.query(`
     ALTER TABLE insight
       ADD CONSTRAINT insight_post_type_check
-      CHECK (post_type IN ('pick', 'quarterly_review', 'weekly_review'))
+      CHECK (post_type IN ('pick', 'quarterly_review', 'weekly_review', 'exit'))
+  `);
+
+  /*
+   * The public sample.
+   *
+   * Every insight is members-only and noindex. Exactly one pick note and one
+   * exit note are nominated from ops as the public specimen, served
+   * unauthenticated at /research/<slug> so a visitor can read real research
+   * before paying. A flag on the row rather than a slug in constants.ts: the
+   * choice is editorial and changes without a deploy, and the landing page
+   * reads the same flag, so the cards can never advertise a note the public
+   * route would refuse to serve.
+   */
+  await pool.query(`
+    ALTER TABLE insight
+      ADD COLUMN IF NOT EXISTS public_sample_at TIMESTAMPTZ
+  `);
+
+  /*
+   * The free weekly Market Note.
+   *
+   * Its own table rather than another `insight` post_type. An insight is a
+   * members-only research note keyed to a position; a Market Note is public
+   * commentary mailed to addresses that are not accounts. They share almost no
+   * columns and every query on `insight` would have had to start excluding it.
+   *
+   * Confirm-then-send, like the Friday review: `confirmed_at` is a human
+   * saying the draft is ready, `sent_at` is the ledger saying it went. A draft
+   * with neither is invisible to the sender.
+   */
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS market_note_issue (
+      id BIGSERIAL PRIMARY KEY,
+      week_key TEXT NOT NULL UNIQUE,
+      subject TEXT NOT NULL,
+      lede TEXT,
+      body_md TEXT,
+      confirmed_at TIMESTAMPTZ,
+      sent_at TIMESTAMPTZ,
+      recipients INT NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS market_note_issue_recent_idx
+      ON market_note_issue(created_at DESC)
+  `);
+
+  // One sample per post type. Nominating a second pick note has to displace the
+  // first rather than silently produce two.
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS insight_public_sample_idx
+      ON insight(post_type)
+      WHERE public_sample_at IS NOT NULL
   `);
 
   // Confirm-then-send for the Friday review. Stays NULL on pick notes. A

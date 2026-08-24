@@ -20,28 +20,28 @@ const STEPS: {
     n: "01",
     tag: "Research",
     title: "Score the universe, publish one name",
-    body: "Fundamentals, revisions, and cycle context across ~3,600 US-listed stocks. One high-conviction pick clears the bar every two weeks.",
+    body: "Fundamentals, revisions, and sector-relative context across ~3,600 US-listed stocks. One high-conviction business clears the bar every two weeks.",
     Diagram: ResearchDiagram,
   },
   {
     n: "02",
     tag: "Publish",
     title: "Full thesis, not a ticker alert",
-    body: "Each note covers the business case, the risks, and the rules that would close the position. You read the research, then decide.",
+    body: "Each note covers the business case, the figures behind it, the risks, and what would have to be true for us to be wrong. You read the research, then decide.",
     Diagram: PublishDiagram,
   },
   {
     n: "03",
-    tag: "Track",
-    title: "Every open and closed position",
-    body: "The example portfolio updates as the book moves. Entries, trims, and exits stay visible. Losses are not edited out.",
+    tag: "Hold",
+    title: "Underwritten over years, not quarters",
+    body: "A position is held while the reasons for owning it hold. Most of what the price does in between is noise we are deliberately not reacting to.",
     Diagram: TrackDiagram,
   },
   {
     n: "04",
-    tag: "Measure",
-    title: "Wins and losses, published",
-    body: "The live book is scored against the S&P 500. The walk-forward model that preceded it is on the track record page, wins and losses included.",
+    tag: "Close",
+    title: "We tell you when we sell, and why",
+    body: "Every closed position gets an exit note: what changed, the rule that closed it, and what the round trip returned. The losers get the same write-up as the winners.",
     Diagram: MeasureDiagram,
   },
 ];
@@ -55,14 +55,21 @@ function StepVisual({ Diagram }: { Diagram: ComponentType }) {
 }
 
 /**
- * First scroll after the hero: how the research loop works.
- * Deep proof (backtest + live ledger) lives on /track-record.
+ * How the research loop works, end to end.
+ *
+ * Used to carry a negative top margin and a transparent-to-bg gradient so the
+ * hero's moon art could bleed into it. Two sections now sit between it and the
+ * hero, so that margin was pulling this up over the live-picks border instead.
+ *
+ * Step 04 used to be "Measure" and pointed at the walk-forward model. It is now
+ * the exit note, which is the part of the loop members actually experience and
+ * the part most publications never show.
  */
 export function WhatHow() {
   return (
     <section
       id="what-how"
-      className="relative -mt-20 overflow-hidden border-b border-border bg-gradient-to-b from-transparent via-bg/90 via-[min(22rem,38vh)] to-bg sm:-mt-24 lg:-mt-28"
+      className="relative overflow-hidden border-b border-border bg-bg"
     >
       <div className="container-op relative pb-16 pt-20 sm:pb-20 sm:pt-24 lg:pb-24 lg:pt-28">
         <div className="mb-10 max-w-[560px] lg:mb-14">
@@ -72,7 +79,7 @@ export function WhatHow() {
           </h2>
           <p className="section-sub mb-0">
             A fixed cadence of stock research, an example portfolio run in the
-            open, and a scoreboard you can check any time.
+            open, and a written note every time a position opens or closes.
           </p>
         </div>
 
@@ -143,10 +150,10 @@ export function WhatHow() {
             See membership
           </PillButton>
           <Link
-            href="/track-record"
-            className="font-sans text-[12px] font-bold tracking-[0.1em] uppercase text-text-muted transition-colors hover:text-text"
+            href="/#sample-research"
+            className="rounded-sm font-sans text-[12px] font-bold uppercase tracking-[0.1em] text-text-muted transition-colors hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2"
           >
-            Full track record →
+            Read a sample note →
           </Link>
         </div>
       </div>

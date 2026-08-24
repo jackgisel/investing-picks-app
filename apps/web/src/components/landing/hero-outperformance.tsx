@@ -19,11 +19,14 @@ export function HeroOutperformance({ className = "" }: { className?: string }) {
   const spyPct =
     comparison.benchmarks.find((b) => b.key === "SPY")?.latestPct ?? null;
 
+  // Skeleton heights track the resolved markup below exactly (28/32px
+  // leading-none headline, 13/14px sub). This sits in the hero's LCP region,
+  // so a mismatch here is a visible jump on every cold load.
   if (isPending && picksPct === null) {
     return (
       <div className={className} aria-hidden>
-        <div className="h-8 w-44 animate-pulse rounded-soft bg-bg-secondary/80" />
-        <div className="mt-2 h-4 w-28 animate-pulse rounded-soft bg-bg-secondary/60" />
+        <div className="h-[28px] w-44 animate-pulse rounded-soft bg-bg-secondary/80 sm:h-[32px]" />
+        <div className="mt-2 h-[19px] w-28 animate-pulse rounded-soft bg-bg-secondary/60 sm:h-[20px]" />
       </div>
     );
   }

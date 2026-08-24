@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { ensureMigrations } from "@/lib/auth";
 import { requireInternalSecret } from "@/lib/internal-auth";
-import { syncPickDrafts } from "@/lib/insight-sync";
+import { syncExitDrafts, syncPickDrafts } from "@/lib/insight-sync";
 
 export const dynamic = "force-dynamic";
 
@@ -22,8 +22,11 @@ export async function POST(req: Request) {
 
   await ensureMigrations();
   try {
-    const result = await syncPickDrafts({ generate: true });
-    return NextResponse.json(result);
+    // Sequentially, and picks first: both spend model calls, and a closed
+    // position is never as time-sensitive as an open one that has no note yet.
+    const picks = await syncPickDrafts({ generate: true });
+    const exits = await syncExitDrafts({ generate: true });
+    return NextResponse.json({ ...picks, picks, exits });
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Sync failed" },

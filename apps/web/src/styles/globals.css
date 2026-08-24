@@ -3,6 +3,11 @@
 @tailwind utilities;
 
 :root {
+  /* Navbar height including the notch inset. The bar itself is 72px, but on a
+     notched iOS device it also carries env(safe-area-inset-top) — pages that
+     subtracted a bare 72px from 100dvh overflowed the viewport by the inset. */
+  --nav-h: calc(72px + env(safe-area-inset-top));
+
   --color-bg: 255 255 255;
   --color-bg-secondary: 244 244 244;
   --color-bg-tertiary: 235 235 235;

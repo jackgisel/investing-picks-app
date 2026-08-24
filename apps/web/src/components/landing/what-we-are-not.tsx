@@ -10,6 +10,7 @@ import { ArrowRight, X } from "lucide-react";
  * this section's job is to filter, not to argue.
  */
 const NOT = [
+  "Publish trading strategies, signals, or how to time an entry",
   "Time the market or call where the index goes next",
   "Publish entry and exit points on a price basis",
   "Send trade alerts you are meant to act on immediately",
@@ -23,7 +24,7 @@ export function WhatWeAreNot() {
       className="relative border-b border-border overflow-hidden"
     >
       <div className="container-op relative py-20 sm:py-24">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-10 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-2 lg:gap-x-16 gap-y-10 items-start">
           <div className="max-w-[540px]">
             <p className="section-label">
               What we are not
@@ -32,10 +33,10 @@ export function WhatWeAreNot() {
               We are a research firm, not a signal service.
             </h2>
             <p className="section-sub mb-0">
-              Outpick finds value-based investments in US-listed businesses and
-              publishes the research openly. That rules out most of what people
-              expect from a stock site — worth knowing before you join rather
-              than after.
+              Outpick researches US-listed businesses worth owning for years
+              and publishes that research openly. We do not cover trading. That
+              rules out most of what people expect from a stock site — worth
+              knowing before you join rather than after.
             </p>
           </div>
 

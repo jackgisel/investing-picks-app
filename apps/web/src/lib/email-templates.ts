@@ -130,6 +130,121 @@ function fallbackLink(url: string): string {
     </p>`;
 }
 
+/* ---------------------------- Markdown (email) ---------------------------- */
+
+/**
+ * A deliberately small markdown subset, rendered to inline-styled email HTML.
+ *
+ * Not a general parser and must not become one. Email clients support a narrow
+ * slice of CSS and no <style> reliably, so every element needs its styles
+ * inline — which means every element has to be one we chose. Anything outside
+ * the subset below degrades to a paragraph rather than passing through as raw
+ * HTML.
+ *
+ * Escaping happens FIRST, on the whole line, before any inline markup is
+ * applied. Doing it the other way round would let a `<script>` inside a link
+ * label survive. Link targets are restricted to http(s) for the same reason —
+ * `[click](javascript:...)` is otherwise a working injection in the clients
+ * that honour it.
+ */
+export function markdownToEmailHtml(markdown: string): string {
+  const inline = (text: string): string => {
+    let out = escapeHtml(text);
+    // Bold before links: a bold segment inside a link label should survive.
+    out = out.replace(/\*\*([^*]+)\*\*/g, `<strong style="color:${TEXT};font-weight:600;">$1</strong>`);
+    out = out.replace(
+      /\[([^\]]+)\]\(([^)\s]+)\)/g,
+      (whole, label: string, href: string) =>
+        /^https?:\/\//i.test(href)
+          ? `<a href="${href}" style="color:${TEXT};text-decoration:underline;">${label}</a>`
+          : whole,
+    );
+    return out;
+  };
+
+  const blocks: string[] = [];
+  let listItems: string[] = [];
+
+  const flushList = () => {
+    if (listItems.length === 0) return;
+    blocks.push(
+      `<ul style="margin:0 0 18px 0;padding-left:20px;">${listItems
+        .map(
+          (li) =>
+            `<li class="dm-muted" style="margin:0 0 8px 0;font-family:${FONT_SANS};font-size:15px;color:${TEXT_MUTED};line-height:1.65;">${li}</li>`,
+        )
+        .join("")}</ul>`,
+    );
+    listItems = [];
+  };
+
+  for (const raw of markdown.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (line === "") {
+      flushList();
+      continue;
+    }
+    const bullet = /^[-*]\s+(.*)$/.exec(line);
+    if (bullet) {
+      listItems.push(inline(bullet[1]));
+      continue;
+    }
+    flushList();
+    const h = /^(#{2,3})\s+(.*)$/.exec(line);
+    if (h) {
+      blocks.push(
+        `<h2 class="dm-text" style="margin:26px 0 12px 0;font-family:${FONT_SANS};font-size:18px;font-weight:700;color:${TEXT};letter-spacing:-0.2px;">${inline(h[2])}</h2>`,
+      );
+      continue;
+    }
+    blocks.push(paragraph(inline(line)));
+  }
+  flushList();
+
+  return blocks.join("\n");
+}
+
+/**
+ * One issue of the free weekly Market Note.
+ *
+ * Goes to addresses that are not accounts, so its unsubscribe is the
+ * subscriber-token link rather than the member preference one.
+ */
+export function renderMarketNoteIssueEmail(args: {
+  subject: string;
+  lede: string | null;
+  bodyMd: string;
+  unsubscribeUrl: string;
+  siteUrl: string;
+  banner?: string;
+  /** ISO week key (`2026-W35`) — prefers the pre-generated weekly pool art. */
+  weekKey?: string;
+}): string {
+  const body = `
+    ${eyebrow("The Market Note", "lilac")}
+    ${heading(args.subject)}
+    ${args.lede ? paragraph(escapeHtml(args.lede), 22) : ""}
+    ${markdownToEmailHtml(args.bodyMd)}
+    ${pillButton(`${args.siteUrl}/pricing`, "See what members get")}
+    <p class="dm-dim" style="margin:0;font-family:${FONT_SANS};font-size:13px;color:${TEXT_DIM};line-height:1.6;">
+      This note is market commentary, not investment advice, and never our
+      picks — those are members-only.
+    </p>
+  `;
+
+  return shell({
+    preview: args.subject,
+    bodyHtml: body,
+    siteUrl: args.siteUrl,
+    unsubscribe: { url: args.unsubscribeUrl, label: "Unsubscribe" },
+    banner: args.banner,
+    artUrl: artAbsoluteUrl(
+      args.weekKey ? artForWeek(args.weekKey) : artForKey(args.subject),
+      args.siteUrl,
+    ),
+  });
+}
+
 /* --------------------------------- Shell --------------------------------- */
 
 function shell(args: {
@@ -508,9 +623,9 @@ export function renderMarketNoteWelcomeEmail(args: {
 }): string {
   const body = `
     ${eyebrow("You're on the list", "cyan")}
-    ${heading("The Market Note lands every week")}
+    ${heading("The Market Note lands every Monday")}
     ${paragraph(
-      `Every week we send one short read: what the model is seeing across ~3,600 US-listed stocks, which sectors are scoring, and what we make of it. No hype, no urgency, no forwarding your address to anyone.`,
+      `Every Monday we send one short read: what the model is seeing across ~3,600 US-listed stocks, which sectors are scoring, and what we make of it. No hype, no urgency, no forwarding your address to anyone.`,
       22
     )}
 
@@ -560,6 +675,59 @@ export type WeeklyMove = {
  * Same bones as the pick alert — eyebrow, title, lede, button to the note —
  * without a ticker at display size, because this is a book-level piece.
  */
+/**
+ * A position closed, and here is the note explaining why.
+ *
+ * Deliberately plainer than `renderNewPickEmail`: that template leads with the
+ * quant rating and the Street range, which are forward-looking figures about a
+ * position we no longer hold. Reprinting them beside a closed trade would read
+ * as a fresh call.
+ */
+export function renderExitNoteEmail(args: {
+  recipientName: string | null;
+  ticker: string;
+  articleTitle: string;
+  articleDescription: string;
+  articleUrl: string;
+  siteUrl: string;
+  /** Round-trip return, pre-formatted (e.g. "+38.2%"). Omitted when unknown. */
+  returnLabel?: string | null;
+  unsubscribeUrl?: string;
+  banner?: string;
+}): string {
+  const greeting = args.recipientName
+    ? `Hi ${escapeHtml(args.recipientName.split(" ")[0])},`
+    : "Hi there,";
+
+  // Tone follows the result rather than the event: a peach eyebrow over a loss
+  // is the small dishonesty that makes a whole email feel like spin.
+  const tone: Tone = args.returnLabel?.startsWith("-") ? "coral" : "mint";
+  const summary = args.returnLabel
+    ? `${escapeHtml(args.ticker)} closed at ${escapeHtml(args.returnLabel)}.`
+    : `${escapeHtml(args.ticker)} is closed.`;
+
+  const body = `
+    ${eyebrow("Position closed", tone)}
+    ${heading(args.articleTitle)}
+    ${paragraph(greeting, 14)}
+    ${paragraph(summary, 14)}
+    ${paragraph(escapeHtml(args.articleDescription), 26)}
+    ${pillButton(args.articleUrl, "Read the exit note")}
+    ${fallbackLink(args.articleUrl)}
+  `;
+
+  return shell({
+    preview: args.articleTitle,
+    bodyHtml: body,
+    siteUrl: args.siteUrl,
+    unsubscribe: args.unsubscribeUrl
+      ? { url: args.unsubscribeUrl, label: "Unsubscribe" }
+      : undefined,
+    banner: args.banner,
+    artUrl: artAbsoluteUrl(artForKey(args.articleTitle), args.siteUrl),
+  });
+}
+
 export function renderWeeklyReviewEmail(args: {
   recipientName: string | null;
   title: string;
@@ -631,6 +799,52 @@ export function renderWeeklyReviewOpsEmail(args: {
 
   return shell({
     preview: title,
+    bodyHtml: body,
+    siteUrl: args.siteUrl,
+    banner: args.banner,
+  });
+}
+
+/**
+ * Admin-only: the Monday send fired and there was nothing confirmed, or an
+ * issue still needs writing. Same channel as the weekly-review ops mail.
+ */
+export function renderMarketNoteOpsEmail(args: {
+  kind: "reminder" | "skipped" | "sent";
+  weekKey: string;
+  opsUrl: string;
+  siteUrl: string;
+  detail?: string;
+  banner?: string;
+}): string {
+  const copy = {
+    reminder: {
+      label: "Market Note — needs writing",
+      head: `No Market Note is ready for ${args.weekKey}`,
+      body: "Monday's send has nothing confirmed behind it. Write the issue and mark it ready, and the next tick will mail it.",
+    },
+    skipped: {
+      label: "Market Note — skipped",
+      head: `Monday passed without a Market Note (${args.weekKey})`,
+      body: "The send fired and found no confirmed issue, so nothing went out. Nobody was mailed a half-written note, which is the intended outcome — but the list heard nothing this week.",
+    },
+    sent: {
+      label: "Market Note — sent",
+      head: `The Market Note went out (${args.weekKey})`,
+      body: args.detail ?? "The issue was mailed to the free list.",
+    },
+  }[args.kind];
+
+  const body = `
+    ${eyebrow(copy.label, args.kind === "sent" ? "mint" : "coral")}
+    ${heading(copy.head)}
+    ${paragraph(escapeHtml(copy.body), 24)}
+    ${pillButton(args.opsUrl, "Open the Market Note queue")}
+    ${fallbackLink(args.opsUrl)}
+  `;
+
+  return shell({
+    preview: copy.head,
     bodyHtml: body,
     siteUrl: args.siteUrl,
     banner: args.banner,

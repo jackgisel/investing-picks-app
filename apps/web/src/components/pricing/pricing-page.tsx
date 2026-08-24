@@ -39,7 +39,7 @@ export function PricingPageView() {
   const price = founders ? PRICING.foundersAnnual : PRICING.annual;
 
   return (
-    <div className="relative min-h-[calc(100dvh-72px)] overflow-hidden">
+    <div className="relative min-h-[calc(100dvh-var(--nav-h))] overflow-hidden">
       <div aria-hidden className="pointer-events-none absolute inset-0">
         <Image
           src={LOGIN_ART.src}
@@ -53,7 +53,7 @@ export function PricingPageView() {
         <div className="absolute inset-0 bg-gradient-to-t from-bg via-transparent to-bg/50" />
       </div>
 
-      <div className="relative container-op flex min-h-[calc(100dvh-72px)] flex-col justify-center py-10 sm:py-12 lg:py-14">
+      <div className="relative container-op flex min-h-[calc(100dvh-var(--nav-h))] flex-col justify-center py-10 sm:py-12 lg:py-14">
         <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)] lg:gap-16 xl:gap-20">
           <div>
             <p className="section-label mb-3">Membership</p>
@@ -108,7 +108,7 @@ export function PricingPageView() {
             </p>
           </div>
 
-          <aside className="lg:sticky lg:top-[calc(72px+1.5rem)]">
+          <aside className="lg:sticky lg:top-[calc(var(--nav-h)+1.5rem)]">
             <div className="border-t-2 border-border-strong pt-6 sm:pt-7">
               <p className="font-sans text-[11px] font-bold tracking-[0.16em] uppercase text-text-dim">
                 {founders ? "Founding member · year one" : "Annual membership"}

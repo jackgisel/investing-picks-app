@@ -38,6 +38,7 @@ const DUE: InsightMeta = {
   createdAt: "2026-08-07T00:00:00.000Z",
   updatedAt: "2026-08-07T00:00:00.000Z",
   confirmedAt: null,
+  publicSampleAt: null,
 };
 
 const claimed = (over: Partial<InsightMeta> = {}) => ({

@@ -10,6 +10,7 @@ import { PanelHeader } from "@/components/dashboard/data-table";
 import { HScroll } from "@/components/ui/h-scroll";
 import { useStrategy, type Holding } from "@/lib/hooks/use-strategy";
 import { streetRangeFromFundamentals } from "@/lib/street-range";
+import { formatCompactUsd } from "@/lib/market-cap";
 import {
   StreetRangeBand,
   StreetRangeInline,
@@ -23,17 +24,6 @@ function signedPct(value: number | null): string {
 function growthClass(value: number | null): string {
   if (value === null || Math.abs(value) < 0.05) return "text-text-muted";
   return value > 0 ? "text-accent-green" : "text-accent-red";
-}
-
-function compactMoney(value: number | null): string {
-  if (value === null) return "—";
-  const abs = Math.abs(value);
-  const sign = value < 0 ? "-" : "";
-  if (abs >= 1_000_000_000)
-    return `${sign}$${(abs / 1_000_000_000).toFixed(abs >= 10_000_000_000 ? 1 : 2)}B`;
-  if (abs >= 1_000_000)
-    return `${sign}$${(abs / 1_000_000).toFixed(abs >= 100_000_000 ? 0 : 1)}M`;
-  return `${sign}$${abs.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 }
 
 function moneyPerShare(value: number | null): string {
@@ -90,7 +80,7 @@ function Surprise({
   money?: boolean;
 }) {
   const format = money
-    ? compactMoney
+    ? formatCompactUsd
     : moneyPerShare;
   return (
     <span>
@@ -197,7 +187,7 @@ function FundamentalsCard({ holding }: { holding: Holding }) {
           <div className="grid grid-cols-2 gap-3">
             <Metric label="Revenue">
               <span className="font-mono text-[13px] font-semibold tabular-nums text-text">
-                {compactMoney(facts?.revenue_estimate ?? null)}
+                {formatCompactUsd(facts?.revenue_estimate ?? null)}
               </span>
               <span className="ml-1.5 font-mono text-[9px] text-text-dim">
                 {fy}
@@ -273,7 +263,7 @@ function FundamentalsRow({ holding }: { holding: Holding }) {
       </td>
       <td className="px-5 py-4">
         <span className="font-mono text-[13px] font-semibold tabular-nums text-text">
-          {compactMoney(facts?.revenue_estimate ?? null)}
+          {formatCompactUsd(facts?.revenue_estimate ?? null)}
         </span>
         <span className="ml-1.5 font-mono text-[9px] text-text-dim">{fy}</span>
         <Revision value={facts?.revenue_revision_pct ?? null} />

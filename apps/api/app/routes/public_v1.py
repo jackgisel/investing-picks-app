@@ -293,6 +293,7 @@ def get_strategy(db: Session = Depends(get_db)):
     picks = picks_return(db, portfolio)
     sectors = _sector_by_ticker(db, [p.ticker for p in positions])
     names = _name_by_ticker(db, [p.ticker for p in positions])
+    market_caps = _market_cap_by_ticker(db, [p.ticker for p in positions])
     fundamentals = _latest_fundamentals_by_ticker(
         db, [p.ticker for p in positions]
     )
@@ -311,6 +312,7 @@ def get_strategy(db: Session = Depends(get_db)):
             "weight_pct": round(p.market_value / equity * 100, 2) if equity else 0,
             "sector": p.sector or sectors.get(p.ticker),
             "name": names.get(p.ticker),
+            "market_cap": market_caps.get(p.ticker),
             "fundamentals": _with_live_mark(fundamentals.get(p.ticker), p.current_price),
         }
         for p in positions
@@ -366,6 +368,25 @@ def _name_by_ticker(db: Session, tickers: list[str]) -> dict[str, str | None]:
         return {}
     rows = db.query(Stock.ticker, Stock.name).filter(Stock.ticker.in_(tickers)).all()
     return {ticker: name for ticker, name in rows}
+
+
+def _market_cap_by_ticker(db: Session, tickers: list[str]) -> dict[str, float | None]:
+    """Market cap from the `stocks` reference table, keyed by ticker.
+
+    Same read-time lookup as `_sector_by_ticker`: `stocks` is refreshed from the
+    FMP profile on every ingest, so the figure travels with the universe rather
+    than being stamped onto the position at buy time and going stale.
+
+    Published so the holdings table can say what size a name is. The book runs
+    from micro-caps to mega-caps and the ticker alone does not tell a
+    subscriber which of those they are looking at.
+    """
+    if not tickers:
+        return {}
+    rows = (
+        db.query(Stock.ticker, Stock.market_cap).filter(Stock.ticker.in_(tickers)).all()
+    )
+    return {ticker: market_cap for ticker, market_cap in rows}
 
 
 def _sector_by_ticker(db: Session, tickers: list[str]) -> dict[str, str | None]:

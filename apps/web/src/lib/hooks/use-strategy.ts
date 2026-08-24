@@ -21,6 +21,12 @@ export interface Holding {
    */
   pnl_pct: number | null;
   weight_pct?: number;
+  /**
+   * Company market cap in USD, from the `stocks` reference table. Absent on
+   * the anonymised payload, and null for a name whose profile has never been
+   * ingested — so the size column has to render "—" rather than assume.
+   */
+  market_cap?: number | null;
   /** Original stake already recovered via a Winners Circle partial sell. */
   is_house_money?: boolean;
   sector?: string | null;

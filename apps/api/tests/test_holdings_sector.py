@@ -60,3 +60,19 @@ def test_a_null_sector_in_stocks_is_not_mistaken_for_a_value(db, portfolio):
 
 def test_sector_lookup_survives_an_empty_book(db, portfolio):
     assert get_strategy(db=db)["holdings"] == []
+
+
+def test_market_cap_is_published_from_the_stocks_table(db, portfolio):
+    """The holdings table labels each name by size, so the cap has to travel."""
+    make_position(db, portfolio, "LLY", shares=1, avg_cost=700.0, current_price=720.0)
+    db.add(Stock(ticker="LLY", name="Eli Lilly", market_cap=6.9e11))
+    db.commit()
+
+    assert get_strategy(db=db)["holdings"][0]["market_cap"] == 6.9e11
+
+
+def test_market_cap_is_null_for_an_unknown_ticker(db, portfolio):
+    """Never 0 — the UI renders unknown as an em dash, not as a nano-cap."""
+    make_position(db, portfolio, "GHOST", shares=1, avg_cost=10.0, current_price=11.0)
+
+    assert get_strategy(db=db)["holdings"][0]["market_cap"] is None

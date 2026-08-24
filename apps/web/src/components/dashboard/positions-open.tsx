@@ -28,8 +28,9 @@ import {
 import { insightForTicker } from "@/lib/insights";
 import { useInsights } from "@/lib/hooks/use-insights";
 import { CompanyLogo } from "@/components/ui/company-logo";
+import { formatCompactUsd, marketCapTier } from "@/lib/market-cap";
 
-type SortKey = "ticker" | "sector" | "weight_pct" | "entry_date" | "pnl_pct";
+type SortKey = "ticker" | "sector" | "market_cap" | "entry_date" | "pnl_pct";
 
 /**
  * `ratingNote` stamps the RATING column with the date those ratings were
@@ -42,7 +43,7 @@ function buildColumns(ratingNote: string | null): readonly Column<SortKey>[] {
   return [
     { label: "TICKER", sortKey: "ticker" },
     { label: "SECTOR", sortKey: "sector" },
-    { label: "WEIGHT", sortKey: "weight_pct" },
+    { label: "MARKET CAP", sortKey: "market_cap" },
     { label: "RATING", note: ratingNote ?? undefined },
     { label: "ENTRY DATE", sortKey: "entry_date" },
     { label: "DAYS HELD" },
@@ -87,8 +88,8 @@ export function PositionsOpen() {
     }
   };
 
-  // The strategy endpoint knows sector and weight; the picks endpoint knows the
-  // current rating. Joining them here is what let Portfolio and Pick history be
+  // The strategy endpoint knows sector and market cap; the picks endpoint knows
+  // the current rating. Joining them here is what let Portfolio and Pick history be
   // one table instead of two pages showing the same rows.
   const signalByTicker = new Map(
     (picksQuery.data?.picks ?? []).map((p) => [p.ticker, p.signal]),
@@ -107,8 +108,8 @@ export function PositionsOpen() {
         let cmp = 0;
         if (sortKey === "ticker")
           cmp = (a.ticker ?? "").localeCompare(b.ticker ?? "");
-        else if (sortKey === "weight_pct")
-          cmp = (a.weight_pct ?? 0) - (b.weight_pct ?? 0);
+        else if (sortKey === "market_cap")
+          cmp = (a.market_cap ?? 0) - (b.market_cap ?? 0);
         else if (sortKey === "sector")
           cmp = (a.sector ?? "").localeCompare(b.sector ?? "");
         else if (sortKey === "entry_date")
@@ -170,6 +171,7 @@ export function PositionsOpen() {
                   const signal = h.ticker
                     ? signalByTicker.get(h.ticker)
                     : undefined;
+                  const tier = marketCapTier(h.market_cap);
                   return (
                     <tr
                       key={
@@ -216,10 +218,15 @@ export function PositionsOpen() {
                           <span className="text-text-dim">Unclassified</span>
                         )}
                       </td>
-                      <td className="px-3 py-3.5 font-mono text-[12px] tabular-nums text-text-muted sm:px-5">
-                        {typeof h.weight_pct === "number"
-                          ? `${h.weight_pct.toFixed(1)}%`
-                          : "—"}
+                      <td className="whitespace-nowrap px-3 py-3.5 sm:px-5">
+                        <span className="block font-mono text-[12px] tabular-nums text-text-muted">
+                          {formatCompactUsd(h.market_cap)}
+                        </span>
+                        {tier && (
+                          <span className="mt-0.5 block font-sans text-[9px] tracking-[0.08em] text-text-dim">
+                            {tier.toUpperCase()} CAP
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-3.5 sm:px-5">
                         {signal ? (

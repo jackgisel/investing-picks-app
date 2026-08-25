@@ -107,19 +107,65 @@ describe("activeHref", () => {
   it("returns null for a path outside the nav", () => {
     expect(activeHref("/login", ALL)).toBeNull();
   });
+
+  // The footer group is not rendered inside <nav>, but it IS in the model, so
+  // its rows must highlight like any other. Regressing this looks like a
+  // sidebar where clicking Settings selects nothing.
+  it("highlights footer items", () => {
+    expect(activeHref("/dashboard/settings", ALL)).toBe("/dashboard/settings");
+    expect(activeHref("/dashboard/feature-requests", ALL)).toBe(
+      "/dashboard/feature-requests",
+    );
+  });
+
+  // Same trap as ops/positions vs positions, with the same two names.
+  it("does not confuse the admin feature requests page with the member one", () => {
+    expect(activeHref("/dashboard/ops/feature-requests", ALL)).toBe(
+      "/dashboard/ops/feature-requests",
+    );
+    expect(activeHref("/dashboard/feature-requests", ALL)).not.toBe(
+      "/dashboard/ops/feature-requests",
+    );
+  });
 });
 
 describe("visibleGroups", () => {
-  it("shows a non-admin exactly the product nav", () => {
+  it("shows a non-admin the product nav and the footer", () => {
     const groups = visibleGroups(false);
-    expect(groups).toHaveLength(1);
+    expect(groups).toHaveLength(2);
     expect(flatten(groups).map((i) => i.label)).toEqual([
       "Dashboard",
       "Positions",
       "Insights",
       "Strategy",
+      "Feature requests",
       "Settings",
     ]);
+  });
+
+  // Settings shares the avatar's row as an icon; Feature requests takes a
+  // labelled row of its own. Flipping either changes the footer's layout.
+  it("marks only Settings as inline", () => {
+    const footer = visibleGroups(false).find((g) => g.footer);
+    expect(footer?.items.filter((i) => i.inline).map((i) => i.label)).toEqual([
+      "Settings",
+    ]);
+  });
+
+  // An icon-only control still needs a name for the aria-label.
+  it("gives every inline item a label to name it by", () => {
+    for (const item of flatten(visibleGroups(true)).filter((i) => i.inline)) {
+      expect(item.label.trim()).not.toBe("");
+    }
+  });
+
+  // The sidebar renders these outside the scrolling <nav>, so it needs the
+  // flag to find them — and the product group must not carry it.
+  it("marks exactly one group as the footer, and it is last", () => {
+    const groups = visibleGroups(true);
+    expect(groups.filter((g) => g.footer)).toHaveLength(1);
+    expect(groups[groups.length - 1].footer).toBe(true);
+    expect(groups[0].footer).toBeUndefined();
   });
 
   // The nav used to advertise ops pages that then 404'd.
@@ -131,7 +177,7 @@ describe("visibleGroups", () => {
 
   it("gives an admin a separate, labelled group", () => {
     const groups = visibleGroups(true);
-    expect(groups).toHaveLength(2);
+    expect(groups).toHaveLength(3);
     expect(groups[1].label).toBe("Admin");
     expect(groups[1].items.map((i) => i.href)).toEqual([
       "/dashboard/ops",
@@ -141,6 +187,7 @@ describe("visibleGroups", () => {
       "/dashboard/ops/market-note",
       "/dashboard/dca",
       "/dashboard/ops/product-updates",
+      "/dashboard/ops/feature-requests",
     ]);
   });
 });

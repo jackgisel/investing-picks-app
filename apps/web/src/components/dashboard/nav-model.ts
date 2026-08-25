@@ -7,6 +7,8 @@ import {
   FileText,
   Megaphone,
   Wallet,
+  Lightbulb,
+  Inbox,
   CalendarDays,
   Mail,
   Repeat,
@@ -27,6 +29,16 @@ export interface NavItem {
   icon: LucideIcon;
   /** Child routes with no nav entry of their own that belong to this item. */
   owns?: readonly string[];
+  /**
+   * Footer items only: share the avatar's row as an icon button instead of
+   * taking a full labelled row. For the ones that are a destination you keep
+   * returning to rather than a page you read — the icon is the whole control,
+   * so `label` becomes its accessible name.
+   *
+   * Ignored outside the footer, and ignored on mobile, where there is no
+   * avatar row and the item renders as a normal labelled pill.
+   */
+  inline?: boolean;
 }
 
 export interface NavGroup {
@@ -34,17 +46,26 @@ export interface NavGroup {
   label?: string;
   /** Rendered only when the server says the viewer is an admin. */
   adminOnly?: boolean;
+  /**
+   * Pinned to the sidebar footer beside the account avatar rather than the
+   * scrolling nav. Still part of the model — and so still part of `flatten` —
+   * so active highlighting works on these without a second code path.
+   */
+  footer?: boolean;
   items: readonly NavItem[];
 }
 
 /**
- * Two groups, not one flat list.
+ * Three groups, not one flat list.
  *
  * The operator tools used to sit inline as items 8 and 9 of the same menu a
  * subscriber uses, which made the product look like it had ten top-level
  * concerns when it has eight. They are a different job — running the book
  * rather than reading it — so they get their own labelled section, pinned
  * below the product nav and rendered for nobody else.
+ *
+ * The third group is the footer: account utilities that live beside the
+ * avatar. See its own comment below.
  */
 const NAV_GROUPS: readonly NavGroup[] = [
   {
@@ -53,7 +74,6 @@ const NAV_GROUPS: readonly NavGroup[] = [
       { label: "Positions", href: "/dashboard/positions", icon: Briefcase },
       { label: "Insights", href: "/dashboard/insights", icon: FileText },
       { label: "Strategy", href: "/dashboard/strategy", icon: BookOpen },
-      { label: "Settings", href: "/dashboard/settings", icon: Settings },
     ],
   },
   {
@@ -96,6 +116,37 @@ const NAV_GROUPS: readonly NavGroup[] = [
         label: "Product updates",
         href: "/dashboard/ops/product-updates",
         icon: Megaphone,
+      },
+      {
+        label: "Feature requests",
+        href: "/dashboard/ops/feature-requests",
+        icon: Inbox,
+      },
+    ],
+  },
+  /**
+   * Utilities, pinned to the footer. Settings sat as item five of the product
+   * nav, where a thing you touch twice a year had the same weight as the four
+   * pages the product exists to show. Both of these are "about your account"
+   * rather than "about the book", so they belong next to the avatar.
+   *
+   * Last in the array on purpose: the Admin group stays at index 1, so an
+   * admin's ops section is still the one that renders directly under the
+   * product nav.
+   */
+  {
+    footer: true,
+    items: [
+      {
+        label: "Feature requests",
+        href: "/dashboard/feature-requests",
+        icon: Lightbulb,
+      },
+      {
+        label: "Settings",
+        href: "/dashboard/settings",
+        icon: Settings,
+        inline: true,
       },
     ],
   },

@@ -18,6 +18,7 @@ import {
   renderPerformanceAlertEmail,
   renderProductUpdateEmail,
   renderJobFailureEmail,
+  renderFeatureRequestEmail,
   type PerformanceAlertKind,
   type PickStat,
 } from "@/lib/email-templates";
@@ -567,6 +568,46 @@ export function productUpdateOneClickUrl(token: string): string {
 }
 
 /* ------------------------------- Job failure ------------------------------ */
+
+/**
+ * A member's feature request, to the admin allowlist.
+ *
+ * Same channel as the job alerts and the same reasoning: not a mailing list,
+ * so no List-Unsubscribe, and only to addresses the deployment itself names.
+ * `idempotencyKey` is the row id, which the INSERT has already made unique, so
+ * a retried POST cannot mail the same request twice.
+ *
+ * Callers must treat a failure here as non-fatal — the request is already
+ * saved, and losing the notification is a far smaller problem than telling a
+ * member their submission failed when it did not.
+ */
+export async function sendFeatureRequestEmail(args: {
+  to: string[];
+  id: string;
+  title: string;
+  body: string;
+  fromLabel: string;
+  fromEmail: string;
+}): Promise<SendResult> {
+  const opsUrl = `${SITE_URL}/dashboard/ops/feature-requests`;
+  const html = renderFeatureRequestEmail({
+    title: args.title,
+    body: args.body,
+    fromLabel: args.fromLabel,
+    fromEmail: args.fromEmail,
+    opsUrl,
+    siteUrl: SITE_URL,
+  });
+  const text = `Feature request from ${args.fromLabel} <${args.fromEmail}>\n\n${args.title}\n\n${args.body || "No details given."}\n\nTriage: ${opsUrl}`;
+
+  return send({
+    to: args.to,
+    subject: `[${SITE_NAME}] Feature request: ${args.title}`,
+    html,
+    text,
+    idempotencyKey: `outpick-feature-request-${args.id}`,
+  });
+}
 
 /**
  * Operational alert to the admin allowlist.

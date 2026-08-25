@@ -415,4 +415,45 @@ export async function runAppMigrations() {
     CREATE INDEX IF NOT EXISTS product_update_status_idx
       ON product_update(status, created_at DESC)
   `);
+
+  /*
+   * Feature requests — what members ask us to build.
+   *
+   * The channel before this was a mailto: link, which captured nothing: no
+   * count of how many people wanted the same thing, no way to tell a member
+   * their idea shipped, and no list to work from. A row fixes all three.
+   *
+   * `title` and `body` are separate because the list views are scannable only
+   * if there is a one-line handle for each request; folding them into one text
+   * column would mean truncating a paragraph and hoping the first sentence was
+   * the point.
+   *
+   * `status` is the member-visible half of triage and `admin_note` the reply —
+   * both are read back on the member's own page, so nothing written here is
+   * private. `declined` is deliberately in the set: silently leaving a request
+   * `open` forever is a worse answer than saying no.
+   */
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS feature_request (
+      id BIGSERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'open'
+        CHECK (status IN ('open', 'planned', 'shipped', 'declined')),
+      admin_note TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  // The member page's only query, and the 24h rate-limit count.
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS feature_request_user_idx
+      ON feature_request(user_id, created_at DESC)
+  `);
+  // The ops triage list.
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS feature_request_triage_idx
+      ON feature_request(status, created_at DESC)
+  `);
 }

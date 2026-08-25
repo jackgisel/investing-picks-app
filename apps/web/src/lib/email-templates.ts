@@ -966,6 +966,48 @@ export function renderProductUpdateEmail(args: {
   });
 }
 
+/* ----------------------------- Feature request ---------------------------- */
+
+/**
+ * A member asked for something. Goes to admins only, never to a member.
+ *
+ * The submitter's address is in the body rather than in Reply-To: the send is
+ * to the whole ADMIN_EMAILS list, and a Reply-To that silently redirects a
+ * group thread to a customer is how an internal aside gets mailed to them.
+ */
+export function renderFeatureRequestEmail(args: {
+  title: string;
+  body: string;
+  fromLabel: string;
+  fromEmail: string;
+  opsUrl: string;
+  siteUrl: string;
+}): string {
+  const detail = args.body
+    ? `
+      ${fieldLabel("Details")}
+      <p class="dm-muted" style="margin:0;font-family:${FONT_SANS};font-size:14px;color:${TEXT_MUTED};line-height:1.6;white-space:pre-wrap;">${escapeHtml(args.body)}</p>`
+    : `
+      ${fieldLabel("Details")}
+      <p class="dm-muted" style="margin:0;font-family:${FONT_SANS};font-size:14px;color:${TEXT_MUTED};line-height:1.6;">None given.</p>`;
+
+  const html = `
+    ${eyebrow("Feature request", "lilac")}
+    ${heading(args.title)}
+    ${card(`
+      ${fieldLabel("From")}
+      <p class="dm-text" style="margin:0 0 16px 0;font-family:${FONT_SANS};font-size:14px;color:${TEXT};">${escapeHtml(args.fromLabel)} &lt;${escapeHtml(args.fromEmail)}&gt;</p>
+      ${detail}`)}
+    ${pillButton(args.opsUrl, "Open triage")}
+  `;
+
+  return shell({
+    preview: `${args.fromLabel}: ${args.title.slice(0, 80)}`,
+    bodyHtml: html,
+    siteUrl: args.siteUrl,
+  });
+}
+
 /* ------------------------------- Job failure ------------------------------ */
 
 /**

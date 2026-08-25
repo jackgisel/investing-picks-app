@@ -4,7 +4,6 @@ import { useStrategy } from "@/lib/hooks/use-strategy";
 import { useInceptionDate } from "@/lib/hooks/use-inception";
 import { usePicks } from "@/lib/hooks/use-picks";
 import { LiveStatus } from "@/components/dashboard/live-status";
-import { PerformanceChart } from "@/components/dashboard/performance-chart";
 import { StatTile } from "@/components/dashboard/stat-tile";
 import { InsightsCard } from "@/components/dashboard/insights-card";
 import { resolvePageAccessState } from "@/components/dashboard/access-state";
@@ -183,11 +182,11 @@ export default function DashboardPage() {
             />
           </div>
 
-          {/* Full size, not compact: the vs-benchmark gap tiles only render
-              at full size, and they were the one thing the Performance page
-              carried that this one did not. */}
-          <PerformanceChart />
-
+          {/* The curve, its range control, and the short-horizon numbers all
+              live on /dashboard/performance now. This page is a glance: the
+              four figures above, then what the book holds and what we wrote
+              about it. Carrying the chart AND the benchmark tiles AND the
+              period tiles here made it a second copy of that page. */}
           {strategyFailed ? (
             <DataStateCard
               state="error"

@@ -52,6 +52,19 @@ export interface BenchmarkData {
   deployed?: number | null;
 }
 
+/** Chart range ids. `inception` is the full history and needs no window. */
+export type ChartWindow = "inception" | "1w" | "1m" | "6m" | "1y";
+
+export interface WindowOption {
+  id: ChartWindow;
+  label: string;
+  /**
+   * False when the range reaches back further than the book goes. The control
+   * must disable it rather than showing five months of data under "1 year".
+   */
+  available: boolean;
+}
+
 export interface ChartData {
   /** Legacy book-equity series. See `ChartPoint` — do not plot. */
   series: ChartPoint[];
@@ -63,6 +76,11 @@ export interface ChartData {
   picks_series?: ReturnPoint[];
   benchmarks?: BenchmarkData;
   summary: {
+    /** The range this response was built for. */
+    window?: ChartWindow;
+    /** First date the series covers, or null for since-inception. */
+    window_start?: string | null;
+    window_options?: WindowOption[];
     position_count: number;
     total_return_pct: number | null;
     snapshot_return_pct?: number | null;
@@ -204,10 +222,21 @@ export function buildPicksComparison(chart: ChartData | undefined): PicksCompari
 
 // Uses /performance, which carries the legacy book-equity series plus the
 // picks curve and its cash-flow-matched benchmarks.
-export function useChart() {
+//
+// The window is part of the query key, so each range is cached separately and
+// switching back to one already seen is instant. It is NOT a client-side slice
+// of a single response: a window is rebuilt server-side with every pick
+// re-entered at its value on the window's first day, which is the only way all
+// the lines start at 0% together. See `rebase_flows` in the API.
+export function useChart(window: ChartWindow = "inception") {
   return useQuery<ChartData>({
-    queryKey: ["chart"],
-    queryFn: () => fetchJson<ChartData>("/api/data/performance"),
+    queryKey: ["chart", window],
+    queryFn: () =>
+      fetchJson<ChartData>(
+        window === "inception"
+          ? "/api/data/performance"
+          : `/api/data/performance?window=${window}`,
+      ),
     ...dataQueryOptions,
   });
 }

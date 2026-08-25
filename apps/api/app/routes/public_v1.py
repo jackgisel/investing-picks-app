@@ -22,7 +22,15 @@ from app.db.models import (
     Trade,
 )
 from app.db.session import get_db
-from app.services.benchmarks import benchmark_series, picks_series
+from app.services.benchmarks import (
+    WINDOWS,
+    benchmark_series,
+    latest_session,
+    picks_series,
+    shift_back,
+    window_start,
+)
+from app.services.period_returns import period_returns_payload
 from app.services.portfolio import (
     exit_basis,
     params_from_portfolio,
@@ -529,8 +537,34 @@ def get_trades(db: Session = Depends(get_db), limit: int = 100):
     }
 
 
+def _window_options(inception: date | None, latest: date | None) -> list[dict]:
+    """The selectable chart ranges, each flagged with whether we can serve it.
+
+    A book five months old cannot show a year. Publishing the flag rather than
+    silently clamping is what lets the UI disable the control instead of
+    rendering five months of data under a "1 year" label.
+    """
+    out = [{"id": "inception", "label": "Since inception", "available": True}]
+    for window_id, (label, months, days) in WINDOWS.items():
+        start = shift_back(latest, months, days) if latest else None
+        out.append(
+            {
+                "id": window_id,
+                "label": label,
+                "available": bool(start and inception and start >= inception),
+            }
+        )
+    return out
+
+
 @router.get("/performance")
-def get_performance(db: Session = Depends(get_db)):
+def get_performance(
+    db: Session = Depends(get_db),
+    window: str | None = Query(
+        None,
+        description="Chart range: 1w, 1m, 6m, 1y. Omit for since-inception.",
+    ),
+):
     snaps = (
         db.query(PortfolioSnapshot)
         .filter(PortfolioSnapshot.portfolio_id == 1)
@@ -559,6 +593,9 @@ def get_performance(db: Session = Depends(get_db)):
         return {
             "series": [],
             "summary": {
+                "window": window if window in WINDOWS else "inception",
+                "window_start": None,
+                "window_options": _window_options(inception, latest_session(db)),
                 "position_count": len(positions),
                 "total_return_pct": live_return,
                 "return_basis": RETURN_BASIS,
@@ -606,14 +643,25 @@ def get_performance(db: Session = Depends(get_db)):
     # not a like-for-like comparison — the book is mostly cash, so the index
     # wins regardless of how the picks did, which contradicts the headline
     # sitting directly above the chart.
-    bench = benchmark_series(db, portfolio_id=1)
-    picks_line = picks_series(db, portfolio_id=1)
+    # Every line is rebuilt on the window rather than sliced out of the
+    # since-inception series: a slice would open the chart at each pick's
+    # accumulated gain instead of at 0%. See `rebase_flows`.
+    start = window_start(db, window, portfolio_id=1)
+    bench = benchmark_series(db, portfolio_id=1, start=start)
+    picks_line = picks_series(db, portfolio_id=1, start=start)
 
     return {
         "series": series,
         "picks_series": picks_line,
         "benchmarks": bench,
         "summary": {
+            # What this response actually covers. The summary's cumulative
+            # figures below are ALWAYS since inception — they describe the book,
+            # not the window — so a surface showing a windowed chart must not
+            # pair them with it without saying which is which.
+            "window": window if window in WINDOWS else "inception",
+            "window_start": start.isoformat() if start else None,
+            "window_options": _window_options(inception, latest_session(db)),
             "start_date": snaps[0].date.isoformat(),
             "latest_date": snaps[-1].date.isoformat(),
             # The book's own age. `start_date`/`latest_date` describe the data
@@ -648,7 +696,18 @@ def get_performance(db: Session = Depends(get_db)):
     }
 
 
+@router.get("/period-returns")
+def get_period_returns(db: Session = Depends(get_db)):
+    """Today / week-to-date / month-to-date, for the book and each holding.
+
+    Carries tickers, so the web layer gates it the way it gates /picks. The
+    cumulative numbers on /performance answer a different question and are the
+    ones that stay public.
+    """
+    return period_returns_payload(db, portfolio_id=1)
+
+
 @router.get("/chart")
-def get_chart(db: Session = Depends(get_db)):
+def get_chart(db: Session = Depends(get_db), window: str | None = Query(None)):
     """Alias for performance (legacy frontend hook)."""
-    return get_performance(db)
+    return get_performance(db, window=window)

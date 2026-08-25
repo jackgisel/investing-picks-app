@@ -20,13 +20,11 @@ const nextConfig = {
     // both locations are noindex.
     return [
       { source: "/insights", destination: "/dashboard/insights", permanent: false },
-      // Performance folded into the dashboard index — it repeated the same
-      // live status banner, the same three stat tiles and the same chart.
-      {
-        source: "/dashboard/performance",
-        destination: "/dashboard",
-        permanent: false,
-      },
+      // /dashboard/performance is a real page again. It was folded into the
+      // dashboard index when it merely repeated that page's banner, tiles and
+      // chart; it now carries the range-selectable curve and the short-horizon
+      // numbers, and the index carries neither. The redirect was deliberately
+      // 307 so this could be undone without fighting a cached 308.
       // Portfolio, Pick history and Trades were three views of one object.
       { source: "/dashboard/portfolio", destination: "/dashboard/positions", permanent: false },
       { source: "/dashboard/picks", destination: "/dashboard/positions", permanent: false },

@@ -2,6 +2,7 @@ import {
   LayoutDashboard,
   Briefcase,
   BookOpen,
+  LineChart,
   Settings,
   ScanSearch,
   FileText,
@@ -72,6 +73,11 @@ const NAV_GROUPS: readonly NavGroup[] = [
     items: [
       { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
       { label: "Positions", href: "/dashboard/positions", icon: Briefcase },
+      {
+        label: "Performance",
+        href: "/dashboard/performance",
+        icon: LineChart,
+      },
       { label: "Insights", href: "/dashboard/insights", icon: FileText },
       { label: "Strategy", href: "/dashboard/strategy", icon: BookOpen },
     ],

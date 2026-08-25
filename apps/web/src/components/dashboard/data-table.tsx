@@ -127,11 +127,18 @@ export function FilterChips<T extends string>({
   value,
   onChange,
   label,
+  labelFor,
 }: {
   options: readonly T[];
   value: T;
   onChange: (next: T) => void;
   label: string;
+  /**
+   * Display text for an option, when the id is not the label. Without it the
+   * only way to chip a set whose ids differ from their words ("day" shown as
+   * "Today") was a fourth copy of this styling.
+   */
+  labelFor?: (opt: T) => string;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2" role="group" aria-label={label}>
@@ -147,7 +154,7 @@ export function FilterChips<T extends string>({
               : "border border-border bg-bg text-text-dim hover:text-text"
           }`}
         >
-          {opt.toUpperCase()}
+          {(labelFor ? labelFor(opt) : opt).toUpperCase()}
         </button>
       ))}
     </div>

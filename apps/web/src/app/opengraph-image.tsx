@@ -153,27 +153,17 @@ export default async function OpenGraphImage() {
               }}
             >
               <div style={{ display: "flex" }}>{before}</div>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignSelf: "flex-start",
-                }}
-              >
-                <div style={{ display: "flex" }}>
-                  {highlight}
-                  <span>.</span>
-                </div>
+              <div style={{ display: "flex", alignItems: "flex-end" }}>
                 <div
                   style={{
                     display: "flex",
-                    height: 4,
-                    width: "92%",
-                    background: MINT,
-                    borderRadius: 2,
-                    marginTop: 8,
+                    borderBottom: `4px solid ${MINT}`,
+                    paddingBottom: 6,
                   }}
-                />
+                >
+                  {highlight}
+                </div>
+                <div style={{ display: "flex" }}>.</div>
               </div>
             </div>
 

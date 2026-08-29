@@ -38,6 +38,7 @@ from app.services.job_runs import reap_stale_job_runs
 from outpick_strategy import (
     evaluate,
     grade_meets_minimum,
+    meets_buy_criteria,
     next_evaluation_friday,
     RUN118_PARAMS,
 )
@@ -139,6 +140,86 @@ def ops_portfolio_meta(db: Session = Depends(get_db)):
         "inception_date": portfolio.inception_date.isoformat()
         if portfolio.inception_date
         else None,
+    }
+
+
+@router.get("/editorial-brief", dependencies=[Depends(require_ops_key)])
+def editorial_brief(db: Session = Depends(get_db)):
+    """Current scoring snapshot for staff-written editorial.
+
+    This exposes no factor weights, thresholds, or book economics. It is kept
+    behind the ops key because the non-held watchlist is editorial material,
+    not a public scraper feed.
+    """
+    scores = load_latest_scores(db)
+    if not scores:
+        return {"rating_as_of": None, "sectors": [], "watchlist": []}
+
+    portfolio = ensure_default_portfolio(db, get_settings().initial_cash)
+    held = {
+        ticker
+        for (ticker,) in db.query(Position.ticker)
+        .filter(Position.portfolio_id == portfolio.id)
+        .all()
+    }
+    params = params_from_portfolio(portfolio)
+    stock_by_ticker = {stock.ticker: stock for stock in db.query(Stock).all()}
+    ratings_by_sector: dict[str, list[tuple[bool, bool | None]]] = {}
+    candidates = []
+    for score in scores.values():
+        stock = stock_by_ticker.get(score.ticker)
+        sector = score.sector or (stock.sector if stock else None)
+        qualifies, _checks = meets_buy_criteria(score, params)
+        prior_high_rating = (
+            score.prior_quant_rating >= params.buy_criteria.min_quant_rating
+            if score.prior_quant_rating is not None
+            else None
+        )
+        if sector:
+            ratings_by_sector.setdefault(sector, []).append((qualifies, prior_high_rating))
+        if score.ticker not in held:
+            candidates.append((score, stock, sector))
+
+    sectors = [
+        {
+            "sector": sector,
+            "rated_companies": len(rows),
+            "qualified_companies": sum(1 for qualifies, _prior in rows if qualifies),
+            "qualified_share_pct": round(
+                100 * sum(1 for qualifies, _prior in rows if qualifies) / len(rows), 1
+            ),
+            # Prior factor grades are not retained in ScoreSnapshot, so this
+            # is deliberately rating-threshold breadth, not a claim about a
+            # prior full buy-rule pass.
+            "high_rating_change": (
+                sum(1 for qualifies, _prior in rows if qualifies)
+                - sum(1 for _qualifies, prior in rows if prior)
+                if any(prior is not None for _qualifies, prior in rows)
+                else None
+            ),
+        }
+        for sector, rows in ratings_by_sector.items()
+    ]
+    sectors.sort(
+        key=lambda row: (-row["qualified_share_pct"], -row["qualified_companies"], row["sector"])
+    )
+    candidates.sort(key=lambda row: (-row[0].quant_rating, row[0].ticker))
+
+    return {
+        "rating_as_of": max(score.as_of for score in scores.values()).isoformat(),
+        "sectors": sectors[:5],
+        "watchlist": [
+            {
+                "ticker": score.ticker,
+                "name": stock.name if stock else None,
+                "sector": sector,
+                "quant_rating": round(score.quant_rating, 3),
+                "rating_change": round(score.quant_rating - score.prior_quant_rating, 3)
+                if score.prior_quant_rating is not None
+                else None,
+            }
+            for score, stock, sector in candidates[:3]
+        ],
     }
 
 

@@ -39,10 +39,10 @@ from app.routes.public_v1 import _latest_fundamentals_by_ticker
 from outpick_strategy import (
     evaluate,
     grade_meets_minimum,
-    meets_buy_criteria,
     next_evaluation_friday,
     RUN118_PARAMS,
 )
+from outpick_strategy.signals import meets_buy_criteria
 
 # Refuse to start when the ops key would fail open. This module is imported by
 # app.main, so a misconfigured deployment never comes up at all.

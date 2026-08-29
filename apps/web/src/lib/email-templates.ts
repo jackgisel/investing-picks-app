@@ -632,8 +632,9 @@ export function renderMarketNoteWelcomeEmail(args: {
     ${card(`
       ${fieldLabel("To be clear about what this is")}
       <p class="dm-muted" style="margin:0;font-family:${FONT_SANS};font-size:14px;color:${TEXT_MUTED};line-height:1.6;">
-        The note is market commentary, not our picks. Published picks, the live
-        portfolio, and the full research archive are for members only.
+        The note is market commentary and may include a model watchlist. It is
+        not our current portfolio picks. Published picks, the live portfolio,
+        and the full research archive are for members only.
       </p>`)}
 
     ${paragraph(

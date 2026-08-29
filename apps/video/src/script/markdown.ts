@@ -20,6 +20,8 @@ function slideSummary(slide: SlideSpec): string {
       return `holdings — "${slide.heading}"${slide.caption ? ` (${slide.caption})` : ""}`;
     case "sectors":
       return `sectors — "${slide.heading}"${slide.caption ? ` (${slide.caption})` : ""}`;
+    case "watchlist":
+      return `watchlist — "${slide.heading}"${slide.caption ? ` (${slide.caption})` : ""}`;
     case "events":
       return `events — "${slide.heading}" (${slide.items.length} item${slide.items.length === 1 ? "" : "s"})`;
     case "bullets":

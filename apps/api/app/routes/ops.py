@@ -154,6 +154,9 @@ def editorial_brief(db: Session = Depends(get_db)):
     scores = load_latest_scores(db)
     if not scores:
         return {"rating_as_of": None, "sectors": [], "watchlist": []}
+    latest = db.query(func.max(CompositeScore.as_of)).scalar()
+    if latest is None:
+        return {"rating_as_of": None, "sectors": [], "watchlist": []}
 
     portfolio = ensure_default_portfolio(db, get_settings().initial_cash)
     held = {
@@ -206,7 +209,7 @@ def editorial_brief(db: Session = Depends(get_db)):
     candidates.sort(key=lambda row: (-row[0].quant_rating, row[0].ticker))
 
     return {
-        "rating_as_of": max(score.as_of for score in scores.values()).isoformat(),
+        "rating_as_of": latest.isoformat(),
         "sectors": sectors[:5],
         "watchlist": [
             {

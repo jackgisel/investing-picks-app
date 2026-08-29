@@ -109,6 +109,9 @@ function buildUnredactedFacts(): PackFacts {
       { sector: "Financial Services", count: 1, sharePct: 50 },
       { sector: "Healthcare", count: 1, sharePct: 50 },
     ],
+    sectorBreadth: [],
+    watchlistAsOf: null,
+    watchlist: [],
     moves: [{ ticker: "LLY", redacted: false, action: "buy", when: "2026-08-21" }],
     nextEvaluationDate: "2026-09-04",
   };

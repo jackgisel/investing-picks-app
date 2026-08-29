@@ -79,7 +79,8 @@ export default function MarketNoteOpsPage() {
       <header>
         <h1 className="page-title">Market Note</h1>
         <p className="mt-2 font-sans text-sm text-text-muted">
-          The free weekly email. Market commentary only — never the picks.
+          The free weekly email. Market commentary and a model watchlist, never
+          the current portfolio picks.
           {list.data ? (
             <>
               {" "}
@@ -227,6 +228,21 @@ function IssueEditor({
     onError: (e: Error) => onError(e.message),
   });
 
+  const insertBrief = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/ops/market-note/brief", { method: "POST" });
+      if (!res.ok) throw new Error(await errorMessage(res));
+      return (await res.json()) as { lede: string; bodyMd: string };
+    },
+    onSuccess: (brief) => {
+      setLede(brief.lede);
+      setBodyMd(brief.bodyMd);
+      setSaved(false);
+      onError(null);
+    },
+    onError: (e: Error) => onError(e.message),
+  });
+
   const ready = Boolean(issue.confirmedAt);
 
   return (
@@ -292,6 +308,14 @@ function IssueEditor({
       </div>
 
       <div className="flex flex-wrap items-center gap-3 border-t border-border pt-4">
+        <button
+          type="button"
+          onClick={() => insertBrief.mutate()}
+          disabled={insertBrief.isPending || save.isPending}
+          className="btn-outline !py-2 !px-4 !text-[11px] disabled:opacity-50"
+        >
+          {insertBrief.isPending ? "Loading screen…" : "Insert model brief"}
+        </button>
         <button
           type="button"
           onClick={() => save.mutate(undefined)}

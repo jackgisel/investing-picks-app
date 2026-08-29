@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "episodeId": "weekly-review-2026-w34",
+  "title": "The book fell 0.45% while the S&P 500 fell 1.37%",
+  "subtitle": "A soft week for the index, a softer landing for us.",
+  "scenes": [
+    {
+      "id": "cold-open",
+      "chapter": "the week",
+      "accent": "mint",
+      "narration": "This week the book fell zero point four five percent, while the S and P 500 fell one point three seven percent.",
+      "slide": {
+        "type": "title",
+        "title": "The book fell 0.45% while the S&P 500 fell 1.37%",
+        "subtitle": "A soft week for the index, a softer landing for us.",
+        "periodLabel": "August 16–22, 2026"
+      }
+    },
+    {
+      "id": "the-book",
+      "chapter": "the book",
+      "accent": "cyan",
+      "narration": "Since inception the picks are up twenty point two six percent, and the book's total return sits at two point two three percent across eleven open positions.",
+      "slide": {
+        "type": "stat",
+        "heading": "Where the book stands",
+        "stats": [
+          { "label": "Picks since inception", "value": "+20.26%", "tone": "up" },
+          { "label": "Book total return", "value": "+2.23%", "tone": "up" },
+          { "label": "Open positions", "value": "11", "tone": "neutral" },
+          { "label": "Days live", "value": "139", "tone": "neutral" }
+        ]
+      }
+    },
+    {
+      "id": "picks-vs-benchmarks",
+      "chapter": "the picks",
+      "accent": "lilac",
+      "narration": "Since April, the picks have outrun every benchmark we measure against — the S and P 500, the Nasdaq one hundred, the total market, and the Magnificent Seven.",
+      "slide": {
+        "type": "picksChart",
+        "heading": "Picks versus deployment-matched benchmarks",
+        "caption": "Same capital, same dates — every line starts at 0% on April 10."
+      }
+    },
+    {
+      "id": "the-week",
+      "chapter": "the week",
+      "accent": "mint",
+      "narration": "Today the book is up zero point one seven percent. On the week it's down zero point four five percent against a one point three seven percent decline for the S and P. On the month, the book is down zero point four four percent while the S and P is up two point five percent.",
+      "slide": {
+        "type": "periodBars",
+        "heading": "Day, week, month — book against the S&P 500",
+        "caption": "Each period anchored on the last session before it opened."
+      }
+    },
+    {
+      "id": "the-holdings",
+      "chapter": "the book",
+      "accent": "cyan",
+      "narration": "Eleven open positions, six of them in financial services. Sezzle leads the book, up ninety nine point four eight percent since entry. One new position from this week's evaluation is held back until its embargo lifts.",
+      "slide": {
+        "type": "holdings",
+        "heading": "Open positions",
+        "caption": "Sorted by entry date, most recent last."
+      }
+    },
+    {
+      "id": "the-sectors",
+      "chapter": "the book",
+      "accent": "cyan",
+      "narration": "Financial services makes up just over half the book at fifty four point five percent. Everything else is a single name.",
+      "slide": {
+        "type": "sectors",
+        "heading": "Sector exposure",
+        "caption": "Six sectors, eleven names."
+      }
+    },
+    {
+      "id": "the-events",
+      "chapter": "the tape",
+      "accent": "peach",
+      "narration": "One new position entered this week, still inside its two week embargo. The next scheduled evaluation lands September fourth.",
+      "slide": {
+        "type": "events",
+        "heading": "What moved this week",
+        "items": [
+          { "label": "New position opened", "detail": "Healthcare — name held back until the embargo lifts." },
+          { "label": "Next evaluation", "detail": "Scheduled for September 4, 2026." }
+        ]
+      }
+    },
+    {
+      "id": "watching",
+      "chapter": "what we're watching",
+      "accent": "yellow",
+      "narration": "SoFi is up fifteen point eight percent but is now carrying a sell signal and a quant rating under two. Skyward Specialty and Comfort Systems are the only two names underwater on the week.",
+      "slide": {
+        "type": "bullets",
+        "heading": "What we're watching",
+        "items": [
+          "SOFI carries a sell signal despite a positive return — worth a second look at the next evaluation.",
+          "Two positions are underwater on the week; neither has broken its thesis yet.",
+          "Financial services is over half the book — the sector cap has room, but not much."
+        ]
+      }
+    },
+    {
+      "id": "takeaway",
+      "chapter": "the takeaway",
+      "accent": "lilac",
+      "narration": "A zero point four five percent decline against a one point three seven percent fall in the S and P 500 is a good week in a bad tape.",
+      "slide": {
+        "type": "quote",
+        "text": "A 0.45% decline against a 1.37% fall in the S&P 500 is a good week in a bad tape.",
+        "attribution": "Weekly review · August 16–22, 2026"
+      }
+    },
+    {
+      "id": "outro",
+      "chapter": "read the full note",
+      "accent": "mint",
+      "narration": "Read the full weekly review, with every position and every number behind it, at outpick dot io.",
+      "slide": {
+        "type": "outro",
+        "heading": "Read the full weekly review",
+        "lines": ["outpick.io/dashboard/insights/weekly-review-2026-w34", "New picks every two weeks · next evaluation September 4"]
+      }
+    }
+  ]
+}

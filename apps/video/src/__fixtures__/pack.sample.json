@@ -1,0 +1,1023 @@
+{
+  "schemaVersion": 1,
+  "episodeId": "weekly-review-2026-w34",
+  "kind": "weekly-review",
+  "generatedAt": "2026-08-25T00:49:33.684149+00:00",
+  "asOf": "2026-08-21",
+  "periodLabel": "August 16\u201322, 2026",
+  "source": {
+    "slug": "weekly-review-2026-w34",
+    "title": "Weekly review: the book fell 0.45% while the S&P 500 fell 1.37%",
+    "lede": "A soft week for the index, a softer landing for us.",
+    "tldr": [
+      "The book fell 0.45% on the week; the S&P 500 fell 1.37%.",
+      "Since inception the picks are up 20.26%; the book's total return is 2.23%.",
+      "Eleven open positions, six of them in financial services.",
+      "SOFI is up 15.80% but carries a 1.76 quant rating and a sell signal.",
+      "The next scheduled evaluation is 4 September."
+    ],
+    "bodyMd": "PLACEHOLDER \u2014 replaced by the real body_md at pack time.",
+    "keyTakeaway": "A 0.45% decline against a 1.37% fall in the S&P 500 is a good week in a bad tape.",
+    "publishedAt": "2026-08-21T19:01:27-07:00",
+    "url": "https://outpick.io/dashboard/insights/weekly-review-2026-w34"
+  },
+  "facts": {
+    "summary": {
+      "picksReturnPct": 20.26,
+      "totalReturnPct": 2.23,
+      "positionCount": 11,
+      "openCount": 11,
+      "closedCount": 0,
+      "inceptionDate": "2026-04-07",
+      "daysLive": 139,
+      "annualizedReturnPct": 62.33,
+      "annualizedStatus": "ok"
+    },
+    "week": {
+      "bookChangePct": -0.45,
+      "spyChangePct": -1.37
+    },
+    "periods": [
+      {
+        "id": "day",
+        "label": "Today",
+        "fromDate": "2026-08-20",
+        "bookReturnPct": 0.17,
+        "spyReturnPct": 0.41,
+        "openPicksReturnPct": 1.49,
+        "openPicksPositions": 10,
+        "openPicksExcludedNew": 1
+      },
+      {
+        "id": "week",
+        "label": "Week to date",
+        "fromDate": "2026-08-14",
+        "bookReturnPct": -0.45,
+        "spyReturnPct": -1.37,
+        "openPicksReturnPct": -3.59,
+        "openPicksPositions": 10,
+        "openPicksExcludedNew": 1
+      },
+      {
+        "id": "month",
+        "label": "Month to date",
+        "fromDate": "2026-07-31",
+        "bookReturnPct": -0.44,
+        "spyReturnPct": 2.5,
+        "openPicksReturnPct": -3.55,
+        "openPicksPositions": 9,
+        "openPicksExcludedNew": 2
+      }
+    ],
+    "chart": {
+      "rows": [
+        {
+          "date": "2026-04-10",
+          "picks": 0.0,
+          "SPY": 0.0,
+          "QQQ": 0.0,
+          "VTI": 0.0,
+          "MAGS": 0.0
+        },
+        {
+          "date": "2026-04-13",
+          "picks": 2.68,
+          "SPY": 0.98,
+          "QQQ": 1.03,
+          "VTI": 1.08,
+          "MAGS": 1.01
+        },
+        {
+          "date": "2026-04-14",
+          "picks": 13.88,
+          "SPY": 2.21,
+          "QQQ": 2.87,
+          "VTI": 2.27,
+          "MAGS": 4.04
+        },
+        {
+          "date": "2026-04-15",
+          "picks": 18.34,
+          "SPY": 3.01,
+          "QQQ": 4.31,
+          "VTI": 3.04,
+          "MAGS": 6.74
+        },
+        {
+          "date": "2026-04-16",
+          "picks": 24.23,
+          "SPY": 3.27,
+          "QQQ": 4.81,
+          "VTI": 3.28,
+          "MAGS": 6.82
+        },
+        {
+          "date": "2026-04-17",
+          "picks": 17.58,
+          "SPY": 2.26,
+          "QQQ": 3.09,
+          "VTI": 2.31,
+          "MAGS": 4.34
+        },
+        {
+          "date": "2026-04-20",
+          "picks": 23.16,
+          "SPY": 2.05,
+          "QQQ": 2.76,
+          "VTI": 2.22,
+          "MAGS": 3.26
+        },
+        {
+          "date": "2026-04-21",
+          "picks": 19.42,
+          "SPY": 1.39,
+          "QQQ": 2.37,
+          "VTI": 1.52,
+          "MAGS": 2.55
+        },
+        {
+          "date": "2026-04-22",
+          "picks": 23.99,
+          "SPY": 2.41,
+          "QQQ": 4.09,
+          "VTI": 2.51,
+          "MAGS": 4.33
+        },
+        {
+          "date": "2026-04-23",
+          "picks": 20.49,
+          "SPY": 2.01,
+          "QQQ": 3.5,
+          "VTI": 2.1,
+          "MAGS": 2.58
+        },
+        {
+          "date": "2026-04-24",
+          "picks": 21.52,
+          "SPY": 2.8,
+          "QQQ": 5.48,
+          "VTI": 2.75,
+          "MAGS": 4.53
+        },
+        {
+          "date": "2026-04-27",
+          "picks": 22.88,
+          "SPY": 2.98,
+          "QQQ": 5.53,
+          "VTI": 2.89,
+          "MAGS": 5.33
+        },
+        {
+          "date": "2026-04-28",
+          "picks": 23.81,
+          "SPY": 2.48,
+          "QQQ": 4.47,
+          "VTI": 2.34,
+          "MAGS": 4.99
+        },
+        {
+          "date": "2026-04-29",
+          "picks": 18.12,
+          "SPY": 2.47,
+          "QQQ": 5.11,
+          "VTI": 2.22,
+          "MAGS": 4.55
+        },
+        {
+          "date": "2026-04-30",
+          "picks": 22.61,
+          "SPY": 3.48,
+          "QQQ": 6.09,
+          "VTI": 3.38,
+          "MAGS": 4.01
+        },
+        {
+          "date": "2026-05-01",
+          "picks": 17.7,
+          "SPY": 2.51,
+          "QQQ": 4.74,
+          "VTI": 2.47,
+          "MAGS": 3.33
+        },
+        {
+          "date": "2026-05-04",
+          "picks": 18.19,
+          "SPY": 2.14,
+          "QQQ": 4.54,
+          "VTI": 2.09,
+          "MAGS": 3.49
+        },
+        {
+          "date": "2026-05-05",
+          "picks": 20.59,
+          "SPY": 2.96,
+          "QQQ": 5.9,
+          "VTI": 2.96,
+          "MAGS": 3.71
+        },
+        {
+          "date": "2026-05-06",
+          "picks": 22.8,
+          "SPY": 4.39,
+          "QQQ": 8.1,
+          "VTI": 4.36,
+          "MAGS": 5.79
+        },
+        {
+          "date": "2026-05-07",
+          "picks": 30.07,
+          "SPY": 4.07,
+          "QQQ": 7.97,
+          "VTI": 3.88,
+          "MAGS": 6.46
+        },
+        {
+          "date": "2026-05-08",
+          "picks": 31.93,
+          "SPY": 4.93,
+          "QQQ": 10.5,
+          "VTI": 4.65,
+          "MAGS": 7.58
+        },
+        {
+          "date": "2026-05-11",
+          "picks": 33.33,
+          "SPY": 5.17,
+          "QQQ": 10.82,
+          "VTI": 4.87,
+          "MAGS": 7.31
+        },
+        {
+          "date": "2026-05-12",
+          "picks": 29.62,
+          "SPY": 5.01,
+          "QQQ": 9.88,
+          "VTI": 4.63,
+          "MAGS": 6.81
+        },
+        {
+          "date": "2026-05-13",
+          "picks": 32.11,
+          "SPY": 5.6,
+          "QQQ": 11.04,
+          "VTI": 5.18,
+          "MAGS": 8.99
+        },
+        {
+          "date": "2026-05-14",
+          "picks": 35.18,
+          "SPY": 6.43,
+          "QQQ": 11.83,
+          "VTI": 5.96,
+          "MAGS": 9.62
+        },
+        {
+          "date": "2026-05-15",
+          "picks": 22.67,
+          "SPY": 3.86,
+          "QQQ": 7.61,
+          "VTI": 3.46,
+          "MAGS": 5.94
+        },
+        {
+          "date": "2026-05-18",
+          "picks": 24.74,
+          "SPY": 3.79,
+          "QQQ": 7.15,
+          "VTI": 3.35,
+          "MAGS": 5.37
+        },
+        {
+          "date": "2026-05-19",
+          "picks": 24.79,
+          "SPY": 3.1,
+          "QQQ": 6.49,
+          "VTI": 2.7,
+          "MAGS": 3.96
+        },
+        {
+          "date": "2026-05-20",
+          "picks": 26.69,
+          "SPY": 4.15,
+          "QQQ": 8.25,
+          "VTI": 3.87,
+          "MAGS": 5.41
+        },
+        {
+          "date": "2026-05-21",
+          "picks": 26.97,
+          "SPY": 4.36,
+          "QQQ": 8.46,
+          "VTI": 4.13,
+          "MAGS": 5.43
+        },
+        {
+          "date": "2026-05-22",
+          "picks": 26.34,
+          "SPY": 4.77,
+          "QQQ": 8.92,
+          "VTI": 4.62,
+          "MAGS": 5.22
+        },
+        {
+          "date": "2026-05-26",
+          "picks": 31.91,
+          "SPY": 5.47,
+          "QQQ": 10.85,
+          "VTI": 5.38,
+          "MAGS": 5.62
+        },
+        {
+          "date": "2026-05-27",
+          "picks": 35.27,
+          "SPY": 5.45,
+          "QQQ": 10.72,
+          "VTI": 5.35,
+          "MAGS": 6.69
+        },
+        {
+          "date": "2026-05-28",
+          "picks": 33.77,
+          "SPY": 6.03,
+          "QQQ": 11.66,
+          "VTI": 6.01,
+          "MAGS": 7.51
+        },
+        {
+          "date": "2026-05-29",
+          "picks": 34.74,
+          "SPY": 6.29,
+          "QQQ": 12.07,
+          "VTI": 6.26,
+          "MAGS": 7.26
+        },
+        {
+          "date": "2026-06-01",
+          "picks": 35.23,
+          "SPY": 6.58,
+          "QQQ": 12.74,
+          "VTI": 6.5,
+          "MAGS": 5.97
+        },
+        {
+          "date": "2026-06-02",
+          "picks": 33.02,
+          "SPY": 6.73,
+          "QQQ": 13.26,
+          "VTI": 6.78,
+          "MAGS": 4.93
+        },
+        {
+          "date": "2026-06-03",
+          "picks": 26.93,
+          "SPY": 5.98,
+          "QQQ": 12.96,
+          "VTI": 6.0,
+          "MAGS": 3.79
+        },
+        {
+          "date": "2026-06-04",
+          "picks": 33.47,
+          "SPY": 6.38,
+          "QQQ": 12.42,
+          "VTI": 6.5,
+          "MAGS": 4.85
+        },
+        {
+          "date": "2026-06-05",
+          "picks": 24.15,
+          "SPY": 2.91,
+          "QQQ": 5.62,
+          "VTI": 2.91,
+          "MAGS": 0.71
+        },
+        {
+          "date": "2026-06-08",
+          "picks": 26.47,
+          "SPY": 3.14,
+          "QQQ": 7.27,
+          "VTI": 3.22,
+          "MAGS": 0.74
+        },
+        {
+          "date": "2026-06-09",
+          "picks": 26.34,
+          "SPY": 2.84,
+          "QQQ": 6.03,
+          "VTI": 3.0,
+          "MAGS": -0.57
+        },
+        {
+          "date": "2026-06-10",
+          "picks": 24.33,
+          "SPY": 1.22,
+          "QQQ": 3.91,
+          "VTI": 1.4,
+          "MAGS": -2.75
+        },
+        {
+          "date": "2026-06-11",
+          "picks": 29.74,
+          "SPY": 2.94,
+          "QQQ": 7.42,
+          "VTI": 3.18,
+          "MAGS": -1.71
+        },
+        {
+          "date": "2026-06-12",
+          "picks": 35.96,
+          "SPY": 3.49,
+          "QQQ": 8.06,
+          "VTI": 3.76,
+          "MAGS": -1.71
+        },
+        {
+          "date": "2026-06-15",
+          "picks": 41.88,
+          "SPY": 5.32,
+          "QQQ": 11.45,
+          "VTI": 5.51,
+          "MAGS": 0.88
+        },
+        {
+          "date": "2026-06-16",
+          "picks": 41.99,
+          "SPY": 4.69,
+          "QQQ": 9.33,
+          "VTI": 4.89,
+          "MAGS": 0.58
+        },
+        {
+          "date": "2026-06-17",
+          "picks": 41.86,
+          "SPY": 3.38,
+          "QQQ": 8.23,
+          "VTI": 3.59,
+          "MAGS": -2.27
+        },
+        {
+          "date": "2026-06-18",
+          "picks": 41.3,
+          "SPY": 3.49,
+          "QQQ": 9.12,
+          "VTI": 3.99,
+          "MAGS": -0.76
+        },
+        {
+          "date": "2026-06-22",
+          "picks": 38.6,
+          "SPY": 3.17,
+          "QQQ": 8.73,
+          "VTI": 3.66,
+          "MAGS": -2.91
+        },
+        {
+          "date": "2026-06-23",
+          "picks": 37.63,
+          "SPY": 1.67,
+          "QQQ": 5.15,
+          "VTI": 2.22,
+          "MAGS": -4.24
+        },
+        {
+          "date": "2026-06-24",
+          "picks": 40.48,
+          "SPY": 1.62,
+          "QQQ": 4.7,
+          "VTI": 2.21,
+          "MAGS": -4.94
+        },
+        {
+          "date": "2026-06-25",
+          "picks": 41.46,
+          "SPY": 1.77,
+          "QQQ": 5.55,
+          "VTI": 2.3,
+          "MAGS": -7.38
+        },
+        {
+          "date": "2026-06-26",
+          "picks": 46.23,
+          "SPY": 1.03,
+          "QQQ": 4.1,
+          "VTI": 1.81,
+          "MAGS": -6.58
+        },
+        {
+          "date": "2026-06-29",
+          "picks": 45.75,
+          "SPY": 2.7,
+          "QQQ": 6.68,
+          "VTI": 3.18,
+          "MAGS": -3.67
+        },
+        {
+          "date": "2026-06-30",
+          "picks": 45.05,
+          "SPY": 3.5,
+          "QQQ": 8.5,
+          "VTI": 4.0,
+          "MAGS": -2.48
+        },
+        {
+          "date": "2026-07-01",
+          "picks": 48.18,
+          "SPY": 3.36,
+          "QQQ": 6.84,
+          "VTI": 3.79,
+          "MAGS": -0.15
+        },
+        {
+          "date": "2026-07-02",
+          "picks": 42.86,
+          "SPY": 2.76,
+          "QQQ": 4.28,
+          "VTI": 3.12,
+          "MAGS": -1.09
+        },
+        {
+          "date": "2026-07-06",
+          "picks": 41.83,
+          "SPY": 3.66,
+          "QQQ": 5.77,
+          "VTI": 3.94,
+          "MAGS": 0.7
+        },
+        {
+          "date": "2026-07-07",
+          "picks": 41.33,
+          "SPY": 3.16,
+          "QQQ": 3.81,
+          "VTI": 3.36,
+          "MAGS": 0.64
+        },
+        {
+          "date": "2026-07-08",
+          "picks": 37.17,
+          "SPY": 2.85,
+          "QQQ": 4.11,
+          "VTI": 2.98,
+          "MAGS": -0.04
+        },
+        {
+          "date": "2026-07-09",
+          "picks": 42.15,
+          "SPY": 3.72,
+          "QQQ": 5.84,
+          "VTI": 3.88,
+          "MAGS": 1.43
+        },
+        {
+          "date": "2026-07-10",
+          "picks": 42.45,
+          "SPY": 4.16,
+          "QQQ": 6.17,
+          "VTI": 4.22,
+          "MAGS": 2.83
+        },
+        {
+          "date": "2026-07-13",
+          "picks": 37.5,
+          "SPY": 3.37,
+          "QQQ": 4.15,
+          "VTI": 3.41,
+          "MAGS": 1.78
+        },
+        {
+          "date": "2026-07-14",
+          "picks": 43.06,
+          "SPY": 3.73,
+          "QQQ": 5.32,
+          "VTI": 3.79,
+          "MAGS": 2.47
+        },
+        {
+          "date": "2026-07-15",
+          "picks": 43.19,
+          "SPY": 4.14,
+          "QQQ": 5.03,
+          "VTI": 4.15,
+          "MAGS": 4.87
+        },
+        {
+          "date": "2026-07-16",
+          "picks": 42.51,
+          "SPY": 3.58,
+          "QQQ": 3.3,
+          "VTI": 3.63,
+          "MAGS": 3.5
+        },
+        {
+          "date": "2026-07-17",
+          "picks": 35.43,
+          "SPY": 2.23,
+          "QQQ": 1.53,
+          "VTI": 2.3,
+          "MAGS": 1.45
+        },
+        {
+          "date": "2026-07-20",
+          "picks": 35.41,
+          "SPY": 2.07,
+          "QQQ": 1.64,
+          "VTI": 2.09,
+          "MAGS": 1.48
+        },
+        {
+          "date": "2026-07-21",
+          "picks": 38.81,
+          "SPY": 2.92,
+          "QQQ": 3.52,
+          "VTI": 2.98,
+          "MAGS": 1.51
+        },
+        {
+          "date": "2026-07-22",
+          "picks": 35.75,
+          "SPY": 2.8,
+          "QQQ": 3.0,
+          "VTI": 2.82,
+          "MAGS": 0.53
+        },
+        {
+          "date": "2026-07-23",
+          "picks": 32.26,
+          "SPY": 1.53,
+          "QQQ": 1.04,
+          "VTI": 1.66,
+          "MAGS": -4.13
+        },
+        {
+          "date": "2026-07-24",
+          "picks": 31.39,
+          "SPY": 1.63,
+          "QQQ": -0.09,
+          "VTI": 1.69,
+          "MAGS": -4.25
+        },
+        {
+          "date": "2026-07-25",
+          "picks": 31.39,
+          "SPY": 1.63,
+          "QQQ": null,
+          "VTI": null,
+          "MAGS": null
+        },
+        {
+          "date": "2026-07-27",
+          "picks": 33.9,
+          "SPY": 1.66,
+          "QQQ": -0.4,
+          "VTI": 1.79,
+          "MAGS": -4.46
+        },
+        {
+          "date": "2026-07-28",
+          "picks": 33.52,
+          "SPY": 1.9,
+          "QQQ": -1.36,
+          "VTI": 2.02,
+          "MAGS": -3.81
+        },
+        {
+          "date": "2026-07-29",
+          "picks": 29.95,
+          "SPY": 0.33,
+          "QQQ": -3.37,
+          "VTI": 0.47,
+          "MAGS": -5.14
+        },
+        {
+          "date": "2026-07-30",
+          "picks": 32.99,
+          "SPY": 2.01,
+          "QQQ": -0.19,
+          "VTI": 2.1,
+          "MAGS": -3.08
+        },
+        {
+          "date": "2026-07-31",
+          "picks": 29.82,
+          "SPY": 2.44,
+          "QQQ": 0.41,
+          "VTI": 2.35,
+          "MAGS": 0.01
+        },
+        {
+          "date": "2026-08-03",
+          "picks": 34.08,
+          "SPY": 3.9,
+          "QQQ": 2.17,
+          "VTI": 3.91,
+          "MAGS": 3.68
+        },
+        {
+          "date": "2026-08-04",
+          "picks": 39.25,
+          "SPY": 5.78,
+          "QQQ": 5.64,
+          "VTI": 5.85,
+          "MAGS": 4.56
+        },
+        {
+          "date": "2026-08-05",
+          "picks": 37.99,
+          "SPY": 5.56,
+          "QQQ": 4.69,
+          "VTI": 5.53,
+          "MAGS": 3.74
+        },
+        {
+          "date": "2026-08-06",
+          "picks": 37.8,
+          "SPY": 5.4,
+          "QQQ": 4.3,
+          "VTI": 5.36,
+          "MAGS": 3.98
+        },
+        {
+          "date": "2026-08-07",
+          "picks": 21.43,
+          "SPY": 5.44,
+          "QQQ": 4.97,
+          "VTI": 5.51,
+          "MAGS": 4.35
+        },
+        {
+          "date": "2026-08-10",
+          "picks": 20.87,
+          "SPY": 5.41,
+          "QQQ": 4.66,
+          "VTI": 5.46,
+          "MAGS": 4.2
+        },
+        {
+          "date": "2026-08-11",
+          "picks": 22.3,
+          "SPY": 5.07,
+          "QQQ": 4.31,
+          "VTI": 5.19,
+          "MAGS": 3.29
+        },
+        {
+          "date": "2026-08-12",
+          "picks": 23.26,
+          "SPY": 5.33,
+          "QQQ": 5.07,
+          "VTI": 5.52,
+          "MAGS": 2.19
+        },
+        {
+          "date": "2026-08-13",
+          "picks": 25.24,
+          "SPY": 6.07,
+          "QQQ": 6.28,
+          "VTI": 6.2,
+          "MAGS": 3.37
+        },
+        {
+          "date": "2026-08-14",
+          "picks": 26.97,
+          "SPY": 5.86,
+          "QQQ": 6.14,
+          "VTI": 6.08,
+          "MAGS": 3.02
+        },
+        {
+          "date": "2026-08-17",
+          "picks": 26.42,
+          "SPY": 5.36,
+          "QQQ": 5.96,
+          "VTI": 5.6,
+          "MAGS": 1.65
+        },
+        {
+          "date": "2026-08-18",
+          "picks": 22.59,
+          "SPY": 4.64,
+          "QQQ": 4.17,
+          "VTI": 4.75,
+          "MAGS": 0.73
+        },
+        {
+          "date": "2026-08-19",
+          "picks": 21.9,
+          "SPY": 4.86,
+          "QQQ": 3.96,
+          "VTI": 5.01,
+          "MAGS": 2.12
+        },
+        {
+          "date": "2026-08-20",
+          "picks": 20.64,
+          "SPY": 3.98,
+          "QQQ": 3.21,
+          "VTI": 4.07,
+          "MAGS": 0.95
+        },
+        {
+          "date": "2026-08-21",
+          "picks": 20.26,
+          "SPY": 4.01,
+          "QQQ": 3.25,
+          "VTI": 4.12,
+          "MAGS": 1.4
+        }
+      ],
+      "benchmarks": [
+        {
+          "key": "SPY",
+          "label": "S&P 500",
+          "latestPct": 4.01
+        },
+        {
+          "key": "QQQ",
+          "label": "Nasdaq-100",
+          "latestPct": 3.25
+        },
+        {
+          "key": "VTI",
+          "label": "Total Market",
+          "latestPct": 4.12
+        },
+        {
+          "key": "MAGS",
+          "label": "Mag 7",
+          "latestPct": 1.4
+        }
+      ],
+      "picksLatestPct": 20.26,
+      "startDate": "2026-04-10",
+      "latestDate": "2026-08-21"
+    },
+    "holdings": [
+      {
+        "redacted": false,
+        "ticker": "SEZL",
+        "name": "Sezzle Inc.",
+        "sector": "Financial Services",
+        "entryDate": "2026-04-10",
+        "pnlPct": 99.48,
+        "quantRating": 4.435,
+        "signal": "buy"
+      },
+      {
+        "redacted": false,
+        "ticker": "ATLC",
+        "name": "Atlanticus Holdings Corporation",
+        "sector": "Financial Services",
+        "entryDate": "2026-04-17",
+        "pnlPct": 34.11,
+        "quantRating": 3.964,
+        "signal": "buy"
+      },
+      {
+        "redacted": false,
+        "ticker": "WT",
+        "name": "WisdomTree, Inc.",
+        "sector": "Financial Services",
+        "entryDate": "2026-05-01",
+        "pnlPct": 40.27,
+        "quantRating": 3.791,
+        "signal": "buy"
+      },
+      {
+        "redacted": false,
+        "ticker": "ROKU",
+        "name": "Roku, Inc.",
+        "sector": "Communication Services",
+        "entryDate": "2026-05-15",
+        "pnlPct": 26.17,
+        "quantRating": 4.047,
+        "signal": "buy"
+      },
+      {
+        "redacted": false,
+        "ticker": "SOFI",
+        "name": "SoFi Technologies, Inc.",
+        "sector": "Financial Services",
+        "entryDate": "2026-06-05",
+        "pnlPct": 15.8,
+        "quantRating": 1.743,
+        "signal": "sell"
+      },
+      {
+        "redacted": false,
+        "ticker": "ASIC",
+        "name": "Ategrity Specialty Holdings LLC",
+        "sector": "Financial Services",
+        "entryDate": "2026-06-18",
+        "pnlPct": 22.12,
+        "quantRating": 4.289,
+        "signal": "buy"
+      },
+      {
+        "redacted": false,
+        "ticker": "SKWD",
+        "name": "Skyward Specialty Insurance Group, Inc.",
+        "sector": "Financial Services",
+        "entryDate": "2026-07-02",
+        "pnlPct": -7.38,
+        "quantRating": 3.857,
+        "signal": "buy"
+      },
+      {
+        "redacted": false,
+        "ticker": "WDC",
+        "name": "Western Digital Corporation",
+        "sector": "Technology",
+        "entryDate": "2026-07-17",
+        "pnlPct": 0.04,
+        "quantRating": 4.288,
+        "signal": "buy"
+      },
+      {
+        "redacted": false,
+        "ticker": "FIX",
+        "name": "Comfort Systems USA, Inc.",
+        "sector": "Industrials",
+        "entryDate": "2026-07-31",
+        "pnlPct": -4.28,
+        "quantRating": 3.706,
+        "signal": "buy"
+      },
+      {
+        "redacted": false,
+        "ticker": "GEV",
+        "name": "GE Vernova Inc.",
+        "sector": "Utilities",
+        "entryDate": "2026-08-07",
+        "pnlPct": -2.4,
+        "quantRating": 4.29,
+        "signal": "buy"
+      },
+      {
+        "redacted": true,
+        "ticker": null,
+        "name": null,
+        "sector": "Healthcare",
+        "entryDate": "2026-08",
+        "pnlPct": null,
+        "quantRating": null,
+        "signal": null
+      }
+    ],
+    "sectors": [
+      {
+        "sector": "Financial Services",
+        "count": 6,
+        "sharePct": 54.5
+      },
+      {
+        "sector": "Communication Services",
+        "count": 1,
+        "sharePct": 9.1
+      },
+      {
+        "sector": "Technology",
+        "count": 1,
+        "sharePct": 9.1
+      },
+      {
+        "sector": "Industrials",
+        "count": 1,
+        "sharePct": 9.1
+      },
+      {
+        "sector": "Utilities",
+        "count": 1,
+        "sharePct": 9.1
+      },
+      {
+        "sector": "Healthcare",
+        "count": 1,
+        "sharePct": 9.1
+      }
+    ],
+    "moves": [
+      {
+        "ticker": null,
+        "redacted": true,
+        "action": "buy",
+        "when": "2026-08-21"
+      }
+    ],
+    "nextEvaluationDate": "2026-09-04"
+  },
+  "redaction": {
+    "embargoDays": 14,
+    "tickers": [
+      "LLY"
+    ],
+    "names": [
+      "Eli Lilly and Company"
+    ],
+    "reasons": [
+      {
+        "ticker": "LLY",
+        "reason": "recent_entry",
+        "entryDate": "2026-08-21"
+      }
+    ]
+  }
+}

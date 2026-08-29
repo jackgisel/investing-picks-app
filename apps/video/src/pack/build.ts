@@ -343,8 +343,20 @@ export async function buildPack(options: BuildPackOptions): Promise<Pack> {
         ticker: stock.ticker,
         name: stock.name,
         sector: stock.sector,
+        marketCap: stock.market_cap,
         quantRating: stock.quant_rating,
         ratingChange: stock.rating_change,
+        grades: stock.grades,
+        fundamentals: stock.fundamentals
+          ? {
+              asOf: stock.fundamentals.as_of,
+              revenueGrowthTtmPct: stock.fundamentals.revenue_growth_ttm_pct,
+              epsGrowthTtmPct: stock.fundamentals.eps_growth_ttm_pct,
+              revenueRevisionPct: stock.fundamentals.revenue_revision_pct,
+              epsRevisionPct: stock.fundamentals.eps_revision_pct,
+              earningsReportDate: stock.fundamentals.earnings_report_date,
+            }
+          : null,
       })),
       moves: rawMoves,
       nextEvaluationDate: strategy.next_evaluation_date ?? null,

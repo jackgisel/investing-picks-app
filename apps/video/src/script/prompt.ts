@@ -130,7 +130,7 @@ Every scene binds to exactly one of these. For \`picksChart\`, \`periodBars\`, \
 - \`periodBars\`: heading + optional caption. No data fields — see above.
 - \`holdings\`: heading + optional caption + optional \`limit\`. No data fields — see above.
 - \`sectors\`: heading + optional caption. No data fields — see above. Use \`facts.sectorBreadth\` in narration. This is a screen of current model breadth, not sector price performance or capital rotation.
-- \`watchlist\`: heading + optional caption. It renders \`facts.watchlist\`, the three highest-rated companies outside the current book. Call them a model watchlist, never picks or recommendations.
+- \`watchlist\`: heading + optional \`ticker\` + optional caption. Give each of the three \`facts.watchlist\` names its own scene by setting \`ticker\`. Deep dive into the company facts and grades present in that row, then end with a concrete monitoring point. Call them screener names to monitor, never picks or recommendations.
 - \`events\`: heading + a list of \`{ label, detail }\` items, drawn only from \`pack.source.bodyMd\`.
 - \`bullets\`: heading + a list of short strings — "what we are watching."
 - \`quote\`: a single \`text\` (the key takeaway, large on screen) + optional attribution.

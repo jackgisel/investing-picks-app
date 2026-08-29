@@ -100,6 +100,7 @@ const SlideSpecSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("watchlist"),
     heading: z.string().min(1),
+    ticker: z.string().min(1).optional(),
     caption: z.string().min(1).optional(),
   }),
   z.object({

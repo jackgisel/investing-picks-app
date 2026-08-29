@@ -75,7 +75,7 @@ function SceneSlide({ scene, pack }: { scene: Scene; pack: Pack }) {
         />
       );
     case "watchlist":
-      return <WatchlistSlide chapter={chapter} accent={accent} heading={slide.heading} caption={slide.caption} facts={pack.facts} />;
+      return <WatchlistSlide chapter={chapter} accent={accent} heading={slide.heading} ticker={slide.ticker} caption={slide.caption} facts={pack.facts} />;
     case "events":
       return <EventsSlide chapter={chapter} accent={accent} heading={slide.heading} items={slide.items} />;
     case "bullets":

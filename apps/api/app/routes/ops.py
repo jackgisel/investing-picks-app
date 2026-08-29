@@ -35,6 +35,7 @@ from app.services.portfolio import (
     run_evaluation,
 )
 from app.services.job_runs import reap_stale_job_runs
+from app.routes.public_v1 import _latest_fundamentals_by_ticker
 from outpick_strategy import (
     evaluate,
     grade_meets_minimum,
@@ -207,6 +208,10 @@ def editorial_brief(db: Session = Depends(get_db)):
         key=lambda row: (-row["qualified_share_pct"], -row["qualified_companies"], row["sector"])
     )
     candidates.sort(key=lambda row: (-row[0].quant_rating, row[0].ticker))
+    top_candidates = candidates[:3]
+    fundamentals_by_ticker = _latest_fundamentals_by_ticker(
+        db, [score.ticker for score, _stock, _sector in top_candidates]
+    )
 
     return {
         "rating_as_of": latest.isoformat(),
@@ -216,12 +221,21 @@ def editorial_brief(db: Session = Depends(get_db)):
                 "ticker": score.ticker,
                 "name": stock.name if stock else None,
                 "sector": sector,
+                "market_cap": stock.market_cap if stock else None,
                 "quant_rating": round(score.quant_rating, 3),
                 "rating_change": round(score.quant_rating - score.prior_quant_rating, 3)
                 if score.prior_quant_rating is not None
                 else None,
+                "grades": {
+                    "valuation": score.valuation_grade,
+                    "growth": score.growth_grade,
+                    "profitability": score.profitability_grade,
+                    "momentum": score.momentum_grade,
+                    "revisions": score.revisions_grade,
+                },
+                "fundamentals": fundamentals_by_ticker.get(score.ticker),
             }
-            for score, stock, sector in candidates[:3]
+            for score, stock, sector in top_candidates
         ],
     }
 

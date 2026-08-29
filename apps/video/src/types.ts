@@ -89,8 +89,18 @@ export interface PackFacts {
     ticker: string;
     name: string | null;
     sector: string | null;
+    marketCap: number | null;
     quantRating: number;
     ratingChange: number | null;
+    grades: Record<string, string>;
+    fundamentals: {
+      asOf: string;
+      revenueGrowthTtmPct: number | null;
+      epsGrowthTtmPct: number | null;
+      revenueRevisionPct: number | null;
+      epsRevisionPct: number | null;
+      earningsReportDate: string | null;
+    } | null;
   }[];
   /** Position-level events for the `events` slide — entries and exits, with embargoed tickers already redacted. */
   moves: { ticker: string | null; redacted: boolean; action: string; when: string }[];
@@ -179,7 +189,7 @@ export type SlideSpec =
   | { type: "periodBars"; heading: string; caption?: string }
   | { type: "holdings"; heading: string; caption?: string; limit?: number }
   | { type: "sectors"; heading: string; caption?: string }
-  | { type: "watchlist"; heading: string; caption?: string }
+  | { type: "watchlist"; heading: string; ticker?: string; caption?: string }
   | { type: "events"; heading: string; items: { label: string; detail: string }[] }
   | { type: "bullets"; heading: string; items: string[] }
   | { type: "quote"; text: string; attribution?: string }

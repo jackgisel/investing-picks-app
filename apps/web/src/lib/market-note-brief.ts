@@ -13,8 +13,15 @@ type EditorialBrief = {
     ticker: string;
     name: string | null;
     sector: string | null;
+    market_cap: number | null;
     quant_rating: number;
     rating_change: number | null;
+    grades: Record<string, string>;
+    fundamentals: {
+      revenue_growth_ttm_pct: number | null;
+      revenue_revision_pct: number | null;
+      earnings_report_date: string | null;
+    } | null;
   }[];
 };
 
@@ -40,7 +47,13 @@ export async function draftMarketNoteBrief(): Promise<{ lede: string; bodyMd: st
     const change = stock.rating_change === null
       ? "No 7-day rating comparison."
       : `Rating change: ${stock.rating_change >= 0 ? "+" : ""}${stock.rating_change.toFixed(2)} over 7 days.`;
-    return `- **${stock.ticker}**${stock.name ? `, ${stock.name}` : ""} (${stock.sector ?? "sector unavailable"}) — ${stock.quant_rating.toFixed(2)} / 5. ${change}`;
+    const growth = stock.fundamentals?.revenue_growth_ttm_pct;
+    const revisions = stock.fundamentals?.revenue_revision_pct;
+    const fundamentals = [
+      growth === null || growth === undefined ? null : `Revenue growth ${growth >= 0 ? "+" : ""}${growth.toFixed(1)}%`,
+      revisions === null || revisions === undefined ? null : `revenue revisions ${revisions >= 0 ? "+" : ""}${revisions.toFixed(1)}%`,
+    ].filter(Boolean).join(". ");
+    return `- **${stock.ticker}**${stock.name ? `, ${stock.name}` : ""} (${stock.sector ?? "sector unavailable"}) — ${stock.quant_rating.toFixed(2)} / 5. ${fundamentals ? `${fundamentals}. ` : ""}${change}`;
   });
 
   return {

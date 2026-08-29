@@ -113,8 +113,18 @@ export interface EditorialBrief {
     ticker: string;
     name: string | null;
     sector: string | null;
+    market_cap: number | null;
     quant_rating: number;
     rating_change: number | null;
+    grades: Record<string, string>;
+    fundamentals: {
+      as_of: string;
+      revenue_growth_ttm_pct: number | null;
+      eps_growth_ttm_pct: number | null;
+      revenue_revision_pct: number | null;
+      eps_revision_pct: number | null;
+      earnings_report_date: string | null;
+    } | null;
   }[];
 }
 

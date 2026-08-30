@@ -50,7 +50,7 @@ const ThreadSchema = z.object({
     .array(z.string().min(1).max(400))
     .min(MIN_POSTS)
     .max(MAX_POSTS),
-  summary: z.string().min(20).max(300),
+  summary: z.string().min(20).max(500),
 });
 
 export type XThreadDraft = z.infer<typeof ThreadSchema>;

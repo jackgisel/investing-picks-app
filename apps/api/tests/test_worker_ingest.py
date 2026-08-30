@@ -905,3 +905,25 @@ def test_refresh_news_noop_for_empty_ticker_list(db):
     fmp = FakeNewsFMP([_news_row()])
     assert refresh_news(db, fmp, []) == 0
     assert fmp.requested_symbols is None
+
+
+def test_refresh_news_filters_lawsuit_solicitations(db):
+    """Confirmed live in production: a law-firm 'encourages investors to
+    secure counsel' release for a tracked ticker rode the same feed as real
+    reporting. The spotlight thread must never surface one of these."""
+    fmp = FakeNewsFMP(
+        [
+            _news_row(
+                url="https://example.com/lawsuit",
+                title=(
+                    "ROSEN, TOP-RANKED INVESTOR RIGHTS LAWYERS, Encourages "
+                    "Example Corp Investors to Secure Counsel Before "
+                    "Important Deadline in Securities Class Action"
+                ),
+            ),
+            _news_row(url="https://example.com/real", title="Example Corp beats earnings"),
+        ]
+    )
+    assert refresh_news(db, fmp, ["AAA"]) == 1
+    titles = [row.title for row in db.query(StockNews).all()]
+    assert titles == ["Example Corp beats earnings"]

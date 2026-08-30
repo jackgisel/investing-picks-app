@@ -101,6 +101,29 @@ def _parse_fmp_news_date(raw: str | None) -> datetime | None:
         return None
 
 
+# Law-firm class-action solicitations ride the same news feed as real
+# reporting and are formulaic enough to catch on title alone — confirmed
+# live in the first production pull (a "ROSEN... Encourages Investors to
+# Secure Counsel" release for a tracked ticker). The spotlight thread must
+# never report on a lawsuit against a name we track; that is legally
+# sensitive territory this feature was never built to navigate, and it is
+# not "news" in the sense the thread means it — it is a solicitation.
+_LAWSUIT_SOLICITATION_MARKERS = (
+    "class action",
+    "securities fraud",
+    "investor rights",
+    "shareholder rights",
+    "encourages investors",
+    "encouraged to secure counsel",
+    "lead plaintiff",
+)
+
+
+def _is_lawsuit_solicitation(title: str) -> bool:
+    lowered = title.lower()
+    return any(marker in lowered for marker in _LAWSUIT_SOLICITATION_MARKERS)
+
+
 def refresh_news(db: Session, fmp: FMPClient, tickers: list[str]) -> int:
     """Pull recent headlines for `tickers` and upsert into `stock_news`.
 
@@ -132,6 +155,8 @@ def refresh_news(db: Session, fmp: FMPClient, tickers: list[str]) -> int:
         if not url or not title or not published:
             continue
         if url in existing_urls or url in seen_urls:
+            continue
+        if _is_lawsuit_solicitation(title):
             continue
         seen_urls.add(url)
         db.add(

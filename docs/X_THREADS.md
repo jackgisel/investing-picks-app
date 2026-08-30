@@ -67,6 +67,25 @@ Enforced in the style guide in `src/lib/x-thread-draft.ts`:
 - Losses and weak grades get stated in the same voice as the wins.
 - No price targets of ours, no urgency, no future-performance promises.
 
+## Shape: engineered for reads, not just accurate
+
+Decided 2026-08-30, deliberately in tension with the rule above it — see the
+note in memory (`project_outpick_x_threads`) for why. The compliance rules
+above are untouched and take priority; what changed is presentation:
+
+- **7–12 posts is the target shape**, not just the allowed range. Padding to
+  hit it is still banned.
+- **The hook (post 1) is expected to earn the read** — a specific, surprising
+  claim, not a topic announcement. A real curiosity gap is fine as long as
+  post 2 pays it off fast; a teaser that never pays off is not.
+- **One idea per middle post**, each one written to stand alone if
+  screenshotted out of the thread.
+- **The thread closes on its most quotable line, then one plain invitation to
+  engage** — a question, "reply with...", "quote it if...". That invitation
+  is to talk, never to trade: it may not ask anyone to buy, sell, or act on a
+  position. The no-urgency / no-second-person-exhortation rule above still
+  governs the trade itself; it does not ban inviting a reply.
+
 The market thread has a specific trap it is written around: we have our own
 holdings' sectors, but no broad-market sector indices. `missing` always
 carries `broad_market_sector_performance`, and the brief tells the model it may

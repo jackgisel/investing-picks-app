@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { ensureMigrations } from "@/lib/auth";
 import { validateThread } from "@/lib/x-client";
-import { updateThreadPosts } from "@/lib/x-threads-db";
+import { deleteThread, updateThreadPosts } from "@/lib/x-threads-db";
 
 export const dynamic = "force-dynamic";
 
@@ -56,4 +56,30 @@ export async function PATCH(
     );
   }
   return NextResponse.json({ thread });
+}
+
+/**
+ * Discard a draft (or a rejected one) so its slot can be drafted again.
+ *
+ * This is the "redraft" the schema comments in `x-threads-db.ts` referred to
+ * before it existed — an admin wanting a fresh spotlight thread the same day
+ * had no way to clear the stale one and re-trigger generation.
+ */
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard.response;
+
+  await ensureMigrations();
+  const { id } = await params;
+  const deleted = await deleteThread(id);
+  if (!deleted) {
+    return NextResponse.json(
+      { error: "Only an unposted thread can be discarded" },
+      { status: 409 },
+    );
+  }
+  return NextResponse.json({ ok: true });
 }

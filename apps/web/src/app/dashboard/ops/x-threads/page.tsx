@@ -7,6 +7,7 @@ import {
   Check,
   ExternalLink,
   RefreshCw,
+  RotateCcw,
   Send,
   Undo2,
 } from "lucide-react";
@@ -179,6 +180,10 @@ function ThreadCard({
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const editable = thread.status === "draft" && !thread.postedAt;
+  // Wider than `editable`: a rejected thread has no posted content either,
+  // and "discard and let the slot draft again" is exactly what you want
+  // right after rejecting one, not just before.
+  const redraftable = !thread.postedAt;
   const dirty = JSON.stringify(posts) !== JSON.stringify(thread.posts);
   const lengths = posts.map((p) => charCount(p));
   const overLimit = lengths.some((n) => n > MAX_CHARS);
@@ -199,6 +204,16 @@ function ThreadCard({
     },
     onError: (e: Error) => setSaveError(e.message),
   });
+
+  const redraft = () => {
+    if (
+      window.confirm(
+        "Discard this thread and free its slot for a fresh draft? This cannot be undone.",
+      )
+    ) {
+      call.mutate({ path: "", method: "DELETE" });
+    }
+  };
 
   return (
     <section className="data-card space-y-4">
@@ -302,6 +317,28 @@ function ThreadCard({
             className="btn-outline !py-2 !px-4 !text-[11px] disabled:opacity-50 ml-auto"
           >
             <Ban size={13} /> Reject
+          </button>
+
+          <button
+            type="button"
+            disabled={call.isPending}
+            onClick={redraft}
+            className="btn-outline !py-2 !px-4 !text-[11px] disabled:opacity-50"
+          >
+            <RotateCcw size={13} /> Redraft
+          </button>
+        </div>
+      )}
+
+      {!editable && redraftable && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            disabled={call.isPending}
+            onClick={redraft}
+            className="btn-outline !py-2 !px-4 !text-[11px] disabled:opacity-50 ml-auto"
+          >
+            <RotateCcw size={13} /> Redraft
           </button>
         </div>
       )}

@@ -190,6 +190,24 @@ export async function rejectThread(id: string): Promise<XThread | null> {
 }
 
 /**
+ * Discard a draft so its (kind, dedupe_key) slot can be drafted again.
+ *
+ * `posted_at IS NULL` is the only guard, deliberately looser than reject's
+ * `status = 'draft'`: a rejected thread must be deletable too, or "redraft"
+ * would only work on a thread nobody has looked at yet. Never touches a row
+ * with `posted_at` set — that is either fully posted or a partial thread
+ * with real posts on the timeline, and deleting either would destroy the
+ * only record of what actually went out.
+ */
+export async function deleteThread(id: string): Promise<boolean> {
+  const { rowCount } = await pool.query(
+    `DELETE FROM x_thread WHERE id = $1 AND posted_at IS NULL`,
+    [id],
+  );
+  return (rowCount ?? 0) > 0;
+}
+
+/**
  * Win the exclusive right to post this thread. True for exactly one caller.
  *
  * Claims BEFORE anything is posted. The confirm gate is part of the same

@@ -192,6 +192,46 @@ def job_weekly_summary():
     return job_weekly_review_publish()
 
 
+def job_x_thread_draft(kind: str = "weekly_review"):
+    """Draft an X thread for admin review. Never posts.
+
+    Same shape as the weekly review draft and for the same reason: the web app
+    owns the Anthropic client and the thread table, and a firing that never
+    lands is picked up by the operator's Draft button or the next schedule.
+    """
+    return _post_to_web_app(
+        "/api/internal/x/draft",
+        f"X thread draft ({kind})",
+        300.0,
+        json={"kind": kind},
+    )
+
+
+def job_x_thread_market_draft():
+    """The market-conditions-and-sectors thread. Own job so it can have its
+    own cron slot without threading an argument through APScheduler."""
+    return job_x_thread_draft("market")
+
+
+def job_x_thread_spotlight_draft():
+    """The daily screener-name-or-sector spotlight.
+
+    Never an active pick or a book holding — see the style guide's compliance
+    line in `x-thread-draft.ts` for why that distinction has to be spelled out
+    in the thread every time, not just implied by the section it runs in."""
+    return job_x_thread_draft("spotlight")
+
+
+def job_x_thread_post():
+    """Post every confirmed thread. Unconfirmed drafts are left alone.
+
+    The confirm gate is never bypassed here. A thread makes public performance
+    claims about a real book, so an unread draft going out on a schedule is
+    strictly worse than a thread that misses its slot.
+    """
+    return _post_to_web_app("/api/internal/x/post", "X thread post", 300.0)
+
+
 def job_performance_alerts():
     """Check for position milestones and portfolio drawdowns.
 

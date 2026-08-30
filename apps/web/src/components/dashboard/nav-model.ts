@@ -13,6 +13,7 @@ import {
   CalendarDays,
   Mail,
   Repeat,
+  Hash,
   type LucideIcon,
 } from "lucide-react";
 
@@ -112,6 +113,11 @@ const NAV_GROUPS: readonly NavGroup[] = [
         label: "Market Note",
         href: "/dashboard/ops/market-note",
         icon: Mail,
+      },
+      {
+        label: "X threads",
+        href: "/dashboard/ops/x-threads",
+        icon: Hash,
       },
       {
         label: "Weekly $1k",

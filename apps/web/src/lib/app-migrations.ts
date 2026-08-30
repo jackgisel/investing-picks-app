@@ -456,4 +456,49 @@ export async function runAppMigrations() {
     CREATE INDEX IF NOT EXISTS feature_request_triage_idx
       ON feature_request(status, created_at DESC)
   `);
+
+  /*
+   * X threads — the long-form reply threads we post to our own X account.
+   *
+   * A row is a whole thread, not a post: `posts` is the ordered JSONB array of
+   * post bodies, because the unit a human reviews and confirms is the thread.
+   * Splitting it into one row per post would make the confirm gate meaningless
+   * (you would be approving fragments) and would let a partially-posted thread
+   * look complete.
+   *
+   * The lifecycle mirrors the Friday review exactly — draft, admin confirm,
+   * then post — for the same reason: these threads make performance claims
+   * about a real book to the public, and nothing that does that goes out
+   * unread. `confirmed_at` is the gate, `posted_at` is the claim.
+   *
+   * `posted_ids` records what actually landed. A thread that dies at post 4
+   * leaves three posts on the timeline; without the ids there is no way to
+   * tell that from a thread that never started, and the recovery for the two
+   * is opposite (delete-and-redo versus just run it).
+   */
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS x_thread (
+      id BIGSERIAL PRIMARY KEY,
+      kind TEXT NOT NULL
+        CHECK (kind IN ('pick', 'weekly_review', 'market', 'spotlight')),
+      dedupe_key TEXT NOT NULL,
+      posts JSONB NOT NULL DEFAULT '[]'::jsonb,
+      facts JSONB NOT NULL DEFAULT '{}'::jsonb,
+      status TEXT NOT NULL DEFAULT 'draft'
+        CHECK (status IN ('draft', 'posted', 'failed', 'rejected')),
+      confirmed_at TIMESTAMPTZ,
+      posted_at TIMESTAMPTZ,
+      posted_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+      failed_at_index INTEGER,
+      error TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (kind, dedupe_key)
+    )
+  `);
+  // The ops queue: newest first, drafts before anything else.
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS x_thread_queue_idx
+      ON x_thread(status, created_at DESC)
+  `);
 }

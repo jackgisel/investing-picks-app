@@ -34,6 +34,10 @@ from worker.jobs.runner import (
     job_weekly_review_draft,
     job_weekly_review_publish,
     job_weekly_summary,
+    job_x_thread_draft,
+    job_x_thread_market_draft,
+    job_x_thread_post,
+    job_x_thread_spotlight_draft,
     reap_stale_weekly_refreshes,
     sweep_ops_alerts,
 )
@@ -194,6 +198,64 @@ def main():
         replace_existing=True,
     )
 
+    # Friday 10:30 PT — half an hour after the weekly review draft, so the
+    # thread is written against the same week's facts and an admin reviews both
+    # in one sitting. Drafting only; nothing reaches the timeline from here.
+    scheduler.add_job(
+        job_x_thread_draft,
+        CronTrigger(
+            day_of_week="fri",
+            hour=10,
+            minute=30,
+            timezone="America/Los_Angeles",
+        ),
+        id="x_thread_draft",
+        replace_existing=True,
+    )
+    # Tuesday 09:00 PT — the market-and-sectors thread, deliberately off the
+    # Friday cycle so the account is not silent for six days and loud for one.
+    scheduler.add_job(
+        job_x_thread_market_draft,
+        CronTrigger(
+            day_of_week="tue",
+            hour=9,
+            minute=0,
+            timezone="America/Los_Angeles",
+        ),
+        id="x_thread_market_draft",
+        replace_existing=True,
+    )
+    # Weekdays 06:30 PT — half an hour ahead of the first post-check tick, so
+    # a spotlight drafted today has a chance of being confirmed before it.
+    # Alternates candidate/sector on its own (see `pickSpotlightIndex`); this
+    # is just "run every weekday morning."
+    scheduler.add_job(
+        job_x_thread_spotlight_draft,
+        CronTrigger(
+            day_of_week="mon-fri",
+            hour=6,
+            minute=30,
+            timezone="America/Los_Angeles",
+        ),
+        id="x_thread_spotlight_draft",
+        replace_existing=True,
+    )
+    # Hourly, weekdays 07:00–17:00 PT. A thread goes out on the first tick
+    # after an admin confirms it, so confirming is the act that publishes and
+    # the schedule is only how long you might wait. Ticks with nothing
+    # confirmed do one indexed query and return.
+    scheduler.add_job(
+        job_x_thread_post,
+        CronTrigger(
+            day_of_week="mon-fri",
+            hour="7-17",
+            minute=0,
+            timezone="America/Los_Angeles",
+        ),
+        id="x_thread_post",
+        replace_existing=True,
+    )
+
     log.info("Worker scheduler started")
     if os.environ.get("RUN_JOB_ONCE"):
         name = os.environ["RUN_JOB_ONCE"]
@@ -220,6 +282,13 @@ def main():
             # Scheduled weekly (above); also runnable on demand for the
             # first load, which is much larger than a weekly top-up.
             "backfill_prices": job_backfill_prices,
+            # Scheduled Fri/Tue (above). On demand for a first draft or
+            # after editing the style guide. `x_thread_post` sends whatever is
+            # confirmed right now instead of waiting for the hourly tick.
+            "x_thread_draft": job_x_thread_draft,
+            "x_thread_market_draft": job_x_thread_market_draft,
+            "x_thread_spotlight_draft": job_x_thread_spotlight_draft,
+            "x_thread_post": job_x_thread_post,
             "dca_friday": job_dca_friday,
             "dca_backfill": job_dca_backfill,
         }[name]()

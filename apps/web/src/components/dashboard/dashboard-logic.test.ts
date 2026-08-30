@@ -186,6 +186,7 @@ describe("visibleGroups", () => {
       "/dashboard/ops/insights",
       "/dashboard/ops/weekly-review",
       "/dashboard/ops/market-note",
+      "/dashboard/ops/x-threads",
       "/dashboard/dca",
       "/dashboard/ops/product-updates",
       "/dashboard/ops/feature-requests",

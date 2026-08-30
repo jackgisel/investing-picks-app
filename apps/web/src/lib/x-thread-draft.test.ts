@@ -117,42 +117,52 @@ describe("threadDedupeKey", () => {
 });
 
 describe("pickSpotlightIndex", () => {
+  const full = { candidate: 3, sector: 5, news: 4 };
+
   it("is deterministic within a day regardless of time of day", () => {
     const morning = new Date("2026-08-24T06:00:00Z");
     const evening = new Date("2026-08-24T18:00:00Z");
-    expect(pickSpotlightIndex(morning, 3, 5)).toEqual(pickSpotlightIndex(evening, 3, 5));
+    expect(pickSpotlightIndex(morning, full)).toEqual(pickSpotlightIndex(evening, full));
   });
 
-  it("alternates focus on consecutive days", () => {
-    const day1 = pickSpotlightIndex(new Date("2026-08-24T12:00:00Z"), 3, 5);
-    const day2 = pickSpotlightIndex(new Date("2026-08-25T12:00:00Z"), 3, 5);
-    expect(day1?.focus).not.toBe(day2?.focus);
+  it("cycles through all three sources rather than alternating between two", () => {
+    const focuses = [0, 1, 2].map(
+      (i) => pickSpotlightIndex(new Date(Date.UTC(2026, 0, 1 + i)), full)?.focus,
+    );
+    expect(new Set(focuses)).toEqual(new Set(["candidate", "sector", "news"]));
   });
 
-  it("falls back to sector when there are no candidates", () => {
-    const pick = pickSpotlightIndex(new Date("2026-08-24T12:00:00Z"), 0, 5);
-    expect(pick?.focus).toBe("sector");
-    expect(pick?.index).toBeLessThan(5);
+  it("falls back to sector and news when there are no candidates", () => {
+    const counts = { candidate: 0, sector: 5, news: 4 };
+    for (let i = 0; i < 10; i++) {
+      const pick = pickSpotlightIndex(new Date(Date.UTC(2026, 0, 1 + i)), counts);
+      expect(pick?.focus).not.toBe("candidate");
+    }
   });
 
-  it("falls back to candidate when there are no sectors", () => {
-    const pick = pickSpotlightIndex(new Date("2026-08-24T12:00:00Z"), 3, 0);
-    expect(pick?.focus).toBe("candidate");
-    expect(pick?.index).toBeLessThan(3);
+  it("falls back to candidate only when sector and news are both empty", () => {
+    const counts = { candidate: 3, sector: 0, news: 0 };
+    for (let i = 0; i < 10; i++) {
+      const pick = pickSpotlightIndex(new Date(Date.UTC(2026, 0, 1 + i)), counts);
+      expect(pick?.focus).toBe("candidate");
+      expect(pick?.index).toBeLessThan(3);
+    }
   });
 
   it("returns null when there is nothing to spotlight", () => {
-    expect(pickSpotlightIndex(new Date("2026-08-24T12:00:00Z"), 0, 0)).toBeNull();
+    expect(
+      pickSpotlightIndex(new Date("2026-08-24T12:00:00Z"), { candidate: 0, sector: 0, news: 0 }),
+    ).toBeNull();
   });
 
   it("keeps indices in range across many days", () => {
+    const bounds = full;
     for (let i = 0; i < 30; i++) {
       const day = new Date(Date.UTC(2026, 0, 1 + i));
-      const pick = pickSpotlightIndex(day, 3, 5);
+      const pick = pickSpotlightIndex(day, full);
       expect(pick).not.toBeNull();
-      const bound = pick!.focus === "candidate" ? 3 : 5;
       expect(pick!.index).toBeGreaterThanOrEqual(0);
-      expect(pick!.index).toBeLessThan(bound);
+      expect(pick!.index).toBeLessThan(bounds[pick!.focus]);
     }
   });
 });

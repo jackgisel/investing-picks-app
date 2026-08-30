@@ -10,7 +10,16 @@ from sqlalchemy.orm import Session
 
 from outpick_strategy import RUN118_PARAMS
 
-from app.db.models import Fundamentals, Portfolio, PortfolioSnapshot, Position, PriceBar, Stock
+from app.db.models import (
+    CompositeScore,
+    Fundamentals,
+    Portfolio,
+    PortfolioSnapshot,
+    Position,
+    PriceBar,
+    Stock,
+    StockNews,
+)
 from app.services.benchmarks import BENCHMARKS
 from app.services.portfolio import ensure_default_portfolio
 from worker.services.fmp import FMPAccessError, FMPClient
@@ -46,6 +55,102 @@ PERIOD_MATCH_TOLERANCE_DAYS = 14
 def held_tickers(db: Session) -> set[str]:
     """Open position tickers across every book, not just the live one."""
     return {row[0] for row in db.query(Position.ticker).distinct().all()}
+
+
+#: How many of the top-rated non-held tickers get a news pull. Wider than the
+#: 3-name editorial watchlist on purpose — news is sparse, and the spotlight
+#: thread's news focus needs headlines to actually exist on most days, not
+#: just for the handful of names shown in the dashboard's watchlist.
+NEWS_UNIVERSE_SIZE = 20
+
+#: News older than this is pruned and never served — the spotlight thread's
+#: "news" focus is meant to read as current, not a rehash of last week.
+NEWS_RETENTION_DAYS = 14
+
+
+def news_universe_tickers(db: Session, limit: int = NEWS_UNIVERSE_SIZE) -> list[str]:
+    """Held tickers plus the highest-rated names outside the book.
+
+    Deliberately excludes the general tape: a news feed for names our own
+    screen has no opinion on is not something the spotlight thread can use —
+    every claim it makes has to trace back to the payload, and an FMP
+    headline about a ticker we've never scored is not in the payload for any
+    other reason.
+    """
+    held = held_tickers(db)
+    latest = db.query(func.max(CompositeScore.as_of)).scalar()
+    if latest is None:
+        return sorted(held)
+    top_rated = (
+        db.query(CompositeScore.ticker)
+        .filter(CompositeScore.as_of == latest)
+        .order_by(CompositeScore.quant_rating.desc())
+        .limit(limit + len(held))
+        .all()
+    )
+    non_held = [t for (t,) in top_rated if t not in held][:limit]
+    return sorted(held | set(non_held))
+
+
+def _parse_fmp_news_date(raw: str | None) -> datetime | None:
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(raw, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
+def refresh_news(db: Session, fmp: FMPClient, tickers: list[str]) -> int:
+    """Pull recent headlines for `tickers` and upsert into `stock_news`.
+
+    `url` carries the dedupe: the same article re-appearing on the next tick
+    is a no-op, not a duplicate row. Anything past `NEWS_RETENTION_DAYS` is
+    deleted on every run so the table stays small and a "current" reading
+    never accidentally serves stale news.
+    """
+    if not tickers:
+        return 0
+    rows = fmp.stock_news(tickers, limit=100)
+
+    existing_urls = {
+        url for (url,) in db.query(StockNews.url).filter(
+            StockNews.url.in_([r["url"] for r in rows if r.get("url")])
+        )
+    }
+    # A ticker whose news mentions another symbol we also queried can hand
+    # back the same article twice in one response — tracked separately from
+    # `existing_urls` because that set is fixed before this loop starts and
+    # would not catch a duplicate appearing later in the same batch.
+    seen_urls: set[str] = set()
+
+    inserted = 0
+    for row in rows:
+        url = row.get("url")
+        title = row.get("title")
+        published = _parse_fmp_news_date(row.get("publishedDate"))
+        if not url or not title or not published:
+            continue
+        if url in existing_urls or url in seen_urls:
+            continue
+        seen_urls.add(url)
+        db.add(
+            StockNews(
+                ticker=row.get("symbol"),
+                published_at=published,
+                publisher=row.get("publisher"),
+                title=title,
+                url=url,
+            )
+        )
+        inserted += 1
+    if inserted:
+        db.commit()
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=NEWS_RETENTION_DAYS)
+    db.query(StockNews).filter(StockNews.published_at < cutoff).delete()
+    db.commit()
+    return inserted
 
 
 def first_present(row: dict, *keys):

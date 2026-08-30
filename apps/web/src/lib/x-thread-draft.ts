@@ -107,7 +107,7 @@ One position, argued at length. What the business is, what the strategy saw in i
 State how the book as a whole has done as well, so a reader is not being shown one name in isolation.`;
 
 const SPOTLIGHT_BRIEF = `## This thread
-A daily deep dive into ONE thing from the current screen: either a name it rates highly that we do NOT hold, or a sector reading from the same screen. The payload's \`spotlight.focus\` names which one today is — write that one, not the other, even if the other looks like a better story.
+A daily deep dive into ONE thing: a name our screen rates highly that we do NOT hold, a sector reading from the same screen, or a recent headline about one of those non-held names. The payload's \`spotlight.focus\` names which one today is — write that one, not the others, even if another looks like a better story.
 
 **This is never a pick, a buy, or a recommendation, and you must say so plainly, in your own words, near the top — not as a buried disclaimer.** It is a quantitative screen's output, nothing more: the screen can be wrong, a name here can fail another buy gate, run into a sector limit, or simply never enter the book.
 
@@ -115,7 +115,9 @@ If \`spotlight.focus\` is "candidate": use \`spotlight.candidate\`. What the bus
 
 If \`spotlight.focus\` is "sector": use \`spotlight.sector\`. How much of the sector clears the current screen, how that share has moved, and what would need to change before that showed up as an actual position in the book — not a prediction that it will.
 
-**Never cite an individual holding's return next to this name or sector.** If you give any sense of scale from our own book, use its OVERALL return for the period, never a single position's — this thread is already at risk of reading like a stock tip, and naming one of our winners beside it makes that worse, not better.`;
+If \`spotlight.focus\` is "news": use \`spotlight.newsItem\`. Report what the headline actually says — do not speculate past it, and do not turn it into a forecast ("this means the stock will..."). Connect it to why the name is on our screen at all (its grades, from \`spotlight.candidates\`, if that same ticker appears there) if you can do that honestly; if the connection is not there, just report the news and say so. This is a report on a story, not a trade thesis.
+
+**Never cite an individual holding's return next to this name, sector, or headline.** If you give any sense of scale from our own book, use its OVERALL return for the period, never a single position's — this thread is already at risk of reading like a stock tip, and naming one of our winners beside it makes that worse, not better.`;
 
 const BRIEFS = {
   weekly_review: WEEKLY_BRIEF,
@@ -168,13 +170,22 @@ export type SpotlightSectorReading = {
   high_rating_change: number | null;
 };
 
+/** A headline for a non-held name our screen tracks. Never a held ticker — see `/ops/editorial-brief`. */
+export type SpotlightNewsItem = {
+  ticker: string | null;
+  headline: string;
+  publisher: string | null;
+  published_at: string;
+};
+
 type EditorialBrief = {
   rating_as_of: string | null;
   sectors: SpotlightSectorReading[];
   watchlist: SpotlightCandidate[];
+  news: SpotlightNewsItem[];
 };
 
-export type SpotlightFocus = "candidate" | "sector";
+export type SpotlightFocus = "candidate" | "sector" | "news";
 
 export type XThreadFacts = WeeklyReviewFacts & {
   thread_kind: ThreadKind;
@@ -185,9 +196,11 @@ export type XThreadFacts = WeeklyReviewFacts & {
     focus: SpotlightFocus | null;
     candidate: SpotlightCandidate | null;
     sector: SpotlightSectorReading | null;
+    newsItem: SpotlightNewsItem | null;
     /** Full lists, in case the model needs surrounding context for the one it's writing about. */
     candidates: SpotlightCandidate[];
     sectors: SpotlightSectorReading[];
+    news: SpotlightNewsItem[];
   };
 };
 
@@ -222,30 +235,32 @@ async function fetchEditorialBrief(): Promise<EditorialBrief | null> {
   }
 }
 
+export type SpotlightCounts = { candidate: number; sector: number; news: number };
+
 /**
- * Which candidate or sector today's spotlight covers.
+ * Which candidate, sector, or news item today's spotlight covers.
  *
  * Deterministic in the day, not random: a re-fired draft job must land on the
  * same subject it already wrote about, and `createThreadDraft`'s dedupe only
- * works if two calls on the same day agree. Candidate and sector focus
- * alternate day to day, and the index within whichever list advances every
- * other day so a short watchlist does not repeat on consecutive
- * candidate-days.
+ * works if two calls on the same day agree. Rotates evenly across whichever
+ * of the three sources actually has something today — a day with no news
+ * ingested falls back to candidate/sector only, rather than the rotation
+ * skipping a slot and drifting out of sync with which source it "should" be.
+ * The index within whichever source is picked advances once per full cycle
+ * through the sources, so a short list does not repeat every time its source
+ * comes back around.
  */
 export function pickSpotlightIndex(
   now: Date,
-  candidateCount: number,
-  sectorCount: number,
+  counts: SpotlightCounts,
 ): { focus: SpotlightFocus; index: number } | null {
-  if (candidateCount === 0 && sectorCount === 0) return null;
+  const available = (["candidate", "sector", "news"] as const).filter(
+    (focus) => counts[focus] > 0,
+  );
+  if (available.length === 0) return null;
   const dayNumber = Math.floor(now.getTime() / 86_400_000);
-  if (candidateCount === 0) return { focus: "sector", index: dayNumber % sectorCount };
-  if (sectorCount === 0) return { focus: "candidate", index: dayNumber % candidateCount };
-  const focus: SpotlightFocus = dayNumber % 2 === 0 ? "candidate" : "sector";
-  const index =
-    focus === "candidate"
-      ? Math.floor(dayNumber / 2) % candidateCount
-      : Math.floor(dayNumber / 2) % sectorCount;
+  const focus = available[dayNumber % available.length];
+  const index = Math.floor(dayNumber / available.length) % counts[focus];
   return { focus, index };
 }
 
@@ -305,31 +320,39 @@ export async function fetchThreadFacts(
   // read on the wider market. This gap is permanent until we ingest sector
   // indices, and the market thread's brief is written around it.
   missing.push("broad_market_sector_performance");
-  // No news source is wired into any app yet. Named here, unconditionally,
-  // so the spotlight brief cannot write as though it has a catalyst it does
-  // not — the same discipline as the sector gap above.
-  missing.push("news");
-
   let spotlight: XThreadFacts["spotlight"];
   if (kind === "spotlight") {
     const brief = await fetchEditorialBrief();
     if (!brief?.rating_as_of) {
-      missing.push("screener_watchlist");
+      missing.push("screener_watchlist", "news");
     } else {
-      const pick = pickSpotlightIndex(now, brief.watchlist.length, brief.sectors.length);
+      const counts: SpotlightCounts = {
+        candidate: brief.watchlist.length,
+        sector: brief.sectors.length,
+        news: brief.news.length,
+      };
+      const pick = pickSpotlightIndex(now, counts);
       if (!pick) {
-        missing.push("screener_watchlist");
+        missing.push("screener_watchlist", "news");
       } else {
         spotlight = {
           rating_as_of: brief.rating_as_of,
           focus: pick.focus,
           candidate: pick.focus === "candidate" ? brief.watchlist[pick.index] : null,
           sector: pick.focus === "sector" ? brief.sectors[pick.index] : null,
+          newsItem: pick.focus === "news" ? brief.news[pick.index] : null,
           candidates: brief.watchlist,
           sectors: brief.sectors,
+          news: brief.news,
         };
+        // Not an error, just the ingest job having found nothing recent —
+        // name it so the model does not invent a catalyst that isn't there.
+        if (brief.news.length === 0) missing.push("news");
       }
     }
+  } else {
+    // No other thread kind's brief references news at all.
+    missing.push("news");
   }
 
   return {

@@ -22,6 +22,7 @@ from app.db.models import (
     Position,
     SignalRow,
     Stock,
+    StockNews,
     Trade,
 )
 from app.db.session import get_db
@@ -213,9 +214,32 @@ def editorial_brief(db: Session = Depends(get_db)):
         db, [score.ticker for score, _stock, _sector in top_candidates]
     )
 
+    # Held tickers are excluded here on purpose: this news list feeds the X
+    # spotlight thread's non-pick framing, and a headline about something we
+    # already own reads like commentary on a holding, which that thread is
+    # explicitly not allowed to be.
+    news_cutoff = datetime.now(timezone.utc) - timedelta(days=3)
+    news_rows = (
+        db.query(StockNews)
+        .filter(StockNews.published_at >= news_cutoff)
+        .filter(~StockNews.ticker.in_(held))
+        .order_by(StockNews.published_at.desc())
+        .limit(6)
+        .all()
+    )
+
     return {
         "rating_as_of": latest.isoformat(),
         "sectors": sectors[:5],
+        "news": [
+            {
+                "ticker": n.ticker,
+                "headline": n.title,
+                "publisher": n.publisher,
+                "published_at": n.published_at.isoformat(),
+            }
+            for n in news_rows
+        ],
         "watchlist": [
             {
                 "ticker": score.ticker,

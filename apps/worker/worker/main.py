@@ -29,6 +29,7 @@ from worker.jobs.runner import (
     job_dca_friday,
     job_market_note_prepare,
     job_market_note_send,
+    job_news_refresh,
     job_performance_alerts,
     job_weekly_refresh,
     job_weekly_review_draft,
@@ -225,6 +226,19 @@ def main():
         id="x_thread_market_draft",
         replace_existing=True,
     )
+    # Weekdays 06:00 PT — half an hour ahead of the spotlight draft, so a
+    # headline pulled this morning is available for it to write about.
+    scheduler.add_job(
+        job_news_refresh,
+        CronTrigger(
+            day_of_week="mon-fri",
+            hour=6,
+            minute=0,
+            timezone="America/Los_Angeles",
+        ),
+        id="news_refresh",
+        replace_existing=True,
+    )
     # Weekdays 06:30 PT — half an hour ahead of the first post-check tick, so
     # a spotlight drafted today has a chance of being confirmed before it.
     # Alternates candidate/sector on its own (see `pickSpotlightIndex`); this
@@ -289,6 +303,7 @@ def main():
             "x_thread_market_draft": job_x_thread_market_draft,
             "x_thread_spotlight_draft": job_x_thread_spotlight_draft,
             "x_thread_post": job_x_thread_post,
+            "news_refresh": job_news_refresh,
             "dca_friday": job_dca_friday,
             "dca_backfill": job_dca_backfill,
         }[name]()

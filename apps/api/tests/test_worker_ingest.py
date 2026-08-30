@@ -2,20 +2,25 @@
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
-from app.db.models import CompositeScore, Fundamentals, Position, PriceBar, Stock
+from app.db.models import CompositeScore, Fundamentals, Position, PriceBar, Stock, StockNews
 from app.services.portfolio import load_latest_scores
+from conftest import make_position
 from worker.services.ingest import (
+    NEWS_RETENTION_DAYS,
     _forward_estimate,
     _latest_reported_earnings,
+    _parse_fmp_news_date,
     backfill_holding_earnings,
     compute_estimate_revisions,
+    news_universe_tickers,
     periods_match,
     recompute_latest_revisions,
     refresh_marks,
+    refresh_news,
     upsert_price_bar,
 )
 
@@ -789,3 +794,114 @@ def test_price_target_consensus_reads_common_aliases():
     }
     assert _price_target_consensus(None) == {}
     assert _price_target_consensus({"targetLow": 1}) == {"priceTargetLow": 1}
+
+
+# ---------------------------------------------------------------------------
+# News ingestion for the X spotlight thread's "news" focus
+# ---------------------------------------------------------------------------
+
+
+class FakeNewsFMP:
+    """Stand-in for FMPClient.stock_news."""
+
+    def __init__(self, rows):
+        self.rows = rows
+        self.requested_symbols = None
+
+    def stock_news(self, symbols, limit=50):
+        self.requested_symbols = list(symbols)
+        return self.rows
+
+
+def _news_row(**overrides):
+    row = {
+        "symbol": "AAA",
+        "publishedDate": "2026-08-29 12:00:00",
+        "publisher": "Wire Service",
+        "title": "Headline",
+        "url": "https://example.com/a",
+    }
+    row.update(overrides)
+    return row
+
+
+def test_parse_fmp_news_date_reads_fmp_format():
+    parsed = _parse_fmp_news_date("2026-08-29 19:41:01")
+    assert parsed == datetime(2026, 8, 29, 19, 41, 1, tzinfo=timezone.utc)
+
+
+def test_parse_fmp_news_date_rejects_garbage():
+    assert _parse_fmp_news_date(None) is None
+    assert _parse_fmp_news_date("not a date") is None
+
+
+def test_news_universe_includes_held_and_top_rated_non_held(db, portfolio):
+    make_position(db, portfolio, "HELD", 10, 100.0, 100.0)
+    _score(db, "HELD", date(2026, 8, 28), 4.0)
+    _score(db, "BEST", date(2026, 8, 28), 4.8)
+    _score(db, "WORST", date(2026, 8, 28), 1.0)
+
+    tickers = news_universe_tickers(db, limit=1)
+
+    # Held is always included regardless of the limit; the non-held slice is
+    # capped at `limit` and takes the highest-rated names first.
+    assert "HELD" in tickers
+    assert "BEST" in tickers
+    assert "WORST" not in tickers
+
+
+def test_news_universe_falls_back_to_held_when_unscored(db, portfolio):
+    make_position(db, portfolio, "HELD", 10, 100.0, 100.0)
+    assert news_universe_tickers(db) == ["HELD"]
+
+
+def test_refresh_news_inserts_and_dedupes_by_url(db):
+    fmp = FakeNewsFMP([_news_row(), _news_row()])  # same url twice
+    inserted = refresh_news(db, fmp, ["AAA"])
+    assert inserted == 1
+    assert db.query(StockNews).count() == 1
+
+    # A second run against the same feed inserts nothing new.
+    fmp2 = FakeNewsFMP([_news_row()])
+    assert refresh_news(db, fmp2, ["AAA"]) == 0
+    assert db.query(StockNews).count() == 1
+
+
+def test_refresh_news_skips_rows_missing_required_fields(db):
+    fmp = FakeNewsFMP(
+        [
+            _news_row(url=None),
+            _news_row(title=None, url="https://example.com/b"),
+            _news_row(publishedDate=None, url="https://example.com/c"),
+        ]
+    )
+    assert refresh_news(db, fmp, ["AAA"]) == 0
+    assert db.query(StockNews).count() == 0
+
+
+def test_refresh_news_prunes_stale_rows(db):
+    stale = StockNews(
+        ticker="OLD",
+        published_at=datetime.now(timezone.utc) - timedelta(days=NEWS_RETENTION_DAYS + 1),
+        publisher="Wire Service",
+        title="Old headline",
+        url="https://example.com/old",
+    )
+    db.add(stale)
+    db.commit()
+
+    refresh_news(db, FakeNewsFMP([]), ["AAA"])
+
+    assert db.query(StockNews).filter(StockNews.url == "https://example.com/old").count() == 0
+
+
+def test_refresh_news_passes_requested_tickers_through(db):
+    fmp = FakeNewsFMP([])
+    refresh_news(db, fmp, ["AAA", "BBB"])
+    assert fmp.requested_symbols == ["AAA", "BBB"]
+
+
+def test_refresh_news_noop_for_empty_ticker_list(db):
+    fmp = FakeNewsFMP([_news_row()])
+    assert refresh_news(db, fmp, []) == 0
+    assert fmp.requested_symbols is None

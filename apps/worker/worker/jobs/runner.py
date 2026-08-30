@@ -22,8 +22,10 @@ from worker.services.fmp import FMPClient
 from worker.services.market_calendar import is_effective_run_day, is_trading_day
 from worker.services.ingest import (
     backfill_price_history,
+    news_universe_tickers,
     refresh_fundamentals,
     refresh_marks,
+    refresh_news,
     refresh_universe,
 )
 from worker.services.scoring import diagnose_unscored_holdings, score_universe
@@ -220,6 +222,28 @@ def job_x_thread_spotlight_draft():
     line in `x-thread-draft.ts` for why that distinction has to be spelled out
     in the thread every time, not just implied by the section it runs in."""
     return job_x_thread_draft("spotlight")
+
+
+def job_news_refresh():
+    """Pull recent headlines for held + top-rated non-held tickers.
+
+    Feeds the spotlight thread's "news" focus. Scheduled ahead of the
+    spotlight draft job so a headline from this morning is available to
+    write about, not just whatever was still in the table from yesterday.
+    """
+
+    def _run(db: Session):
+        tickers = news_universe_tickers(db)
+        if not tickers:
+            return {"skipped": "no_tickers"}
+        fmp = _fmp()
+        try:
+            inserted = refresh_news(db, fmp, tickers)
+            return {"tickers": len(tickers), "inserted": inserted}
+        finally:
+            fmp.close()
+
+    return _track("news_refresh", _run)
 
 
 def job_x_thread_post():

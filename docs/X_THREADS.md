@@ -48,7 +48,8 @@ each thread before you confirm it.
 | --- | --- | --- |
 | Fri 10:30 | `x_thread_draft` | Drafts the week-in-the-book thread |
 | Tue 09:00 | `x_thread_market_draft` | Drafts the market & sectors thread |
-| Weekdays 06:30 | `x_thread_spotlight_draft` | Drafts the daily screener spotlight (name or sector, never a pick) |
+| Weekdays 06:00 | `news_refresh` (worker) | Pulls headlines for held + top-rated non-held tickers into `stock_news` |
+| Weekdays 06:30 | `x_thread_spotlight_draft` | Drafts the daily screener spotlight (name, sector, or news — never a pick) |
 | Weekdays 07:00–17:00, hourly | `x_thread_post` | Posts whatever is confirmed |
 
 Run any of them on demand with `RUN_JOB_ONCE=x_thread_draft` on the worker.
@@ -94,14 +95,16 @@ cannot see.
 
 ## The spotlight thread
 
-Daily, drafted at 06:30 PT. It covers ONE thing from the same non-held
-watchlist the Monday market note and the video pipeline already draw on
-(`/ops/editorial-brief`): either a screen-rated name we do not hold, or a
-sector breadth reading. `pickSpotlightIndex` in `x-thread-draft.ts` alternates
-between the two day to day and rotates through the list deterministically, so
-a re-fired job on the same day lands on the same subject instead of a random
-one — that determinism is also what keeps the dedupe key (the calendar day,
-not the ISO week) idempotent.
+Daily, drafted at 06:30 PT. It covers ONE thing sourced from the same
+non-held watchlist the Monday market note and the video pipeline already
+draw on (`/ops/editorial-brief`): a screen-rated name we do not hold, a
+sector breadth reading, or a recent headline about one of those non-held
+names. `pickSpotlightIndex` in `x-thread-draft.ts` rotates evenly across
+whichever of the three actually has data that day and cycles the list within
+whichever is picked, deterministically — a re-fired job on the same day lands
+on the same subject instead of a random one, which is also what keeps the
+dedupe key (the calendar day, not the ISO week) idempotent. A day with no
+news ingested just rotates between the other two; it never leaves a gap.
 
 This is the thread most likely to read as a stock tip if the style guide is
 loosened, so it carries two extra rules beyond the shared ones: it must state
@@ -109,9 +112,15 @@ plainly, in its own words, that the subject is not a portfolio position or a
 recommendation, and it must never cite an individual holding's return next to
 it — only the book's aggregate, if any comparison is made at all.
 
-There is no news source wired into any app. `missing` always carries `news`,
-and "deep dive on a piece of news" was deliberately left out of this feature —
-adding it means a new FMP news integration, not just a style-guide change.
+**News**, added 2026-08-30: the worker's `news_refresh` job (weekdays 06:00
+PT) pulls headlines from FMP's `/stable/news/stock` for held tickers plus the
+~20 highest-rated non-held names, and upserts them into the `stock_news`
+table, deduped by URL and pruned after 14 days
+(`worker.services.ingest.refresh_news`). `/ops/editorial-brief` then serves
+the last 3 days of that table, **excluding anything about a held ticker** —
+a headline about something we own would read as commentary on a holding,
+which this thread is explicitly not allowed to be. There is still no general
+market-news feed; only names the screen already tracks.
 
 ## When a thread fails halfway
 

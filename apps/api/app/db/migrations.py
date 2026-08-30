@@ -87,6 +87,53 @@ def _ensure_portfolio_contributions(engine: Engine) -> None:
             log.debug("Could not create portfolio_contributions; assuming it exists")
 
 
+def _ensure_stock_news(engine: Engine) -> None:
+    """Create the news-ingest table if this database predates it.
+
+    Same reason as `_ensure_portfolio_contributions`: the worker never runs
+    `create_all`, and this table is written by the worker's news job before
+    the API process necessarily has a chance to create it via the model.
+    """
+    from sqlalchemy import inspect
+
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        if inspector.has_table("stock_news"):
+            return
+        sqlite = engine.dialect.name == "sqlite"
+        pk = "INTEGER PRIMARY KEY" if sqlite else "SERIAL PRIMARY KEY"
+        timestamptz = "TIMESTAMP" if sqlite else "TIMESTAMP WITH TIME ZONE"
+        try:
+            conn.execute(
+                text(
+                    f"""
+                    CREATE TABLE stock_news (
+                        id {pk},
+                        ticker VARCHAR(16),
+                        published_at {timestamptz} NOT NULL,
+                        publisher VARCHAR(128),
+                        title VARCHAR(512) NOT NULL,
+                        url VARCHAR(1024) NOT NULL,
+                        fetched_at {timestamptz} NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE (url)
+                    )
+                    """
+                )
+            )
+            conn.execute(
+                text("CREATE INDEX IF NOT EXISTS ix_stock_news_ticker ON stock_news (ticker)")
+            )
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_stock_news_published_at "
+                    "ON stock_news (published_at)"
+                )
+            )
+            log.info("Created stock_news")
+        except Exception:
+            log.debug("Could not create stock_news; assuming it exists")
+
+
 def _columns(conn, table: str) -> list[dict]:
     from sqlalchemy import inspect
 
@@ -104,3 +151,4 @@ def ensure_schema(engine: Engine) -> None:
     _add_column(engine, "job_runs", "alerted_at", "TIMESTAMP WITH TIME ZONE")
     _add_column(engine, "portfolios", "kind", "VARCHAR(16) DEFAULT 'live'")
     _ensure_portfolio_contributions(engine)
+    _ensure_stock_news(engine)

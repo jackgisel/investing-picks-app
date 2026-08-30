@@ -242,5 +242,21 @@ class FMPClient:
             self._get("price-target-consensus", {"symbol": ticker})
         )
 
+    def stock_news(self, symbols: list[str], limit: int = 50) -> list[dict]:
+        """Recent headlines for a specific set of tickers.
+
+        `symbols` is comma-joined into one query parameter — confirmed live
+        against `/stable/news/stock` to accept a multi-symbol batch in one
+        call, unlike `batch_quotes` which has to fall back to one request per
+        symbol. Empty input returns without a request; there is nothing to
+        scope the feed to.
+        """
+        if not symbols:
+            return []
+        data = self._get(
+            "news/stock", {"symbols": ",".join(symbols), "limit": limit}
+        )
+        return data if isinstance(data, list) else []
+
     def close(self):
         self._client.close()

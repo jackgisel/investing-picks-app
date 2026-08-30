@@ -149,6 +149,28 @@ class Stock(Base):
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class StockNews(Base):
+    """Recent headlines for tickers our screen tracks, not the general tape.
+
+    Scoped at ingest time to held + highly-rated non-held names (see
+    `worker.services.ingest.refresh_news`) — pulling the whole market's news
+    would be mostly noise for a thread that only ever discusses names our
+    own screen surfaces. `url` is unique so re-ingesting the same feed on
+    the next tick does not duplicate a row.
+    """
+
+    __tablename__ = "stock_news"
+    __table_args__ = (UniqueConstraint("url"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ticker: Mapped[str | None] = mapped_column(String(16), nullable=True, index=True)
+    published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    publisher: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    title: Mapped[str] = mapped_column(String(512))
+    url: Mapped[str] = mapped_column(String(1024))
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
+
+
 class Fundamentals(Base):
     __tablename__ = "fundamentals"
 

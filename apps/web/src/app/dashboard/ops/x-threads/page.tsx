@@ -24,7 +24,7 @@ const MAX_CHARS = 280;
 
 type Thread = {
   id: string;
-  kind: "pick" | "weekly_review" | "market" | "spotlight";
+  kind: "pick" | "weekly_review" | "market" | "spotlight" | "sunday_review";
   dedupeKey: string;
   posts: string[];
   facts: { summary?: string };
@@ -50,6 +50,7 @@ const KIND_LABEL: Record<Thread["kind"], string> = {
   market: "Market & sectors",
   pick: "Pick",
   spotlight: "Spotlight",
+  sunday_review: "Week ahead",
 };
 
 async function errorMessage(res: Response): Promise<string> {
@@ -121,7 +122,7 @@ export default function OpsXThreadsPage() {
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            {(["weekly_review", "market", "spotlight"] as const).map((kind) => (
+            {(["weekly_review", "market", "spotlight", "sunday_review"] as const).map((kind) => (
               <button
                 key={kind}
                 type="button"

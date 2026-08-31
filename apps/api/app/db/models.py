@@ -171,6 +171,42 @@ class StockNews(Base):
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
 
 
+class MacroReading(Base):
+    """Point-in-time macro facts for the Sunday week-ahead thread.
+
+    Mirrors `StockNews`: the worker pulls from FMP, this table is the payload
+    the thread is written from, and nothing is computed at draft time. The
+    reason is the same one the whole X-thread feature is built around — every
+    number a thread publishes has to trace back to a stored fact, so "the
+    10-year was at 4.726% on Friday" is auditable after the fact rather than
+    whatever the vendor happened to return the moment the model ran.
+
+    `kind` + `as_of` + `label` is the natural key: one row per series per day
+    (`treasury_10y` on 2026-08-28), one row per scheduled release
+    (`econ_event` / "Nonfarm Payrolls"). Re-ingesting the same day is an
+    update, not a duplicate.
+    """
+
+    __tablename__ = "macro_readings"
+    __table_args__ = (UniqueConstraint("kind", "as_of", "label"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    #: "treasury" | "econ_event" | "index_close"
+    kind: Mapped[str] = mapped_column(String(32), index=True)
+    #: Series or event name, e.g. "year10", "Nonfarm Payrolls", "SPY".
+    label: Mapped[str] = mapped_column(String(128))
+    as_of: Mapped[date] = mapped_column(Date, index=True)
+    #: Null for a scheduled release that has not happened yet.
+    value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    #: Consensus / previous for an econ event; unused for a rate series.
+    consensus: Mapped[float | None] = mapped_column(Float, nullable=True)
+    previous: Mapped[float | None] = mapped_column(Float, nullable=True)
+    unit: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    fetched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now()
+    )
+
+
 class Fundamentals(Base):
     __tablename__ = "fundamentals"
 

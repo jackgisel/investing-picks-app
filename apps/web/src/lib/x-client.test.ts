@@ -166,6 +166,40 @@ describe("countChars", () => {
     // "🧵" is two UTF-16 units; naive .length would say 2.
     expect(countChars("🧵")).toBe(1);
   });
+
+  it("counts a bare domain as 23, the same as an explicit one", () => {
+    // X linkifies both. Counting the literal 11 characters of "outpick.xyz"
+    // undercounts by 12 and is how a 279-char post comes back rejected.
+    expect(countChars("outpick.xyz")).toBe(23);
+    expect(countChars("go to outpick.xyz/market-note")).toBe(
+      "go to ".length + 23,
+    );
+  });
+
+  it("does not mistake decimals or sentence breaks for domains", () => {
+    const prose = "The 10-year sits at 4.726%. Consensus is +45k. S&P 7,711.76.";
+    expect(countChars(prose)).toBe([...prose].length);
+  });
+});
+
+describe("containsUrl", () => {
+  it("sees an explicit URL", () => {
+    expect(containsUrl("see https://outpick.xyz/market-note")).toBe(true);
+  });
+
+  it("sees a bare domain, which X linkifies just the same", () => {
+    expect(containsUrl("see outpick.xyz/market-note")).toBe(true);
+    expect(containsUrl("outpick.xyz")).toBe(true);
+  });
+
+  it("is not fooled by prose containing dots", () => {
+    expect(containsUrl("The 10-year sits at 4.726%.")).toBe(false);
+    expect(containsUrl("e.g. the Fed. The market shrugged.")).toBe(false);
+  });
+
+  it("does not treat an email address as a link", () => {
+    expect(containsUrl("mail hello@outpick.xyz")).toBe(false);
+  });
 });
 
 describe("estimateCostUsd", () => {
@@ -176,6 +210,14 @@ describe("estimateCostUsd", () => {
 
   it("sums a mixed thread", () => {
     expect(estimateCostUsd(["a", "b", "c https://x.com"])).toBeCloseTo(0.23, 5);
+  });
+
+  it("prices a bare-domain CTA as the link post it becomes", () => {
+    // The regression: this was billed at $0.015 while X charged for a link.
+    expect(estimateCostUsd(["read more at outpick.xyz/market-note"])).toBeCloseTo(
+      0.2,
+      5,
+    );
   });
 });
 

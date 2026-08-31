@@ -119,11 +119,25 @@ If \`spotlight.focus\` is "news": use \`spotlight.newsItem\`. Report what the he
 
 **Never cite an individual holding's return next to this name, sector, or headline.** If you give any sense of scale from our own book, use its OVERALL return for the period, never a single position's — this thread is already at risk of reading like a stock tip, and naming one of our winners beside it makes that worse, not better.`;
 
+const SUNDAY_REVIEW_BRIEF = `## This thread
+The Sunday week-ahead thread. Written the evening before the week starts, about a week that has not happened yet.
+
+You have \`macro.yields\` (Treasury constant-maturity yields, with the change over the past week in basis points) and \`macro.calendar\` (scheduled US economic releases for the coming week, with consensus and previous where the vendor carries them). That is the entire set of macro numbers you may cite. You do NOT have Fed funds pricing, rate-decision odds, index levels, sector indices, breadth, flows, positioning, or earnings dates — none of those are in the payload, and every one of them is a number a thread like this is tempted to invent. If you want one, write around it.
+
+**A week-ahead thread is a thesis, not a calendar.** Listing Tuesday's ISM and Friday's payrolls in order is what every other account posts and nobody reads. Find the tension in what you actually have — a front-end yield moving against a long-end one, a consensus that implies something the previous print contradicts, a release the rest of the week hangs on — and argue it. The calendar is evidence for the argument, not the argument.
+
+Structure that works: open on the tension. Say what the week turns on and why. Walk the two or three ways it can break, naming what each would mean. Then say plainly what would have to happen for our own positioning to change, which is usually nothing — the strategy does not trade the macro calendar, and saying so is more honest than implying we do.
+
+**Never forecast a level, a direction, or a return.** "A hot print makes the front end's move look early" is a reading. "Stocks fall if payrolls beat" is a prediction, and it is not something we publish. The distinction is the whole reason this thread is allowed to exist: you are describing what is at stake, never what will happen.
+
+Our book is context here, not the subject. The screen has no view on a payroll number, and the thread should say so rather than implying our positioning anticipates the week. If you cite our own performance at all, it is the overall book return for a period, never a single holding's.`;
+
 const BRIEFS = {
   weekly_review: WEEKLY_BRIEF,
   market: MARKET_BRIEF,
   pick: PICK_BRIEF,
   spotlight: SPOTLIGHT_BRIEF,
+  sunday_review: SUNDAY_REVIEW_BRIEF,
 } as const;
 
 export type ThreadKind = keyof typeof BRIEFS;
@@ -187,10 +201,37 @@ type EditorialBrief = {
 
 export type SpotlightFocus = "candidate" | "sector" | "news";
 
+/** One constant-maturity Treasury series. Shape matches `/ops/macro-brief`. */
+export type MacroYield = {
+  series: string;
+  as_of: string;
+  percent: number | null;
+  week_ago_percent: number | null;
+  change_bp: number | null;
+  week_ago_as_of: string | null;
+};
+
+/** A scheduled US economic release. `actual` is null until it happens. */
+export type MacroCalendarEvent = {
+  event: string;
+  date: string;
+  actual: number | null;
+  consensus: number | null;
+  previous: number | null;
+  unit: string | null;
+};
+
+type MacroBrief = {
+  rates_as_of: string | null;
+  yields: MacroYield[];
+  calendar: MacroCalendarEvent[];
+};
+
 export type XThreadFacts = WeeklyReviewFacts & {
   thread_kind: ThreadKind;
   periods: PeriodRow[];
   sectors: SectorRollup[];
+  macro?: MacroBrief;
   spotlight?: {
     rating_as_of: string | null;
     focus: SpotlightFocus | null;
@@ -230,6 +271,29 @@ async function fetchEditorialBrief(): Promise<EditorialBrief | null> {
     });
     if (!res.ok) return null;
     return (await res.json()) as EditorialBrief;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Macro facts for the Sunday thread, from what the worker ingested.
+ *
+ * Same ops-key path as `fetchEditorialBrief`. A null return is an ordinary
+ * outcome — the ingest job has not run, or the FMP plan does not carry those
+ * endpoints — and the caller records it in `missing` rather than failing the
+ * draft, because a thinner thread beats no thread and beats an invented one.
+ */
+async function fetchMacroBrief(): Promise<MacroBrief | null> {
+  const key = process.env.OPS_API_KEY;
+  if (!key) return null;
+  try {
+    const res = await fetch(`${OPS_API_BASE}/macro-brief`, {
+      headers: { "X-Ops-Key": key },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as MacroBrief;
   } catch {
     return null;
   }
@@ -320,6 +384,26 @@ export async function fetchThreadFacts(
   // read on the wider market. This gap is permanent until we ingest sector
   // indices, and the market thread's brief is written around it.
   missing.push("broad_market_sector_performance");
+  // Named for every kind, not just the Sunday one: the other briefs must not
+  // start reaching for rates either, and the model only knows a fact is off
+  // limits if the payload says so.
+  let macro: MacroBrief | undefined;
+  if (kind === "sunday_review") {
+    const brief = await fetchMacroBrief();
+    if (!brief || (brief.yields.length === 0 && brief.calendar.length === 0)) {
+      missing.push("treasury_yields", "economic_calendar");
+    } else {
+      macro = brief;
+      if (brief.yields.length === 0) missing.push("treasury_yields");
+      if (brief.calendar.length === 0) missing.push("economic_calendar");
+    }
+  } else {
+    missing.push("treasury_yields", "economic_calendar");
+  }
+  // Never in any payload. Listed because these are the numbers a macro thread
+  // reaches for by reflex, and an unnamed gap is one the model fills itself.
+  missing.push("fed_funds_pricing", "rate_decision_odds", "index_levels");
+
   let spotlight: XThreadFacts["spotlight"];
   if (kind === "spotlight") {
     const brief = await fetchEditorialBrief();
@@ -366,6 +450,7 @@ export async function fetchThreadFacts(
       open_picks_return_pct: round2(p.open_picks_return_pct),
     })),
     sectors: rollUpSectors(base.holdings),
+    macro,
     spotlight,
   };
 }
@@ -388,7 +473,18 @@ export function threadDedupeKey(
   now: Date = new Date(),
   suffix?: string,
 ): string {
-  const key = kind === "spotlight" ? dayKey(now) : isoWeekKey(now);
+  const key =
+    kind === "spotlight"
+      ? dayKey(now)
+      : kind === "sunday_review"
+        ? // ISO weeks end on Sunday, so a thread drafted Sunday evening about
+          // the week that STARTS tomorrow would otherwise be filed under the
+          // week that just finished — the same key as Friday's weekly review,
+          // and a label naming the wrong week in the prompt. Key on the day
+          // after, which is the Monday the thread is actually about; a manual
+          // redraft on Sunday or Monday both land on that same week.
+          isoWeekKey(new Date(now.getTime() + 86_400_000))
+        : isoWeekKey(now);
   return suffix ? `${key}:${suffix}` : key;
 }
 

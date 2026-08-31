@@ -9,7 +9,7 @@ from datetime import date, datetime, time, timedelta, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import text
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session, joinedload
 
 from app.config import assert_ops_key_configured, get_settings
@@ -18,6 +18,7 @@ from app.db.models import (
     Evaluation,
     Fundamentals,
     JobRun,
+    MacroReading,
     Portfolio,
     Position,
     SignalRow,
@@ -260,6 +261,105 @@ def editorial_brief(db: Session = Depends(get_db)):
                 "fundamentals": fundamentals_by_ticker.get(score.ticker),
             }
             for score, stock, sector in top_candidates
+        ],
+    }
+
+
+@router.get("/macro-brief", dependencies=[Depends(require_ops_key)])
+def macro_brief(db: Session = Depends(get_db)):
+    """Macro facts for the Sunday week-ahead thread.
+
+    Reads only what `worker.services.ingest.refresh_macro` stored. Nothing is
+    fetched here and nothing is derived beyond a change-since arithmetic on
+    the yield series, because the thread's governing rule is that every number
+    it publishes appears in its payload — a figure computed at request time is
+    one nobody can check afterwards.
+
+    Empty lists are a normal response (the ingest job has not run yet, or the
+    plan does not carry these endpoints). The caller turns that into the
+    payload's `missing` array rather than treating it as an error.
+    """
+    latest_rate_date = (
+        db.query(func.max(MacroReading.as_of))
+        .filter(MacroReading.kind == "treasury")
+        .scalar()
+    )
+
+    yields = []
+    if latest_rate_date is not None:
+        current = (
+            db.query(MacroReading)
+            .filter(
+                MacroReading.kind == "treasury",
+                MacroReading.as_of == latest_rate_date,
+            )
+            .all()
+        )
+        # A week earlier, for "the 2-year is up 11bp on the week". Nearest
+        # session on or before the target rather than exactly seven days back,
+        # since the series only has trading days in it.
+        week_ago_target = latest_rate_date - timedelta(days=7)
+        prior_date = (
+            db.query(func.max(MacroReading.as_of))
+            .filter(
+                MacroReading.kind == "treasury",
+                MacroReading.as_of <= week_ago_target,
+            )
+            .scalar()
+        )
+        prior_by_label = (
+            {
+                row.label: row.value
+                for row in db.query(MacroReading).filter(
+                    MacroReading.kind == "treasury",
+                    MacroReading.as_of == prior_date,
+                )
+            }
+            if prior_date is not None
+            else {}
+        )
+        for row in sorted(current, key=lambda r: r.label):
+            prior = prior_by_label.get(row.label)
+            yields.append(
+                {
+                    "series": row.label,
+                    "as_of": row.as_of.isoformat(),
+                    "percent": row.value,
+                    "week_ago_percent": prior,
+                    "change_bp": (
+                        round((row.value - prior) * 100, 1)
+                        if row.value is not None and prior is not None
+                        else None
+                    ),
+                    "week_ago_as_of": prior_date.isoformat() if prior_date else None,
+                }
+            )
+
+    today = datetime.now(timezone.utc).date()
+    upcoming = (
+        db.query(MacroReading)
+        .filter(
+            MacroReading.kind == "econ_event",
+            MacroReading.as_of >= today,
+        )
+        .order_by(MacroReading.as_of.asc(), MacroReading.label.asc())
+        .limit(40)
+        .all()
+    )
+
+    return {
+        "rates_as_of": latest_rate_date.isoformat() if latest_rate_date else None,
+        "yields": yields,
+        "calendar": [
+            {
+                "event": row.label,
+                "date": row.as_of.isoformat(),
+                "actual": row.value,
+                "consensus": row.consensus,
+                "previous": row.previous,
+                "unit": row.unit,
+            }
+            for row in upcoming
         ],
     }
 

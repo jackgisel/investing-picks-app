@@ -30,7 +30,36 @@ export const TCO_URL_LENGTH = 23;
 /** Standard (non-Premium) accounts. Premium raises this; we do not assume it. */
 export const DEFAULT_MAX_POST_CHARS = 280;
 
-const URL_PATTERN = /https?:\/\/[^\s]+/gi;
+/**
+ * What X will turn into a t.co link.
+ *
+ * Two alternatives, and the second one is the whole point: X linkifies a BARE
+ * domain (`outpick.xyz/market-note`) exactly as it linkifies an explicit
+ * `https://` one. Matching only the scheme form meant `containsUrl` returned
+ * false for a bare-domain CTA, so `estimateCostUsd` billed it at the plain
+ * $0.015 instead of $0.20 and `countChars` measured the literal string
+ * instead of 23 — undercounting a short domain, which is the direction that
+ * gets a post rejected by the API mid-thread.
+ *
+ * The bare-domain half requires a TLD from an explicit list rather than any
+ * run of letters. `\w+\.\w+` would swallow ordinary prose: "1.5% in Q3", a
+ * sentence ending "...the Fed. The market...", "e.g. this". The list is an
+ * approximation of X's linkifier (which uses the full IANA table) covering
+ * the TLDs that plausibly appear in our copy — over-matching prose is a worse
+ * failure here than under-matching an exotic TLD, because it silently
+ * corrupts the character count of a post that contains no link at all.
+ */
+const LINKIFIED_TLDS =
+  "com|org|net|io|xyz|co|ai|app|dev|gov|edu|us|uk|ca|me|info|biz|news|finance";
+const URL_PATTERN = new RegExp(
+  // scheme form: https://anything-not-whitespace
+  `https?://[^\\s]+` +
+    `|` +
+    // bare form: label(.label)*.tld, optional path/query, not preceded by
+    // `@` (an email) or another dot/word char (a mid-domain false start).
+    `(?<![@\\w.])[a-z0-9][a-z0-9-]*(?:\\.[a-z0-9-]+)*\\.(?:${LINKIFIED_TLDS})\\b(?:/[^\\s]*)?`,
+  "gi",
+);
 
 export type XCredentials = {
   consumerKey: string;

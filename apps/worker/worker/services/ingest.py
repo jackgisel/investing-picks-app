@@ -17,6 +17,7 @@ from app.db.models import (
     PortfolioSnapshot,
     Position,
     PriceBar,
+    MacroReading,
     Stock,
     StockNews,
 )
@@ -1256,3 +1257,191 @@ def _upsert_daily_snapshot(
             )
         )
 
+
+#: Tenors the week-ahead thread is allowed to quote. The 2s/10s pair is the
+#: whole point — a Fed repricing shows up at the front end first, and a thread
+#: that only ever cites the 10-year cannot see it.
+MACRO_TENORS: dict[str, str] = {
+    "year2": "treasury_2y",
+    "year10": "treasury_10y",
+    "year30": "treasury_30y",
+}
+
+#: How far forward the econ calendar is pulled. One week: the thread is written
+#: on Sunday about the week that starts Monday, and a release three weeks out
+#: is not something it should be mentioning.
+MACRO_CALENDAR_DAYS = 8
+
+#: Releases worth a Sunday thread. The full US calendar runs to dozens of rows
+#: a week (mortgage applications, regional Fed surveys); a thread that lists
+#: all of them reads as a data dump. Matched case-insensitively on a substring
+#: so "Nonfarm Payrolls" catches "US Nonfarm Payrolls".
+MACRO_EVENT_MARKERS: tuple[str, ...] = (
+    "nonfarm payroll",
+    "unemployment rate",
+    "average hourly earnings",
+    "ism manufacturing",
+    "ism services",
+    "cpi",
+    "ppi",
+    "pce",
+    "fomc",
+    "gdp",
+    "retail sales",
+    "initial jobless claims",
+)
+
+#: Macro rows older than this are dropped on every run. Longer than the news
+#: window because a rate series only makes sense with a little history behind
+#: it — "the 10-year is up 40bp in a month" needs the month.
+MACRO_RETENTION_DAYS = 90
+
+
+def _is_tracked_macro_event(name: str | None) -> bool:
+    if not name:
+        return False
+    lowered = name.lower()
+    return any(marker in lowered for marker in MACRO_EVENT_MARKERS)
+
+
+def _as_float(raw) -> float | None:
+    if raw is None or raw == "":
+        return None
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return None
+
+
+def _upsert_macro(
+    db: Session,
+    *,
+    kind: str,
+    label: str,
+    as_of: date,
+    value: float | None = None,
+    consensus: float | None = None,
+    previous: float | None = None,
+    unit: str | None = None,
+) -> bool:
+    """Insert or update one reading. Returns True if a new row was created.
+
+    Update rather than skip: an econ event is ingested before it happens, with
+    a consensus and no actual, and the same row has to gain its actual once
+    the release lands. Skipping on conflict would leave the thread reading
+    "Nonfarm Payrolls: consensus 45k" forever.
+    """
+    existing = (
+        db.query(MacroReading)
+        .filter(
+            MacroReading.kind == kind,
+            MacroReading.as_of == as_of,
+            MacroReading.label == label,
+        )
+        .one_or_none()
+    )
+    if existing is None:
+        db.add(
+            MacroReading(
+                kind=kind,
+                label=label,
+                as_of=as_of,
+                value=value,
+                consensus=consensus,
+                previous=previous,
+                unit=unit,
+            )
+        )
+        return True
+    existing.value = value
+    existing.consensus = consensus
+    existing.previous = previous
+    existing.unit = unit
+    existing.fetched_at = datetime.now(timezone.utc)
+    return False
+
+
+def refresh_macro(db: Session, fmp: FMPClient, today: date | None = None) -> dict:
+    """Pull Treasury yields and the week's US econ calendar into `macro_readings`.
+
+    Deliberately narrow. This is not a macro data warehouse — it is the set of
+    facts the Sunday week-ahead thread is permitted to cite, and every one of
+    them is a published number with a date attached. Anything the thread wants
+    that is not here (Fed funds pricing, index levels, positioning) stays in
+    the payload's `missing` array so the model writes around it rather than
+    inventing it.
+    """
+    today = today or datetime.now(timezone.utc).date()
+    # Two weeks back so a Monday holiday or a stale vendor still leaves a
+    # recent session to quote, rather than an empty series.
+    rates_start = today - timedelta(days=14)
+
+    rates_rows = fmp.treasury_rates(rates_start.isoformat(), today.isoformat())
+    inserted = 0
+    for row in rates_rows:
+        as_of = _parse_macro_date(row.get("date"))
+        if as_of is None:
+            continue
+        for field, label in MACRO_TENORS.items():
+            value = _as_float(row.get(field))
+            if value is None:
+                continue
+            if _upsert_macro(
+                db,
+                kind="treasury",
+                label=label,
+                as_of=as_of,
+                value=value,
+                unit="percent",
+            ):
+                inserted += 1
+
+    calendar_rows = fmp.economics_calendar(
+        today.isoformat(),
+        (today + timedelta(days=MACRO_CALENDAR_DAYS)).isoformat(),
+    )
+    events = 0
+    for row in calendar_rows:
+        name = row.get("event")
+        if not _is_tracked_macro_event(name):
+            continue
+        as_of = _parse_macro_date(row.get("date"))
+        if as_of is None:
+            continue
+        if _upsert_macro(
+            db,
+            kind="econ_event",
+            label=name[:128],
+            as_of=as_of,
+            value=_as_float(row.get("actual")),
+            consensus=_as_float(row.get("estimate")),
+            previous=_as_float(row.get("previous")),
+            unit=(row.get("unit") or None),
+        ):
+            events += 1
+
+    cutoff = today - timedelta(days=MACRO_RETENTION_DAYS)
+    deleted = (
+        db.query(MacroReading)
+        .filter(MacroReading.as_of < cutoff)
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+    return {
+        "rate_rows": len(rates_rows),
+        "events": events,
+        "inserted": inserted,
+        "deleted": deleted,
+    }
+
+
+def _parse_macro_date(raw) -> date | None:
+    """FMP hands back both `YYYY-MM-DD` and `YYYY-MM-DD HH:MM:SS` here."""
+    if not raw or not isinstance(raw, str):
+        return None
+    for fmt in ("%Y-%m-%d", "%Y-%m-%d %H:%M:%S"):
+        try:
+            return datetime.strptime(raw, fmt).date()
+        except ValueError:
+            continue
+    return None

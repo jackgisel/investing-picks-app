@@ -103,6 +103,20 @@ describe("threadDedupeKey", () => {
     expect(threadDedupeKey("pick", week, "NVDA")).toMatch(/:NVDA$/);
   });
 
+  it("keys the sunday review on the week it is about, not the one ending", () => {
+    // Drafted Sunday evening; the thread argues about the week starting Monday.
+    const sundayNight = new Date("2026-08-30T23:30:00Z");
+    const mondayOfTargetWeek = new Date("2026-08-31T12:00:00Z");
+    expect(threadDedupeKey("sunday_review", sundayNight)).toBe(
+      threadDedupeKey("market", mondayOfTargetWeek),
+    );
+    // ...and so does not collide with Friday's weekly review of the week just
+    // gone, which is the bug this avoids.
+    expect(threadDedupeKey("sunday_review", sundayNight)).not.toBe(
+      threadDedupeKey("sunday_review", new Date("2026-08-23T23:30:00Z")),
+    );
+  });
+
   it("keys the spotlight kind on the day, not the week", () => {
     const monday = new Date("2026-08-24T12:00:00Z");
     const tuesday = new Date("2026-08-25T12:00:00Z");

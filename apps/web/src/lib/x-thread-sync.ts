@@ -35,6 +35,12 @@ export type DraftThreadResult = {
   dedupeKey: string;
   generated: boolean;
   skipped?: "already_drafted";
+  /**
+   * The draft could not run because an input was missing, not because
+   * anything failed. Callers map this to 409, never 5xx — a 502 tells an
+   * operator the server is broken when the truth is "run the macro job".
+   */
+  blocked?: boolean;
   threadId?: string;
   posts?: string[];
   estimatedCostUsd?: number;
@@ -83,9 +89,11 @@ export async function draftThread(
         kind,
         dedupeKey,
         generated: false,
+        blocked: true,
         error:
-          "No macro facts available — run the macro_refresh job first. " +
-          "Drafting this without them produces a book review, not a week-ahead thread.",
+          "No macro facts yet — `macro_readings` is empty, so this would " +
+          "become a book review instead of a week-ahead thread. Run the " +
+          "macro_refresh worker job, then draft again.",
       };
     }
 

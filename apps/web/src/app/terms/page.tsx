@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   alternates: { canonical: "/terms" },
   title: "Terms of Service",
+  description:
+    "Terms of Service for Outpick, an independent financial research publication. Not investment advice. Annual membership billed via Stripe.",
 };
 
 export default function TermsPage() {

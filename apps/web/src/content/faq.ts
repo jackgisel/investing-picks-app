@@ -19,7 +19,7 @@ export const FAQ_GROUPS: FaqGroup[] = [
     items: [
       {
         q: "Who is Outpick?",
-        a: "Outpick is an independent research operation built around a team of AI agents that score the market and draft the research. We publish a live example portfolio, full investment theses, and performance data for investors who want to move beyond index funds — with intention, transparency, and a value-based approach grounded in business fundamentals.",
+        a: "Outpick is an independent equity research publication. We score US-listed businesses on fundamentals, write the thesis, and publish a live example portfolio with performance in the open — for investors who want to move beyond index funds with intention, transparency, and a value-based approach grounded in business fundamentals.",
       },
       {
         q: "Who runs Outpick?",
@@ -27,7 +27,7 @@ export const FAQ_GROUPS: FaqGroup[] = [
       },
       {
         q: "Why should I trust research from a firm that doesn't name its analysts?",
-        a: "Our research notes are drafted by a team of AI agents that score roughly 3,600 US-listed stocks every two weeks and write up the one name the framework agrees on, published on a fixed review window. We publish under the firm's name instead of an analyst's for the same reason we tell you that: the record is checkable, a biography isn't. The methodology, the validation windows, and every live entry and exit are on this site. If the process stops working, you'll see it here before you hear it from us.",
+        a: "Every two weeks we rescore roughly 3,600 US-listed stocks, write up the one name the framework agrees on, and review it before it publishes. We publish under the firm's name instead of an analyst's because the record is checkable and a biography isn't. The methodology, the validation windows, and every live entry and exit are on this site. If the process stops working, you'll see it here before you hear it from us.",
       },
       {
         q: "Is this financial advice?",

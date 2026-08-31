@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   alternates: { canonical: "/privacy" },
   title: "Privacy Policy",
+  description:
+    "How Outpick collects, uses, and protects account, billing, and usage information. We do not sell personal data.",
 };
 
 export default function PrivacyPage() {

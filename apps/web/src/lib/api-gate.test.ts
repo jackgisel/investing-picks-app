@@ -172,6 +172,8 @@ describe("anonymiseStrategy", () => {
     portfolio: {
       position_count: 1,
       tickers: ["WDC"],
+      picks_return_pct: 31.3,
+      total_return_pct: 12.1,
       picks: {
         return_pct: 31.3,
         deployed: 100000,
@@ -213,6 +215,12 @@ describe("anonymiseStrategy", () => {
       open_count: 1,
       closed_count: 3,
     });
+  });
+
+  it("keeps the public picks-return percentage for the marketing site", () => {
+    const out = anonymiseStrategy(payload);
+    expect(out.portfolio.picks_return_pct).toBe(31.3);
+    expect(out.portfolio.total_return_pct).toBe(12.1);
   });
 
   it("does not mutate its input", () => {

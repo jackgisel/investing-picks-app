@@ -507,7 +507,8 @@ export async function runAppMigrations() {
     ALTER TABLE x_thread
       ADD CONSTRAINT x_thread_kind_check
       CHECK (kind IN ('pick', 'weekly_review', 'market', 'spotlight',
-                      'sunday_review'))
+                      'sunday_review', 'hot_take', 'leaderboard',
+                      'poll_prompt'))
   `);
   // The ops queue: newest first, drafts before anything else.
   await pool.query(`

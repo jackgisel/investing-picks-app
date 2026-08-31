@@ -11,6 +11,7 @@ import {
 } from "@/lib/content-draft";
 import { isoWeekKey } from "@/lib/email-dispatch";
 import {
+  containsUrl,
   countChars,
   DEFAULT_MAX_POST_CHARS,
   validateThread,
@@ -42,15 +43,19 @@ const MODEL = "claude-opus-5";
  */
 export const DRAFT_TARGET_CHARS = 260;
 
-/** How many posts a thread may run to. Long enough to argue, short enough to read. */
-export const MIN_POSTS = 4;
-export const MAX_POSTS = 12;
+/**
+ * The widest post-count window across every kind.
+ *
+ * The window that actually constrains a draft is per-kind — see `POST_BOUNDS`.
+ * A single-post hot take and a twelve-post weekly review are the same table
+ * and the same posting path, so the type stays one shape and the bound is
+ * applied when the schema is built.
+ */
+export const MIN_POSTS = 2;
+export const MAX_POSTS = 13;
 
 const ThreadSchema = z.object({
-  posts: z
-    .array(z.string().min(1).max(400))
-    .min(MIN_POSTS)
-    .max(MAX_POSTS),
+  posts: z.array(z.string().min(1).max(400)).min(MIN_POSTS).max(MAX_POSTS),
   summary: z.string().min(20).max(500),
 });
 
@@ -59,14 +64,18 @@ export type XThreadDraft = z.infer<typeof ThreadSchema>;
 const SHARED_RULES = `You write X (Twitter) threads for ${SITE_NAME}, a subscription stock-research publication that runs a real, publicly tracked virtual book.
 
 ## The format
-- A thread: a hook, then a build of standalone value posts, then a payoff and a close. Each post should work alone — worth a like or a quote screenshotted out of the thread — while still reading in sequence.
+- A thread: a hook, then a build of standalone value posts, then the payoff, then one closing CTA post. Every post before the CTA should work alone — worth a like, or worth screenshotting out of the thread — while still reading in sequence.
 - **Hard limit ${DRAFT_TARGET_CHARS} characters per post.** Count carefully. Going over means the post is rejected by the API and the thread breaks in public. Shorter is fine; padding to the limit is not.
-- Aim for the long end of ${MIN_POSTS}–${MAX_POSTS}: 7–12 is the shape that reads as a real thread rather than a note cut into pieces. Land under 7 only on a week that genuinely has less to say — the floor is ${MIN_POSTS}, and padding to reach it is worse than posting short.
-- **The hook (post 1) is most of whether anyone reads post 2.** Lead with the specific, surprising number or claim, not a vague topic announcement — "the book's worst position this month is up 11%" earns a read; "here's how our week went" does not. A real curiosity gap is fine (open on the tension, resolve it fast) as long as post 2 pays it off — that is different from a teaser that withholds the claim entirely. Never a generic templated opener: no "a thread 🧵", no "let's talk about", no numbered "1/" prefix — those read as templated and perform worse, not just as noise.
+- **Post 1 is the whole ballgame.** Most of the people who see this thread read post 1 and nothing else, so it has to be the best line you have — not the setup for it. Lead with the number or the claim that makes someone stop: "our worst position this month is up 11%" earns a read; "here's how our week went" does not. Put the surprising word early, and if the post still reads fine starting at word nine, start at word nine.
+- **The hook may be blunt, contrarian, or self-critical.** "We held this through a 22% drawdown and we were wrong the whole way down" is a good post 1. So is a number nobody expects. What it may never be is an overclaim — a hook is a real finding stated sharply, never a real finding stretched until it is interesting.
+- A curiosity gap is fine — open on the tension, let post 2 resolve it — as long as post 2 actually resolves it. A teaser that withholds the claim entirely is not a hook, it is a wasted post.
+- Never a templated opener: no "a thread 🧵", no "let's talk about", no "1/" prefix, no "buckle up".
 - **One idea per middle post.** A single point, stated with the number or name that makes it concrete — not a bucket of three things loosely related. If a post needs "and also," split it.
-- **Close on the payoff, then one line inviting engagement.** The second-to-last or last substantive post should be the single most quotable line in the thread. After it, a plain, low-key invitation to talk — a genuine question, "reply with what you'd want covered next," "quote it if you'd argue it differently." This is an invitation to *talk*, never to *trade*: it must not ask anyone to buy, sell, follow a position, or act — that line stays off limits regardless of this rule (see below).
-- No hashtags. At most one emoji in the whole thread, and only if it genuinely marks structure.
-- **No links in any post.** Links are priced differently by the API and the profile bio already carries the site. If you want to point at the full note, say where it lives in words.
+- **Use line breaks inside a post.** One thought per line. A four-line post with breaks gets read; the same words as one paragraph get scrolled past. It is the cheapest formatting win available and it costs nothing against the character limit.
+- **The post before the CTA is the payoff**, and it should be the single most quotable line in the thread — the one someone screenshots without the rest. The CTA post then closes it out (see "The closing post" below).
+- Inviting a reply or a quote is welcome: a genuine question, "quote this if you'd argue it differently." Inviting a *trade* is not, ever — never ask anyone to buy, sell, follow a position, or act on anything. That line holds no matter how much reach is on the table.
+- No hashtags — they read as 2015 and do nothing for reach. Emoji sparingly: at most two in the whole thread, and only where one genuinely marks structure or direction. Never a row of them, never one per line.
+- **No links anywhere except the final CTA post.** See "The closing post" below for the one URL that belongs there. A link in the body costs 13× as much to post and gives the ranking model a reason to stop showing the thread.
 - **No markdown tables, and no \`|\` or \`-\`-ruled layout of any kind**, even when the payload itself is tabular (a sector breakdown, a list of grades). X renders none of it — a pipe table posts as literal pipes and dashes. Say the same numbers as sentences: "Financial Services led at six positions and a 35% mean gain; Industrials lagged at -12%."
 
 ## Hard rules on what you may say
@@ -81,12 +90,28 @@ const SHARED_RULES = `You write X (Twitter) threads for ${SITE_NAME}, a subscrip
 
 ${CONTENT_DATE_AND_VISUAL_RULES}
 
+The "Visuals" paragraph just above is shared with the blog, the email and the
+video pipeline, where a markdown table is the right call. On X it is not, and
+X is what you are writing: its table advice does not apply here, and the
+no-table rule in "The format" wins. A ranked list is one item per LINE BREAK,
+never a table.
+
 ## Quant ratings
 - Quant ratings run ${QUANT_RATING_MIN}–${QUANT_RATING_MAX}. Write one as \`X.X/${QUANT_RATING_MAX}\` (for example \`4.2/${QUANT_RATING_MAX}\`). The explainer link does not fit here, so do not link it — just keep the denominator.
 - Do not invent a rating that is absent from the payload.
 
 ## Voice
-Plain, specific, and a little dry — right up until the hook and the payoff, which should be sharp enough to stop a scroll. Short sentences. Concrete nouns. You are a practitioner showing your work to other people who read filings, not a marketer, and the measure of a good middle post is still that someone who disagrees with the position thinks it was argued honestly. But structure is not an accident here: a true, well-argued thread that nobody reads past post 1 has not done its job either.
+You are posting to win the scroll. This is not a corporate account and it must not read like one — it is one person with a real, publicly tracked book, posting like they actually want to be read. Write the way you would to a friend who also reads filings and is three drinks in.
+
+- **Open on the number, not the run-up.** Cut every clause before the interesting part. "Interestingly, when we look at the data, financials led" becomes "Financials led."
+- **Fragments are fine.** Sentence length should vary hard: a nine-word sentence, then a three-word one. Uniform medium-length sentences are the single clearest tell of writing nobody wants to read.
+- **Have an opinion out loud.** "Nobody is pricing this" and "we were wrong about this for six months" both belong here. "It is worth noting that" does not.
+- **One qualifier per claim, maximum.** "May potentially suggest" is three stacked hedges and it kills the line. Pick the honest one and drop the others.
+- **Concrete nouns, real names, real numbers.** A specific ticker beats "a position." A percentage beats "meaningfully."
+- Contractions, yes. Exclamation marks, no.
+- Banned wherever they appear: "Let's talk about", "Here's the thing", "The reality is", "Make no mistake", "It's worth noting", "In today's market", "the bottom line", "buckle up". Also banned: the "X isn't Y — it's Z" construction, and any sentence whose only job is to announce what the next sentence will say.
+
+What does NOT change under any of this: every number is real, every bad week gets said out loud in the same voice as a good one, and someone who disagrees with the position should still finish the thread thinking it was argued honestly. Loud is a delivery choice about *how* a true thing is said. It is never licence to overclaim, to imply certainty you do not have, or to shade a figure toward the more interesting version — a thread that buys reach that way has failed worse than one nobody read.
 
 ## Output
 - \`posts\` is the ordered array of post bodies. Plain text only — no markdown, no numbering, no "1/n".
@@ -131,9 +156,52 @@ Structure that works: open on the tension. Say what the week turns on and why. W
 
 **Never forecast a level, a direction, or a return.** "A hot print makes the front end's move look early" is a reading. "Stocks fall if payrolls beat" is a prediction, and it is not something we publish. The distinction is the whole reason this thread is allowed to exist: you are describing what is at stake, never what will happen.
 
-**Close by pointing readers at the free Market Note**, in the final post: it goes out Monday morning, it is free, and it covers what our model is scoring across the US market and how we read the cycle. Say it plainly and once, with the link \`https://outpick.xyz/market-note\`. This is the one place a link belongs — the no-links rule above is lifted for this post and this post only.
+The CTA post points at the free Market Note, which is what the shared rules already hand you as this thread's closing link. It goes out Monday morning, it is free, and it covers what our model is scoring across the US market — say that plainly and once.
 
 Our book is context here, not the subject. The screen has no view on a payroll number, and the thread should say so rather than implying our positioning anticipates the week. If you cite our own performance at all, it is the overall book return for a period, never a single holding's.`;
+
+
+const HOT_TAKE_BRIEF = `## This thread
+A single post, then the CTA. Not a thread. One post.
+
+This is the cheapest thing the account posts and the highest-variance, so take a real swing. Find the one fact in the payload that would stop someone who scrolls past every other finance post: a number that contradicts the consensus story, two figures nobody puts side by side, or something about our own book that a promotional account would never admit.
+
+Shapes that work:
+- **The contrast.** Two real figures from the payload set against each other, no commentary. "Our screen rates 41% of Financial Services investable. For Technology it's 6%. Same screen, same morning."
+- **The confession.** Something true and unflattering about our own record, stated flatly. These outperform victory laps, consistently, and we have the data to say them honestly.
+- **The count.** One surprising tally from the book or the screen.
+
+Rules specific to this one:
+- **One idea.** If a second sentence is needed to explain why the first one matters, the first one is not the post.
+- No preamble and no wind-up. The first word is part of the claim.
+- Every factual rule above still holds. A hot take is a true number stated without cushioning — never a number stripped of context that changes what it means.
+- If the payload has nothing sharp today, write the most interesting true thing in it and let it be a quiet day. A manufactured hot take is worse than a dull one.`;
+
+const LEADERBOARD_BRIEF = `## This thread
+A ranked list of the highest-rated names our screen does NOT hold, from \`spotlight.candidates\`. List posts get saved and re-shared far more than prose, which is the entire reason this format exists.
+
+Structure:
+- Post 1: a framing line, then the list — ticker and rating, one per line, no commentary. If the whole list will not fit, post 1 carries the framing and the first names and post 2 carries the rest.
+- Then one post, at most two, on what the list actually shows: the sector that dominates it, the name whose rating moved most, or what these names have in common. One observation, not a tour of all of them.
+- Then the CTA.
+
+**Required, and near the top, in your own words:** these are screen outputs, not picks and not positions. We do not hold them. The screen can be wrong, and a name on this list may fail another gate or never enter the book at all.
+
+Format the list as ticker then rating, one per line — \`AAAA 4.7\` — with a real line break between each. No pipes, no dashes, no table; X renders none of it.
+
+Never a price target, never a return for any of these names, and never an implication that a high rating says anything about what happens next. If you give any sense of scale from our own book, use its overall return for the period, never a single holding's.`;
+
+const POLL_PROMPT_BRIEF = `## This thread
+Two posts: one genuine question, then the CTA. Replies weigh heavily in what gets shown, and a real question from an account that shows its work is how you earn them.
+
+The question must be anchored to a real number in the payload. That is the whole line between this and engagement farming, and it is not a subtle one. "What's everyone watching this week?" is farming. "Our model has held this through a 22% drawdown and back to flat — at what point does conviction just become being wrong slowly?" is a question, because it costs us something to ask it.
+
+Rules specific to this one:
+- **Post 1 is the number, then the question.** Two or three lines. The number is what makes the question worth answering.
+- Ask something you do not already know the answer to. A question with an obvious right answer reads as a quiz and gets ignored.
+- The best version puts our own book on the hook rather than asking readers to judge somebody else's.
+- **Never invite a trade.** No "what should we buy next", no "which of these would you own". Ask about method, about judgement, about what a number means — never about what to do.
+- Text only. We do not create X's poll object from this pipeline, so do not write as though there are options to vote on.`;
 
 const BRIEFS = {
   weekly_review: WEEKLY_BRIEF,
@@ -141,9 +209,122 @@ const BRIEFS = {
   pick: PICK_BRIEF,
   spotlight: SPOTLIGHT_BRIEF,
   sunday_review: SUNDAY_REVIEW_BRIEF,
+  hot_take: HOT_TAKE_BRIEF,
+  leaderboard: LEADERBOARD_BRIEF,
+  poll_prompt: POLL_PROMPT_BRIEF,
 } as const;
 
 export type ThreadKind = keyof typeof BRIEFS;
+
+/**
+ * How many posts each kind runs to, INCLUDING its closing CTA post.
+ *
+ * The three reach formats are deliberately tiny. A hot take is one post and a
+ * link; stretching it into a thread is exactly what makes it stop working,
+ * so the ceiling is the enforcement rather than a note in the brief the model
+ * can talk itself out of.
+ */
+export const POST_BOUNDS: Record<ThreadKind, { min: number; max: number }> = {
+  weekly_review: { min: 5, max: 13 },
+  market: { min: 5, max: 13 },
+  pick: { min: 5, max: 13 },
+  spotlight: { min: 5, max: 13 },
+  sunday_review: { min: 5, max: 13 },
+  hot_take: { min: 2, max: 2 },
+  leaderboard: { min: 3, max: 5 },
+  poll_prompt: { min: 2, max: 2 },
+};
+
+/**
+ * Where each kind's closing post sends people, and what to promise is there.
+ *
+ * Only routes that exist — a CTA to a 404 is worse than no CTA at all. Kinds
+ * that argue from the book land on the track record; the two that argue from
+ * the screen land on the strategy page, because a reader arriving from a list
+ * of names we do NOT own needs the page explaining what the rating is before
+ * the page showing what we bought.
+ */
+export const CTA_DESTINATIONS: Record<
+  ThreadKind,
+  { url: string; what: string }
+> = {
+  weekly_review: {
+    url: `${SITE_URL}/track-record`,
+    what: "every position in the book and what it has done, updated as it moves",
+  },
+  market: {
+    url: `${SITE_URL}/track-record`,
+    what: "every position in the book and what it has done, updated as it moves",
+  },
+  pick: {
+    url: `${SITE_URL}/track-record`,
+    what: "every position in the book and what it has done, updated as it moves",
+  },
+  spotlight: {
+    url: `${SITE_URL}/strategy`,
+    what: "how the screen works and what it actually scores",
+  },
+  sunday_review: {
+    url: `${SITE_URL}/market-note`,
+    what: "the free Monday Market Note",
+  },
+  hot_take: {
+    url: `${SITE_URL}/track-record`,
+    what: "every position in the book and what it has done, updated as it moves",
+  },
+  leaderboard: {
+    url: `${SITE_URL}/strategy`,
+    what: "how the screen works and what it actually scores",
+  },
+  poll_prompt: {
+    url: `${SITE_URL}/track-record`,
+    what: "every position in the book and what it has done, updated as it moves",
+  },
+};
+
+/** Only the long kinds need talking out of padding; the short ones are capped. */
+const LENGTH_NOTES: Partial<Record<ThreadKind, string>> = {
+  weekly_review: " Aim for the long end.",
+  market: " Aim for the long end.",
+  pick: " Aim for the long end.",
+  spotlight: " Aim for the long end.",
+  sunday_review: " Aim for the long end.",
+};
+
+/**
+ * The per-kind half of the system prompt: how long, and where the CTA points.
+ *
+ * Built here rather than written into each brief so that adding a kind cannot
+ * silently ship a thread with no closing link — the record types make the
+ * compiler ask for both.
+ */
+export function kindDirectives(kind: ThreadKind): string {
+  const { min, max } = POST_BOUNDS[kind];
+  const cta = CTA_DESTINATIONS[kind];
+  const length =
+    min === max ? `exactly ${min} posts` : `between ${min} and ${max} posts`;
+  const note =
+    LENGTH_NOTES[kind] ??
+    " This is a short format on purpose; do not stretch it.";
+
+  return `## Length
+Write ${length}, counting the closing CTA post.${note} Padding to reach a count is worse than posting short.
+
+## The closing post
+- The LAST post is the CTA and nothing else. It is the only post in the thread allowed to contain a link, and that link must be exactly: ${cta.url}
+- Write one line of payoff, then the URL. Say what is actually on the other side — ${cta.what} — never "link in bio", never "read more", never "check it out".
+- It does not have to be the sharpest line in the thread; the post before it does. This post's only job is converting someone who has already decided they liked what they read.
+- No URL in any other post, in any form, including a bare domain.`;
+}
+
+/** The schema a draft is parsed against: this kind's window, not the union of every kind's. */
+function threadSchemaFor(kind: ThreadKind) {
+  const { min, max } = POST_BOUNDS[kind];
+  return z.object({
+    posts: z.array(z.string().min(1).max(400)).min(min).max(max),
+    summary: z.string().min(20).max(500),
+  });
+}
 
 type PeriodRow = {
   id?: string;
@@ -302,6 +483,15 @@ async function fetchMacroBrief(): Promise<MacroBrief | null> {
   }
 }
 
+/**
+ * Kinds whose payload needs the screener watchlist.
+ *
+ * The spotlight argues one name from it, the leaderboard ranks the whole
+ * list, and the hot take goes looking through it for a contrast. Every other
+ * kind writes from the book alone and skips the extra ops-key round trip.
+ */
+const SCREEN_KINDS: ThreadKind[] = ["spotlight", "hot_take", "leaderboard"];
+
 export type SpotlightCounts = { candidate: number; sector: number; news: number };
 
 /**
@@ -433,26 +623,31 @@ export async function fetchThreadFacts(
   missing.push("fed_funds_pricing", "rate_decision_odds", "index_levels");
 
   let spotlight: XThreadFacts["spotlight"];
-  if (kind === "spotlight") {
+  if (SCREEN_KINDS.includes(kind)) {
     const brief = await fetchEditorialBrief();
     if (!brief?.rating_as_of) {
       missing.push("screener_watchlist", "news");
     } else {
+      // Only the spotlight rotates onto ONE subject per day. The hot take and
+      // the leaderboard read the whole list — one hunting a contrast worth
+      // posting, the other because the list is itself the post — so they get
+      // the brief with no focus set and `pickSpotlightIndex` never runs.
       const counts: SpotlightCounts = {
         candidate: brief.watchlist.length,
         sector: brief.sectors.length,
         news: brief.news.length,
       };
-      const pick = pickSpotlightIndex(now, counts);
-      if (!pick) {
+      const pick = kind === "spotlight" ? pickSpotlightIndex(now, counts) : null;
+      if (kind === "spotlight" && !pick) {
         missing.push("screener_watchlist", "news");
       } else {
         spotlight = {
           rating_as_of: brief.rating_as_of,
-          focus: pick.focus,
-          candidate: pick.focus === "candidate" ? brief.watchlist[pick.index] : null,
-          sector: pick.focus === "sector" ? brief.sectors[pick.index] : null,
-          newsItem: pick.focus === "news" ? brief.news[pick.index] : null,
+          focus: pick?.focus ?? null,
+          candidate:
+            pick?.focus === "candidate" ? brief.watchlist[pick.index] : null,
+          sector: pick?.focus === "sector" ? brief.sectors[pick.index] : null,
+          newsItem: pick?.focus === "news" ? brief.news[pick.index] : null,
           candidates: brief.watchlist,
           sectors: brief.sectors,
           news: brief.news,
@@ -516,7 +711,9 @@ export function threadDedupeKey(
   suffix?: string,
 ): string {
   const key =
-    kind === "spotlight"
+    // Both draft every weekday, so the day is the natural unit; a re-fired
+    // job on the same morning finds the draft it already wrote.
+    kind === "spotlight" || kind === "hot_take"
       ? dayKey(now)
       : kind === "sunday_review"
         ? // ISO weeks end on Sunday, so a thread drafted Sunday evening about
@@ -531,12 +728,41 @@ export function threadDedupeKey(
 }
 
 /**
- * Ask the model for a thread, then check the lengths ourselves.
+ * The CTA rule, checked rather than trusted.
  *
- * One retry, and only for over-length posts, with the offending posts named.
- * Models are unreliable character counters and a single corrective pass fixes
- * nearly all of it; looping further would burn tokens on a draft a human is
- * about to read and edit anyway.
+ * Two failures matter here and a length check sees neither. A thread whose
+ * last post lost the link drives no page views at all, which is the only
+ * reason these threads are posted. And a link in the BODY is billed per post
+ * at `COST_PER_LINK_POST_USD` — thirteen times the plain rate — so a model
+ * that helpfully repeats the URL in three posts turns a $0.35 thread into a
+ * $0.80 one, and buries the thread's reach on the way.
+ *
+ * `containsUrl` matches bare domains as well as `https://` ones, so a body
+ * post saying "outpick.xyz/track-record" is caught the same as a real link.
+ */
+export function validateCta(posts: string[], url: string): string[] {
+  const problems: string[] = [];
+  const last = posts.length - 1;
+  posts.forEach((post, i) => {
+    if (i !== last && containsUrl(post)) {
+      problems.push(
+        `post ${i + 1} contains a link — only the last post may have one`,
+      );
+    }
+  });
+  if (last >= 0 && !posts[last].includes(url)) {
+    problems.push(`the last post does not carry the CTA link ${url}`);
+  }
+  return problems;
+}
+
+/**
+ * Ask the model for a thread, then check the lengths and the CTA ourselves.
+ *
+ * One retry, with every problem named at once. Models are unreliable
+ * character counters and drift on where the link goes, and a single
+ * corrective pass fixes nearly all of both; looping further would burn tokens
+ * on a draft a human is about to read and edit anyway.
  */
 export async function generateThreadDraft(
   facts: XThreadFacts,
@@ -549,7 +775,8 @@ export async function generateThreadDraft(
   const maxChars = opts.maxChars ?? DEFAULT_MAX_POST_CHARS;
   const client = new Anthropic({ apiKey });
 
-  const system = `${SHARED_RULES}\n\n${BRIEFS[facts.thread_kind]}`;
+  const cta = CTA_DESTINATIONS[facts.thread_kind];
+  const system = `${SHARED_RULES}\n\n${kindDirectives(facts.thread_kind)}\n\n${BRIEFS[facts.thread_kind]}`;
   const missingNote =
     facts.missing.length > 0
       ? `\n\nNOT AVAILABLE: ${facts.missing.join(", ")}. Do not write as though you have these.`
@@ -567,7 +794,7 @@ export async function generateThreadDraft(
       thinking: { type: "adaptive" },
       output_config: {
         effort: "high",
-        format: zodOutputFormat(ThreadSchema),
+        format: zodOutputFormat(threadSchemaFor(facts.thread_kind)),
       },
       system: [
         { type: "text", text: system, cache_control: { type: "ephemeral" } },
@@ -582,13 +809,17 @@ export async function generateThreadDraft(
       );
     }
 
-    const tooLong = validateThread(parsed.posts, maxChars);
-    if (tooLong.length === 0) return parsed;
+    const problems = [
+      ...validateThread(parsed.posts, maxChars).map(
+        (e) => `post ${e.index + 1} is ${e.chars} characters, over the ${maxChars} limit`,
+      ),
+      ...validateCta(parsed.posts, cta.url),
+    ];
+    if (problems.length === 0) return parsed;
 
     if (attempt === 1) {
       throw new Error(
-        `Model could not keep posts under ${maxChars} chars after a retry: ` +
-          tooLong.map((e) => `post ${e.index + 1} = ${e.chars}`).join(", "),
+        `Model could not satisfy the thread rules after a retry: ${problems.join("; ")}`,
       );
     }
 
@@ -597,12 +828,11 @@ export async function generateThreadDraft(
       {
         role: "user",
         content:
-          `These posts are over the ${maxChars}-character limit: ` +
-          tooLong
-            .map((e) => `post ${e.index + 1} (${e.chars} chars)`)
-            .join(", ") +
-          `. Rewrite the thread with every post at or under ${DRAFT_TARGET_CHARS} characters. ` +
-          `Cut words rather than dropping the argument, and keep every figure you cited.`,
+          `Fix these and return the whole thread again: ${problems.join("; ")}. ` +
+          `Every post must be at or under ${DRAFT_TARGET_CHARS} characters, the last ` +
+          `post must contain ${cta.url}, and no other post may contain a link or a ` +
+          `bare domain. Cut words rather than dropping the argument, and keep every ` +
+          `figure you cited.`,
       },
     );
   }

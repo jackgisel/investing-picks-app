@@ -244,6 +244,31 @@ def job_macro_refresh():
     return _track("macro_refresh", _run)
 
 
+def job_x_thread_hot_take_draft():
+    """The daily single-post take.
+
+    One post plus its CTA, which makes it the cheapest thing the account
+    posts and the one most likely to break out. Drafted daily and keyed on
+    the day, so a re-fire finds the morning's draft rather than writing a
+    second one.
+    """
+    return job_x_thread_draft("hot_take")
+
+
+def job_x_thread_leaderboard_draft():
+    """The weekly ranked list of top-rated names we do NOT hold.
+
+    Needs the screener watchlist; the web app refuses the draft outright when
+    it is empty rather than letting the model rank our own positions instead.
+    """
+    return job_x_thread_draft("leaderboard")
+
+
+def job_x_thread_poll_prompt_draft():
+    """The weekly question post. Two posts: the question, then the CTA."""
+    return job_x_thread_draft("poll_prompt")
+
+
 def job_x_thread_spotlight_draft():
     """The daily screener-name-or-sector spotlight.
 

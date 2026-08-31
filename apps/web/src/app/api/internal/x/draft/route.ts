@@ -13,6 +13,9 @@ const KINDS: ThreadKind[] = [
   "pick",
   "spotlight",
   "sunday_review",
+  "hot_take",
+  "leaderboard",
+  "poll_prompt",
 ];
 
 /**

@@ -49,5 +49,9 @@ export async function POST(req: Request) {
 
   await ensureMigrations();
   const result = await draftThread(kind);
-  return NextResponse.json(result, { status: result.error ? 502 : 200 });
+  // 409, not 502, when the draft was refused for a missing input: the
+  // operator needs to read the message, and a gateway code sends them to
+  // the logs instead.
+  const status = result.blocked ? 409 : result.error ? 502 : 200;
+  return NextResponse.json(result, { status });
 }

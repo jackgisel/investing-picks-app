@@ -54,13 +54,21 @@ const KIND_LABEL: Record<Thread["kind"], string> = {
 };
 
 async function errorMessage(res: Response): Promise<string> {
+  // Read as text first. A proxy timeout or a crashed container answers with
+  // HTML, and `res.json()` throwing there is what turned a perfectly clear
+  // "run the macro job" into a bare "Request failed (502)" on screen.
+  const raw = await res.text().catch(() => "");
   try {
-    const body = await res.json();
+    const body = JSON.parse(raw);
     if (typeof body?.error === "string") return body.error;
   } catch {
-    /* fall through */
+    /* not JSON — fall through to the raw text below */
   }
-  return `Request failed (${res.status})`;
+  const snippet = raw.trim().slice(0, 200);
+  if (snippet && !snippet.startsWith("<")) return `${snippet} (${res.status})`;
+  return res.status === 504 || res.status === 502
+    ? `Request failed (${res.status}) — the draft likely ran past the gateway timeout. Check the queue in a minute before retrying.`
+    : `Request failed (${res.status})`;
 }
 
 export default function OpsXThreadsPage() {

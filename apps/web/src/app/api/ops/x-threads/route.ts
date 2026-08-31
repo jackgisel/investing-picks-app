@@ -9,7 +9,13 @@ import { draftThread } from "@/lib/x-thread-sync";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-const KINDS: ThreadKind[] = ["weekly_review", "market", "pick", "spotlight"];
+const KINDS: ThreadKind[] = [
+  "weekly_review",
+  "market",
+  "pick",
+  "spotlight",
+  "sunday_review",
+];
 
 /** The thread queue, with the per-post character counts the editor needs. */
 export async function GET() {

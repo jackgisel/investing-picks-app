@@ -11,7 +11,12 @@ import { pool } from "@/lib/db";
  * and will be posted again from the top.
  */
 
-export type XThreadKind = "pick" | "weekly_review" | "market" | "spotlight";
+export type XThreadKind =
+  | "pick"
+  | "weekly_review"
+  | "market"
+  | "spotlight"
+  | "sunday_review";
 export type XThreadStatus = "draft" | "posted" | "failed" | "rejected";
 
 export type XThread = {

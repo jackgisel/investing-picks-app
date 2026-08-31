@@ -258,5 +258,30 @@ class FMPClient:
         )
         return data if isinstance(data, list) else []
 
+    def treasury_rates(self, start: str, end: str) -> list[dict]:
+        """Constant-maturity Treasury yields for a date range.
+
+        One row per session with a column per tenor (`month1` ... `year30`),
+        which is why this returns raw rows rather than a single tenor — the
+        week-ahead thread wants the 2-year and the 10-year from the same
+        session, and splitting that into two calls invites quoting yields
+        from two different days in one sentence.
+        """
+        data = self._get("treasury-rates", {"from": start, "to": end})
+        return data if isinstance(data, list) else []
+
+    def economics_calendar(self, start: str, end: str) -> list[dict]:
+        """Scheduled macro releases between two dates, US only.
+
+        Filtered to `country == "US"` here rather than by query parameter:
+        the stable endpoint returns the whole world and the parameter is not
+        honoured on every plan, so filtering client-side is the version that
+        cannot silently start including euro-area PMIs.
+        """
+        data = self._get("economic-calendar", {"from": start, "to": end})
+        if not isinstance(data, list):
+            return []
+        return [row for row in data if (row.get("country") or "").upper() == "US"]
+
     def close(self):
         self._client.close()

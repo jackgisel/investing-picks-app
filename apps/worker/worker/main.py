@@ -36,9 +36,11 @@ from worker.jobs.runner import (
     job_weekly_review_publish,
     job_weekly_summary,
     job_x_thread_draft,
+    job_macro_refresh,
     job_x_thread_market_draft,
     job_x_thread_post,
     job_x_thread_spotlight_draft,
+    job_x_thread_sunday_draft,
     reap_stale_weekly_refreshes,
     sweep_ops_alerts,
 )
@@ -242,6 +244,35 @@ def main():
     # Weekdays 06:30 PT — half an hour ahead of the first post-check tick, so
     # a spotlight drafted today has a chance of being confirmed before it.
     # Alternates candidate/sector on its own (see `pickSpotlightIndex`); this
+    # Sunday 16:00 PT — macro pull, then the week-ahead draft ninety minutes
+    # later. Sunday rather than Monday morning because the thread argues about
+    # a week that has not started, and the econ calendar for it is published
+    # well before the Sunday close.
+    scheduler.add_job(
+        job_macro_refresh,
+        CronTrigger(
+            day_of_week="sun",
+            hour=16,
+            minute=0,
+            timezone="America/Los_Angeles",
+        ),
+        id="macro_refresh",
+        replace_existing=True,
+    )
+    # Sunday 17:30 PT — late enough that an admin reading it still has the
+    # evening to confirm before futures open, early enough that they are not
+    # editing a thread at midnight.
+    scheduler.add_job(
+        job_x_thread_sunday_draft,
+        CronTrigger(
+            day_of_week="sun",
+            hour=17,
+            minute=30,
+            timezone="America/Los_Angeles",
+        ),
+        id="x_thread_sunday_draft",
+        replace_existing=True,
+    )
     # is just "run every weekday morning."
     scheduler.add_job(
         job_x_thread_spotlight_draft,
@@ -302,6 +333,8 @@ def main():
             "x_thread_draft": job_x_thread_draft,
             "x_thread_market_draft": job_x_thread_market_draft,
             "x_thread_spotlight_draft": job_x_thread_spotlight_draft,
+            "x_thread_sunday_draft": job_x_thread_sunday_draft,
+            "macro_refresh": job_macro_refresh,
             "x_thread_post": job_x_thread_post,
             "news_refresh": job_news_refresh,
             "dca_friday": job_dca_friday,

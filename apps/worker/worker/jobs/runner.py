@@ -25,6 +25,7 @@ from worker.services.ingest import (
     news_universe_tickers,
     refresh_fundamentals,
     refresh_marks,
+    refresh_macro,
     refresh_news,
     refresh_universe,
 )
@@ -213,6 +214,34 @@ def job_x_thread_market_draft():
     """The market-conditions-and-sectors thread. Own job so it can have its
     own cron slot without threading an argument through APScheduler."""
     return job_x_thread_draft("market")
+
+
+def job_x_thread_sunday_draft():
+    """The Sunday week-ahead thread.
+
+    Runs after `job_macro_refresh` so the yields and the econ calendar it
+    argues from were pulled the same evening, not left over from last week.
+    """
+    return job_x_thread_draft("sunday_review")
+
+
+def job_macro_refresh():
+    """Pull Treasury yields and the coming week's US econ calendar.
+
+    Sunday-only, ahead of the week-ahead draft. The series it writes are the
+    only macro numbers the Sunday thread is allowed to cite; if this fails the
+    draft still runs and the payload names the gap, which produces a thinner
+    thread rather than an invented one.
+    """
+
+    def _run(db: Session):
+        fmp = _fmp()
+        try:
+            return refresh_macro(db, fmp)
+        finally:
+            fmp.close()
+
+    return _track("macro_refresh", _run)
 
 
 def job_x_thread_spotlight_draft():

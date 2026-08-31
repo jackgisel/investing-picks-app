@@ -7,7 +7,13 @@ import type { ThreadKind } from "@/lib/x-thread-draft";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-const KINDS: ThreadKind[] = ["weekly_review", "market", "pick", "spotlight"];
+const KINDS: ThreadKind[] = [
+  "weekly_review",
+  "market",
+  "pick",
+  "spotlight",
+  "sunday_review",
+];
 
 /**
  * The worker's drafting tick. Writes a thread draft and leaves it for an

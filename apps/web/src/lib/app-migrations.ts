@@ -496,6 +496,19 @@ export async function runAppMigrations() {
       UNIQUE (kind, dedupe_key)
     )
   `);
+  // 'sunday_review' postdates the original CHECK, and CREATE TABLE IF NOT
+  // EXISTS does not revisit an existing table's constraints — same situation
+  // as insight_status_check above, same fix. Without this the Sunday draft
+  // job fails its INSERT on every deployment that already has the table.
+  await pool.query(`
+    ALTER TABLE x_thread DROP CONSTRAINT IF EXISTS x_thread_kind_check
+  `);
+  await pool.query(`
+    ALTER TABLE x_thread
+      ADD CONSTRAINT x_thread_kind_check
+      CHECK (kind IN ('pick', 'weekly_review', 'market', 'spotlight',
+                      'sunday_review'))
+  `);
   // The ops queue: newest first, drafts before anything else.
   await pool.query(`
     CREATE INDEX IF NOT EXISTS x_thread_queue_idx

@@ -4,6 +4,7 @@ import {
   postLengths,
   rollUpSectors,
   threadDedupeKey,
+  weekAheadFraming,
 } from "@/lib/x-thread-draft";
 
 type Holding = Parameters<typeof rollUpSectors>[0][number];
@@ -187,5 +188,24 @@ describe("postLengths", () => {
       3,
       "see ".length + 23,
     ]);
+  });
+});
+
+describe("weekAheadFraming", () => {
+  // The first production draft opened "Sunday review for August 25-31, 2026"
+  // and reviewed the week that had just finished, because that is the label
+  // the payload handed the model.
+  const sundayNight = new Date("2026-08-30T23:30:00Z");
+
+  it("labels the week that starts tomorrow, not the one ending tonight", () => {
+    const framing = weekAheadFraming(sundayNight);
+    expect(framing.period_label).toBe("August 31\u2013September 6, 2026");
+    expect(framing.week_key).toBe("2026-W36");
+  });
+
+  it("drops per-holding detail so the thread cannot argue single positions", () => {
+    const framing = weekAheadFraming(sundayNight);
+    expect(framing.holdings).toEqual([]);
+    expect(framing.moves).toEqual([]);
   });
 });

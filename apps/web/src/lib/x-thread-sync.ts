@@ -97,6 +97,25 @@ export async function draftThread(
       };
     }
 
+    // A leaderboard IS its list. With an empty watchlist the model has
+    // nothing to rank and will reach for the book instead — which turns a
+    // "names we don't own" post into a post about names we do own, the one
+    // thing this format must never become. Same reasoning as the Sunday
+    // guard above: refuse and name the job to run.
+    if (kind === "leaderboard" && !facts.spotlight?.candidates.length) {
+      return {
+        kind,
+        dedupeKey,
+        generated: false,
+        blocked: true,
+        error:
+          "No screener watchlist — there is nothing to rank, and the draft " +
+          "would fall back to naming positions we hold. Run the weekly " +
+          "refresh so `/ops/editorial-brief` returns candidates, then draft " +
+          "again.",
+      };
+    }
+
     const draft = await generateThreadDraft(facts);
     const { thread, created } = await createThreadDraft({
       kind,

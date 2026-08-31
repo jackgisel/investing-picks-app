@@ -24,7 +24,15 @@ const MAX_CHARS = 280;
 
 type Thread = {
   id: string;
-  kind: "pick" | "weekly_review" | "market" | "spotlight" | "sunday_review";
+  kind:
+    | "pick"
+    | "weekly_review"
+    | "market"
+    | "spotlight"
+    | "sunday_review"
+    | "hot_take"
+    | "leaderboard"
+    | "poll_prompt";
   dedupeKey: string;
   posts: string[];
   facts: { summary?: string };
@@ -51,7 +59,25 @@ const KIND_LABEL: Record<Thread["kind"], string> = {
   pick: "Pick",
   spotlight: "Spotlight",
   sunday_review: "Week ahead",
+  hot_take: "Hot take",
+  leaderboard: "Leaderboard",
+  poll_prompt: "Question",
 };
+
+/**
+ * The order the Draft buttons appear in: long threads first, then the three
+ * short reach formats. Kept separate from KIND_LABEL because `pick` has no
+ * scheduled job and no button — it is drafted from the insights flow.
+ */
+const DRAFTABLE = [
+  "weekly_review",
+  "market",
+  "spotlight",
+  "sunday_review",
+  "hot_take",
+  "leaderboard",
+  "poll_prompt",
+] as const;
 
 async function errorMessage(res: Response): Promise<string> {
   // Read as text first. A proxy timeout or a crashed container answers with
@@ -130,7 +156,7 @@ export default function OpsXThreadsPage() {
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            {(["weekly_review", "market", "spotlight", "sunday_review"] as const).map((kind) => (
+            {DRAFTABLE.map((kind) => (
               <button
                 key={kind}
                 type="button"

@@ -37,7 +37,10 @@ from worker.jobs.runner import (
     job_weekly_summary,
     job_x_thread_draft,
     job_macro_refresh,
+    job_x_thread_hot_take_draft,
+    job_x_thread_leaderboard_draft,
     job_x_thread_market_draft,
+    job_x_thread_poll_prompt_draft,
     job_x_thread_post,
     job_x_thread_spotlight_draft,
     job_x_thread_sunday_draft,
@@ -285,6 +288,48 @@ def main():
         id="x_thread_spotlight_draft",
         replace_existing=True,
     )
+    # Weekdays 06:45 PT — alongside the spotlight, off the same morning's
+    # screener pull. One post and a link; the whole point is that it is cheap
+    # enough to fire every day and let most of them land quietly.
+    scheduler.add_job(
+        job_x_thread_hot_take_draft,
+        CronTrigger(
+            day_of_week="mon-fri",
+            hour=6,
+            minute=45,
+            timezone="America/Los_Angeles",
+        ),
+        id="x_thread_hot_take_draft",
+        replace_existing=True,
+    )
+    # Wednesday 09:00 PT — the ranked screen list. Weekly rather than daily
+    # because the watchlist barely moves between refreshes, and a list that
+    # repeats itself reads as a bot.
+    scheduler.add_job(
+        job_x_thread_leaderboard_draft,
+        CronTrigger(
+            day_of_week="wed",
+            hour=9,
+            minute=0,
+            timezone="America/Los_Angeles",
+        ),
+        id="x_thread_leaderboard_draft",
+        replace_existing=True,
+    )
+    # Thursday 09:00 PT — the question post. Once a week is deliberate: a
+    # question every day is the thing that makes an account read as farming,
+    # which costs more reach than the replies are worth.
+    scheduler.add_job(
+        job_x_thread_poll_prompt_draft,
+        CronTrigger(
+            day_of_week="thu",
+            hour=9,
+            minute=0,
+            timezone="America/Los_Angeles",
+        ),
+        id="x_thread_poll_prompt_draft",
+        replace_existing=True,
+    )
     # Hourly, weekdays 07:00–17:00 PT. A thread goes out on the first tick
     # after an admin confirms it, so confirming is the act that publishes and
     # the schedule is only how long you might wait. Ticks with nothing
@@ -331,7 +376,10 @@ def main():
             # after editing the style guide. `x_thread_post` sends whatever is
             # confirmed right now instead of waiting for the hourly tick.
             "x_thread_draft": job_x_thread_draft,
+            "x_thread_hot_take_draft": job_x_thread_hot_take_draft,
+            "x_thread_leaderboard_draft": job_x_thread_leaderboard_draft,
             "x_thread_market_draft": job_x_thread_market_draft,
+            "x_thread_poll_prompt_draft": job_x_thread_poll_prompt_draft,
             "x_thread_spotlight_draft": job_x_thread_spotlight_draft,
             "x_thread_sunday_draft": job_x_thread_sunday_draft,
             "macro_refresh": job_macro_refresh,

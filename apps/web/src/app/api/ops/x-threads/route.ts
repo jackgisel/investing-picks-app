@@ -15,6 +15,9 @@ const KINDS: ThreadKind[] = [
   "pick",
   "spotlight",
   "sunday_review",
+  "hot_take",
+  "leaderboard",
+  "poll_prompt",
 ];
 
 /** The thread queue, with the per-post character counts the editor needs. */

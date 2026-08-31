@@ -16,7 +16,13 @@ export type XThreadKind =
   | "weekly_review"
   | "market"
   | "spotlight"
-  | "sunday_review";
+  | "sunday_review"
+  // The reach formats: one-post takes, ranked screen lists, and question
+  // posts. Same table and same confirm gate as the long threads — they make
+  // public claims about the same book, so they get the same review.
+  | "hot_take"
+  | "leaderboard"
+  | "poll_prompt";
 export type XThreadStatus = "draft" | "posted" | "failed" | "rejected";
 
 export type XThread = {

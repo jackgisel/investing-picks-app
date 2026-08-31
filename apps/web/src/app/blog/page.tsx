@@ -5,6 +5,8 @@ import { ArtMasthead } from "@/components/art/art-masthead";
 import { ArticleCard } from "@/components/blog/article-card";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
 
+export const revalidate = 60;
+
 export const metadata: Metadata = {
   title: "Blog — Value investing, market cycles, and intentional stock research",
   description:

@@ -17,6 +17,8 @@ export const metadata: Metadata = {
   alternates: { canonical: "/faq" },
 };
 
+export const revalidate = 60;
+
 /**
  * The FAQ, moved off the homepage.
  *

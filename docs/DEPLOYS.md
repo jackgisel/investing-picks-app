@@ -51,3 +51,38 @@ Connecting a source triggers an immediate deploy of the branch head.
 
 Railway keeps prior deployments per service — redeploy a previous one from the service's
 Deployments tab. `railway redeploy` / `railway down` also work against the linked service.
+
+## Auto-deploy from `main` (already connected)
+
+GitHub Deployments for `outpick / production` are created by `railway-app[bot]`.
+A merge to `main` that touches `apps/web/**` deploys `web`; `api` and `worker`
+skip when their watch patterns did not change.
+
+Confirmed on 2026-08-31: merge `0d906818e43293f2bff0435b4784ecebcb0e5c58` (PR 20)
+created a GitHub deployment at 14:17:48 UTC. Status checks:
+
+| Service | Result | When |
+|---|---|---|
+| web | Success — outpick.xyz | 14:19:55 UTC |
+| api | No deployment needed — watched paths not modified | 14:17:46 UTC |
+| worker | No deployment needed — watched paths not modified | 14:17:46 UTC |
+
+There is no `RAILWAY_TOKEN` in this repo. Connecting or relinking a service is
+dashboard-only (see above). Do not invent credentials.
+
+## Why a successful deploy can still look like the old site
+
+Next.js App Router defaults public HTML to `Cache-Control: s-maxage=31536000`
+(fully static) or `s-maxage=<revalidate>, stale-while-revalidate≈1y` (ISR).
+Cloudflare on outpick.xyz reports `cf-cache-status: DYNAMIC` — it is not an
+HTML CDN cache. The year-long header is Next's own, and `x-nextjs-prerender: 1`
+means the response is a build-time prerender.
+
+The web Docker build has no Outpick API (`OUTPICK_API_URL` is `localhost:8000`
+inside the image). ISR on `/track-record` therefore baked an empty live book
+into the HTML, then kept serving it.
+
+Fix (in `apps/web`): `expireTime: 60` in `next.config.js`, `export const revalidate = 60`
+on public pages, and `dynamic = "force-dynamic"` on `/track-record` so the first
+HTML is fetched at request time. A one-off purge is not the fix — the next
+copy change would disappear the same way.

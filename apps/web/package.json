@@ -10,6 +10,7 @@
     "start": "next start",
     "lint": "next lint",
     "check": "vitest run && node scripts/test-constants.mjs && node scripts/test-api-error.mjs",
+    "check:headers": "node scripts/test-public-cache-headers.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },

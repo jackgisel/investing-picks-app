@@ -15,8 +15,8 @@ import type { InsightMeta } from "@/lib/insights";
  * nothing is nominated the section renders nothing — an empty "sample research"
  * heading is worse than no heading.
  *
- * Server component. The homepage revalidates hourly, which is far more often
- * than the nomination changes.
+ * Server component. The homepage revalidates every minute, which is far more
+ * often than the nomination changes.
  */
 export async function SampleResearch() {
   const samples = await listPublicSampleInsights().catch(() => []);

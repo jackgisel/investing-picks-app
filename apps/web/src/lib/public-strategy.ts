@@ -1,3 +1,4 @@
+import { unstable_noStore as noStore } from "next/cache";
 import { anonymiseStrategy } from "@/lib/api-gate";
 import { PUBLIC_API_BASE } from "@/lib/api-config";
 import type { StrategyData } from "@/lib/hooks/use-strategy";
@@ -15,9 +16,10 @@ import type { StrategyData } from "@/lib/hooks/use-strategy";
  * render an honest empty state, never a fabricated percentage.
  */
 export async function getPublicStrategy(): Promise<StrategyData | null> {
+  noStore();
   try {
     const res = await fetch(`${PUBLIC_API_BASE}/strategy`, {
-      next: { revalidate: 300 },
+      cache: "no-store",
       signal: AbortSignal.timeout(4000),
     });
     if (!res.ok) return null;

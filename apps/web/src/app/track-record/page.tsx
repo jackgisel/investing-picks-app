@@ -14,7 +14,13 @@ export const metadata: Metadata = {
   description: `Live example portfolio and ${BACKTEST.yearsCovered}-year walk-forward backtrained model — wins, losses, and performance vs the S&P 500, published in full.`,
 };
 
-export const revalidate = 300;
+// Request-time only. Docker build has no Outpick API (OUTPICK_API_URL is
+// localhost:8000 inside the image), so ISR prerendered an empty live book
+// and then served it with a year-long stale-while-revalidate. The first
+// HTML must include the real picks return from getPublicStrategy.
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+export const revalidate = 0;
 
 /**
  * Deep dive for visitors who want the numbers: live book + walk-forward model.

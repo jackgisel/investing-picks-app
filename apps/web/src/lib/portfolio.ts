@@ -24,10 +24,17 @@ export function computePortfolioReturnPct(
   strategy: StrategyData | undefined
 ): number | null {
   if (!strategy?.portfolio) return null;
-  const picks = strategy.portfolio.picks_return_pct;
-  if (typeof picks === "number") return picks;
-  // Older API responses only carried the equity return.
-  return strategy.portfolio.total_return_pct ?? null;
+  // Present-and-null means "we measured this and there is no number" (no
+  // capital deployed yet, or the book could not be priced). That is not the
+  // same as a legacy payload that never had the field — falling through to
+  // the cash-dragged book return would publish the wrong figure under a
+  // "picks return" label.
+  if ("picks_return_pct" in strategy.portfolio) {
+    const picks = strategy.portfolio.picks_return_pct;
+    return typeof picks === "number" && Number.isFinite(picks) ? picks : null;
+  }
+  const book = strategy.portfolio.total_return_pct;
+  return typeof book === "number" && Number.isFinite(book) ? book : null;
 }
 
 /**

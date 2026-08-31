@@ -98,10 +98,15 @@ export interface StrategyData {
   next_evaluation_date?: string | null;
 }
 
-export function useStrategy() {
+export function useStrategy(initialData?: StrategyData) {
   return useQuery<StrategyData>({
     queryKey: ["strategy"],
     queryFn: () => fetchJson<StrategyData>("/api/data/strategy"),
+    // initialData is SSR'd anonymised public numbers so the first HTML paint
+    // is not an em dash. Leave it stale (no initialDataUpdatedAt) so a
+    // subscriber who then opens the dashboard still refetches the entitled
+    // payload instead of sitting on the public snapshot for staleTime.
+    ...(initialData ? { initialData } : {}),
     ...dataQueryOptions,
   });
 }

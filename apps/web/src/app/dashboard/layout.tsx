@@ -5,6 +5,7 @@ import { getAdminUser } from "@/lib/admin";
 
 export const metadata: Metadata = {
   title: "Dashboard",
+  robots: { index: false, follow: false },
 };
 
 // The nav's contents depend on who is signed in, so this layout can't be

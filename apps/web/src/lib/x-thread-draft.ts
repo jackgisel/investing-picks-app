@@ -19,6 +19,7 @@ import {
   fetchWeeklyReviewFacts,
   type WeeklyReviewFacts,
 } from "@/lib/weekly-review-draft";
+import { periodLabel } from "@/lib/weekly-summary";
 
 /**
  * Drafting long-form X threads from the same facts the weekly review runs on.
@@ -129,6 +130,8 @@ You have \`macro.yields\` (Treasury constant-maturity yields, with the change ov
 Structure that works: open on the tension. Say what the week turns on and why. Walk the two or three ways it can break, naming what each would mean. Then say plainly what would have to happen for our own positioning to change, which is usually nothing — the strategy does not trade the macro calendar, and saying so is more honest than implying we do.
 
 **Never forecast a level, a direction, or a return.** "A hot print makes the front end's move look early" is a reading. "Stocks fall if payrolls beat" is a prediction, and it is not something we publish. The distinction is the whole reason this thread is allowed to exist: you are describing what is at stake, never what will happen.
+
+**Close by pointing readers at the free Market Note**, in the final post: it goes out Monday morning, it is free, and it covers what our model is scoring across the US market and how we read the cycle. Say it plainly and once, with the link \`https://outpick.xyz/market-note\`. This is the one place a link belongs — the no-links rule above is lifted for this post and this post only.
 
 Our book is context here, not the subject. The screen has no view on a payroll number, and the thread should say so rather than implying our positioning anticipates the week. If you cite our own performance at all, it is the overall book return for a period, never a single holding's.`;
 
@@ -368,6 +371,31 @@ export function rollUpSectors(
     .sort((a, b) => b.positions - a.positions);
 }
 
+/**
+ * Re-label a Sunday payload onto the week it is about.
+ *
+ * `fetchWeeklyReviewFacts` exists to write Friday's review, so its
+ * `period_label` and `week_key` name the week that just ended. Spreading those
+ * into the Sunday payload put "write the sunday review thread for August
+ * 25-31" in the prompt, and the model wrote exactly that — a backward-looking
+ * book review under a WEEK AHEAD header.
+ *
+ * Emptying `holdings` and `moves` is the other half. The brief says the book is
+ * context rather than the subject, but a payload listing every position's P&L
+ * is an invitation no brief outweighs. Aggregate returns survive in `week`,
+ * `periods` and `sectors`, so the no-cherry-picking rule keeps its denominator.
+ */
+export function weekAheadFraming(now: Date) {
+  const monday = new Date(now.getTime() + 86_400_000);
+  return {
+    week_key: isoWeekKey(monday),
+    // periodLabel takes the week's END; the thread's week ends six days on.
+    period_label: periodLabel(new Date(monday.getTime() + 6 * 86_400_000)),
+    holdings: [] as WeeklyReviewFacts["holdings"],
+    moves: [] as WeeklyReviewFacts["moves"],
+  };
+}
+
 /** Assemble the payload. `missing` names every gap; it is never padded over. */
 export async function fetchThreadFacts(
   kind: ThreadKind,
@@ -439,8 +467,22 @@ export async function fetchThreadFacts(
     missing.push("news");
   }
 
+  // The base facts describe the week that just ENDED — `fetchWeeklyReviewFacts`
+  // exists to write Friday's review. Handing those straight to the Sunday
+  // thread told it, in the prompt's own words, to write "the sunday review
+  // thread for August 25-31", and it dutifully wrote a backward-looking book
+  // review under a WEEK AHEAD header. Relabel to the week the thread is about.
+  //
+  // The per-holding array goes too. The brief says the book is context and not
+  // the subject, but a payload carrying every position's P&L is an invitation
+  // the brief cannot outweigh — the first draft argued FIX, LLY, GEV and SKWD
+  // one by one. Aggregate returns stay (`week`, `periods`, `sectors`) so the
+  // no-cherry-picking rule still has its denominator.
+  const framing = kind === "sunday_review" ? weekAheadFraming(now) : {};
+
   return {
     ...base,
+    ...framing,
     missing,
     thread_kind: kind,
     periods: (periodsBody?.periods ?? []).map((p) => ({

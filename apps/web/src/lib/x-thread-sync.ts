@@ -70,6 +70,25 @@ export async function draftThread(
 
   try {
     const facts = await fetchThreadFacts(kind, now);
+
+    // A week-ahead thread with no week-ahead facts is not a thin thread, it is
+    // a different thread wearing the wrong header. The first production draft
+    // ran with an empty `macro_readings` table and produced a backward-looking
+    // review of the book labelled WEEK AHEAD, because the book facts were the
+    // only thing in the payload it could write about. Refusing is the correct
+    // outcome: the macro pull runs 90 minutes earlier for exactly this reason,
+    // and if it did not land, the fix is to run it, not to publish around it.
+    if (kind === "sunday_review" && !facts.macro) {
+      return {
+        kind,
+        dedupeKey,
+        generated: false,
+        error:
+          "No macro facts available — run the macro_refresh job first. " +
+          "Drafting this without them produces a book review, not a week-ahead thread.",
+      };
+    }
+
     const draft = await generateThreadDraft(facts);
     const { thread, created } = await createThreadDraft({
       kind,

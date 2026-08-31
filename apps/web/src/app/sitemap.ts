@@ -3,9 +3,10 @@ import { articles } from "@/lib/blog";
 import { SITE_URL } from "@/lib/constants";
 import { buildSitemapEntries, loadPublicSampleRoutes } from "@/lib/sitemap";
 
-// Cached for an hour so a slow sample-note lookup cannot run on every crawl.
-// force-dynamic would re-query Postgres on each Googlebot hit.
-export const revalidate = 3600;
+// Short ISR so a deploy cannot keep serving a sitemap that listed
+// /dashboard and /login. Sample-note lookup is still cached for this
+// window; it must never 500 the document (see loadPublicSampleRoutes).
+export const revalidate = 60;
 export const runtime = "nodejs";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

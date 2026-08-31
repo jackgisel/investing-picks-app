@@ -48,6 +48,13 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+// Convert otherwise-static marketing HTML to ISR with a 60s window.
+// Fully static pages send `s-maxage=31536000`; after a deploy any edge
+// honoring that header keeps last week's copy. Child layouts that set
+// `dynamic = "force-dynamic"` (dashboard, auth) stay uncached. Keep the
+// literal in sync with PUBLIC_PAGE_REVALIDATE_SECONDS.
+export const revalidate = 60;
+
 export const metadata: Metadata = {
   title: {
     default: TITLE,

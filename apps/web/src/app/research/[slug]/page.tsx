@@ -28,7 +28,7 @@ type Params = { slug: string };
  * so an unreviewed draft cannot reach this route even if someone nominates one.
  */
 
-export const revalidate = 3600;
+export const revalidate = 60;
 
 export async function generateStaticParams() {
   const samples = await listPublicSampleInsights().catch(() => []);

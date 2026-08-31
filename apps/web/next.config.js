@@ -2,6 +2,11 @@
 const nextConfig = {
   output: "standalone",
   reactStrictMode: true,
+  // Cap ISR stale-while-revalidate. Next's default is one year, which is
+  // how a successful Railway deploy of public HTML still served last week's
+  // prerender (empty live return, old pricing copy). Must stay in sync with
+  // PUBLIC_PAGE_EXPIRE_SECONDS in src/lib/public-cache.ts (60).
+  expireTime: 60,
   images: {
     remotePatterns: [
       {

@@ -8,10 +8,9 @@ import { WhatWeAreNot } from "@/components/landing/what-we-are-not";
 import { Pricing } from "@/components/landing/pricing";
 import { Disclaimer } from "@/components/landing/disclaimer";
 
-// SampleResearch reads the nominated public samples. Hourly is far more often
-// than that nomination changes, and it keeps the homepage static for everyone
-// else.
-export const revalidate = 3600;
+// SampleResearch reads the nominated public samples. 60s matches the public
+// ISR cap (expireTime) so this page cannot keep a year-old prerender.
+export const revalidate = 60;
 
 export default function HomePage() {
   return (

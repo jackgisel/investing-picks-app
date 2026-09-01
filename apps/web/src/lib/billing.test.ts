@@ -170,6 +170,8 @@ describe("Checkout parameters and browser origin", () => {
     });
     expect(params).not.toHaveProperty("automatic_tax");
     expect(params).not.toHaveProperty("customer_update");
+    expect(params.metadata).not.toHaveProperty("datafast_visitor_id");
+    expect(params.metadata).not.toHaveProperty("datafast_session_id");
   });
 
   it("opts into classic Stripe Tax only when asked", () => {
@@ -198,6 +200,30 @@ describe("Checkout parameters and browser origin", () => {
     });
     expect(params).not.toHaveProperty("discounts");
     expect(params.metadata).toMatchObject({ founders_offer: "false" });
+  });
+
+  it("puts DataFast cookies on the Checkout Session only", () => {
+    const params = buildCheckoutParams({
+      appUrl,
+      userId: "user_1",
+      customerId: "cus_1",
+      annualPriceId: "price_annual",
+      couponId: null,
+      offer: "standard",
+      automaticTax: false,
+      datafastVisitorId: " vis_abc ",
+      datafastSessionId: "ses_123",
+    });
+    expect(params.metadata).toMatchObject({
+      outpick_user_id: "user_1",
+      datafast_visitor_id: "vis_abc",
+      datafast_session_id: "ses_123",
+    });
+    expect(params.subscription_data?.metadata).toEqual({
+      outpick_user_id: "user_1",
+      founders_offer: "false",
+      offer_type: "standard",
+    });
   });
 
   it("matches the production-test allowlist case-insensitively", () => {

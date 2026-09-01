@@ -20,6 +20,7 @@ interface PillButtonProps {
   className?: string;
   href?: string;
   arrow?: boolean;
+  "data-fast-goal"?: string;
 }
 
 export function PillButton({
@@ -28,6 +29,7 @@ export function PillButton({
   className,
   href,
   arrow,
+  "data-fast-goal": dataFastGoal,
   ...rest
 }: PillButtonProps & ButtonHTMLAttributes<HTMLButtonElement>) {
   const classes = cn(base, variants[variant], className);
@@ -51,14 +53,23 @@ export function PillButton({
 
   if (href) {
     return (
-      <Link href={href} className={cn(classes, "group")}>
+      <Link
+        href={href}
+        className={cn(classes, "group")}
+        data-fast-goal={dataFastGoal}
+      >
         {content}
       </Link>
     );
   }
 
   return (
-    <button type="button" className={cn(classes, "group")} {...rest}>
+    <button
+      type="button"
+      className={cn(classes, "group")}
+      data-fast-goal={dataFastGoal}
+      {...rest}
+    >
       {content}
     </button>
   );

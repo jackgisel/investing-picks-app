@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { AlertCircle, Inbox, Lock, LogIn, RefreshCw } from "lucide-react";
 import { toApiError, type ApiErrorKind } from "@/lib/hooks/api-error";
+import { DATAFAST_CHECKOUT_GOAL } from "@/lib/datafast";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
@@ -113,7 +114,11 @@ export function DataState({
           Your account is signed in but does not have an active subscription.
         </Body>
         <div className="flex flex-wrap items-center justify-center gap-3 mt-1">
-          <Link href="/subscribe" className="btn-primary !text-xs !px-6 !py-3">
+          <Link
+            href="/subscribe"
+            className="btn-primary !text-xs !px-6 !py-3"
+            data-fast-goal={DATAFAST_CHECKOUT_GOAL}
+          >
             Start membership
           </Link>
           <Link

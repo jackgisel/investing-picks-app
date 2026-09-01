@@ -98,6 +98,22 @@ export default function PrivacyPage() {
             infrastructure. Your account data is stored securely on
             Convex&apos;s servers.
           </p>
+          <p className="mb-2">
+            <strong className="text-text">DataFast</strong> — Privacy-respecting
+            web analytics and revenue attribution. After you accept analytics
+            cookies, first-party visitor and session identifiers are set so we
+            can attribute Stripe checkout to the source that brought you here.
+            See{" "}
+            <a
+              href="https://datafa.st/privacy"
+              className="text-accent-green hover:underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              DataFast&apos;s Privacy Policy
+            </a>
+            .
+          </p>
           <p>
             <strong className="text-text">Email provider</strong> — We use a
             transactional email service to deliver alerts and notifications. Your

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient, useSession, signOut } from "@/lib/auth-client";
 import { MEMBERSHIP_BENEFITS, PRICING } from "@/lib/constants";
+import { DATAFAST_CHECKOUT_GOAL } from "@/lib/datafast";
 import { isFoundersDealActive } from "@/lib/portfolio";
 import {
   User,
@@ -585,6 +586,7 @@ function SubscriptionPanel() {
               )
             }
             disabled={billingLoading}
+            data-fast-goal={isActive ? undefined : DATAFAST_CHECKOUT_GOAL}
             className="btn-primary inline-flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <CreditCard size={12} />

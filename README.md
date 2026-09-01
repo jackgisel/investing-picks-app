@@ -82,7 +82,8 @@ that verified address; remove both variables after the test.
 Copy `.env.example`. Billing uses `STRIPE_SECRET_KEY`,
 `STRIPE_WEBHOOK_SECRET`, `STRIPE_ANNUAL_PRICE_ID`, and
 `STRIPE_FOUNDERS_COUPON_ID` in addition to the database and API variables. Use
-a least-privilege restricted live key for the deployed application.
+a least-privilege restricted live key for the deployed application. Analytics
+uses `NEXT_PUBLIC_DATAFAST_WEBSITE_ID` from the DataFast dashboard.
 
 ## Deprecating jdpicks
 

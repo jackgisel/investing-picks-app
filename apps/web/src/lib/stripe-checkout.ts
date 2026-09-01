@@ -1,4 +1,5 @@
 import type Stripe from "stripe";
+import { datafastCheckoutMetadata } from "@/lib/datafast";
 
 export type CheckoutOffer = "standard" | "founders" | "production_test";
 
@@ -22,6 +23,8 @@ export function buildCheckoutParams(args: {
   couponId: string | null;
   offer: CheckoutOffer;
   automaticTax: boolean;
+  datafastVisitorId?: string | null;
+  datafastSessionId?: string | null;
 }): Stripe.Checkout.SessionCreateParams {
   // The temporary production-test discount consumes the same one-time account
   // benefit as the founders offer. This prevents the smoke-test account from
@@ -31,6 +34,15 @@ export function buildCheckoutParams(args: {
     outpick_user_id: args.userId,
     founders_offer: consumesFoundersOffer ? "true" : "false",
     offer_type: args.offer,
+  };
+  // Visitor/session ids belong on the Checkout Session only. Copying them onto
+  // the Subscription would persist marketing cookies on a long-lived object.
+  const sessionMetadata = {
+    ...metadata,
+    ...datafastCheckoutMetadata({
+      visitorId: args.datafastVisitorId,
+      sessionId: args.datafastSessionId,
+    }),
   };
 
   return {
@@ -53,7 +65,7 @@ export function buildCheckoutParams(args: {
         }
       : {}),
     billing_address_collection: "required",
-    metadata,
+    metadata: sessionMetadata,
     subscription_data: { metadata },
     success_url: new URL("/welcome?checkout=success", args.appUrl).toString(),
     cancel_url: new URL("/subscribe?checkout=canceled", args.appUrl).toString(),

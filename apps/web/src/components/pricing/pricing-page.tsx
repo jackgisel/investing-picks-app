@@ -6,6 +6,7 @@ import { PRICING, BACKTEST } from "@/lib/constants";
 import { isFoundersDealActive } from "@/lib/portfolio";
 import { PillButton } from "@/components/ui/pill-button";
 import { LOGIN_ART } from "@/lib/art";
+import { DATAFAST_CHECKOUT_GOAL } from "@/lib/datafast";
 
 const YOU_GET = [
   {
@@ -130,7 +131,12 @@ export function PricingPageView() {
               )}
 
               <div className="mt-7">
-                <PillButton href="/subscribe" arrow className="w-full">
+                <PillButton
+                  href="/subscribe"
+                  arrow
+                  className="w-full"
+                  data-fast-goal={DATAFAST_CHECKOUT_GOAL}
+                >
                   {founders ? "Start at founders rate" : "Start membership"}
                 </PillButton>
               </div>

@@ -10,6 +10,21 @@ const nextConfig = {
       },
     ],
   },
+  // First-party DataFast proxy so ad blockers do not drop pageviews or
+  // revenue cookies. `/api/events` is reserved for the app, so events go to
+  // `/datafast-events` via data-api-url on the tracking script.
+  async rewrites() {
+    return [
+      {
+        source: "/js/script.js",
+        destination: "https://datafa.st/js/script.js",
+      },
+      {
+        source: "/datafast-events",
+        destination: "https://datafa.st/api/events",
+      },
+    ];
+  },
   async redirects() {
     // Insights moved inside the dashboard shell. These URLs were subscriber-
     // gated and noindex, so nothing public depended on them, but a blog post

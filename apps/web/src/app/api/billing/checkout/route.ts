@@ -13,6 +13,10 @@ import { isFoundersWindowActive } from "@/lib/founders-server";
 import { getServerUser } from "@/lib/server-session";
 import { getStripe } from "@/lib/stripe";
 import {
+  DATAFAST_SESSION_COOKIE,
+  DATAFAST_VISITOR_COOKIE,
+} from "@/lib/datafast";
+import {
   automaticTaxEnabled,
   buildCheckoutParams,
   isProductionTestAccount,
@@ -170,6 +174,8 @@ async function createCheckoutResponse(request: NextRequest) {
       couponId,
       offer,
       automaticTax: automaticTaxEnabled(),
+      datafastVisitorId: request.cookies.get(DATAFAST_VISITOR_COOKIE)?.value,
+      datafastSessionId: request.cookies.get(DATAFAST_SESSION_COOKIE)?.value,
     }),
     {
       // Checkout Sessions default to a 24-hour lifetime, matching Stripe's

@@ -1,13 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import {
+  COOKIE_CONSENT_CHANGED_EVENT,
+  COOKIE_CONSENT_STORAGE_KEY,
+  cookieConsentRecord,
+} from "@/lib/cookie-consent";
 
 export function CookieBanner() {
   const [visible, setVisible] = useState(false);
   const bannerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const consent = localStorage.getItem("tli-cookie-consent");
+    const consent = localStorage.getItem(COOKIE_CONSENT_STORAGE_KEY);
     if (!consent) {
       setVisible(true);
     }
@@ -39,10 +44,8 @@ export function CookieBanner() {
   }, [visible]);
 
   const handleConsent = (accepted: boolean) => {
-    localStorage.setItem(
-      "tli-cookie-consent",
-      JSON.stringify({ accepted, timestamp: new Date().toISOString() }),
-    );
+    localStorage.setItem(COOKIE_CONSENT_STORAGE_KEY, cookieConsentRecord(accepted));
+    window.dispatchEvent(new Event(COOKIE_CONSENT_CHANGED_EVENT));
     setVisible(false);
   };
 

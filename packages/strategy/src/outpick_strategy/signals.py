@@ -69,7 +69,10 @@ def _would_exceed_sector_cap(
 ) -> bool:
     if not sector:
         return False
-    max_in_sector = int(params.max_positions * params.sector_concentration)
+    # Floor of one. `int(3 * 0.30)` is 0, and `count >= 0` is true for an empty
+    # book, so a small `max_positions` used to forbid every classified buy
+    # forever (BUG-S7). A cap can never be stricter than "one name per sector".
+    max_in_sector = max(1, int(params.max_positions * params.sector_concentration))
     count = 0
     for t in held:
         s = scores.get(t)
@@ -670,9 +673,7 @@ def evaluate(
     # extra signal: contradictory instructions to anyone mirroring the book, a
     # ledger row stamped `executed` for a trade that never happened (BUG-A5),
     # and the sale being counted twice as available cash by `_buy_signals`.
-    exiting_now = {s.ticker for s in removals if s.action == Action.FULL_SELL}
-    signals.extend(t for t in weight_trims if t.ticker not in exiting_now)
-    signals.extend(removals)
+    signals.extend(_reconcile_exits(weight_trims, removals))
 
     halted, dd_rules = _drawdown_halted(portfolio, params)
     buys = _buy_signals(
@@ -743,7 +744,33 @@ def _sell_side_signals(
 ) -> list[Signal]:
     weight_trims = _weight_trim_signals(portfolio, params)
     removals = _removal_signals(portfolio, scores, params, as_of)
-    exiting_now = {s.ticker for s in removals if s.action == Action.FULL_SELL}
-    signals = [t for t in weight_trims if t.ticker not in exiting_now]
+    return _reconcile_exits(weight_trims, removals)
+
+
+def _reconcile_exits(weight_trims: list[Signal], removals: list[Signal]) -> list[Signal]:
+    """One ticker, one exit instruction.
+
+    `_weight_trim_signals` and `_removal_signals` do not know about each other.
+    A holding that is both over its weight cap and below the exit rating used to
+    be published with a TRIM *and* a FULL_SELL; a holding over the cap that also
+    qualified for the Winners Circle got a TRIM *and* a PARTIAL_SELL whose share
+    counts summed to more than the position (BUG-S1: 126 shares ordered out of
+    100 held). The removal wins in both cases:
+
+    - FULL_SELL: the TRIM was already a no-op at execution (`apply_signals` sorts
+      FULL_SELL first and pops the position). Dropping it fixes what sat
+      downstream of the extra signal: contradictory instructions to anyone
+      mirroring the book, a ledger row stamped executed for a trade that never
+      happened, and the sale counted twice as available cash by `_buy_signals`.
+    - PARTIAL_SELL: the Winners Circle takes the original stake off and flags
+      what remains as house money, and house money answers to
+      `position_cap_house_money`, not the normal cap the TRIM was enforcing. If
+      the remainder is still too large under *that* cap, the next evaluation's
+      weight pass trims it as house money, which is the rule that should apply.
+    """
+    superseded = {
+        s.ticker for s in removals if s.action in (Action.FULL_SELL, Action.PARTIAL_SELL)
+    }
+    signals = [t for t in weight_trims if t.ticker not in superseded]
     signals.extend(removals)
     return signals

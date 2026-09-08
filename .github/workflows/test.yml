@@ -1,0 +1,63 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: strategy + api (pytest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      # `scripts/pytest.sh` looks for `.venv/bin/python` first and falls back
+      # to `python3`; on the runner the fallback is what runs, so install
+      # everything into the system interpreter. Strategy is installed first so
+      # pip does not try to fetch `outpick-strategy` from PyPI when the api
+      # and worker packages declare it as a dependency.
+      - name: Install python packages
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e packages/strategy
+          python -m pip install -e apps/api -e apps/worker pytest httpx
+
+      - name: Strategy tests
+        run: sh scripts/pytest.sh packages/strategy/tests -q
+
+      - name: API + worker tests
+        run: sh scripts/pytest.sh apps/api/tests -q
+
+  web:
+    name: web (vitest + checks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: apps/web/pnpm-lock.yaml
+
+      - name: Install web deps
+        run: pnpm --dir apps/web install --frozen-lockfile
+
+      - name: Web checks
+        run: pnpm --dir apps/web check

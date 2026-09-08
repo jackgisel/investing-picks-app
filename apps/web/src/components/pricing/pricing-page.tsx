@@ -11,7 +11,7 @@ const YOU_GET = [
   {
     n: "01",
     title: "A researched pick every two weeks",
-    body: "One high-conviction name with the full thesis: evidence, risks, and the rules that close it. Drafted by our AI research desk, reviewed before it publishes.",
+    body: "One high-conviction name with the full thesis: evidence, risks, and the rules that close it. Universe scan, fundamentals, estimate revisions, sector context, a written thesis, then human review before it publishes.",
   },
   {
     n: "02",

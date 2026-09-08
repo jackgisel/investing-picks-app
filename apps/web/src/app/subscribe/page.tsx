@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { ensureMigrations } from "@/lib/auth";
 import { isSubscriptionEntitled } from "@/lib/billing";
@@ -6,6 +7,11 @@ import { getSubscription } from "@/lib/subscription";
 import { SubscribeRedirect } from "./subscribe-redirect";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Subscribe",
+  robots: { index: false, follow: false },
+};
 
 export default async function SubscribePage() {
   await ensureMigrations();

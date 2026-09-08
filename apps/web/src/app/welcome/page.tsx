@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 import { ensureMigrations } from "@/lib/auth";
 import { isSubscriptionEntitled } from "@/lib/billing";
 import { getServerUser } from "@/lib/server-session";
@@ -6,6 +7,11 @@ import { getSubscription } from "@/lib/subscription";
 import { WelcomeExperience } from "./welcome-experience";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Welcome",
+  robots: { index: false, follow: false },
+};
 
 export default async function WelcomePage({
   searchParams,

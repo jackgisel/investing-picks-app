@@ -71,11 +71,10 @@ export const BACKTEST = {
 
 // The single benefit list for the membership — shown on the pricing card
 // (pre-purchase) and in account settings (post-purchase). These used to be
-// two independently hand-written lists that drifted apart, and the only
-// place a subscriber learned research is AI-drafted was the settings copy,
-// after paying. State it up front instead.
+// two independently hand-written lists that drifted apart. Describe the
+// research process, not the drafting stack.
 export const MEMBERSHIP_BENEFITS = [
-  "A new high-conviction pick every two weeks, researched by our AI agent team",
+  "A new high-conviction pick every two weeks — fundamentals, revisions, a written thesis, and review before it publishes",
   "Live example portfolio with full position tracking",
   "Complete investment theses — evidence and risks, not just a call",
   "Performance tracked against the S&P 500, wins and losses both shown",

@@ -1,7 +1,7 @@
 import { SITE_URL } from "@/lib/constants";
 
 /**
- * Shared conventions for AI-drafted research notes, weekly reviews, and any
+ * Shared conventions for generated research notes, weekly reviews, and any
  * subscriber-facing copy that cites the same facts.
  *
  * Kept out of the individual draft modules so a prompt tweak (scale of the

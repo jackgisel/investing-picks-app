@@ -1,6 +1,6 @@
 "use client";
 
-import { useStrategy } from "@/lib/hooks/use-strategy";
+import { useStrategy, type StrategyData } from "@/lib/hooks/use-strategy";
 import { useChart } from "@/lib/hooks/use-chart";
 import { BACKTEST, WINNERS_CIRCLE, WINNERS_CIRCLE_EXITS } from "@/lib/constants";
 import { BacktestHoldings } from "./backtest-holdings";
@@ -36,13 +36,20 @@ function formatInceptionDate(iso: string): string {
   });
 }
 
-export function TrackRecord() {
-  const { data: strategy } = useStrategy();
+export function TrackRecord({
+  initialStrategy,
+}: {
+  initialStrategy?: StrategyData | null;
+}) {
+  const { data: strategy, isPending } = useStrategy(
+    initialStrategy ?? undefined,
+  );
   const { data: chart } = useChart();
   const { inceptionISO } = useInceptionDate();
   const portfolio = strategy?.portfolio;
   const totalReturnPct = computePortfolioReturnPct(strategy);
   const hasReturn = totalReturnPct !== null;
+  const awaitingLiveBook = !hasReturn && isPending && !initialStrategy;
   // One elapsed-time notion for both the "Day N" badge and the CAGR window, so
   // the card cannot claim a long track record beside a one-day annualization.
   // "picks" to match `totalReturnPct` above, which is the picks return.
@@ -50,6 +57,7 @@ export function TrackRecord() {
   const days = cagr.daysLive;
   const liveDoubled = countDoubledWinners(strategy?.holdings);
   const liveWinners = countWinningPositions(strategy?.holdings);
+  const hasHoldings = Array.isArray(strategy?.holdings);
 
   return (
     <section
@@ -136,17 +144,27 @@ export function TrackRecord() {
                   <p className="font-sans text-[10px] font-bold text-text-dim tracking-[0.12em] uppercase mb-1.5">
                     Live return
                   </p>
-                  <p
-                    className={`font-mono text-[32px] sm:text-[36px] font-bold leading-none tracking-tight ${
-                      hasReturn && totalReturnPct! >= 0
-                        ? "text-accent-green"
-                        : hasReturn
-                          ? "text-accent-red"
-                          : "text-text-dim"
-                    }`}
-                  >
-                    {hasReturn ? formatPct(totalReturnPct!) : "—"}
-                  </p>
+                  {hasReturn ? (
+                    <p
+                      className={`font-mono text-[32px] sm:text-[36px] font-bold leading-none tracking-tight ${
+                        totalReturnPct! >= 0
+                          ? "text-accent-green"
+                          : "text-accent-red"
+                      }`}
+                    >
+                      {formatPct(totalReturnPct!)}
+                    </p>
+                  ) : awaitingLiveBook ? (
+                    <p className="font-sans text-[15px] text-text-dim">
+                      Loading the live book…
+                    </p>
+                  ) : (
+                    <p className="max-w-[36ch] font-sans text-[15px] leading-snug text-text-muted">
+                      Live return isn&apos;t available right now. We only
+                      publish this from the live book — never a placeholder
+                      number.
+                    </p>
+                  )}
                   <p className="font-sans text-[10px] text-text-dim mt-2 leading-snug">
                     On capital deployed into picks — cash held back to fund
                     future buys isn&apos;t counted.
@@ -164,16 +182,34 @@ export function TrackRecord() {
                 <dl className="grid grid-cols-2 gap-x-6 gap-y-4">
                   <MetricRow
                     label="2× winners"
-                    value={liveDoubled > 0 ? liveDoubled.toString() : "—"}
-                    green={liveDoubled > 0}
+                    value={
+                      hasHoldings
+                        ? liveDoubled.toString()
+                        : awaitingLiveBook
+                          ? "…"
+                          : "n/a"
+                    }
+                    green={hasHoldings && liveDoubled > 0}
                   />
                   <MetricRow
                     label="Winning picks"
-                    value={liveWinners > 0 ? liveWinners.toString() : "—"}
+                    value={
+                      hasHoldings
+                        ? liveWinners.toString()
+                        : awaitingLiveBook
+                          ? "…"
+                          : "n/a"
+                    }
                   />
                   <MetricRow
                     label="Open picks"
-                    value={portfolio?.position_count?.toString() ?? "—"}
+                    value={
+                      typeof portfolio?.position_count === "number"
+                        ? portfolio.position_count.toString()
+                        : awaitingLiveBook
+                          ? "…"
+                          : "n/a"
+                    }
                   />
                 </dl>
 

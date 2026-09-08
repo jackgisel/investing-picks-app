@@ -114,6 +114,13 @@ describe("computePortfolioReturnPct vs computeBookReturnPct", () => {
     expect(computePortfolioReturnPct(legacy)).toBe(5);
   });
 
+  it("does not substitute the book return when picks_return_pct is explicitly null", () => {
+    const measured = {
+      portfolio: { picks_return_pct: null, total_return_pct: 12.1 },
+    } as never;
+    expect(computePortfolioReturnPct(measured)).toBeNull();
+  });
+
   it("returns null with no portfolio", () => {
     expect(computePortfolioReturnPct(undefined)).toBeNull();
     expect(computeBookReturnPct(undefined)).toBeNull();

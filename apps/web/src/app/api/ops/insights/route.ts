@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { ensureMigrations } from "@/lib/auth";
-import { syncExitDrafts, syncPickDrafts } from "@/lib/insight-sync";
+import { syncAddDrafts, syncExitDrafts, syncPickDrafts } from "@/lib/insight-sync";
 import { listInsights } from "@/lib/insights-db";
 
 export const dynamic = "force-dynamic";
@@ -33,8 +33,9 @@ export async function POST() {
   await ensureMigrations();
   try {
     const picks = await syncPickDrafts({ generate: true });
+    const adds = await syncAddDrafts({ generate: true });
     const exits = await syncExitDrafts({ generate: true });
-    return NextResponse.json({ ...picks, picks, exits });
+    return NextResponse.json({ ...picks, picks, exits, adds });
   } catch (e) {
     return NextResponse.json(
       { error: e instanceof Error ? e.message : "Sync failed" },

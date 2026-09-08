@@ -82,12 +82,12 @@ export default async function InsightDetailPage({
   if (!insight) notFound();
 
   const streetRange =
-    insight.postType === "pick"
+    insight.postType === "pick" || insight.postType === "add"
       ? await fetchStreetRangeForTicker(insight.ticker)
       : null;
 
   const quantRating =
-    insight.postType === "pick"
+    insight.postType === "pick" || insight.postType === "add"
       ? await fetchQuantRatingForTicker(insight.ticker)
       : null;
 

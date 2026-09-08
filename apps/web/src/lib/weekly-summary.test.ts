@@ -91,6 +91,21 @@ describe("movesInWeek", () => {
     expect(moves[0].action).toBe("Sold");
   });
 
+  it("calls a double buy Added to, not Bought", () => {
+    const moves = movesInWeek(
+      [
+        {
+          ticker: "SEZL",
+          side: "buy",
+          action: "double_buy",
+          date: "2026-08-05",
+        },
+      ],
+      weekEnd,
+    );
+    expect(moves[0].action).toBe("Added to");
+  });
+
   it("formats trade dates American month-first", () => {
     const moves = movesInWeek(
       [{ ticker: "WDC", side: "buy", date: "2026-08-05" }],

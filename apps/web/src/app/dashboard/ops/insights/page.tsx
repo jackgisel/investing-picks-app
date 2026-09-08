@@ -117,9 +117,9 @@ export default function OpsInsightsPage() {
           </button>
         </div>
         <p className="text-xs text-text-dim max-w-xl">
-          Sync opens a note for any open pick that has none and drafts the ones
-          still empty. It runs on a schedule too; this is for when you have just
-          added a position and do not want to wait.
+          Sync opens a note for any open pick, conviction add, or closed round
+          trip that has none, and drafts the ones still empty. It runs on a
+          schedule too; this is for when you do not want to wait.
         </p>
 
         {list.error && (

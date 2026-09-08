@@ -43,7 +43,7 @@ The payload has a "missing" array naming the facts that are NOT available. Treat
 ## The note
 Five sections, in this order, each introduced by an H2:
 1. The week — how the book and the picks did, honestly, including versus the S&P 500 when that figure is present.
-2. What moved — buys and sells this week, or a plain statement that there were none. The strategy evaluates on a fixed cadence and holds through the weeks in between; most weeks look like that, and saying so is not a failure.
+2. What moved — buys, conviction adds, and sells this week, or a plain statement that there were none. The strategy evaluates on a fixed cadence and holds through the weeks in between; most weeks look like that, and saying so is not a failure. An \`Added to\` move is not a new name.
 3. Holdings — the open book. Call out names that moved, grades that matter, and anything that has gone wrong. Do not list every position as a table.
 4. What we are watching — the next evaluation, concentration, weak grades, anything that has to be true for the book to keep working.
 5. Closing — one or two paragraphs. What this week actually said.
@@ -115,6 +115,7 @@ type PickRow = {
 type ApiTrade = {
   ticker?: string | null;
   side?: string | null;
+  action?: string | null;
   date?: string | null;
 };
 

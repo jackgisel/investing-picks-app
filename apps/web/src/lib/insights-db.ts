@@ -193,6 +193,26 @@ export async function createPendingExitInsight(
   return rows[0] ? toMeta(rows[0]) : null;
 }
 
+/**
+ * Placeholder row for a conviction add that has no note yet.
+ *
+ * Same idempotency as exits: slug is ticker + add date, not a unique ticker
+ * index. The pick note for this name already exists and must not be rewritten.
+ */
+export async function createPendingAddInsight(
+  ticker: string,
+  slug: string,
+): Promise<InsightMeta | null> {
+  const { rows } = await pool.query<DbInsightRow>(
+    `INSERT INTO insight (slug, ticker, post_type, status)
+     VALUES ($1, UPPER($2), 'add', 'pending')
+     ON CONFLICT (slug) DO NOTHING
+     RETURNING ${META_COLUMNS}`,
+    [slug, ticker],
+  );
+  return rows[0] ? toMeta(rows[0]) : null;
+}
+
 /* ---------------------------- Public samples ----------------------------- */
 
 /**
@@ -501,10 +521,10 @@ export async function listDraftsDueForPublish(
         AND email_sent_at IS NULL
         AND auto_publish_at IS NOT NULL
         AND auto_publish_at <= NOW()
-        -- Exits ride the same window as picks. A closed position that never
-        -- announces itself is the failure mode publishing exits exists to
+        -- Adds ride the same window as picks and exits. A conviction add that
+        -- never announces itself is the failure this post type exists to
         -- prevent; the caller branches on post_type to pick the right mailer.
-        AND post_type IN ('pick', 'exit')
+        AND post_type IN ('pick', 'exit', 'add')
         AND ticker IS NOT NULL
         AND title IS NOT NULL
         AND description IS NOT NULL

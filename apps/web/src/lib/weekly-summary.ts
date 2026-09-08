@@ -13,6 +13,7 @@ type PerformancePoint = { date?: string; return_pct?: number | null };
 type ApiTrade = {
   ticker?: string | null;
   side?: string | null;
+  action?: string | null;
   date?: string | null;
 };
 
@@ -80,10 +81,15 @@ export function movesInWeek(trades: ApiTrade[], weekEnd: Date): WeeklyMove[] {
     })
     .map((t) => ({
       ticker: t.ticker!.toUpperCase(),
-      // Reader-facing words. The internal action vocabulary (conviction_add,
+      // Reader-facing words. The internal action vocabulary (double_buy,
       // recycle, winners_circle_trim) describes machinery a subscriber has no
       // reason to decode, and leaking it has bitten this codebase before.
-      action: t.side === "sell" ? "Sold" : "Bought",
+      action:
+        t.action === "double_buy"
+          ? "Added to"
+          : t.side === "sell"
+            ? "Sold"
+            : "Bought",
       when: new Intl.DateTimeFormat("en-US", {
         weekday: "short",
         month: "short",

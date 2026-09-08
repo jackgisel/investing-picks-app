@@ -464,6 +464,84 @@ export function renderNewPickEmail(args: {
   });
 }
 
+/**
+ * A conviction add to a name we already hold.
+ *
+ * Same bones as the new-pick mail — ticker at display size, research CTA —
+ * with an eyebrow that does not pretend this is a first buy.
+ */
+export function renderAddNoteEmail(args: {
+  recipientName: string | null;
+  ticker: string;
+  companyName?: string | null;
+  stats?: PickStat[];
+  articleTitle: string;
+  articleDescription: string;
+  articleUrl: string;
+  siteUrl: string;
+  banner?: string;
+  weekKey?: string;
+}): string {
+  const greeting = args.recipientName
+    ? `Hi ${escapeHtml(args.recipientName.split(" ")[0])},`
+    : "Hi there,";
+
+  const company = args.companyName
+    ? `<p class="dm-muted" style="margin:6px 0 0 0;font-family:${FONT_SANS};font-size:16px;font-weight:500;color:${TEXT_MUTED};">${escapeHtml(args.companyName)}</p>`
+    : "";
+
+  const stats = (args.stats ?? []).filter((s) => s.value);
+  const statCells = stats
+    .map((s) => {
+      const colour =
+        s.direction === "up" ? GREEN : s.direction === "down" ? RED : TEXT;
+      const cls =
+        s.direction === "up" ? "dm-up" : s.direction === "down" ? "dm-down" : "dm-text";
+      return `
+        <td width="${Math.floor(100 / stats.length)}%" style="padding:0 12px 0 0;vertical-align:top;">
+          ${fieldLabel(s.label)}
+          <p class="${cls}" style="margin:0;font-family:${FONT_MONO};font-size:17px;font-weight:600;color:${colour};">${escapeHtml(s.value)}</p>
+        </td>`;
+    })
+    .join("");
+
+  const statBlock = stats.length
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0 0 0;"><tr>${statCells}</tr></table>`
+    : "";
+
+  const body = `
+    ${eyebrow("Added to", "mint")}
+
+    <p class="ticker dm-text" style="margin:0;font-family:${FONT_MONO};font-size:56px;line-height:1;font-weight:700;color:${TEXT};letter-spacing:-2px;">
+      ${escapeHtml(args.ticker)}
+    </p>
+    ${company}
+    ${statBlock}
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:26px 0 24px 0;">
+      <tr><td class="dm-rule" style="border-top:1px solid ${BORDER};font-size:0;line-height:0;">&nbsp;</td></tr>
+    </table>
+
+    ${paragraph(greeting, 14)}
+    ${heading(args.articleTitle)}
+    ${paragraph(escapeHtml(args.articleDescription), 26)}
+
+    ${pillButton(args.articleUrl, "Read the add note")}
+    ${fallbackLink(args.articleUrl)}
+  `;
+
+  return shell({
+    preview: `Added to ${args.ticker} — ${args.articleTitle}`,
+    bodyHtml: body,
+    siteUrl: args.siteUrl,
+    banner: args.banner,
+    artUrl: artAbsoluteUrl(
+      args.weekKey ? artForWeek(args.weekKey) : artForKey(args.ticker),
+      args.siteUrl,
+    ),
+  });
+}
+
 /* -------------------------- Delete account email -------------------------- */
 
 export function renderDeleteAccountEmail(args: {

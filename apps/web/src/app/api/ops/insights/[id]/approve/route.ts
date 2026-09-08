@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { ensureMigrations } from "@/lib/auth";
-import { announceExit, announcePick } from "@/lib/pick-announce";
+import { announceAdd, announceExit, announcePick } from "@/lib/pick-announce";
 import { claimForPublish, getInsightById } from "@/lib/insights-db";
+import { addDateFromSlug, shouldAnnounceAdd } from "@/lib/insights";
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +57,7 @@ export async function POST(
   }
   if (!before.ticker) {
     return NextResponse.json(
-      { error: "Only pick and exit notes can be announced." },
+      { error: "Only pick, add, and exit notes can be announced." },
       { status: 400 },
     );
   }
@@ -83,12 +84,22 @@ export async function POST(
           description: claimed.description!,
           insightSlug: claimed.slug,
         })
-      : await announcePick({
-          ticker: claimed.ticker!,
-          title: claimed.title!,
-          description: claimed.description!,
-          insightSlug: claimed.slug,
-        });
+      : claimed.postType === "add" &&
+          shouldAnnounceAdd(addDateFromSlug(claimed.slug))
+        ? await announceAdd({
+            ticker: claimed.ticker!,
+            title: claimed.title!,
+            description: claimed.description!,
+            insightSlug: claimed.slug,
+          })
+        : claimed.postType === "add"
+          ? { sent: 0, failed: 0, total: 0, errors: [] }
+          : await announcePick({
+              ticker: claimed.ticker!,
+              title: claimed.title!,
+              description: claimed.description!,
+              insightSlug: claimed.slug,
+            });
 
   return NextResponse.json({
     ok: result.failed === 0,

@@ -16,10 +16,16 @@ import type { Insight } from "@/lib/insights";
 const claimForPublish = vi.fn();
 const getInsightById = vi.fn();
 const announcePick = vi.fn();
+const announceExit = vi.fn();
+const announceAdd = vi.fn();
 const requireAdmin = vi.fn();
 
 vi.mock("@/lib/insights-db", () => ({ claimForPublish, getInsightById }));
-vi.mock("@/lib/pick-announce", () => ({ announcePick }));
+vi.mock("@/lib/pick-announce", () => ({
+  announcePick,
+  announceExit,
+  announceAdd,
+}));
 vi.mock("@/lib/admin", () => ({ requireAdmin }));
 vi.mock("@/lib/auth", () => ({ ensureMigrations: async () => {} }));
 

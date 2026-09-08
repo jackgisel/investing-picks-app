@@ -26,6 +26,7 @@ const TONE_BY_POST_TYPE: Record<string, string> = {
   weekly_review: "bg-accent-mint/15",
   quarterly_review: "bg-accent-lilac/15",
   exit: "bg-accent-peach/15",
+  add: "bg-accent-mint/15",
   pick: "bg-accent-yellow/15",
 };
 
@@ -110,6 +111,12 @@ function InsightDisclaimer({ insight }: { insight: Insight }) {
             closed. It is a record of what we did and why, not a recommendation
             to buy or sell {insight.ticker ?? "this security"}. See the{" "}
             {dashboard} for the live book.
+          </>
+        ) : insight.postType === "add" ? (
+          <>
+            This note accounts for adding to {insight.ticker ?? "a name"} already
+            in the {SITE_NAME} live portfolio. It is educational research, not a
+            recommendation to buy or sell. See the {dashboard} for the live book.
           </>
         ) : (
           <>

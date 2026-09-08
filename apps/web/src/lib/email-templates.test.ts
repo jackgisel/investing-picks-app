@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  renderAddNoteEmail,
   renderDeleteAccountEmail,
   renderJobFailureEmail,
   renderMarketNoteWelcomeEmail,
@@ -25,6 +26,16 @@ const pick = () =>
     siteUrl: SITE,
   });
 
+const addNote = () =>
+  renderAddNoteEmail({
+    recipientName: "Jack Gisel",
+    ticker: "SEZL",
+    articleTitle: "Stock add: Sezzle still clears the gates",
+    articleDescription: "The framework added to a name already held.",
+    articleUrl: `${SITE}/dashboard/insights/add-sezl-2026-09-04`,
+    siteUrl: SITE,
+  });
+
 const review = () =>
   renderWeeklyReviewEmail({
     recipientName: "Jack Gisel",
@@ -47,6 +58,7 @@ const jobFail = () =>
 
 const all = () => [
   pick(),
+  addNote(),
   review(),
   jobFail(),
   renderVerifyEmail({ name: null, verifyUrl: `${SITE}/v`, siteUrl: SITE }),
@@ -205,6 +217,17 @@ describe("new pick email", () => {
       weekKey: "2026-W35",
     });
     expect(html).toContain("/art/pool/2026-W35.png");
+  });
+});
+
+describe("add note email", () => {
+  it("says Added to, not New pick", () => {
+    const html = addNote();
+    expect(html).toContain("Added to");
+    expect(html).not.toContain("New pick");
+    expect(html).toContain("SEZL");
+    expect(html).toContain("Read the add note");
+    expect(html).toContain("/dashboard/insights/add-sezl-2026-09-04");
   });
 });
 

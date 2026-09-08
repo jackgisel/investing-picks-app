@@ -5,6 +5,7 @@ import { isoWeekKey } from "@/lib/email-dispatch";
 import { weekKeyFromInsightSlug } from "@/lib/art-pool";
 import {
   renderNewPickEmail,
+  renderAddNoteEmail,
   renderExitNoteEmail,
   renderDeleteAccountEmail,
   renderVerifyEmail,
@@ -139,6 +140,49 @@ export async function sendNewPickEmail(args: {
   return send({
     to: args.to,
     subject: `New pick: ${args.ticker} — ${args.articleTitle}`,
+    html,
+    text,
+    headers: {
+      "List-Unsubscribe": `<${oneClick}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    },
+  });
+}
+
+/* --------------------------------- Add notes -------------------------------- */
+
+export async function sendAddNoteEmail(args: {
+  to: string;
+  userId: string;
+  recipientName: string | null;
+  ticker: string;
+  companyName?: string | null;
+  stats?: PickStat[];
+  articleTitle: string;
+  articleDescription: string;
+  insightSlug: string;
+  banner?: string;
+}): Promise<SendResult> {
+  const articleUrl = `${SITE_URL}/dashboard/insights/${args.insightSlug}`;
+  const html = renderAddNoteEmail({
+    recipientName: args.recipientName,
+    ticker: args.ticker,
+    companyName: args.companyName,
+    stats: args.stats,
+    articleTitle: args.articleTitle,
+    articleDescription: args.articleDescription,
+    articleUrl,
+    siteUrl: SITE_URL,
+    banner: args.banner,
+    weekKey: isoWeekKey(),
+  });
+  const text = `Added to ${args.ticker}\n\n${args.articleTitle}\n\n${args.articleDescription}\n\nRead the add note: ${articleUrl}\n\nYou're receiving this because you opted in to new pick alerts. Manage your preferences: ${SITE_URL}/dashboard/settings`;
+
+  const oneClick = pickAlertOneClickUrl(pickAlertToken(args.userId));
+
+  return send({
+    to: args.to,
+    subject: `Added to ${args.ticker} — ${args.articleTitle}`,
     html,
     text,
     headers: {

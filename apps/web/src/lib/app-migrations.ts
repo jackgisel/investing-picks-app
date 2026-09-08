@@ -298,10 +298,13 @@ export async function runAppMigrations() {
   // insight_pick_ticker_idx — that index is scoped to post_type = 'pick', and a
   // ticker can be bought, sold and bought again, so a ticker legitimately has
   // many exit notes. Slug uniqueness is the only constraint they need.
+  //
+  // 'add' is the same shape for a conviction add: the original pick note stays
+  // put, and a second note keyed on ticker + trade date accounts for the add.
   await pool.query(`
     ALTER TABLE insight
       ADD CONSTRAINT insight_post_type_check
-      CHECK (post_type IN ('pick', 'quarterly_review', 'weekly_review', 'exit'))
+      CHECK (post_type IN ('pick', 'quarterly_review', 'weekly_review', 'exit', 'add'))
   `);
 
   /*

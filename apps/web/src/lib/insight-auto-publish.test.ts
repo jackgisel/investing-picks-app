@@ -12,12 +12,18 @@ import type { InsightMeta } from "@/lib/insights";
 const listDraftsDueForPublish = vi.fn();
 const claimForPublish = vi.fn();
 const announcePick = vi.fn();
+const announceExit = vi.fn();
+const announceAdd = vi.fn();
 
 vi.mock("@/lib/insights-db", () => ({
   listDraftsDueForPublish,
   claimForPublish,
 }));
-vi.mock("@/lib/pick-announce", () => ({ announcePick }));
+vi.mock("@/lib/pick-announce", () => ({
+  announcePick,
+  announceExit,
+  announceAdd,
+}));
 
 const { autoPublishDueDrafts } = await import("@/lib/insight-auto-publish");
 
@@ -151,5 +157,32 @@ describe("autoPublishDueDrafts", () => {
       { ticker: "WDC", slug: "wdc-note", sent: 2, failed: 1 },
     ]);
     expect(result.errors).toEqual([]);
+  });
+
+  it("publishes a stale add without mailing the list", async () => {
+    const due: InsightMeta = {
+      ...DUE,
+      id: "3",
+      slug: "add-sezl-2020-01-01",
+      ticker: "SEZL",
+      postType: "add",
+    };
+    listDraftsDueForPublish.mockResolvedValue([due]);
+    claimForPublish.mockResolvedValue(
+      claimed({
+        id: "3",
+        slug: "add-sezl-2020-01-01",
+        ticker: "SEZL",
+        postType: "add",
+      }),
+    );
+
+    const result = await autoPublishDueDrafts();
+
+    expect(announceAdd).not.toHaveBeenCalled();
+    expect(announcePick).not.toHaveBeenCalled();
+    expect(result.published).toEqual([
+      { ticker: "SEZL", slug: "add-sezl-2020-01-01", sent: 0, failed: 0 },
+    ]);
   });
 });

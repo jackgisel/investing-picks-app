@@ -1407,6 +1407,195 @@ def exit_facts(ticker: str, exit_date: str, db: Session = Depends(get_db)):
     }
 
 
+@router.get("/add-facts/{ticker}", dependencies=[Depends(require_ops_key)])
+def add_facts(ticker: str, add_date: str, db: Session = Depends(get_db)):
+    """Everything known about one conviction add, for drafting its add note.
+
+    The mirror of `exit_facts` for the other event that happens to a name
+    already held. Keyed on ticker + add date because a winner can be added to
+    more than once. The original pick note is a web-app row and is attached
+    there, not here.
+    """
+    symbol = ticker.strip().upper()
+    missing: list[str] = []
+
+    try:
+        wanted = date.fromisoformat(add_date[:10])
+    except ValueError:
+        raise HTTPException(status_code=400, detail="add_date must be YYYY-MM-DD")
+
+    trades = (
+        db.query(Trade).filter(Trade.portfolio_id == 1, Trade.ticker == symbol).all()
+    )
+    add = next(
+        (
+            t
+            for t in trades
+            if t.action == "double_buy"
+            and t.timestamp is not None
+            and t.timestamp.date() == wanted
+        ),
+        None,
+    )
+    if add is None:
+        raise HTTPException(
+            status_code=404, detail=f"No {symbol} double_buy on {wanted.isoformat()}"
+        )
+
+    stock = db.query(Stock).filter(Stock.ticker == symbol).first()
+    if stock is None:
+        missing.append("stock_profile")
+
+    position = (
+        db.query(Position)
+        .filter(Position.portfolio_id == 1, Position.ticker == symbol)
+        .first()
+    )
+    if position is None:
+        missing.append("open_position")
+
+    # Evidence as it stood when we added, not today's.
+    score = (
+        db.query(CompositeScore)
+        .filter(CompositeScore.ticker == symbol, CompositeScore.as_of <= wanted)
+        .order_by(CompositeScore.as_of.desc())
+        .first()
+    )
+    if score is None:
+        missing.append("composite_score_at_add")
+
+    fundamentals = (
+        db.query(Fundamentals)
+        .filter(Fundamentals.ticker == symbol, Fundamentals.as_of <= wanted)
+        .order_by(Fundamentals.as_of.desc())
+        .first()
+    )
+    if fundamentals is None:
+        missing.append("fundamentals")
+
+    signal = None
+    if add.signal_id is not None:
+        signal = (
+            db.query(SignalRow)
+            .options(joinedload(SignalRow.reasons))
+            .filter(SignalRow.id == add.signal_id)
+            .first()
+        )
+    if signal is None and add.evaluation_id is not None:
+        signal = (
+            db.query(SignalRow)
+            .options(joinedload(SignalRow.reasons))
+            .filter(
+                SignalRow.evaluation_id == add.evaluation_id,
+                SignalRow.ticker == symbol,
+                SignalRow.action == "double_buy",
+                SignalRow.executed == True,  # noqa: E712
+            )
+            .first()
+        )
+    if signal is None:
+        missing.append("add_signal_and_rule_checks")
+
+    entry_trade = (
+        db.query(Trade)
+        .filter(Trade.portfolio_id == 1, Trade.ticker == symbol, Trade.side == "buy")
+        .order_by(Trade.timestamp.asc())
+        .first()
+    )
+    if entry_trade is None:
+        missing.append("entry_trade")
+
+    entry_date = (
+        entry_trade.timestamp.date()
+        if entry_trade and entry_trade.timestamp
+        else None
+    )
+    held_days = (wanted - entry_date).days if entry_date else None
+    return_pct = (
+        round(
+            (position.current_price - position.avg_cost) / position.avg_cost * 100,
+            2,
+        )
+        if position and position.avg_cost and position.current_price
+        else None
+    )
+
+    return {
+        "ticker": symbol,
+        "missing": missing,
+        "stock": {
+            "name": stock.name,
+            "sector": stock.sector,
+            "industry": stock.industry,
+            "market_cap": stock.market_cap,
+        }
+        if stock
+        else None,
+        "holding": {
+            "entry_date": entry_date.isoformat() if entry_date else None,
+            "add_date": add.timestamp.date().isoformat(),
+            "days_held_at_add": held_days,
+            "still_open": position is not None,
+            "return_pct": return_pct,
+        },
+        "add_trade": {
+            "action": add.action,
+            "reason": add.reason,
+            "date": add.timestamp.date().isoformat(),
+        },
+        "entry": {
+            "date": entry_date.isoformat() if entry_date else None,
+            "action": entry_trade.action if entry_trade else None,
+            "reason": entry_trade.reason if entry_trade else None,
+        }
+        if entry_trade
+        else None,
+        "score_at_add": {
+            "as_of": score.as_of.isoformat() if score.as_of else None,
+            "quant_rating": score.quant_rating,
+            "quant_rating_display": (
+                f"{round(score.quant_rating, 1):g} / 5"
+                if score.quant_rating is not None
+                else None
+            ),
+            "quant_rating_scale": {"min": 1, "max": 5},
+            "composite": score.composite,
+            "valuation_grade": score.valuation_grade,
+            "growth_grade": score.growth_grade,
+            "profitability_grade": score.profitability_grade,
+            "momentum_grade": score.momentum_grade,
+            "revisions_grade": score.revisions_grade,
+            "sector": score.sector,
+        }
+        if score
+        else None,
+        "fundamentals": {
+            "as_of": fundamentals.as_of.isoformat() if fundamentals.as_of else None,
+            "data": fundamentals.data,
+        }
+        if fundamentals
+        else None,
+        "add_signal": {
+            "action": signal.action,
+            "reason": signal.reason,
+            "score_json": signal.score_json,
+            "metadata_json": signal.metadata_json,
+            "rule_checks": [
+                {
+                    "rule_id": r.rule_id,
+                    "passed": r.passed,
+                    "inputs": r.inputs,
+                    "threshold": r.threshold,
+                    "message": r.message,
+                }
+                for r in signal.reasons
+            ],
+        }
+        if signal
+        else None,
+    }
+
+
 @router.get("/health")
 def ops_health():
     return {"ok": True}

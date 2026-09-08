@@ -1,5 +1,5 @@
 import { formatQuantRating } from "@/lib/content-draft";
-import { sendExitNoteEmail, sendNewPickEmail } from "@/lib/email";
+import { sendAddNoteEmail, sendExitNoteEmail, sendNewPickEmail } from "@/lib/email";
 import type { PickStat } from "@/lib/email-templates";
 import { fetchQuantRatingForTicker } from "@/lib/insight-viz-data";
 import { getOptedInRecipients } from "@/lib/preferences";
@@ -68,6 +68,77 @@ export async function announcePick(args: {
     const results = await Promise.all(
       recipients.slice(i, i + CHUNK).map((r) =>
         sendNewPickEmail({
+          to: r.email,
+          userId: r.id,
+          recipientName: r.name,
+          ticker: args.ticker,
+          stats: stats.length ? stats : undefined,
+          articleTitle: args.title,
+          articleDescription: args.description,
+          insightSlug: args.insightSlug,
+        }).then((res) => ({ email: r.email, ...res })),
+      ),
+    );
+    for (const r of results) {
+      if (r.ok) sent += 1;
+      else {
+        failed += 1;
+        errors.push({ email: r.email, error: r.error ?? "unknown" });
+      }
+    }
+  }
+
+  return { sent, failed, total: recipients.length, errors };
+}
+
+/**
+ * Mail every opted-in member that we added to a name we already hold.
+ *
+ * Same list as `announcePick`. A conviction add is still a buy the subscriber
+ * asked to hear about; splitting the preference would hide the half of the
+ * record that is not a new ticker.
+ */
+export async function announceAdd(args: {
+  ticker: string;
+  title: string;
+  description: string;
+  insightSlug: string;
+}): Promise<AnnounceResult> {
+  const recipients = await getOptedInRecipients("newPicks");
+  if (recipients.length === 0) {
+    return { sent: 0, failed: 0, total: 0, errors: [] };
+  }
+
+  const [street, quant] = await Promise.all([
+    fetchStreetRangeForTicker(args.ticker),
+    fetchQuantRatingForTicker(args.ticker),
+  ]);
+  const stats: PickStat[] = [];
+  const ratingLabel = quant ? formatQuantRating(quant.rating) : null;
+  if (ratingLabel) {
+    stats.push({ label: "Quant rating", value: ratingLabel });
+  }
+  if (street) {
+    if (street.mark !== null) {
+      stats.push({ label: "Mark", value: formatStreetPrice(street.mark) });
+    }
+    stats.push({ label: "Street low", value: formatStreetPrice(street.low) });
+    stats.push({
+      label: "Street mean",
+      value: formatStreetPrice(street.mean),
+    });
+    stats.push({ label: "Street high", value: formatStreetPrice(street.high) });
+  }
+
+  const CHUNK = 5;
+  let sent = 0;
+  let failed = 0;
+  const errors: { email: string; error: string }[] = [];
+
+  for (let i = 0; i < recipients.length; i += CHUNK) {
+    const results = await Promise.all(
+      recipients.slice(i, i + CHUNK).map((r) =>
+        sendAddNoteEmail({
           to: r.email,
           userId: r.id,
           recipientName: r.name,

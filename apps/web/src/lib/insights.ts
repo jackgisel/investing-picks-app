@@ -14,7 +14,9 @@ export type InsightPostType =
   | "quarterly_review"
   | "weekly_review"
   /** The other half of a pick: the position closed, and why. */
-  | "exit";
+  | "exit"
+  /** A conviction add to a name we already hold. */
+  | "add";
 
 /**
  * `pending` — the row exists because a pick does, but has no body yet.
@@ -147,6 +149,9 @@ export function insightCategoryLabel(
   if (meta.postType === "exit") {
     return meta.ticker ? `Exit · ${meta.ticker}` : "Exit";
   }
+  if (meta.postType === "add") {
+    return meta.ticker ? `Add · ${meta.ticker}` : "Add";
+  }
   return meta.ticker ? `Pick · ${meta.ticker}` : "Pick";
 }
 
@@ -183,6 +188,72 @@ export function exitSlug(ticker: string, exitDate: string): string {
 export function exitDateFromSlug(slug: string): string | null {
   const m = /-(\d{4}-\d{2}-\d{2})$/.exec(slug);
   return m ? m[1] : null;
+}
+
+/**
+ * Slug for a conviction-add note: `add-sezl-2026-09-04`.
+ *
+ * Same contract as `exitSlug`: ticker + trade date, so a regenerate cannot
+ * move the URL and the sweep can ask "does this add already have a note?"
+ * without guessing. A name can be added to more than once.
+ */
+export function addSlug(ticker: string, addDate: string): string {
+  return `add-${ticker.toLowerCase()}-${addDate.slice(0, 10)}`;
+}
+
+/** The add date back out of an add slug, or null if it does not carry one. */
+export function addDateFromSlug(slug: string): string | null {
+  return exitDateFromSlug(slug);
+}
+
+/**
+ * Whether auto-publish / approve should mail the list about this add.
+ *
+ * A note that lands more than two UTC calendar days after the trade is a
+ * backfill, not an announcement. Friday's add published Saturday still mails;
+ * Friday's add discovered on Tuesday does not.
+ */
+export function shouldAnnounceAdd(
+  addDate: string | null | undefined,
+  now: Date = new Date(),
+): boolean {
+  if (!addDate) return false;
+  const parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(addDate.slice(0, 10));
+  if (!parts) return false;
+  const addUtc = Date.UTC(
+    Number(parts[1]),
+    Number(parts[2]) - 1,
+    Number(parts[3]),
+  );
+  const todayUtc = Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate(),
+  );
+  const days = (todayUtc - addUtc) / 86_400_000;
+  return days >= 0 && days <= 2;
+}
+
+/**
+ * Unique (ticker, add date) pairs from executed conviction adds.
+ *
+ * Deduped because a retried fill would otherwise open two notes for one event.
+ */
+export function doubleBuyAdds(
+  trades: { ticker?: string | null; action?: string | null; date?: string | null }[],
+): { ticker: string; date: string }[] {
+  const seen = new Set<string>();
+  const out: { ticker: string; date: string }[] = [];
+  for (const t of trades) {
+    if (t.action !== "double_buy" || !t.ticker || !t.date) continue;
+    const ticker = t.ticker.toUpperCase();
+    const date = t.date.slice(0, 10);
+    const key = `${ticker}@${date}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ ticker, date });
+  }
+  return out;
 }
 
 /**

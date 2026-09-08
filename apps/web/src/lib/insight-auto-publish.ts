@@ -1,5 +1,6 @@
-import { announceExit, announcePick } from "@/lib/pick-announce";
+import { announceAdd, announceExit, announcePick } from "@/lib/pick-announce";
 import { claimForPublish, listDraftsDueForPublish } from "@/lib/insights-db";
+import { addDateFromSlug, shouldAnnounceAdd } from "@/lib/insights";
 import { autoPublishEnabled } from "@/lib/review-window";
 
 /**
@@ -83,12 +84,22 @@ export async function autoPublishDueDrafts(): Promise<AutoPublishResult> {
               description: claimed.description!,
               insightSlug: claimed.slug,
             })
-          : await announcePick({
-              ticker: claimed.ticker!,
-              title: claimed.title!,
-              description: claimed.description!,
-              insightSlug: claimed.slug,
-            });
+          : claimed.postType === "add" &&
+              shouldAnnounceAdd(addDateFromSlug(claimed.slug))
+            ? await announceAdd({
+                ticker: claimed.ticker!,
+                title: claimed.title!,
+                description: claimed.description!,
+                insightSlug: claimed.slug,
+              })
+            : claimed.postType === "add"
+              ? { sent: 0, failed: 0, total: 0, errors: [] }
+              : await announcePick({
+                  ticker: claimed.ticker!,
+                  title: claimed.title!,
+                  description: claimed.description!,
+                  insightSlug: claimed.slug,
+                });
       result.published.push({
         ticker,
         slug: claimed.slug,

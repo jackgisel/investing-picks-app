@@ -2,13 +2,23 @@ import { PUBLIC_API_BASE } from "@/lib/api-config";
 import { fetchResearchFacts, generateDraft } from "@/lib/insight-draft";
 import { fetchExitFacts, generateExitDraft } from "@/lib/exit-draft";
 import {
+  createPendingAddInsight,
   createPendingExitInsight,
   createPendingInsight,
   listPendingInsights,
   markGenerationFailed,
   saveDraft,
 } from "@/lib/insights-db";
-import { exitDateFromSlug, exitSlug, pickSlug } from "@/lib/insights";
+import {
+  addDateFromSlug,
+  addSlug,
+  doubleBuyAdds,
+  exitDateFromSlug,
+  exitSlug,
+  pickSlug,
+  shouldAnnounceAdd,
+} from "@/lib/insights";
+import { fetchAddFacts, generateAddDraft } from "@/lib/add-draft";
 
 /**
  * Reconciliation: every open pick should have a note, and every note that has
@@ -48,6 +58,28 @@ async function activePicks(): Promise<ApiPick[]> {
   }
   const body = (await res.json()) as { picks?: ApiPick[] };
   return (body.picks ?? []).filter((p) => p.ticker);
+}
+
+type ApiTrade = {
+  ticker?: string | null;
+  action?: string | null;
+  date?: string | null;
+};
+
+async function doubleBuyTrades(): Promise<ApiTrade[]> {
+  const res = await fetch(`${PUBLIC_API_BASE}/trades?limit=200`, {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    throw new Error(`Could not list trades (upstream ${res.status})`);
+  }
+  const body = (await res.json()) as { trades?: ApiTrade[] };
+  return body.trades ?? [];
+}
+
+/** Immediate deadline for a backfilled add; the live window otherwise. */
+function addAutoPublishAt(addDate: string): Date | undefined {
+  return shouldAnnounceAdd(addDate) ? undefined : new Date();
 }
 
 async function closedPicks(): Promise<ApiPick[]> {
@@ -172,6 +204,97 @@ export async function syncExitDrafts(
   }
 
   return result;
+}
+
+/**
+ * Every executed conviction add should have a note. Keyed on ticker + date,
+ * not on the open book — a double buy does not create a second position, so
+ * the pick sweep cannot see it.
+ */
+export async function syncAddDrafts(
+  { generate = true }: { generate?: boolean } = {},
+): Promise<SyncResult> {
+  const result: SyncResult = {
+    created: [],
+    generated: [],
+    failed: [],
+    skipped: 0,
+  };
+
+  for (const add of doubleBuyAdds(await doubleBuyTrades())) {
+    const created = await createPendingAddInsight(
+      add.ticker,
+      addSlug(add.ticker, add.date),
+    );
+    if (created) result.created.push(`${add.ticker}@${add.date}`);
+    else result.skipped += 1;
+  }
+
+  if (!generate) return result;
+
+  for (const pending of await listPendingInsights("add")) {
+    if (!pending.ticker) continue;
+    const addDate = addDateFromSlug(pending.slug);
+    const label = `${pending.ticker}@${addDate ?? "?"}`;
+    if (!addDate) {
+      await markGenerationFailed(
+        pending.id,
+        `Add slug ${pending.slug} carries no add date`,
+      );
+      result.failed.push({ ticker: label, error: "unparseable add slug" });
+      continue;
+    }
+    try {
+      const facts = await fetchAddFacts(pending.ticker, addDate);
+      const draft = await generateAddDraft(facts);
+      await saveDraft(
+        pending.id,
+        draft,
+        facts,
+        pending.slug,
+        undefined,
+        addAutoPublishAt(addDate),
+      );
+      result.generated.push(label);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      await markGenerationFailed(pending.id, message);
+      result.failed.push({ ticker: label, error: message });
+    }
+  }
+
+  return result;
+}
+
+/** Regenerate one add note, whatever state it is in (short of approved). */
+export async function regenerateAddInsight(
+  id: string,
+  ticker: string,
+  slug: string,
+): Promise<void> {
+  const addDate = addDateFromSlug(slug);
+  if (!addDate) {
+    throw new Error(`Add slug ${slug} carries no add date`);
+  }
+  try {
+    const facts = await fetchAddFacts(ticker, addDate);
+    const draft = await generateAddDraft(facts);
+    const saved = await saveDraft(
+      id,
+      draft,
+      facts,
+      slug,
+      undefined,
+      addAutoPublishAt(addDate),
+    );
+    if (!saved) {
+      throw new Error("Note is approved; regenerating would rewrite what was mailed");
+    }
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    await markGenerationFailed(id, message);
+    throw e;
+  }
 }
 
 /** Regenerate one exit note, whatever state it is in (short of approved). */

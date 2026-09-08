@@ -1,9 +1,9 @@
 """Audit pass over the Run 118 engine: rule boundaries + characterised defects.
 
 Every test here exists to prevent a specific way a paying subscriber could be
-shown a wrong trade. Tests marked ``xfail(strict=True)`` assert the behaviour we
-believe is *correct*; they fail today and document a defect (BUG-S<n>) without
-breaking the suite. Do not "fix" them by weakening the assertion.
+shown a wrong trade. Tests that reference a BUG-S<n> assert the behaviour we
+believe is *correct*; each documents a defect that has since been fixed. Do not
+"fix" a regression here by weakening the assertion.
 """
 
 from __future__ import annotations
@@ -109,18 +109,14 @@ def _overweight_winner_book():
     return PortfolioState(cash=1_000, positions={"WIN": pos}, as_of=TODAY)
 
 
-@pytest.mark.xfail(
-    reason="BUG-S1: _weight_trim_signals and _removal_signals both sell the same "
-    "ticker; evaluate() never reconciles them",
-    strict=True,
-)
 def test_trim_and_partial_sell_never_oversell_a_position():
     """A TRIM plus a Winners-Circle PARTIAL_SELL must not exceed shares held.
 
-    Real failure: the engine emits sell instructions for 126 shares of a
-    100-share holding. Downstream fills PARTIAL_SELL first (flagging the
-    remainder house money) then TRIMs min(remaining, 76) — which wipes out the
-    entire house-money stake the Winners Circle rule just created.
+    Historical failure (BUG-S1): the engine emitted sell instructions for 126
+    shares of a 100-share holding. Downstream filled PARTIAL_SELL first
+    (flagging the remainder house money) then TRIMmed min(remaining, 76), which
+    wiped out the entire house-money stake the Winners Circle rule just created.
+    `_reconcile_exits` now drops the TRIM when a removal fires for the ticker.
     """
     portfolio = _overweight_winner_book()
     signals = evaluate(portfolio, {"WIN": score("WIN", 2.0)}, [], RUN118_PARAMS)
@@ -130,6 +126,8 @@ def test_trim_and_partial_sell_never_oversell_a_position():
         f"engine ordered {ordered} shares sold out of 100 held: "
         f"{[(s.action.value, s.sell_shares) for s in signals]}"
     )
+    selling = [s.action for s in signals if s.ticker == "WIN" and s.action in SELL_ACTIONS]
+    assert selling == [Action.PARTIAL_SELL], selling
 
 
 def test_a_position_being_fully_exited_is_not_also_trimmed():
@@ -308,17 +306,13 @@ def test_a_missing_grade_on_the_stock_side_correctly_fails_closed():
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    reason="BUG-S7: int(max_positions * sector_concentration) floors to 0 for "
-    "max_positions <= 3, and the cap then blocks every classified buy",
-    strict=True,
-)
 def test_small_max_positions_does_not_forbid_every_buy():
     """A 3-name book must still be able to buy its first name.
 
-    Real failure: max_positions=3 gives int(3 * 0.30) == 0, and the cap fires on
-    `count >= 0`, which is true for an empty book. Every candidate with a known
-    sector is rejected forever; only sectorless tickers can ever be bought.
+    Historical failure (BUG-S7): max_positions=3 gave int(3 * 0.30) == 0, and
+    the cap fired on `count >= 0`, which is true for an empty book. Every
+    candidate with a known sector was rejected forever; only sectorless tickers
+    could ever be bought. The cap now floors at one name per sector.
     """
     portfolio = PortfolioState(cash=100_000, positions={}, as_of=TODAY)
     params = RUN118_PARAMS.with_overrides(max_positions=3)

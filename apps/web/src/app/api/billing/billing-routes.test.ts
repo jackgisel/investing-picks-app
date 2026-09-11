@@ -60,10 +60,13 @@ vi.mock("@/lib/subscription", () => ({
 import { POST as checkout } from "./checkout/route";
 import { POST as portal } from "./portal/route";
 
-function request(origin = "https://outpick.test") {
+function request(origin = "https://outpick.test", cookie?: string) {
   return new NextRequest("https://outpick.test/api/billing/test", {
     method: "POST",
-    headers: { origin },
+    headers: {
+      origin,
+      ...(cookie ? { cookie } : {}),
+    },
   });
 }
 
@@ -208,6 +211,27 @@ describe("billing routes", () => {
     expect(options).toEqual({
       idempotencyKey: "outpick-checkout-v2-user_1-founders",
     });
+  });
+
+  it("forwards DataFast cookies into Checkout Session metadata", async () => {
+    await checkout(
+      request(
+        "https://outpick.test",
+        "datafast_visitor_id=vis_abc; datafast_session_id=ses_123",
+      ),
+    );
+    const [params] = state.stripe.checkout.sessions.create.mock.calls[0];
+    expect(params.metadata).toMatchObject({
+      outpick_user_id: "user_1",
+      datafast_visitor_id: "vis_abc",
+      datafast_session_id: "ses_123",
+    });
+    expect(params.subscription_data.metadata).not.toHaveProperty(
+      "datafast_visitor_id",
+    );
+    expect(params.subscription_data.metadata).not.toHaveProperty(
+      "datafast_session_id",
+    );
   });
 
   it("enables automatic tax only when explicitly configured", async () => {

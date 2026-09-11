@@ -2,6 +2,7 @@ import { PillButton } from "@/components/ui/pill-button";
 import { HeroOutperformance } from "./hero-outperformance";
 import { HeroPickBubbles } from "./hero-pick-bubbles";
 import { PriceLine } from "./price-line";
+import { DATAFAST_CHECKOUT_GOAL } from "@/lib/datafast";
 
 /**
  * Landing hero — full-bleed lunar art as the visual plane, copy on a left scrim.
@@ -82,7 +83,7 @@ export function Hero() {
           <HeroOutperformance className="mb-8 hero-reveal hero-reveal-2" />
 
           <div className="hero-reveal hero-reveal-3">
-            <PillButton href="/subscribe" arrow>
+            <PillButton href="/subscribe" arrow data-fast-goal={DATAFAST_CHECKOUT_GOAL}>
               Start your membership
             </PillButton>
             <PriceLine className="mt-4" />

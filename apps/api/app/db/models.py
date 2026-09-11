@@ -14,6 +14,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    Index,
     false,
     func,
 )
@@ -214,6 +215,38 @@ class Fundamentals(Base):
     ticker: Mapped[str] = mapped_column(String(16), index=True)
     as_of: Mapped[date] = mapped_column(Date)
     data: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+class ConsensusSnapshot(Base):
+    """Append-only FMP analyst-estimates vintage for the revisions factor.
+
+    One row per (ticker, poll date, fiscal period). Same-day re-runs must not
+    overwrite — unlike `fundamentals`, which upserts in place. The backtest
+    window can only ever start on dates we actually observed, so a silent
+    rewrite would punch a hole we cannot reconstruct.
+    """
+
+    __tablename__ = "consensus_snapshots"
+    __table_args__ = (
+        UniqueConstraint("ticker", "as_of", "fiscal_period"),
+        Index("ix_consensus_snapshots_ticker_as_of", "ticker", "as_of"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ticker: Mapped[str] = mapped_column(String(16), index=True)
+    as_of: Mapped[date] = mapped_column(Date, index=True)
+    fiscal_period: Mapped[date] = mapped_column(Date)
+    eps_avg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    eps_high: Mapped[float | None] = mapped_column(Float, nullable=True)
+    eps_low: Mapped[float | None] = mapped_column(Float, nullable=True)
+    revenue_avg: Mapped[float | None] = mapped_column(Float, nullable=True)
+    revenue_high: Mapped[float | None] = mapped_column(Float, nullable=True)
+    revenue_low: Mapped[float | None] = mapped_column(Float, nullable=True)
+    analyst_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    raw: Mapped[dict] = mapped_column(JSON, default=dict)
+    fetched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), default=func.now()
+    )
 
 
 class PriceBar(Base):

@@ -24,6 +24,7 @@ from worker.jobs.runner import (
     job_backfill_prices,
     job_backfill_snapshots,
     job_biweekly_evaluate,
+    job_consensus_snapshot,
     job_daily_marks,
     job_dca_backfill,
     job_dca_friday,
@@ -98,6 +99,17 @@ def main():
         job_daily_marks,
         CronTrigger(day_of_week="mon-fri", hour=18, minute=30),
         id="daily_marks",
+        replace_existing=True,
+    )
+    # Weekdays 17:00 ET — after the cash session, before daily_marks (18:30).
+    # Analyst-estimates vintages are the only revisions history we will ever
+    # have; a missed weekday is a permanent hole. Runs on holidays too: the
+    # vendor can still move a consensus on a closed session, and skipping
+    # would look identical to a failed poll.
+    scheduler.add_job(
+        job_consensus_snapshot,
+        CronTrigger(day_of_week="mon-fri", hour=17, minute=0),
+        id="consensus_snapshot",
         replace_existing=True,
     )
     scheduler.add_job(
@@ -352,6 +364,7 @@ def main():
         log.info("Running once: %s", name)
         {
             "daily_marks": job_daily_marks,
+            "consensus_snapshot": job_consensus_snapshot,
             "weekly_refresh": job_weekly_refresh,
             "biweekly_evaluate": job_biweekly_evaluate,
             # Scheduled every 15 min (above); on demand for when you have just

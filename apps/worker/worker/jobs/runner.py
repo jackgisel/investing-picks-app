@@ -21,13 +21,19 @@ from worker.jobs.deadline import JobDeadline, JobDeadlineExceeded
 from worker.services.fmp import FMPClient
 from worker.services.market_calendar import is_effective_run_day, is_trading_day
 from worker.services.ingest import (
+    CONSENSUS_SNAPSHOT_GAP_JOB,
+    CONSENSUS_SNAPSHOT_JOB,
+    CONSENSUS_SNAPSHOT_TIMEOUT_MINUTES,
     backfill_price_history,
+    missing_snapshot_weekdays,
     news_universe_tickers,
     refresh_fundamentals,
     refresh_marks,
     refresh_macro,
     refresh_news,
     refresh_universe,
+    snapshot_consensus,
+    today_et,
 )
 from worker.services.scoring import diagnose_unscored_holdings, score_universe
 
@@ -60,8 +66,14 @@ def reap_stale_weekly_refreshes() -> int:
             job_name="weekly_refresh",
             stale_after=timeout,
         )
+        snap_timeout = timedelta(minutes=CONSENSUS_SNAPSHOT_TIMEOUT_MINUTES)
+        count += reap_stale_job_runs(
+            db,
+            job_name=CONSENSUS_SNAPSHOT_JOB,
+            stale_after=snap_timeout,
+        )
         if count:
-            log.error("Reaped %s stale weekly_refresh run(s)", count)
+            log.error("Reaped %s stale weekly_refresh/consensus_snapshot run(s)", count)
         return count
     finally:
         db.close()
@@ -555,6 +567,76 @@ def _track(job_name: str, fn):
         raise
     finally:
         db.close()
+
+
+def _record_snapshot_gaps(db: Session, missing: list) -> dict:
+    """Write an error JobRun when a weekday vintage is missing.
+
+    Dedupes on the exact detail string so a persistent hole does not mail
+    every 5 minutes, and a newly missing day mails again.
+    """
+    if not missing:
+        return {"missing": 0, "recorded": False}
+    detail = (
+        "Missing consensus snapshots on: "
+        + ", ".join(d.isoformat() if hasattr(d, "isoformat") else str(d) for d in missing)
+        + ". A hole in this table can never be reconstructed."
+    )
+    existing = (
+        db.query(JobRun)
+        .filter(
+            JobRun.job_name == CONSENSUS_SNAPSHOT_GAP_JOB,
+            JobRun.detail == detail,
+        )
+        .first()
+    )
+    if existing:
+        return {"missing": len(missing), "recorded": False}
+    now = datetime.now(timezone.utc)
+    db.add(
+        JobRun(
+            job_name=CONSENSUS_SNAPSHOT_GAP_JOB,
+            status="error",
+            detail=detail,
+            finished_at=now,
+        )
+    )
+    db.commit()
+    log.error("Recorded consensus_snapshot_gap incident:\n%s", detail)
+    return {"missing": len(missing), "recorded": True}
+
+
+def job_consensus_snapshot():
+    """Daily full-universe analyst-estimates vintage. After the close, before marks.
+
+    Every missed weekday is a permanent hole in the revisions window. Failures
+    go through `_track` so the 5-minute alert sweep mails the admins; a gap
+    discovered on a later run gets its own error JobRun.
+    """
+
+    def _run(db: Session):
+        timeout_seconds = CONSENSUS_SNAPSHOT_TIMEOUT_MINUTES * 60
+        deadline = JobDeadline.after(CONSENSUS_SNAPSHOT_JOB, timeout_seconds)
+        as_of = today_et()
+        gaps = _record_snapshot_gaps(db, missing_snapshot_weekdays(db, as_of))
+        fmp = _fmp(deadline)
+        try:
+            probes = fmp.probe_backtest_endpoints()
+            for name, probe in probes.items():
+                if not probe.get("ok"):
+                    log.warning(
+                        "FMP backtest probe %s failed: %s",
+                        name,
+                        probe.get("error"),
+                    )
+            result = snapshot_consensus(db, fmp, as_of=as_of)
+            result["fmp_probes"] = probes
+            result["gap_alert"] = gaps
+            return result
+        finally:
+            fmp.close()
+
+    return _track(CONSENSUS_SNAPSHOT_JOB, _run)
 
 
 def job_daily_marks():

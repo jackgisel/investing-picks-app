@@ -187,3 +187,54 @@ def test_diagnosis_names_the_absent_factor_instead_of_the_worker_log(db, portfol
     # that never had it run stays unscored forever.
     assert "backfill_prices" in diagnosis["detail"]
     assert "worker log" not in diagnosis["detail"]
+
+
+def test_consensus_snapshot_status_reports_empty_table(client):
+    res = client.get("/api/ops/consensus-snapshot", headers=OPS_HEADERS)
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["as_of"] is None
+    assert body["tickers"] == 0
+    assert body["rows"] == 0
+    assert body["missing_prior_days"] == []
+
+
+def test_consensus_snapshot_status_counts_latest_vintage(client, db):
+    from datetime import date
+
+    from app.db.models import ConsensusSnapshot
+
+    db.add(
+        ConsensusSnapshot(
+            ticker="AAA",
+            as_of=date(2026, 9, 10),
+            fiscal_period=date(2026, 12, 31),
+            eps_avg=2.0,
+            revenue_avg=1000.0,
+            raw={},
+        )
+    )
+    db.add(
+        ConsensusSnapshot(
+            ticker="BBB",
+            as_of=date(2026, 9, 10),
+            fiscal_period=date(2026, 12, 31),
+            eps_avg=1.0,
+            revenue_avg=500.0,
+            raw={},
+        )
+    )
+    db.commit()
+    body = client.get("/api/ops/consensus-snapshot", headers=OPS_HEADERS).json()
+    assert body["as_of"] == "2026-09-10"
+    assert body["tickers"] == 2
+    assert body["rows"] == 2
+
+
+def test_trigger_consensus_snapshot_returns_started(client, monkeypatch):
+    from app.routes import ops
+
+    monkeypatch.setattr(ops, "_run_consensus_snapshot_task", lambda: None)
+    res = client.post("/api/ops/consensus-snapshot", headers=OPS_HEADERS)
+    assert res.status_code == 200, res.text
+    assert res.json() == {"started": True, "job_name": "consensus_snapshot"}

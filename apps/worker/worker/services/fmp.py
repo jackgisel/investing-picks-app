@@ -231,6 +231,73 @@ class FMPClient:
         )
         return data if isinstance(data, list) else []
 
+    def balance_sheet_quarterly(self, ticker: str, limit: int = 12) -> list[dict]:
+        """Recent quarterly balance sheets, newest first.
+
+        Twelve quarters covers the TTM ROE/ROA/ROCE window plus a restatement
+        buffer. Phase 2 ingest uses this; Phase 1 only probes that the current
+        key can read it.
+        """
+        data = self._get(
+            "balance-sheet-statement",
+            {"symbol": ticker, "period": "quarter", "limit": limit},
+        )
+        return data if isinstance(data, list) else []
+
+    def historical_market_cap(
+        self,
+        ticker: str,
+        from_date: date | None = None,
+        to_date: date | None = None,
+    ) -> list[dict]:
+        """Daily market-cap series. Date on each row is its availability date."""
+        data = self._get(
+            "historical-market-capitalization",
+            {
+                "symbol": ticker,
+                "from": from_date.isoformat() if from_date else None,
+                "to": to_date.isoformat() if to_date else None,
+            },
+        )
+        return data if isinstance(data, list) else []
+
+    def delisted_companies(self, page: int = 0, limit: int = 100) -> list[dict]:
+        """US names that have left an exchange. Paginated."""
+        data = self._get("delisted-companies", {"page": page, "limit": limit})
+        return data if isinstance(data, list) else []
+
+    def probe_backtest_endpoints(self, ticker: str = "AAPL") -> dict:
+        """Cheap live check that Phase 2's extra FMP paths respond on this key.
+
+        Returns `{endpoint: {ok, n, error}}`. A 401/402/403 is `ok=False` with
+        the status, not an exception — the snapshot job must still complete.
+        """
+        probes = {
+            "analyst-estimates": lambda: self.analyst_estimates(ticker),
+            "balance-sheet-statement": lambda: self.balance_sheet_quarterly(
+                ticker, limit=4
+            ),
+            "historical-market-capitalization": lambda: self.historical_market_cap(
+                ticker
+            ),
+            "delisted-companies": lambda: self.delisted_companies(page=0, limit=10),
+        }
+        out: dict = {}
+        for name, fetch in probes.items():
+            try:
+                data = fetch()
+            except FMPAccessError as e:
+                out[name] = {"ok": False, "n": 0, "error": str(e)}
+                continue
+            if isinstance(data, list):
+                n = len(data)
+            elif data:
+                n = 1
+            else:
+                n = 0
+            out[name] = {"ok": n > 0, "n": n, "error": None if n else "empty"}
+        return out
+
     def earnings(self, ticker: str, limit: int = 8) -> list[dict]:
         """Recent actual-versus-estimate earnings reports for one company."""
         data = self._get("earnings", {"symbol": ticker, "limit": limit})

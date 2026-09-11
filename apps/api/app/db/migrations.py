@@ -134,6 +134,69 @@ def _ensure_stock_news(engine: Engine) -> None:
             log.debug("Could not create stock_news; assuming it exists")
 
 
+def _ensure_consensus_snapshots(engine: Engine) -> None:
+    """Create the append-only consensus vintage table if this database predates it.
+
+    Same reason as `_ensure_stock_news`: the worker never runs `create_all`,
+    and the daily snapshot job writes this table before the API process
+    necessarily has a chance to create it via the model.
+    """
+    from sqlalchemy import inspect
+
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        if inspector.has_table("consensus_snapshots"):
+            return
+        sqlite = engine.dialect.name == "sqlite"
+        pk = "INTEGER PRIMARY KEY" if sqlite else "SERIAL PRIMARY KEY"
+        amount = "FLOAT" if sqlite else "DOUBLE PRECISION"
+        timestamptz = "TIMESTAMP" if sqlite else "TIMESTAMP WITH TIME ZONE"
+        try:
+            conn.execute(
+                text(
+                    f"""
+                    CREATE TABLE consensus_snapshots (
+                        id {pk},
+                        ticker VARCHAR(16) NOT NULL,
+                        as_of DATE NOT NULL,
+                        fiscal_period DATE NOT NULL,
+                        eps_avg {amount},
+                        eps_high {amount},
+                        eps_low {amount},
+                        revenue_avg {amount},
+                        revenue_high {amount},
+                        revenue_low {amount},
+                        analyst_count INTEGER,
+                        raw JSON NOT NULL DEFAULT '{{}}',
+                        fetched_at {timestamptz} NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        UNIQUE (ticker, as_of, fiscal_period)
+                    )
+                    """
+                )
+            )
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_consensus_snapshots_ticker "
+                    "ON consensus_snapshots (ticker)"
+                )
+            )
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_consensus_snapshots_as_of "
+                    "ON consensus_snapshots (as_of)"
+                )
+            )
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_consensus_snapshots_ticker_as_of "
+                    "ON consensus_snapshots (ticker, as_of)"
+                )
+            )
+            log.info("Created consensus_snapshots")
+        except Exception:
+            log.debug("Could not create consensus_snapshots; assuming it exists")
+
+
 def _columns(conn, table: str) -> list[dict]:
     from sqlalchemy import inspect
 
@@ -152,3 +215,4 @@ def ensure_schema(engine: Engine) -> None:
     _add_column(engine, "portfolios", "kind", "VARCHAR(16) DEFAULT 'live'")
     _ensure_portfolio_contributions(engine)
     _ensure_stock_news(engine)
+    _ensure_consensus_snapshots(engine)

@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.config import assert_ops_key_configured, get_settings
 from app.db.models import (
     CompositeScore,
+    ConsensusSnapshot,
     Evaluation,
     Fundamentals,
     JobRun,
@@ -1038,6 +1039,83 @@ def trigger_refresh(background: BackgroundTasks, db: Session = Depends(get_db)):
 
     background.add_task(_run_weekly_refresh_task)
     return {"started": True, "job_name": "weekly_refresh"}
+
+
+def _run_consensus_snapshot_task() -> None:
+    """Run the worker's consensus snapshot in a background thread.
+
+    Same lazy-import pattern as weekly_refresh: the worker package is on the
+    API image's PYTHONPATH only so ops can fire this the day it ships, instead
+    of waiting until 17:00 ET and losing a weekday of vintages.
+    """
+    try:
+        from worker.jobs.runner import job_consensus_snapshot
+
+        job_consensus_snapshot()
+    except Exception:
+        log.exception("Manual consensus_snapshot failed")
+
+
+@router.post("/consensus-snapshot", dependencies=[Depends(require_ops_key)])
+def trigger_consensus_snapshot(
+    background: BackgroundTasks, db: Session = Depends(get_db)
+):
+    """Kick off a full-universe analyst-estimates vintage out of band."""
+    from worker.services.ingest import (
+        CONSENSUS_SNAPSHOT_JOB,
+        CONSENSUS_SNAPSHOT_TIMEOUT_MINUTES,
+    )
+
+    timeout = timedelta(minutes=CONSENSUS_SNAPSHOT_TIMEOUT_MINUTES)
+    reap_stale_job_runs(
+        db,
+        job_name=CONSENSUS_SNAPSHOT_JOB,
+        stale_after=timeout,
+    )
+    running = (
+        db.query(JobRun)
+        .filter(JobRun.job_name == CONSENSUS_SNAPSHOT_JOB, JobRun.status == "running")
+        .order_by(JobRun.started_at.desc())
+        .first()
+    )
+    if running is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="A consensus snapshot is already running; watch /api/ops/jobs.",
+        )
+
+    background.add_task(_run_consensus_snapshot_task)
+    return {"started": True, "job_name": CONSENSUS_SNAPSHOT_JOB}
+
+
+@router.get("/consensus-snapshot", dependencies=[Depends(require_ops_key)])
+def consensus_snapshot_status(db: Session = Depends(get_db)):
+    """Last vintage date, ticker count, and weekday holes — ops health check."""
+    from worker.services.ingest import missing_snapshot_weekdays, today_et
+
+    latest = db.query(func.max(ConsensusSnapshot.as_of)).scalar()
+    tickers = (
+        db.query(func.count(func.distinct(ConsensusSnapshot.ticker)))
+        .filter(ConsensusSnapshot.as_of == latest)
+        .scalar()
+        if latest is not None
+        else 0
+    )
+    rows = (
+        db.query(func.count(ConsensusSnapshot.id))
+        .filter(ConsensusSnapshot.as_of == latest)
+        .scalar()
+        if latest is not None
+        else 0
+    )
+    as_of = today_et()
+    missing = missing_snapshot_weekdays(db, as_of)
+    return {
+        "as_of": latest.isoformat() if latest else None,
+        "tickers": int(tickers or 0),
+        "rows": int(rows or 0),
+        "missing_prior_days": [d.isoformat() for d in missing],
+    }
 
 
 @router.get("/jobs", dependencies=[Depends(require_ops_key)])

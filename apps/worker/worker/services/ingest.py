@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 from datetime import date, datetime, timedelta, timezone
+from typing import NamedTuple
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -12,6 +14,7 @@ from outpick_strategy import RUN118_PARAMS
 
 from app.db.models import (
     CompositeScore,
+    ConsensusSnapshot,
     Fundamentals,
     Portfolio,
     PortfolioSnapshot,
@@ -51,6 +54,17 @@ MIN_REVISION_LOOKBACK_DAYS = 5
 # coverage floor unrated a held name. Real next-year periods are ~365 days
 # apart, so a two-week window is jitter, not a new year.
 PERIOD_MATCH_TOLERANCE_DAYS = 14
+
+# Daily consensus poll: live floors are $300M / $5, but names just under those
+# lines must already have a vintage the week they cross, otherwise they are
+# unscored on the first evaluation Friday they become eligible.
+SNAPSHOT_MARKET_CAP_FLOOR = 250_000_000
+SNAPSHOT_SHARE_PRICE_FLOOR = 4.0
+SNAPSHOT_SCREENER_LIMIT = 1200
+CONSENSUS_SNAPSHOT_TIMEOUT_MINUTES = 20.0
+CONSENSUS_SNAPSHOT_JOB = "consensus_snapshot"
+CONSENSUS_SNAPSHOT_GAP_JOB = "consensus_snapshot_gap"
+_ET = ZoneInfo("America/New_York")
 
 
 def held_tickers(db: Session) -> set[str]:
@@ -373,6 +387,242 @@ def bulk_insert_price_bars(db: Session, rows: list[dict], chunk_size: int = 2000
     return written
 
 
+def today_et() -> date:
+    """Calendar date in America/New_York — the poll date for a snapshot."""
+    return datetime.now(timezone.utc).astimezone(_ET).date()
+
+
+def snapshot_universe_tickers(db: Session, fmp: FMPClient) -> list[str]:
+    """Screener-eligible names plus a buffer under the live floors, plus holdings.
+
+    Does not admit anyone to `stocks` — live scoring still uses refresh_universe
+    and the $300M/$5 cut. Writing a Stock row here would leak below-floor names
+    into the live scorer the week their cap ticks up on a quote but the Saturday
+    screen has not yet run.
+    """
+    rows = fmp.stock_screener(
+        min_market_cap=SNAPSHOT_MARKET_CAP_FLOOR, limit=SNAPSHOT_SCREENER_LIMIT
+    )
+    tickers: set[str] = set()
+    for row in rows:
+        ticker = (row.get("symbol") or "").upper()
+        if not ticker or "." in ticker:
+            continue
+        raw_price = row.get("price")
+        try:
+            price = float(raw_price) if raw_price is not None else None
+        except (TypeError, ValueError):
+            price = None
+        if price is None or price < SNAPSHOT_SHARE_PRICE_FLOOR:
+            continue
+        tickers.add(ticker)
+    for (ticker,) in (
+        db.query(Stock.ticker)
+        .filter(Stock.is_active == True, Stock.is_etf == False)  # noqa: E712
+        .all()
+    ):
+        tickers.add(ticker)
+    tickers |= held_tickers(db)
+    return sorted(tickers)
+
+
+def _optional_float(value) -> float | None:
+    if value is None or value == "":
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _optional_int(value) -> int | None:
+    number = _optional_float(value)
+    if number is None:
+        return None
+    return int(number)
+
+
+def parse_consensus_estimate(row: dict) -> dict | None:
+    """One FMP analyst-estimates row → a consensus_snapshots insert dict.
+
+    Accepts both `/stable` names (`epsAvg`) and the legacy `estimated*` prefix
+    so vintages taken under either shape stay comparable.
+    """
+    period = _parse_period(row.get("date"))
+    if period is None:
+        return None
+    analyst_count = _optional_int(
+        first_present(
+            row,
+            "numAnalystsEps",
+            "numberAnalystsEstimatedEps",
+            "numberAnalystEstimatedEps",
+            "numAnalystsRevenue",
+            "numberAnalystEstimatedRevenue",
+            "analystsCount",
+        )
+    )
+    return {
+        "fiscal_period": period,
+        "eps_avg": _optional_float(first_present(row, "epsAvg", "estimatedEpsAvg")),
+        "eps_high": _optional_float(first_present(row, "epsHigh", "estimatedEpsHigh")),
+        "eps_low": _optional_float(first_present(row, "epsLow", "estimatedEpsLow")),
+        "revenue_avg": _optional_float(
+            first_present(row, "revenueAvg", "estimatedRevenueAvg")
+        ),
+        "revenue_high": _optional_float(
+            first_present(row, "revenueHigh", "estimatedRevenueHigh")
+        ),
+        "revenue_low": _optional_float(
+            first_present(row, "revenueLow", "estimatedRevenueLow")
+        ),
+        "analyst_count": analyst_count,
+        "raw": dict(row),
+    }
+
+
+def bulk_insert_consensus_snapshots(
+    db: Session, rows: list[dict], chunk_size: int = 500
+) -> int:
+    """Insert vintages, skipping any that already exist. Returns rows attempted.
+
+    Append-only: ON CONFLICT DO NOTHING, never DO UPDATE. A same-day retry
+    must not rewrite a vintage we already observed.
+    """
+    if not rows:
+        return 0
+
+    dialect = db.get_bind().dialect.name
+    if dialect == "postgresql":
+        from sqlalchemy.dialects.postgresql import insert as _insert
+    elif dialect == "sqlite":
+        from sqlalchemy.dialects.sqlite import insert as _insert
+    else:  # pragma: no cover - only these two are ever deployed
+        for row in rows:
+            existing = (
+                db.query(ConsensusSnapshot)
+                .filter(
+                    ConsensusSnapshot.ticker == row["ticker"],
+                    ConsensusSnapshot.as_of == row["as_of"],
+                    ConsensusSnapshot.fiscal_period == row["fiscal_period"],
+                )
+                .one_or_none()
+            )
+            if existing is None:
+                db.add(ConsensusSnapshot(**row))
+        db.commit()
+        return len(rows)
+
+    written = 0
+    for start in range(0, len(rows), chunk_size):
+        chunk = rows[start : start + chunk_size]
+        stmt = _insert(ConsensusSnapshot.__table__).values(chunk)
+        db.execute(
+            stmt.on_conflict_do_nothing(
+                index_elements=["ticker", "as_of", "fiscal_period"]
+            )
+        )
+        db.commit()
+        written += len(chunk)
+    return written
+
+
+def missing_snapshot_weekdays(db: Session, today: date) -> list[date]:
+    """Mon–Fri dates after the first vintage with no consensus_snapshots row.
+
+    Empty table → no gaps (the clock has not started). Weekends are not
+    expected. A hole on a weekday is permanent and must alert.
+    """
+    first = db.query(func.min(ConsensusSnapshot.as_of)).scalar()
+    if first is None:
+        return []
+    present = {
+        d
+        for (d,) in db.query(ConsensusSnapshot.as_of)
+        .filter(ConsensusSnapshot.as_of >= first, ConsensusSnapshot.as_of < today)
+        .distinct()
+        .all()
+    }
+    missing: list[date] = []
+    cursor = first
+    while cursor < today:
+        if cursor.weekday() < 5 and cursor not in present:
+            missing.append(cursor)
+        cursor += timedelta(days=1)
+    return missing
+
+
+def snapshot_consensus(
+    db: Session, fmp: FMPClient, as_of: date | None = None
+) -> dict:
+    """Poll FMP analyst-estimates for the snapshot universe and append vintages.
+
+    Idempotent per (ticker, as_of, fiscal_period). Raises if the universe is
+    empty or every ticker comes back with no estimates — those are the silent
+    failures that would punch a hole in the window forever.
+    """
+    as_of = as_of or today_et()
+    gaps = [d.isoformat() for d in missing_snapshot_weekdays(db, as_of)]
+    if gaps:
+        log.error("Consensus snapshot gaps before %s: %s", as_of, ", ".join(gaps))
+
+    tickers = snapshot_universe_tickers(db, fmp)
+    if not tickers:
+        raise RuntimeError("consensus snapshot universe is empty")
+
+    rows_attempted = 0
+    tickers_ok = 0
+    tickers_empty = 0
+    for i, ticker in enumerate(tickers, 1):
+        try:
+            estimates = fmp.analyst_estimates(ticker)
+        except FMPAccessError:
+            log.exception(
+                "analyst-estimates is not available; stopping consensus snapshot "
+                "so the hole is visible instead of a green run of zeros"
+            )
+            raise
+        parsed: list[dict] = []
+        for row in estimates or []:
+            item = parse_consensus_estimate(row)
+            if item is None:
+                continue
+            item["ticker"] = ticker
+            item["as_of"] = as_of
+            item["fetched_at"] = datetime.now(timezone.utc)
+            parsed.append(item)
+        # Dedup fiscal periods in one payload; last row wins inside the batch
+        # but ON CONFLICT will keep the first persisted vintage.
+        unique = {(r["ticker"], r["as_of"], r["fiscal_period"]): r for r in parsed}
+        rows_attempted += bulk_insert_consensus_snapshots(db, list(unique.values()))
+        if unique:
+            tickers_ok += 1
+        else:
+            tickers_empty += 1
+        if i % 25 == 0:
+            log.info("Consensus snapshot progress: %s/%s", i, len(tickers))
+
+    if tickers_ok == 0:
+        raise RuntimeError(
+            f"consensus snapshot stored 0 estimates for {len(tickers)} tickers"
+        )
+    log.info(
+        "Consensus snapshot %s: %s/%s tickers with estimates, %s rows attempted",
+        as_of,
+        tickers_ok,
+        len(tickers),
+        rows_attempted,
+    )
+    return {
+        "as_of": as_of.isoformat(),
+        "universe": len(tickers),
+        "tickers_with_estimates": tickers_ok,
+        "tickers_empty": tickers_empty,
+        "rows_attempted": rows_attempted,
+        "missing_prior_days": gaps,
+    }
+
+
 def refresh_universe(db: Session, fmp: FMPClient, limit: int = 800) -> int:
     params = RUN118_PARAMS
     rows = fmp.stock_screener(min_market_cap=params.min_universe_market_cap, limit=limit)
@@ -609,26 +859,61 @@ def periods_match(current, prior) -> bool:
     return abs((left - right).days) <= PERIOD_MATCH_TOLERANCE_DAYS
 
 
+class PriorEstimate(NamedTuple):
+    as_of: date
+    data: dict
+
+
+def _snapshot_estimate_data(row: ConsensusSnapshot) -> dict:
+    period = row.fiscal_period
+    period_s = period.isoformat() if isinstance(period, date) else str(period)
+    return {
+        "estimatePeriod": period_s,
+        "epsEstimateAvg": row.eps_avg,
+        "revenueEstimateAvg": row.revenue_avg,
+    }
+
+
 def _prior_estimate_snapshot(
     db: Session, ticker: str, as_of: date, period
-) -> Fundamentals | None:
-    """Best earlier snapshot of the same fiscal period.
+) -> PriorEstimate | None:
+    """Best earlier vintage of the same fiscal period.
 
-    Prefer one at least REVISION_LOOKBACK_DAYS old. If the 21-day row is a
-    different year (a real rollover) but a newer same-period snapshot exists
-    past MIN_REVISION_LOOKBACK_DAYS, use that — otherwise the first weeks of
-    a new period, or a year-end date restatement, leave the ticker unrated.
+    Prefers `consensus_snapshots` at each lookback tier, then falls back to
+    `fundamentals` so Segment A (weekly top-400 rows from ~Jul 2026) stays
+    usable. Prefer a row at least REVISION_LOOKBACK_DAYS old. If the 21-day
+    row is a different year but a newer same-period snapshot exists past
+    MIN_REVISION_LOOKBACK_DAYS, use that.
+
+    Tiered, not "any snapshot wins": a 6-day snapshot must not replace a
+    21-day fundamentals pair during the first three weeks after this job
+    ships — consensus barely moves day to day, and that swap would fabricate
+    a near-zero revisions factor for the live top-400.
     """
     cutoff = as_of - timedelta(days=REVISION_LOOKBACK_DAYS)
     min_as_of = as_of - timedelta(days=MIN_REVISION_LOOKBACK_DAYS)
-    rows = (
+
+    priors: list[PriorEstimate] = []
+    for row in (
+        db.query(ConsensusSnapshot)
+        .filter(ConsensusSnapshot.ticker == ticker, ConsensusSnapshot.as_of < as_of)
+        .order_by(ConsensusSnapshot.as_of.desc(), ConsensusSnapshot.id.desc())
+        .all()
+    ):
+        priors.append(PriorEstimate(row.as_of, _snapshot_estimate_data(row)))
+    for row in (
         db.query(Fundamentals)
         .filter(Fundamentals.ticker == ticker, Fundamentals.as_of < as_of)
         .order_by(Fundamentals.as_of.desc(), Fundamentals.id.desc())
         .all()
-    )
+    ):
+        priors.append(PriorEstimate(row.as_of, dict(row.data or {})))
+    # Stable sort: snapshots were appended first, so on the same as_of they
+    # stay ahead of the fundamentals row.
+    priors.sort(key=lambda row: row.as_of, reverse=True)
+
     fallback = None
-    for row in rows:
+    for row in priors:
         if not periods_match(period, (row.data or {}).get("estimatePeriod")):
             continue
         if row.as_of <= cutoff:
@@ -662,13 +947,13 @@ def compute_estimate_revisions(
     largely a company-size factor, not a revisions factor, and it carries weight
     0.30 and gates every buy via `min_revisions_grade`.
 
-    KNOWN GAP: FMP's v3 `analyst-estimates` endpoint only exposes the *current*
+    KNOWN GAP: FMP's `analyst-estimates` endpoint only exposes the *current*
     consensus, not a consensus history, so a genuine revision cannot be computed
-    on the very first fundamentals refresh for a ticker. We derive it from our
-    own stored `Fundamentals` history instead, which means the factor is null
-    until a ticker has two snapshots of the same fiscal period spanning the
-    lookback. A real next-year rollover stays null until that pair exists.
-    A restated year-end date on the same FY is not a rollover.
+    on the very first snapshot for a ticker. We derive it from our own stored
+    vintages (`consensus_snapshots` first, `fundamentals` second), which means
+    the factor is null until a ticker has two snapshots of the same fiscal
+    period spanning the lookback. A real next-year rollover stays null until
+    that pair exists. A restated year-end date on the same FY is not a rollover.
     """
     period = current.get("estimatePeriod")
     if not period:

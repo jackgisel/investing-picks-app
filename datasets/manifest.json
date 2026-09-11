@@ -1,0 +1,7 @@
+{
+  "dataset": "dataset-v1.sqlite",
+  "sha256": null,
+  "bytes": null,
+  "built_at": null,
+  "notes": "Filled by `python -m worker.backtest hash` after ingest+export. The sqlite file is not committed (FMP redistribution terms)."
+}

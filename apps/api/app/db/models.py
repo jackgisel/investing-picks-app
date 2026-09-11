@@ -249,6 +249,70 @@ class ConsensusSnapshot(Base):
     )
 
 
+class Filing(Base):
+    """Point-in-time quarterly statement. `available_from` is acceptedDate."""
+
+    __tablename__ = "filings"
+    __table_args__ = (UniqueConstraint("ticker", "statement_type", "period"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ticker: Mapped[str] = mapped_column(String(16), index=True)
+    statement_type: Mapped[str] = mapped_column(String(16))  # income | balance | cashflow
+    period: Mapped[date] = mapped_column(Date)
+    available_from: Mapped[date] = mapped_column(Date, index=True)
+    data: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+class MarketCapHistory(Base):
+    """Daily market cap. The bar date is the availability date."""
+
+    __tablename__ = "market_cap_history"
+    __table_args__ = (UniqueConstraint("ticker", "date"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ticker: Mapped[str] = mapped_column(String(16), index=True)
+    date: Mapped[date] = mapped_column(Date, index=True)
+    market_cap: Mapped[float] = mapped_column(Float)
+
+
+class EarningsHistory(Base):
+    """Reported actual-vs-estimate. Report date is availability."""
+
+    __tablename__ = "earnings_history"
+    __table_args__ = (UniqueConstraint("ticker", "date"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ticker: Mapped[str] = mapped_column(String(16), index=True)
+    date: Mapped[date] = mapped_column(Date, index=True)
+    data: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+class Delisting(Base):
+    """Names that left an exchange inside the window."""
+
+    __tablename__ = "delistings"
+    __table_args__ = (UniqueConstraint("ticker"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ticker: Mapped[str] = mapped_column(String(16), index=True)
+    date: Mapped[date] = mapped_column(Date, index=True)
+    name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+
+
+class UniverseMembership(Base):
+    """Eligible set on an evaluation Friday, labelled by revisions coverage."""
+
+    __tablename__ = "universe_membership"
+    __table_args__ = (UniqueConstraint("as_of", "ticker"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    as_of: Mapped[date] = mapped_column(Date, index=True)
+    ticker: Mapped[str] = mapped_column(String(16), index=True)
+    universe_scope: Mapped[str] = mapped_column(String(16))  # top400_live | full
+    market_cap: Mapped[float | None] = mapped_column(Float, nullable=True)
+    close: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+
 class PriceBar(Base):
     __tablename__ = "price_bars"
     __table_args__ = (UniqueConstraint("ticker", "date"),)

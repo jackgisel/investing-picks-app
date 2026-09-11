@@ -219,6 +219,14 @@ class FMPClient:
         )
         return data if isinstance(data, list) else []
 
+    def cash_flow_quarterly(self, ticker: str, limit: int = 12) -> list[dict]:
+        """Recent quarterly cash-flow statements. Optional EV/EBITDA denominator."""
+        data = self._get(
+            "cash-flow-statement",
+            {"symbol": ticker, "period": "quarter", "limit": limit},
+        )
+        return data if isinstance(data, list) else []
+
     def key_metrics_ttm(self, ticker: str) -> dict | None:
         return self._first(self._get("key-metrics-ttm", {"symbol": ticker}))
 

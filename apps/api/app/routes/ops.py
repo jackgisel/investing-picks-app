@@ -1,4 +1,4 @@
-"""Ops API — full virtual book + decision ledger + dry-run."""
+"""Ops API — full virtual book + decision ledger + dry-run + replay."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import dataclasses
 import hmac
 import logging
 from datetime import date, datetime, time, timedelta, timezone
+from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
@@ -37,6 +38,7 @@ from app.services.portfolio import (
     run_evaluation,
 )
 from app.services.job_runs import reap_stale_job_runs
+from app.services.replay import FillModel, reconstruct_book, replay, score_history_range
 from app.routes.public_v1 import _latest_fundamentals_by_ticker
 from outpick_strategy import (
     evaluate,
@@ -904,6 +906,63 @@ def dry_run_preview(simulate: bool = False, db: Session = Depends(get_db)):
         },
         "signals": [s.to_dict() for s in signals],
     }
+
+
+@router.get("/replay", dependencies=[Depends(require_ops_key)])
+def ops_replay(
+    start: date | None = None,
+    end: date | None = None,
+    fill: Literal["same_close", "next_close"] = "same_close",
+    compare: bool = True,
+    detail: bool = False,
+    db: Session = Depends(get_db),
+):
+    """Re-run evaluate() over stored scores and prices. Writes nothing.
+
+    This is a replay of *our* scoring history, not a 2019-style backtest.
+    Default window is the first through last composite-score date. The opening
+    book is reconstructed from trades dated before `start`, then each
+    evaluation Friday is filled in memory. `compare=true` diffs those fills
+    against the live ledger; manual ops rows are listed separately.
+    """
+    portfolio = ensure_default_portfolio(db, get_settings().initial_cash)
+    hist_start, hist_end = score_history_range(db)
+    if hist_start is None or hist_end is None:
+        raise HTTPException(
+            status_code=400,
+            detail="No composite scores to replay. Run a universe refresh first.",
+        )
+    start = start or hist_start
+    end = end or hist_end
+    if start > end:
+        raise HTTPException(status_code=400, detail="start must be on or before end")
+
+    params = params_from_portfolio(portfolio)
+    opening = reconstruct_book(db, portfolio, start - timedelta(days=1))
+    result = replay(
+        db,
+        params,
+        start,
+        end,
+        fill=FillModel(price=fill),
+        initial_book=opening,
+    )
+    body: dict = {
+        "summary": result.summary(),
+        "params_version": result.params_version,
+        "score_history": {
+            "start": hist_start.isoformat(),
+            "end": hist_end.isoformat(),
+        },
+        "final": result.final.snapshot(),
+        "trades": [t.to_dict() for t in result.trades],
+        "equity_curve": result.equity_curve,
+        "ledger": result.diff_against_ledger(db, portfolio.id) if compare else None,
+    }
+    if detail:
+        body["evaluations"] = [ev.to_dict() for ev in result.evaluations]
+        body["params"] = result.params
+    return body
 
 
 @router.get("/trades", dependencies=[Depends(require_ops_key)])

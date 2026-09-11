@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Database, FlaskConical, Mail, RefreshCw } from "lucide-react";
+import { Database, FlaskConical, History, Mail, RefreshCw } from "lucide-react";
 
 type JobRun = {
   id: number;
@@ -31,6 +31,48 @@ type EvaluationSummary = {
   created_at: string | null;
   portfolio_snapshot: { cash?: number; equity?: number; position_count?: number };
   signal_count: number;
+};
+
+type ReplayTrade = {
+  eval_date: string;
+  fill_date: string;
+  ticker: string;
+  side: string;
+  action: string;
+  shares: number;
+  price: number;
+  notional: number;
+  reason: string;
+};
+
+type ReplayResponse = {
+  summary: {
+    params_version: string;
+    fill: { price: string; slippage_bps: number };
+    start: string;
+    end: string;
+    evaluations: number;
+    trades: number;
+    trades_by_action: Record<string, number>;
+    starting_equity: number | null;
+    ending_equity: number | null;
+    return_pct: number | null;
+    max_drawdown_pct: number | null;
+    warnings: string[];
+  };
+  params_version: string;
+  score_history: { start: string; end: string };
+  final: { cash: number; invested: number; equity: number; position_count: number };
+  trades: ReplayTrade[];
+  ledger: {
+    parity: boolean;
+    matched: unknown[];
+    only_in_ledger: { ticker: string; action: string; date: string }[];
+    only_in_replay: { ticker: string; action: string; date: string }[];
+    manual_ignored: { ticker: string; action: string }[];
+  } | null;
+  detail?: string;
+  error?: string;
 };
 
 export default function OpsEvaluationsPage() {
@@ -244,6 +286,8 @@ export default function OpsEvaluationsPage() {
         )}
       </section>
 
+      <ReplayPanel />
+
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <h2 className="panel-label">WORKER JOBS</h2>
@@ -337,6 +381,129 @@ export default function OpsEvaluationsPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+function ReplayPanel() {
+  const [fill, setFill] = useState<"same_close" | "next_close">("same_close");
+
+  const run = useMutation({
+    mutationFn: async () => {
+      const params = new URLSearchParams({ fill, compare: "true" });
+      const res = await fetch(`/api/ops/replay?${params}`, { cache: "no-store" });
+      const body = (await res.json().catch(() => ({}))) as ReplayResponse;
+      if (!res.ok) {
+        throw new Error(body.detail || body.error || "Replay failed");
+      }
+      return body;
+    },
+  });
+
+  const summary = run.data?.summary;
+  const ledger = run.data?.ledger;
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <h2 className="panel-label">SCORE-HISTORY REPLAY</h2>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setFill(fill === "same_close" ? "next_close" : "same_close")}
+            className="btn-outline !py-2 !px-4 !text-[11px]"
+          >
+            Fill: {fill === "same_close" ? "same close" : "next close"}
+          </button>
+          <button
+            type="button"
+            onClick={() => run.mutate()}
+            disabled={run.isPending}
+            className="btn-outline !py-2 !px-4 !text-[11px] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <History size={13} className={run.isPending ? "animate-spin" : undefined} />
+            {run.isPending ? "Replaying…" : "Replay score history"}
+          </button>
+        </div>
+      </div>
+      <p className="text-xs text-text-dim max-w-xl">
+        Read-only. Re-runs evaluate() over stored composite scores and daily
+        closes, then diffs the fills against the live ledger. This is our scoring
+        history, not a 2019 backtest — it writes nothing to the book.
+      </p>
+      {run.error && (
+        <p className="text-accent-red text-sm">{(run.error as Error).message}</p>
+      )}
+      {summary && (
+        <div className="data-card space-y-3">
+          <p className="text-sm text-text-muted">
+            Params <span className="font-mono text-text">{summary.params_version}</span>
+            {" · "}
+            {summary.evaluations} evals
+            {" · "}
+            {summary.trades} trades
+            {" · "}
+            {summary.start} → {summary.end}
+            {summary.return_pct != null && (
+              <>
+                {" · "}
+                <span className="font-mono text-text">{summary.return_pct}%</span>
+              </>
+            )}
+          </p>
+          {Object.keys(summary.trades_by_action).length > 0 && (
+            <p className="font-mono text-xs text-text-dim">
+              {Object.entries(summary.trades_by_action)
+                .map(([action, n]) => `${action} ${n}`)
+                .join(" · ")}
+            </p>
+          )}
+          {ledger && (
+            <p className="text-sm">
+              Ledger parity:{" "}
+              <span className={ledger.parity ? "text-accent-green" : "text-accent-red"}>
+                {ledger.parity ? "match" : "diverge"}
+              </span>
+              {!ledger.parity && (
+                <span className="font-mono text-xs text-text-dim">
+                  {" "}
+                  · {ledger.only_in_ledger.length} only in ledger · {ledger.only_in_replay.length}{" "}
+                  only in replay
+                </span>
+              )}
+              {ledger.manual_ignored.length > 0 && (
+                <span className="font-mono text-xs text-text-dim">
+                  {" "}
+                  · {ledger.manual_ignored.length} manual rows ignored
+                </span>
+              )}
+            </p>
+          )}
+          {summary.warnings.length > 0 && (
+            <ul className="space-y-1">
+              {summary.warnings.map((w) => (
+                <li key={w} className="text-xs text-accent-red font-mono">
+                  {w}
+                </li>
+              ))}
+            </ul>
+          )}
+          {(run.data?.trades || []).slice(0, 12).map((t, i) => (
+            <p key={`${t.eval_date}-${t.ticker}-${t.action}-${i}`} className="text-sm flex gap-3">
+              <span className="font-mono text-accent-green w-28 shrink-0">{t.action}</span>
+              <span className="font-mono text-text w-16">{t.ticker}</span>
+              <span className="text-text-muted">
+                {t.fill_date} · {t.shares.toFixed(2)} @ {t.price.toFixed(2)}
+              </span>
+            </p>
+          ))}
+          {(run.data?.trades.length || 0) > 12 && (
+            <p className="text-xs text-text-dim">
+              {run.data!.trades.length - 12} more trades not shown
+            </p>
+          )}
+        </div>
+      )}
+    </section>
   );
 }
 

@@ -10,6 +10,10 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY apps/web/ .
+# NEXT_PUBLIC_* values are inlined at build time; Railway passes service
+# variables into Dockerfile builds only when declared as ARG.
+ARG NEXT_PUBLIC_DATAFAST_WEBSITE_ID
+ENV NEXT_PUBLIC_DATAFAST_WEBSITE_ID=$NEXT_PUBLIC_DATAFAST_WEBSITE_ID
 RUN pnpm build
 
 FROM base AS runner

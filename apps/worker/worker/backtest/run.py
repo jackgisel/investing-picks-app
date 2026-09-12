@@ -13,10 +13,13 @@ from outpick_strategy.cadence import evaluation_fridays_between
 
 from app.db.models import CompositeScore, PriceBar, UniverseMembership
 from app.services.backtest_metrics import (
+    MIN_EVALUATIONS_FOR_HOLDOUT,
     MIN_EVALUATIONS_FOR_RETURNS,
     assert_no_return_metrics,
     compare_payload,
     decision_diagnostics,
+    holdout_split,
+    promotion_gates,
     risk_return_metrics,
 )
 from app.services.portfolio import load_scores_as_of
@@ -25,11 +28,20 @@ from worker.backtest.config import BacktestConfig
 from worker.backtest.manifest import sha256_file
 
 
-def params_from_config(cfg: BacktestConfig) -> StrategyParams:
-    params = RUN118_PARAMS.with_overrides(
-        position_size_usd=cfg.position_size_usd,
-        max_adds_per_evaluation=1,
-    )
+def params_from_config(
+    cfg: BacktestConfig, overrides: dict | None = None
+) -> StrategyParams:
+    kwargs: dict = {
+        "position_size_usd": cfg.position_size_usd,
+        "max_adds_per_evaluation": 1,
+    }
+    for key, value in (overrides or {}).items():
+        if key in ("max_adds_per_evaluation", "position_size_usd"):
+            continue
+        kwargs[key] = value
+    kwargs["max_adds_per_evaluation"] = 1
+    kwargs["position_size_usd"] = cfg.position_size_usd
+    params = RUN118_PARAMS.with_overrides(**kwargs)
     if params.max_adds_per_evaluation != 1:
         raise ValueError("max_adds_per_evaluation must stay 1")
     return params
@@ -134,9 +146,10 @@ def run_backtest(
     skip_hash: bool = False,
     ledger_db: Session | None = None,
     ledger_portfolio_id: int | None = None,
+    params_overrides: dict | None = None,
 ) -> dict:
     digest = cfg.dataset_sha256 if skip_hash else verify_dataset(cfg)
-    params = params_from_config(cfg)
+    params = params_from_config(cfg, params_overrides)
     eval_dates = scored_eval_dates(db, cfg.start, cfg.end, cfg.universe_scope)
     fill = _fill_model(cfg.fill_price, cfg.slippage_bps)
     result = replay(
@@ -171,7 +184,15 @@ def run_backtest(
         "end": cfg.end.isoformat(),
         "diagnostics": diagnostics,
         "metrics": metrics,
+        "holdout": holdout_split(
+            diagnostics,
+            equity_curve=result.equity_curve,
+            trades=result.trades,
+            spy_closes=spy or None,
+        ),
+        "gates": promotion_gates(diagnostics["n_evaluations"]),
         "min_evaluations_for_returns": MIN_EVALUATIONS_FOR_RETURNS,
+        "min_evaluations_for_holdout": MIN_EVALUATIONS_FOR_HOLDOUT,
         "trades": [t.to_dict() for t in result.trades],
         "equity_curve": result.equity_curve,
         "final": result.final.snapshot(),

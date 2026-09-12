@@ -9,10 +9,14 @@ import pytest
 from outpick_strategy import RUN118_PARAMS, ScoreSnapshot
 
 from app.services.backtest_metrics import (
+    MIN_EVALUATIONS_FOR_HOLDOUT,
     MIN_EVALUATIONS_FOR_RETURNS,
     RETURN_METRIC_KEYS,
     assert_no_return_metrics,
     decision_diagnostics,
+    decision_diff_table,
+    holdout_split,
+    promotion_gates,
     risk_return_metrics,
 )
 from app.services.replay import (
@@ -44,8 +48,9 @@ def _curve(n_days: int, start: date = date(2026, 1, 2), start_eq: float = 50_000
     return out
 
 
-def test_at_gate_metrics_include_risk_return():
+def test_returns_gate_constant_is_24():
     assert MIN_EVALUATIONS_FOR_RETURNS == 24
+    assert MIN_EVALUATIONS_FOR_HOLDOUT == 48
 
 
 def test_below_gate_metrics_have_no_return_keys():
@@ -139,3 +144,73 @@ def test_diagnostics_uses_strategy_buy_gate_not_a_copy():
     assert diag["fridays"][0]["top_pick"] == "PASS"
     assert diag["fridays"][0]["universe_scope"] == "top400_live"
     assert diag["mixed_scopes"] is False
+
+
+def _friday_rows(n: int, start: date = date(2026, 1, 2)):
+    rows = []
+    d = start
+    while len(rows) < n:
+        if d.weekday() == 4:
+            rows.append(
+                {
+                    "as_of": d.isoformat(),
+                    "top_pick": f"T{len(rows)}",
+                    "gate_pass": [f"T{len(rows)}"],
+                    "n_gate_pass": 1,
+                }
+            )
+        d += timedelta(days=1)
+    return rows
+
+
+def test_holdout_silent_under_48():
+    diag = {"n_evaluations": 47, "fridays": _friday_rows(47)}
+    split = holdout_split(diag)
+    assert split["status"] == "insufficient_sample"
+    assert split["min_evaluations"] == 48
+    assert split["in_sample"] is None
+    assert split["out_of_sample"] is None
+    gates = promotion_gates(47)
+    assert gates["decision_diff"]["status"] == "ok"
+    assert gates["returns"]["status"] == "ok"
+    assert gates["holdout"]["status"] == "insufficient_sample"
+
+
+def test_holdout_splits_chronologically_at_48():
+    diag = {"n_evaluations": 48, "fridays": _friday_rows(48)}
+    split = holdout_split(diag)
+    assert split["status"] == "ok"
+    assert split["in_sample"]["n_evaluations"] == 24
+    assert split["out_of_sample"]["n_evaluations"] == 24
+    assert split["in_sample"]["end"] < split["out_of_sample"]["start"]
+    assert split["in_sample"]["metrics"]["status"] == "insufficient_sample"
+    assert "cagr_pct" not in split["in_sample"]["metrics"]
+    gates = promotion_gates(48)
+    assert gates["holdout"]["status"] == "ok"
+    assert gates["returns"]["status"] == "ok"
+
+
+def test_decision_diff_table_jaccard_and_top_picks():
+    left = {
+        "fridays": [
+            {"as_of": "2026-08-07", "top_pick": "AAA", "gate_pass": ["AAA", "BBB"]},
+            {"as_of": "2026-08-21", "top_pick": "AAA", "gate_pass": ["AAA"]},
+        ],
+        "end_holdings": ["AAA"],
+        "trades_by_action": {"buy": 2},
+        "rule_counts": {},
+    }
+    right = {
+        "fridays": [
+            {"as_of": "2026-08-07", "top_pick": "BBB", "gate_pass": ["AAA", "BBB"]},
+            {"as_of": "2026-08-21", "top_pick": "AAA", "gate_pass": ["AAA", "CCC"]},
+        ],
+        "end_holdings": ["AAA", "CCC"],
+        "trades_by_action": {"buy": 2},
+        "rule_counts": {},
+    }
+    table = decision_diff_table(left, right)
+    assert table["top_pick_fridays_differ"] == 1
+    assert table["n_fridays"] == 2
+    assert table["mean_gate_pass_jaccard"] == 0.75
+    assert table["end_holdings_current"] == ["AAA"]

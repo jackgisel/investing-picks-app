@@ -1,4 +1,4 @@
-"""Backtest dataset CLI: ingest | export | membership | hash | upload | score | parity | run | report | compare | download.
+"""Backtest dataset CLI: ingest | export | membership | hash | upload | score | parity | run | report | compare | download | walk-forward.
 
     python -m worker.backtest ingest --dataset datasets/dataset-v1.sqlite
     python -m worker.backtest export --dataset datasets/dataset-v1.sqlite
@@ -8,6 +8,8 @@
     python -m worker.backtest run --config backtests/run118.toml --out /tmp/result.json
     python -m worker.backtest report /tmp/result.json
     python -m worker.backtest compare /tmp/result.json backtests/baselines/run118.json
+    python -m worker.backtest compare /tmp/result.json backtests/baselines/run118.json --sweep
+    python -m worker.backtest walk-forward --config backtests/run118.toml
     python -m worker.backtest hash --dataset datasets/dataset-v1.sqlite
     python -m worker.backtest upload --dataset datasets/dataset-v1.sqlite
     python -m worker.backtest download --dataset datasets/dataset-v1.sqlite
@@ -38,6 +40,7 @@ from worker.backtest.report import load_result as load_report, render_report, wr
 from worker.backtest.run import result_fingerprint, run_backtest, write_result
 from worker.backtest.score import score_dataset
 from worker.backtest.store import open_dataset
+from worker.backtest.sweep import run_sweep, sweep_markdown
 from worker.backtest.upload import upload_dataset
 from worker.services.fmp import FMPClient
 
@@ -184,8 +187,20 @@ def cmd_compare(ns) -> dict:
     baseline = load_compare(ns.baseline)
     update = ns.update_baseline or os.environ.get("UPDATE_BASELINE") == "1"
     report = compare_results(current, baseline, update_baseline=update)
+    if ns.sweep:
+        cfg_path = ns.config or "backtests/run118.toml"
+        cfg = load_config(cfg_path, dataset_override=ns.dataset)
+        db = open_dataset(cfg.dataset)
+        try:
+            report["sweep"] = run_sweep(
+                db, cfg, current, skip_hash=ns.skip_hash
+            )
+        finally:
+            db.close()
     if ns.summary:
         print(summary_markdown(report))
+        if report.get("sweep"):
+            print(sweep_markdown(report["sweep"]))
     return report
 
 
@@ -203,6 +218,72 @@ def cmd_equity_csv(ns) -> dict:
     result = load_report(ns.result)
     path = write_equity_csv(result, Path(ns.out))
     return {"out": str(path), "rows": len(result.get("equity_curve") or [])}
+
+
+def cmd_walk_forward(ns) -> dict:
+    from worker.backtest.walk_forward import (
+        WalkForwardError,
+        emit_github_output,
+        walk_forward,
+    )
+
+    url = ns.from_url or os.environ.get("DATABASE_URL")
+    if not url:
+        result = {
+            "skipped": True,
+            "reason": "DATABASE_URL not set",
+            "changed": False,
+            "exit_code": 0,
+        }
+        emit_github_output(result)
+        return result
+
+    cfg = load_config(ns.config, dataset_override=ns.dataset)
+    dest = open_dataset(cfg.dataset)
+    engine = make_engine(url)
+    src: Session = sessionmaker(bind=engine, autoflush=False, autocommit=False)()
+    fmp = None
+    settings = get_settings()
+    if not ns.skip_ingest and settings.fmp_api_key:
+        fmp = FMPClient(
+            settings.fmp_api_key, settings.fmp_base_url, settings.fmp_rate_limit
+        )
+    today = date.fromisoformat(ns.today) if ns.today else date.today()
+    baseline = Path(ns.baseline) if ns.baseline else None
+    try:
+        result = walk_forward(
+            dest,
+            src,
+            cfg,
+            today=today,
+            fmp=fmp,
+            skip_ingest=ns.skip_ingest,
+            skip_score=ns.skip_score,
+            require_parity=not ns.no_parity,
+            portfolio_id=ns.ledger_portfolio_id,
+            dataset_path=Path(cfg.dataset),
+            manifest_path=Path(ns.manifest) if ns.manifest else None,
+            upload=ns.upload,
+            write_baseline_path=baseline,
+        )
+        result["exit_code"] = 0
+        emit_github_output(result)
+        return result
+    except WalkForwardError as exc:
+        result = {
+            "skipped": False,
+            "changed": False,
+            "error": str(exc),
+            "exit_code": getattr(exc, "exit_code", 1),
+        }
+        emit_github_output(result)
+        return result
+    finally:
+        if fmp is not None:
+            fmp.close()
+        src.close()
+        dest.close()
+        engine.dispose()
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -273,6 +354,14 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Do not fail when the strategy/dataset changed (UPDATE_BASELINE=1)",
     )
+    compare.add_argument(
+        "--sweep",
+        action="store_true",
+        help="Perturb numeric thresholds ±10% and run §5 experiment candidates",
+    )
+    compare.add_argument("--config", default=None)
+    compare.add_argument("--dataset", default=None)
+    compare.add_argument("--skip-hash", action="store_true")
 
     download = sub.add_parser("download", help="Download the dataset from URL or the Railway bucket")
     download.add_argument("--dataset", required=True)
@@ -283,6 +372,22 @@ def main(argv: list[str] | None = None) -> int:
     equity = sub.add_parser("equity-csv", help="Write the equity curve as CSV")
     equity.add_argument("result")
     equity.add_argument("--out", required=True)
+
+    wf = sub.add_parser(
+        "walk-forward",
+        help="Extend the dataset from live Postgres, score new Fridays, check ledger parity",
+    )
+    wf.add_argument("--config", default="backtests/run118.toml")
+    wf.add_argument("--dataset", default=None)
+    wf.add_argument("--from-url", default=os.environ.get("DATABASE_URL"))
+    wf.add_argument("--manifest", default="datasets/manifest.json")
+    wf.add_argument("--today", default=None)
+    wf.add_argument("--skip-ingest", action="store_true")
+    wf.add_argument("--skip-score", action="store_true")
+    wf.add_argument("--no-parity", action="store_true")
+    wf.add_argument("--upload", action="store_true")
+    wf.add_argument("--baseline", default=None, help="Write regenerated baseline JSON here")
+    wf.add_argument("--ledger-portfolio-id", type=int, default=1)
 
     ns = parser.parse_args(argv)
     fn = {
@@ -298,6 +403,7 @@ def main(argv: list[str] | None = None) -> int:
         "compare": cmd_compare,
         "download": cmd_download,
         "equity-csv": cmd_equity_csv,
+        "walk-forward": cmd_walk_forward,
     }[ns.cmd]
     result = fn(ns)
     if ns.cmd == "report":
@@ -305,6 +411,9 @@ def main(argv: list[str] | None = None) -> int:
     if ns.cmd == "compare":
         if not ns.summary:
             print(json.dumps(result, default=str, indent=2))
+        return int(result.get("exit_code") or 0)
+    if ns.cmd == "walk-forward":
+        print(json.dumps(result, default=str, indent=2))
         return int(result.get("exit_code") or 0)
     print(json.dumps(result, default=str, indent=2))
     return 0

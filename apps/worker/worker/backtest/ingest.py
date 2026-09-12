@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import date, timedelta
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from outpick_strategy import RUN118_PARAMS
@@ -202,6 +203,72 @@ def already_ingested(db: Session) -> set[str]:
     from app.db.models import PriceBar
 
     return {t for (t,) in db.query(PriceBar.ticker).distinct().all()}
+
+
+def last_bar_date(db: Session) -> date | None:
+    from app.db.models import PriceBar
+
+    return db.query(func.max(PriceBar.date)).scalar()
+
+
+def ingest_delta(
+    db: Session,
+    fmp: FMPClient,
+    *,
+    history_start: date,
+    end: date,
+) -> dict:
+    """Append recent bars for known names; full lookback for new screener names.
+
+    Does not rebuild universe_membership — walk-forward does that for the
+    window it actually scored.
+    """
+    from app.db.models import PriceBar
+
+    known = already_ingested(db)
+    last = last_bar_date(db)
+    delta_start = (last - timedelta(days=7)) if last else history_start
+    delisted_n = ingest_delistings(db, fmp)
+    tickers = set(snapshot_universe_tickers(db, fmp))
+    for (ticker,) in db.query(Delisting.ticker).all():
+        tickers.add(ticker)
+    tickers = sorted(t for t in tickers if t and "." not in t)
+    cutoff = end + timedelta(days=1)
+    dropped_no_prices: list[str] = []
+    ingested_new = 0
+    ingested_delta = 0
+    errors_stopped = False
+    for i, ticker in enumerate(tickers, 1):
+        start = history_start if ticker not in known else delta_start
+        try:
+            result = ingest_ticker(db, fmp, ticker, start, cutoff)
+        except FMPAccessError:
+            log.exception("FMP access error on %s; stopping so the hole is visible", ticker)
+            errors_stopped = True
+            break
+        if ticker not in known:
+            ingested_new += 1
+            if result["bars"] == 0 and result["price_rows_seen"] == 0:
+                dropped_no_prices.append(ticker)
+        else:
+            ingested_delta += 1
+        if i % 25 == 0:
+            log.info("Delta ingest progress: %s/%s", i, len(tickers))
+    return {
+        "tickers": len(tickers),
+        "ingested_new": ingested_new,
+        "ingested_delta": ingested_delta,
+        "delistings": delisted_n,
+        "dropped_no_prices": dropped_no_prices,
+        "dropped_no_prices_count": len(dropped_no_prices),
+        "stopped_on_access_error": errors_stopped,
+        "delta_start": delta_start.isoformat(),
+        "last_bar_after": (
+            db.query(func.max(PriceBar.date)).scalar().isoformat()
+            if db.query(func.max(PriceBar.date)).scalar()
+            else None
+        ),
+    }
 
 
 def ingest_dataset(

@@ -814,9 +814,14 @@ class FakeNewsFMP:
 
 
 def _news_row(**overrides):
+    # Must sit inside NEWS_RETENTION_DAYS. A hardcoded August date falls out
+    # of the 14-day window once "today" moves far enough (failed on 2026-09-12).
+    published = (datetime.now(timezone.utc) - timedelta(hours=12)).strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
     row = {
         "symbol": "AAA",
-        "publishedDate": "2026-08-29 12:00:00",
+        "publishedDate": published,
         "publisher": "Wire Service",
         "title": "Headline",
         "url": "https://example.com/a",

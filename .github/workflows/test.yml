@@ -324,9 +324,12 @@ jobs:
 
             - New sha256: `${{ steps.wf.outputs.new_sha256 }}`
             - New end: `${{ steps.wf.outputs.new_end }}`
-            - Ledger parity: `${{ steps.wf.outputs.parity }}`
+            - Dataset vs live ledger (diagnostic): `${{ steps.wf.outputs.parity }}`
+            - Engine drift: `${{ steps.wf.outputs.engine_drift }}`
 
-            Fails the nightly job on a consensus snapshot hole or live ledger mismatch.
+            Fails the nightly job on a consensus snapshot hole or when live-score
+            replay disagrees with the ledger (engine drift). Dataset-vs-live trade
+            diffs stay in the job summary and do not block this PR.
             Merge after reviewing `datasets/manifest.json`, `backtests/run118.toml`,
             and `backtests/baselines/run118.json`.
 

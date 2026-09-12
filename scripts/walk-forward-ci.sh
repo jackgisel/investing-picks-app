@@ -1,7 +1,9 @@
 #!/bin/sh
 # Nightly walk-forward: extend the pinned dataset from live Postgres, score the
-# newest complete evaluation Friday, fail on snapshot holes or ledger parity
-# loss, re-upload and rewrite the pin when the hash changes.
+# newest complete evaluation Friday, fail on snapshot holes or engine drift
+# (live-score replay vs the live ledger). Dataset-vs-live trade diffs go in
+# the step summary and do not fail. Re-upload and rewrite the pin when the
+# hash changes.
 #
 # Env: DATABASE_URL, FMP_API_KEY, BACKTEST_DATASET_URL / TOKEN or BACKTEST_S3_*.
 # Skip (exit 0) when DATABASE_URL or dataset credentials are missing.

@@ -30,6 +30,7 @@ yarn-debug.log*
 # env files
 .env
 .env*.local
+.env.backtest
 
 # vercel
 .vercel

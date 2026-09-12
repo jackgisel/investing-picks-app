@@ -210,8 +210,25 @@ class UnscoredHolding:
     as_of: date | None
 
 
+def _z_score_from_data(data: dict) -> float | None:
+    """Altman Z from a derived fundamentals payload; None if absent/unusable."""
+    raw = data.get("altmanZ")
+    if raw is None:
+        return None
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return None
+    if value != value:  # NaN
+        return None
+    return value
+
+
 def _load_scoring_universe(
-    db: Session, params: StrategyParams, as_of: date
+    db: Session,
+    params: StrategyParams,
+    as_of: date,
+    universe: list[str] | None = None,
 ) -> tuple[dict[str, dict], dict[str, list[str]]]:
     """Latest-in-window fundamentals and sector peer groups.
 
@@ -219,13 +236,22 @@ def _load_scoring_universe(
     same gates `compute_scores` does. A held ticker missing from `by_sector`
     failed one of: inactive, ETF, market-cap floor, no sector, no recent
     fundamentals.
+
+    `universe` is the backtest hook: membership tickers on date d, already
+    filtered to that day's cap/price/ETF gates. Live callers omit it and keep
+    today's Stock filters unchanged.
     """
-    stocks = (
-        db.query(Stock)
-        .filter(Stock.is_active == True, Stock.is_etf == False)  # noqa: E712
-        .filter(Stock.market_cap >= params.min_universe_market_cap)
-        .all()
-    )
+    if universe is not None and not universe:
+        return {}, {}
+    q = db.query(Stock).filter(Stock.is_etf == False)  # noqa: E712
+    if universe is None:
+        stocks = (
+            q.filter(Stock.is_active == True)  # noqa: E712
+            .filter(Stock.market_cap >= params.min_universe_market_cap)
+            .all()
+        )
+    else:
+        stocks = q.filter(Stock.ticker.in_(set(universe))).all()
     oldest_allowed = as_of - timedelta(days=FUNDAMENTALS_MAX_AGE_DAYS)
     latest_ids = (
         db.query(func.max(Fundamentals.id))
@@ -313,19 +339,26 @@ def _rank_sector(
             "momentum": mom_pcts[i],
             "revisions": rev_pcts[i],
         }
+        z_score = _z_score_from_data(funds.get(ticker, {}))
         composite, grades = composite_from_factor_pcts(
             factor_pcts,
             params,
             momentum_12m=mom_raw[i],
-            # Explicit, not omitted — see Z_SCORE_UNAVAILABLE. Passing the
-            # argument by name is what stops this reading as an oversight
-            # the next person "fixes" by deleting the parameter.
-            z_score=Z_SCORE_UNAVAILABLE,
+            # Live payloads have no altmanZ, so this stays None and the
+            # filter does not run — same as Z_SCORE_UNAVAILABLE. Derived
+            # PIT rows carry altmanZ when filings exist, and the floor
+            # then actually rejects distressed names.
+            z_score=z_score if z_score is not None else Z_SCORE_UNAVAILABLE,
         )
         if composite is None:
-            missing_by_ticker[ticker] = [
-                name for name, pct in factor_pcts.items() if pct is None
-            ]
+            missing = [name for name, pct in factor_pcts.items() if pct is None]
+            if (
+                not missing
+                and z_score is not None
+                and z_score < params.z_score_floor
+            ):
+                missing = ["z_score"]
+            missing_by_ticker[ticker] = missing
             continue
         scored.append(
             ScoredTicker(
@@ -342,7 +375,10 @@ def _rank_sector(
 
 
 def compute_scores(
-    db: Session, params: StrategyParams, as_of: date
+    db: Session,
+    params: StrategyParams,
+    as_of: date,
+    universe: list[str] | None = None,
 ) -> tuple[list[ScoredTicker], dict[str, int], int]:
     """Score the universe in memory. Writes nothing.
 
@@ -350,9 +386,13 @@ def compute_scores(
     behind the ops dry-run, so the two can never drift — the repo's rule is that
     live and simulated paths run the same code.
 
+    `universe` is optional membership for date `as_of`. Omit it for live
+    scoring (today's Stock filters). The backtest passes the Friday's
+    eligible set so today's market cap cannot leak in.
+
     Returns (scored, missing_factor_counts, considered).
     """
-    funds, by_sector = _load_scoring_universe(db, params, as_of)
+    funds, by_sector = _load_scoring_universe(db, params, as_of, universe=universe)
     if not by_sector:
         return [], {}, 0
 

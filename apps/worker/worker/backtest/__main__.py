@@ -1,8 +1,10 @@
-"""Backtest dataset CLI: ingest | export | membership | hash | upload.
+"""Backtest dataset CLI: ingest | export | membership | hash | upload | score | parity.
 
     python -m worker.backtest ingest --dataset datasets/dataset-v1.sqlite
     python -m worker.backtest export --dataset datasets/dataset-v1.sqlite
     python -m worker.backtest membership --dataset datasets/dataset-v1.sqlite
+    python -m worker.backtest score --dataset datasets/dataset-v1.sqlite
+    python -m worker.backtest parity --dataset datasets/dataset-v1.sqlite
     python -m worker.backtest hash --dataset datasets/dataset-v1.sqlite
     python -m worker.backtest upload --dataset datasets/dataset-v1.sqlite
 """
@@ -25,6 +27,8 @@ from worker.backtest.export import export_live_vintages
 from worker.backtest.ingest import ingest_dataset
 from worker.backtest.manifest import write_manifest
 from worker.backtest.membership import write_universe_membership
+from worker.backtest.parity import parity_report
+from worker.backtest.score import score_dataset
 from worker.backtest.store import open_dataset
 from worker.backtest.upload import upload_dataset
 from worker.services.fmp import FMPClient
@@ -98,6 +102,29 @@ def cmd_upload(ns) -> dict:
     return result
 
 
+def cmd_score(ns) -> dict:
+    db = open_dataset(ns.dataset)
+    try:
+        start, end = _dates(ns)
+        return score_dataset(db, start, end)
+    finally:
+        db.close()
+
+
+def cmd_parity(ns) -> dict:
+    dest = open_dataset(ns.dataset)
+    url = ns.from_url or get_settings().database_url
+    engine = make_engine(url)
+    src: Session = sessionmaker(bind=engine, autoflush=False, autocommit=False)()
+    try:
+        start, end = _dates(ns)
+        return parity_report(dest, src, start, end)
+    finally:
+        src.close()
+        dest.close()
+        engine.dispose()
+
+
 def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s"
@@ -133,6 +160,17 @@ def main(argv: list[str] | None = None) -> int:
     upload.add_argument("--key", default=None)
     upload.add_argument("--manifest", default=None)
 
+    score = sub.add_parser("score", help="Derive PIT fundamentals and write composite_scores")
+    score.add_argument("--dataset", required=True)
+    score.add_argument("--from", dest="from_", default=None)
+    score.add_argument("--to", dest="to", default=None)
+
+    parity = sub.add_parser("parity", help="Diff derived vs live scores on Segment A Fridays")
+    parity.add_argument("--dataset", required=True)
+    parity.add_argument("--from-url", default=os.environ.get("DATABASE_URL"))
+    parity.add_argument("--from", dest="from_", default=None)
+    parity.add_argument("--to", dest="to", default=None)
+
     ns = parser.parse_args(argv)
     fn = {
         "ingest": cmd_ingest,
@@ -140,6 +178,8 @@ def main(argv: list[str] | None = None) -> int:
         "membership": cmd_membership,
         "hash": cmd_hash,
         "upload": cmd_upload,
+        "score": cmd_score,
+        "parity": cmd_parity,
     }[ns.cmd]
     result = fn(ns)
     print(json.dumps(result, default=str, indent=2))

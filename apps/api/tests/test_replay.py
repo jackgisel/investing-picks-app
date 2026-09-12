@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 
 from outpick_strategy import RUN118_PARAMS
 
-from app.db.models import CompositeScore, Evaluation, Position, PriceBar, Trade
+from app.db.models import CompositeScore, Delisting, Evaluation, Position, PriceBar, Trade
 from app.db.session import get_db
 from app.routes import ops
 from app.services.replay import (
@@ -324,3 +324,71 @@ def test_ops_replay_detail_includes_per_evaluation_signals(db, portfolio):
 def test_ops_replay_requires_the_ops_key(db, portfolio):
     res = _ops_client(db).get("/api/ops/replay")
     assert res.status_code == 401
+
+
+def test_delisted_holding_is_force_exited_at_last_close(db, portfolio):
+    """A bar-less delisted name must not sit at its last mark forever."""
+    _score(db, "KEEP", FRIDAY, qr=2.0)
+    _bar(db, "KEEP", FRIDAY, 50.0)
+    _bar(db, "DEAD", date(2026, 8, 21), 12.0)
+    db.add(Delisting(ticker="DEAD", date=date(2026, 8, 25), name="Dead Co"))
+    db.commit()
+
+    opening = ReplayBook(
+        cash=49_000.0,
+        positions={
+            "DEAD": ReplayPosition(
+                ticker="DEAD",
+                shares=100,
+                avg_cost=10.0,
+                current_price=12.0,
+                initial_investment=1_000.0,
+                sector="Technology",
+            )
+        },
+    )
+    result = replay(db, _params(), FRIDAY, FRIDAY, initial_book=opening)
+    sells = [t for t in result.trades if t.ticker == "DEAD"]
+    assert len(sells) == 1
+    assert sells[0].action == "full_sell"
+    assert sells[0].price == 12.0
+    assert sells[0].reason.startswith("delisted")
+    assert "DEAD" not in result.final.positions
+    assert result.final.cash == pytest.approx(49_000.0 + 100 * 12.0)
+
+
+def test_missing_bar_without_delisting_keeps_last_price(db, portfolio):
+    """Temporary holes still mark at last known — only delistings force-exit."""
+    _score(db, "KEEP", FRIDAY, qr=2.0)
+    _bar(db, "KEEP", FRIDAY, 10.0)
+    opening = ReplayBook(
+        cash=1_000.0,
+        positions={
+            "HOLE": ReplayPosition(
+                ticker="HOLE",
+                shares=10,
+                avg_cost=10.0,
+                current_price=9.0,
+                initial_investment=100.0,
+                sector="Technology",
+            )
+        },
+    )
+    result = replay(db, RUN118_PARAMS, FRIDAY, FRIDAY, initial_book=opening)
+    assert "HOLE" in result.final.positions
+    assert result.final.positions["HOLE"].current_price == 9.0
+    assert any("no bar on" in s for s in result.evaluations[0].skipped)
+
+
+def test_late_delisting_after_last_eval_still_exits(db, portfolio):
+    _score(db, "AAA", FRIDAY, qr=4.9)
+    _bar(db, "AAA", FRIDAY, 50.0)
+    _bar(db, "AAA", MONDAY, 51.0)
+    _bar(db, "AAA", date(2026, 9, 10), 40.0)
+    db.add(Delisting(ticker="AAA", date=date(2026, 9, 10), name="Gone"))
+    db.commit()
+    result = replay(db, _params(), FRIDAY, date(2026, 9, 11), initial_cash=50_000.0)
+    assert "AAA" not in result.final.positions
+    late = [t for t in result.forced_exits if t.ticker == "AAA"]
+    assert late
+    assert late[0].price == 40.0

@@ -6,6 +6,10 @@ the composite scores that existed on each one (`load_scores_as_of`), runs the
 pure `evaluate()` exactly as `run_evaluation` does, and fills the resulting
 signals in memory against `price_bars`. Nothing here writes to the database.
 
+Delisted holdings are force-exited at the last close on or before
+`delistings.date` (booked on the next evaluation, or at `end` if none remains).
+Without that, `_mark` would keep a bar-less name at its last price forever.
+
 What it is
 ----------
 A replay of *our own* scoring history. `composite_scores` is written every
@@ -54,7 +58,7 @@ from outpick_strategy import (
 )
 from outpick_strategy.cadence import evaluation_fridays_between
 
-from app.db.models import CompositeScore, Portfolio, PriceBar, Trade
+from app.db.models import CompositeScore, Delisting, Portfolio, PriceBar, Trade
 from app.services.portfolio import (
     CORRECTION_ACTIONS,
     SHARE_EPSILON,
@@ -222,10 +226,12 @@ class ReplayResult:
     equity_curve: list[dict]
     final: ReplayBook
     warnings: list[str] = field(default_factory=list)
+    # Force-exits that landed after the last evaluation Friday (still in `end`).
+    forced_exits: list[ReplayTrade] = field(default_factory=list)
 
     @property
     def trades(self) -> list[ReplayTrade]:
-        return [t for ev in self.evaluations for t in ev.trades]
+        return [t for ev in self.evaluations for t in ev.trades] + list(self.forced_exits)
 
     def summary(self) -> dict:
         first = self.equity_curve[0]["equity"] if self.equity_curve else None
@@ -247,6 +253,13 @@ class ReplayResult:
                 round((last / first - 1) * 100, 2) if first and last is not None else None
             ),
             "max_drawdown_pct": _max_drawdown_pct(self.equity_curve),
+            "forced_exits": len(self.forced_exits)
+            + sum(
+                1
+                for ev in self.evaluations
+                for t in ev.trades
+                if t.reason.startswith("delisted")
+            ),
             "warnings": self.warnings,
         }
 
@@ -257,6 +270,7 @@ class ReplayResult:
             "evaluations": [ev.to_dict() for ev in self.evaluations],
             "equity_curve": self.equity_curve,
             "final": self.final.snapshot(),
+            "forced_exits": [t.to_dict() for t in self.forced_exits],
         }
 
     def diff_against_ledger(self, db: Session, portfolio_id: int) -> dict:
@@ -402,6 +416,25 @@ class _Prices:
     def close(self, ticker: str, d: date) -> float | None:
         return self.series(ticker).get(d)
 
+    def last_close_on_or_before(self, ticker: str, d: date) -> tuple[date, float] | None:
+        """Last positive close at or before `d`, even outside the replay window."""
+        cached = self.series(ticker)
+        best: tuple[date, float] | None = None
+        for day, close in cached.items():
+            if day <= d and (best is None or day > best[0]):
+                best = (day, close)
+        if best is not None:
+            return best
+        row = (
+            self.db.query(PriceBar.date, PriceBar.close)
+            .filter(PriceBar.ticker == ticker, PriceBar.date <= d, PriceBar.close > 0)
+            .order_by(PriceBar.date.desc())
+            .first()
+        )
+        if row is None:
+            return None
+        return row[0], float(row[1])
+
 
 # ---------------------------------------------------------------------------
 # Book reconstruction
@@ -512,6 +545,7 @@ def replay(
         raise ValueError("replay needs initial_book or initial_cash")
     book = initial_book if initial_book is not None else ReplayBook(cash=float(initial_cash))
     prices = _Prices(db, start, end)
+    delistings = _load_delistings(db)
     warnings: list[str] = []
 
     if eval_dates is None:
@@ -526,9 +560,25 @@ def replay(
 
     evaluations: list[ReplayEvaluation] = []
     for as_of in eval_dates:
-        evaluations.append(_run_one(db, book, params, as_of, fill, prices, warnings))
+        evaluations.append(
+            _run_one(db, book, params, as_of, fill, prices, delistings, warnings)
+        )
 
-    curve = _equity_curve(book, evaluations, prices, start, end) if equity_curve else []
+    late_exits = _force_exit_delisted(
+        book, prices, delistings, as_of=end, eval_date=end, skipped=[]
+    )
+    if late_exits:
+        for t in late_exits:
+            warnings.append(
+                f"{t.ticker}: delisted holding force-exited after last evaluation"
+            )
+
+    extra = late_exits
+    curve = (
+        _equity_curve(book, evaluations, prices, start, end, extra_fills=extra)
+        if equity_curve
+        else []
+    )
 
     return ReplayResult(
         params_version=params.version_hash(),
@@ -540,6 +590,7 @@ def replay(
         equity_curve=curve,
         final=book,
         warnings=warnings,
+        forced_exits=late_exits,
     )
 
 
@@ -552,6 +603,66 @@ def _mark(book: ReplayBook, closes: dict[str, float], skipped: list[str], as_of:
             skipped.append(f"{pos.ticker}: no bar on {as_of}, marked at last known price")
 
 
+def _load_delistings(db: Session) -> dict[str, date]:
+    return {row.ticker: row.date for row in db.query(Delisting).all()}
+
+
+def _force_exit_delisted(
+    book: ReplayBook,
+    prices: _Prices,
+    delistings: dict[str, date],
+    *,
+    as_of: date,
+    eval_date: date,
+    skipped: list[str],
+) -> list[ReplayTrade]:
+    """Sell any holding whose `delistings.date` is on or before `as_of`.
+
+    Price is the last close on or before the delisting date (0 bps — this is a
+    corporate action, not a strategy fill). The trade is booked on `eval_date`
+    so the replay loop and equity curve stay aligned; without the exit the
+    name would sit at its last mark forever.
+    """
+    if not delistings or not book.positions:
+        return []
+    trades: list[ReplayTrade] = []
+    for ticker in list(book.positions):
+        ddate = delistings.get(ticker)
+        if ddate is None or ddate > as_of:
+            continue
+        pos = book.positions[ticker]
+        last = prices.last_close_on_or_before(ticker, ddate)
+        if last is None:
+            close = pos.current_price or 0.0
+            price_date = ddate
+            skipped.append(f"{ticker}: delisted {ddate.isoformat()}, no last close")
+        else:
+            price_date, close = last
+        price = float(close or 0.0)
+        shares = pos.shares
+        notional = shares * price
+        book.cash += notional
+        book.positions.pop(ticker, None)
+        reason = (
+            f"delisted {ddate.isoformat()}; force-exited at last close "
+            f"on {price_date.isoformat()}"
+        )
+        trades.append(
+            ReplayTrade(
+                eval_date,
+                eval_date,
+                ticker,
+                "sell",
+                Action.FULL_SELL.value,
+                shares,
+                price,
+                notional,
+                reason,
+            )
+        )
+    return trades
+
+
 def _run_one(
     db: Session,
     book: ReplayBook,
@@ -559,12 +670,16 @@ def _run_one(
     as_of: date,
     fill: FillModel,
     prices: _Prices,
+    delistings: dict[str, date],
     warnings: list[str],
 ) -> ReplayEvaluation:
     skipped: list[str] = []
     closes = prices.closes_on(as_of)
     _mark(book, closes, skipped, as_of)
     before = book.snapshot()
+    forced = _force_exit_delisted(
+        book, prices, delistings, as_of=as_of, eval_date=as_of, skipped=skipped
+    )
 
     scores = load_scores_as_of(db, as_of)
     if not scores:
@@ -577,13 +692,15 @@ def _run_one(
         fill_date = prices.next_trading_day_after(as_of)
         if fill_date is None:
             skipped.append(f"no session after {as_of} to fill next_close; nothing filled")
-            return ReplayEvaluation(as_of, None, signals, [], skipped, before, book.snapshot())
+            return ReplayEvaluation(
+                as_of, None, signals, forced, skipped, before, book.snapshot()
+            )
         fill_closes = prices.closes_on(fill_date)
     else:
         fill_date = as_of
         fill_closes = closes
 
-    trades = _fill(book, signals, scores, fill, fill_date, fill_closes, skipped, as_of)
+    trades = forced + _fill(book, signals, scores, fill, fill_date, fill_closes, skipped, as_of)
 
     # Peak equity, as apply_signals does after the fills.
     equity = book.equity
@@ -694,7 +811,60 @@ def _equity_curve(
     prices: _Prices,
     start: date,
     end: date,
+    extra_fills: list[ReplayTrade] | None = None,
 ) -> list[dict]:
+    """Daily equity by re-walking the fills over every session in the window.
+
+    The book passed in is the *final* state; the walk starts from the state
+    before the first evaluation (its `before` snapshot) and applies each
+    evaluation's trades on their fill dates, so the curve reflects what was
+    held on each day rather than today's holdings priced historically.
+    """
+    if not evaluations:
+        return []
+    # Rebuild the opening book from the first evaluation's snapshot.
+    first = evaluations[0].before
+    holdings: dict[str, float] = {t: p["shares"] for t, p in first["positions"].items()}
+    cash = first["cash"]
+    fills_by_date: dict[date, list[ReplayTrade]] = defaultdict(list)
+    for ev in evaluations:
+        for t in ev.trades:
+            fills_by_date[t.fill_date].append(t)
+    for t in extra_fills or []:
+        fills_by_date[t.fill_date].append(t)
+
+    last_price: dict[str, float] = {
+        t: p["current_price"] for t, p in first["positions"].items()
+    }
+    curve: list[dict] = []
+    for d in prices.trading_dates():
+        if d < evaluations[0].as_of or d > end:
+            continue
+        for t in fills_by_date.get(d, []):
+            if t.side == "buy":
+                cash -= t.notional
+                holdings[t.ticker] = holdings.get(t.ticker, 0.0) + t.shares
+            else:
+                cash += t.notional
+                holdings[t.ticker] = holdings.get(t.ticker, 0.0) - t.shares
+                if holdings[t.ticker] <= SHARE_EPSILON:
+                    holdings.pop(t.ticker, None)
+        invested = 0.0
+        for ticker, shares in holdings.items():
+            close = prices.close(ticker, d)
+            if close:
+                last_price[ticker] = close
+            invested += shares * last_price.get(ticker, 0.0)
+        curve.append(
+            {
+                "date": d.isoformat(),
+                "cash": round(cash, 2),
+                "invested": round(invested, 2),
+                "equity": round(cash + invested, 2),
+                "position_count": len(holdings),
+            }
+        )
+    return curve
     """Daily equity by re-walking the fills over every session in the window.
 
     The book passed in is the *final* state; the walk starts from the state

@@ -1,4 +1,4 @@
-"""Canonical backtest config (`backtests/run118.toml`)."""
+"""Canonical backtest config (`backtests/run120.toml`)."""
 
 from __future__ import annotations
 

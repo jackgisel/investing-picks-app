@@ -1,5 +1,7 @@
-# Historical Run 118 pin. Kept so run120 can be compared against this window.
-# CI and walk-forward now use backtests/run120.toml.
+# Canonical Run 120 backtest. Same pin and sizing as run118; the one knob is
+# BuyCriteria.min_quant_rating 4.0 → 3.5. Measures the shipped engine at $1,000
+# per pick over the real-data window (Segment A top-400 vintages until Segment B
+# `full` Fridays exist). Return metrics stay gated at n_evaluations >= 24.
 #
 # Dataset is not in git. Pin matches datasets/manifest.json.
 
@@ -21,7 +23,7 @@ slippage_bps = 0
 
 # Include every labelled Friday; the report never silently mixes scopes.
 universe_scope = "all"
-params_version_label = "run118"
+params_version_label = "run120"
 
 [sensitivity]
 fill_price = "next_close"

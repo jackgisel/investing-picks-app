@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       update_baseline:
-        description: Do not fail compare (regenerating backtests/baselines/run118.json)
+        description: Do not fail compare (regenerating backtests/baselines/run120.json)
         type: boolean
         default: false
       walk_forward:
@@ -199,7 +199,7 @@ jobs:
         if: steps.decide.outputs.run == 'true' && steps.creds.outputs.ok == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: backtest-run118
+          name: backtest-run120
           path: |
             /tmp/backtest-result.json
             /tmp/backtest-report.md
@@ -212,7 +212,7 @@ jobs:
           PYTHONPATH: apps/api:apps/worker:packages/strategy/src
         run: |
           set -eu
-          BASELINE=backtests/baselines/run118.json
+          BASELINE=backtests/baselines/run120.json
           OUT=/tmp/backtest-result.json
           FLAGS="--summary"
           if [ "${UPDATE_BASELINE:-}" = "1" ]; then
@@ -223,7 +223,7 @@ jobs:
               echo "## Backtest compare"
               echo ""
               echo "No committed baseline at \`$BASELINE\`."
-              echo "Download the \`backtest-run118\` artifact and commit \`backtest-result.json\` as that path."
+              echo "Download the \`backtest-run120\` artifact and commit \`backtest-result.json\` as that path."
             } >> "$GITHUB_STEP_SUMMARY"
             if [ "${UPDATE_BASELINE:-}" = "1" ]; then
               mkdir -p backtests/baselines
@@ -330,6 +330,6 @@ jobs:
             Fails the nightly job on a consensus snapshot hole or when live-score
             replay disagrees with the ledger (engine drift). Dataset-vs-live trade
             diffs stay in the job summary and do not block this PR.
-            Merge after reviewing `datasets/manifest.json`, `backtests/run118.toml`,
-            and `backtests/baselines/run118.json`.
+            Merge after reviewing `datasets/manifest.json`, `backtests/run120.toml`,
+            and `backtests/baselines/run120.json`.
 

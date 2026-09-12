@@ -231,6 +231,13 @@ def test_shipped_toml_is_canonical():
     assert cfg.dataset_sha256 == (
         "b052a791ebc827e7e750b7a251b07e515235708fe612a1e4b0bf9192a6f724c0"
     )
+    run120 = load_config(repo_root() / "backtests/run120.toml")
+    assert run120.position_size_usd == 1000
+    assert run120.max_adds_per_evaluation == 1
+    assert run120.params_version_label == RUN118_PARAMS.version_label
+    assert run120.dataset_sha256 == cfg.dataset_sha256
+    assert run120.start == cfg.start
+    assert run120.end == cfg.end
 
 
 def test_fetch_pinned_dataset_from_url_and_cache(tmp_path, monkeypatch):
@@ -300,7 +307,7 @@ def test_workflow_declares_the_backtest_job():
     text = (repo_root() / ".github/workflows/test.yml").read_text()
     assert "name: backtest" in text
     assert "scripts/backtest-ci.sh" in text
-    assert "backtests/baselines/run118.json" in text
+    assert "backtests/baselines/run120.json" in text
     assert "cron: \"0 8 * * *\"" in text
     assert "run-backtest" in text
     assert "actions/cache@v4" in text
@@ -311,6 +318,13 @@ def test_workflow_declares_the_backtest_job():
     assert "Engine drift" in text
     assert "do not block this PR" in text
     assert "STRATEGY_CHANGELOG.md" in text
+    ci = (repo_root() / "scripts/backtest-ci.sh").read_text()
+    walk = (repo_root() / "scripts/walk-forward-ci.sh").read_text()
+    label = RUN118_PARAMS.version_label
+    assert f"backtests/{label}.toml" in ci
+    assert f"backtests/{label}.toml" in walk
+    assert f"backtests/baselines/{label}.json" in walk
+    assert (repo_root() / "backtests/baselines/run118.json").exists()
 
 
 def test_sweep_never_touches_max_adds_or_size_and_reports_experiments(tmp_path):

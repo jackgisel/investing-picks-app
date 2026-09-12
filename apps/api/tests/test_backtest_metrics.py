@@ -140,10 +140,20 @@ def test_diagnostics_uses_strategy_buy_gate_not_a_copy():
         universe_scope_by_date={as_of: "top400_live"},
     )
     assert diag["n_evaluations"] == 1
-    assert diag["fridays"][0]["gate_pass"] == ["PASS"]
-    assert diag["fridays"][0]["top_pick"] == "PASS"
-    assert diag["fridays"][0]["universe_scope"] == "top400_live"
+    friday = diag["fridays"][0]
+    assert friday["gate_pass"] == ["PASS"]
+    assert friday["top_pick"] == "PASS"
+    assert friday["universe_scope"] == "top400_live"
     assert diag["mixed_scopes"] is False
+    assert friday["top_ranked"] == "PASS"
+    assert friday["top_ranked_qr"] == 4.5
+    assert friday["max_qr"] == 4.5
+    assert friday["n_qr_ge_4_0"] == 2
+    assert friday["n_qr_in_3_5_4_0"] == 0
+    assert friday["gate_fail_counts"] == {"min_revisions_grade": 1}
+    assert friday["gate_fail_counts_top25"] == {"min_revisions_grade": 1}
+    assert friday["score_cards"]["PASS"]["revisions_grade"] == "A"
+    assert friday["score_cards"]["FAIL"]["revisions_grade"] == "F"
 
 
 def _friday_rows(n: int, start: date = date(2026, 1, 2)):
@@ -214,3 +224,160 @@ def test_decision_diff_table_jaccard_and_top_picks():
     assert table["n_fridays"] == 2
     assert table["mean_gate_pass_jaccard"] == 0.75
     assert table["end_holdings_current"] == ["AAA"]
+    assert table["mean_spearman_qr"] is None
+    assert table["fridays"][0]["newly_admitted"] == []
+    assert table["fridays"][1]["newly_admitted"] == []
+    assert [r["ticker"] for r in table["fridays"][1]["newly_excluded"]] == ["CCC"]
+
+
+def _snap(ticker: str, qr: float, **grades) -> ScoreSnapshot:
+    defaults = {
+        "valuation_grade": "B",
+        "growth_grade": "A",
+        "profitability_grade": "B",
+        "momentum_grade": "B",
+        "revisions_grade": "A",
+    }
+    defaults.update(grades)
+    return ScoreSnapshot(ticker=ticker, quant_rating=qr, **defaults)
+
+
+def _empty_replay(as_of: date) -> ReplayResult:
+    ev = ReplayEvaluation(
+        as_of=as_of,
+        fill_date=as_of,
+        signals=[],
+        trades=[],
+        skipped=[],
+        before={"cash": 50_000, "positions": {}},
+        after={"cash": 50_000, "positions": {}},
+    )
+    return ReplayResult(
+        params_version="test",
+        params={},
+        fill=FillModel(),
+        start=as_of,
+        end=as_of,
+        evaluations=[ev],
+        equity_curve=[],
+        final=ReplayBook(cash=50_000.0),
+    )
+
+
+def test_qr_band_and_per_gate_fail_counts_split_universe_and_top25():
+    as_of = date(2026, 8, 7)
+    scores = {
+        "HIGH": _snap("HIGH", 4.2),
+        "MID": _snap("MID", 3.7),
+        "LOW": _snap("LOW", 3.2),
+        "REVFAIL": _snap("REVFAIL", 4.1, revisions_grade="F"),
+    }
+    for i in range(26):
+        ticker = f"Z{i:02d}"
+        scores[ticker] = _snap(ticker, 2.0 - i * 0.01, revisions_grade="F")
+    diag = decision_diagnostics(
+        _empty_replay(as_of),
+        params=RUN118_PARAMS,
+        scores_by_date={as_of: scores},
+        universe_scope_by_date={as_of: "top400_live"},
+    )
+    friday = diag["fridays"][0]
+    assert friday["top_ranked"] == "HIGH"
+    assert friday["top_ranked_qr"] == 4.2
+    assert friday["max_qr"] == 4.2
+    assert friday["n_qr_ge_4_0"] == 2
+    assert friday["n_qr_in_3_5_4_0"] == 1
+    assert friday["gate_pass"] == ["HIGH", "MID"]
+    assert friday["gate_fail_counts"]["min_quant_rating"] == 27
+    assert friday["gate_fail_counts"]["min_revisions_grade"] == 27
+    # HIGH, REVFAIL, MID, LOW, Z00..Z20 occupy the top 25; Z21.. are out.
+    assert friday["gate_fail_counts_top25"]["min_quant_rating"] == 22
+    assert friday["gate_fail_counts_top25"]["min_revisions_grade"] == 22
+
+
+def test_decision_diff_spearman_and_newly_admitted_grades():
+    cards = {
+        "AAA": {
+            "quant_rating": 4.8,
+            "revisions_grade": "A",
+            "growth_grade": "A-",
+            "profitability_grade": "B",
+            "valuation_grade": "C",
+            "momentum_grade": "B",
+        },
+        "BBB": {
+            "quant_rating": 3.7,
+            "revisions_grade": "A",
+            "growth_grade": "A",
+            "profitability_grade": "B",
+            "valuation_grade": "B",
+            "momentum_grade": "C",
+        },
+        "CCC": {
+            "quant_rating": 3.2,
+            "revisions_grade": "B+",
+            "growth_grade": "B",
+            "profitability_grade": "B",
+            "valuation_grade": "B",
+            "momentum_grade": "B",
+        },
+    }
+    same_tape = decision_diff_table(
+        {
+            "fridays": [
+                {
+                    "as_of": "2026-08-07",
+                    "top_pick": "AAA",
+                    "gate_pass": ["AAA", "BBB"],
+                    "score_cards": cards,
+                }
+            ]
+        },
+        {
+            "fridays": [
+                {
+                    "as_of": "2026-08-07",
+                    "top_pick": "AAA",
+                    "gate_pass": ["AAA"],
+                    "score_cards": cards,
+                }
+            ]
+        },
+    )
+    assert same_tape["mean_spearman_qr"] == 1.0
+    assert same_tape["fridays"][0]["spearman_qr"] == 1.0
+    admitted = same_tape["fridays"][0]["newly_admitted"]
+    assert [row["ticker"] for row in admitted] == ["BBB"]
+    assert admitted[0]["quant_rating"] == 3.7
+    assert admitted[0]["revisions_grade"] == "A"
+    assert admitted[0]["growth_grade"] == "A"
+    reversed_cards = {
+        "AAA": {**cards["AAA"], "quant_rating": 3.2},
+        "BBB": {**cards["BBB"], "quant_rating": 3.7},
+        "CCC": {**cards["CCC"], "quant_rating": 4.8},
+    }
+    flipped = decision_diff_table(
+        {
+            "fridays": [
+                {
+                    "as_of": "2026-08-07",
+                    "top_pick": "CCC",
+                    "gate_pass": ["CCC"],
+                    "score_cards": reversed_cards,
+                }
+            ]
+        },
+        {
+            "fridays": [
+                {
+                    "as_of": "2026-08-07",
+                    "top_pick": "AAA",
+                    "gate_pass": ["AAA"],
+                    "score_cards": cards,
+                }
+            ]
+        },
+    )
+    assert flipped["fridays"][0]["spearman_qr"] == -1.0
+    assert [row["ticker"] for row in flipped["fridays"][0]["newly_admitted"]] == ["CCC"]
+    assert [row["ticker"] for row in flipped["fridays"][0]["newly_excluded"]] == ["AAA"]

@@ -9,7 +9,7 @@ from dataclasses import asdict, dataclass, field, replace
 
 @dataclass(frozen=True)
 class BuyCriteria:
-    min_quant_rating: float = 4.0
+    min_quant_rating: float = 3.5
     min_revisions_grade: str = "B+"
     min_growth_grade: str = "B"
     min_profitability_grade: str = "D"
@@ -94,7 +94,7 @@ class StrategyParams:
     # Any change to these defaults, signals.py, or scoring.py MUST bump this
     # label (run118 → run119 …), regenerate the golden snapshot and backtest
     # baseline in the same PR, and add a STRATEGY_CHANGELOG.md entry.
-    version_label: str = "run118"
+    version_label: str = "run120"
 
     def target_notional(self, equity: float) -> float:
         """Dollars to deploy on one entry."""

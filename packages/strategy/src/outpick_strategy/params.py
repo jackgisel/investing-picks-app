@@ -13,7 +13,7 @@ class BuyCriteria:
     min_revisions_grade: str = "B+"
     min_growth_grade: str = "B"
     min_profitability_grade: str = "D"
-    min_valuation_grade: str = "C-"
+    min_valuation_grade: str = "D"
 
 
 @dataclass(frozen=True)
@@ -94,7 +94,7 @@ class StrategyParams:
     # Any change to these defaults, signals.py, or scoring.py MUST bump this
     # label (run118 → run119 …), regenerate the golden snapshot and backtest
     # baseline in the same PR, and add a STRATEGY_CHANGELOG.md entry.
-    version_label: str = "run118"
+    version_label: str = "run119"
 
     def target_notional(self, equity: float) -> float:
         """Dollars to deploy on one entry."""

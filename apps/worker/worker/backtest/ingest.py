@@ -102,7 +102,14 @@ def ingest_earnings_history(db: Session, ticker: str, rows: list[dict]) -> int:
 def ingest_delistings(db: Session, fmp: FMPClient) -> int:
     written = 0
     for page in range(DELISTED_MAX_PAGES):
-        rows = fmp.delisted_companies(page=page, limit=DELISTED_PAGE_SIZE)
+        try:
+            rows = fmp.delisted_companies(page=page, limit=DELISTED_PAGE_SIZE)
+        except FMPAccessError:
+            log.warning(
+                "delisted-companies is not on this FMP plan; continuing with an "
+                "empty delisted set (log-and-drop)"
+            )
+            return written
         if not rows:
             break
         parsed: list[dict] = []
@@ -169,9 +176,13 @@ def ingest_ticker(
         )
     except FMPAccessError:
         log.warning("cash-flow-statement not available on this plan; continuing")
-    caps = ingest_market_caps(
-        db, ticker, fmp.historical_market_cap(ticker, from_date=start, to_date=cutoff)
-    )
+    try:
+        caps = ingest_market_caps(
+            db, ticker, fmp.historical_market_cap(ticker, from_date=start, to_date=cutoff)
+        )
+    except FMPAccessError:
+        log.warning("historical-market-capitalization not on this plan; continuing")
+        caps = 0
     earnings = ingest_earnings_history(db, ticker, fmp.earnings(ticker, limit=16))
     _upsert_stock_from_profile(db, ticker, fmp.profile(ticker))
     return {

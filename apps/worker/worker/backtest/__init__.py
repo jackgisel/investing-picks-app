@@ -1,1 +1,1 @@
-"""Historical backtest dataset tools (Phase 2 ingest/export)."""
+"""Historical backtest dataset tools (ingest, PIT derive, score, parity)."""

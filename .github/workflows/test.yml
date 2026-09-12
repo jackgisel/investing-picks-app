@@ -139,7 +139,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e packages/strategy
-          python -m pip install -e apps/api -e apps/worker
+          python -m pip install -e apps/api -e apps/worker boto3
           sudo apt-get update -qq && sudo apt-get install -y -qq zstd
 
       - name: Read dataset pin

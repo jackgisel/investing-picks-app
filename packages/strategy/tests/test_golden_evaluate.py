@@ -10,7 +10,7 @@ Regenerate deliberately with:
 
     UPDATE_GOLDEN=1 python -m pytest packages/strategy/tests/test_golden_evaluate.py
 
-and review the resulting diff in `golden/run118_evaluate.json` line by line.
+and review the resulting diff in `golden/<version_label>_evaluate.json` line by line.
 """
 
 from __future__ import annotations
@@ -29,7 +29,9 @@ from outpick_strategy import (
     evaluate_sells_only,
 )
 
-GOLDEN_PATH = Path(__file__).parent / "golden" / "run118_evaluate.json"
+GOLDEN_PATH = (
+    Path(__file__).parent / "golden" / f"{RUN118_PARAMS.version_label}_evaluate.json"
+)
 AS_OF = date(2026, 7, 17)  # a 3rd Friday
 
 SECTORS = [
@@ -45,8 +47,9 @@ SECTORS = [
 def _universe(n: int = 40) -> dict[str, ScoreSnapshot]:
     """Deterministic scored universe spanning the QR range.
 
-    Grades are chosen so that, among the QR >= 4.0 names, some fail each of
-    the revisions / growth / valuation gates and some clear all of them.
+    Grades are chosen so that, among names that clear the QR buy floor, some
+    fail each of the revisions / growth / valuation gates and some clear all
+    of them.
     """
     scores: dict[str, ScoreSnapshot] = {}
     for i in range(n):

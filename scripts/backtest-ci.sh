@@ -11,7 +11,7 @@ export PYTHONPATH="$ROOT/apps/api:$ROOT/apps/worker:$ROOT/packages/strategy/src$
 
 MANIFEST="${MANIFEST:-$ROOT/datasets/manifest.json}"
 DATASET="${DATASET:-$ROOT/datasets/dataset-v1.sqlite}"
-CONFIG="${CONFIG:-$ROOT/backtests/run118.toml}"
+CONFIG="${CONFIG:-$ROOT/backtests/run120.toml}"
 OUT="${OUT:-/tmp/backtest-result.json}"
 REPORT="${REPORT:-/tmp/backtest-report.md}"
 CSV="${CSV:-/tmp/backtest-equity.csv}"

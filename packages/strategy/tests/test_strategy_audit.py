@@ -482,7 +482,7 @@ def test_recycle_prefers_the_strictly_weakest_name():
 
 
 def test_recycle_boundary_at_weak_signal_threshold():
-    """QR exactly 4.0 is not weak; 3.99 is. The recycle bar equals the buy bar."""
+    """QR exactly 4.0 is not weak; 3.99 is. Recycle uses weak_signal_threshold, not the buy floor."""
 
     def picked(weak_qr: float):
         positions = {"CAND": position("CAND", sector="Healthcare")}
@@ -868,9 +868,9 @@ def test_a_zero_priced_position_is_never_trimmed():
 
 
 def test_min_quant_rating_boundary():
-    """QR exactly 4.0 buys; 3.99 does not."""
-    assert meets_buy_criteria(score("X", 4.0), RUN118_PARAMS)[0] is True
-    assert meets_buy_criteria(score("X", 3.99), RUN118_PARAMS)[0] is False
+    """QR exactly 3.5 buys; 3.49 does not."""
+    assert meets_buy_criteria(score("X", 3.5), RUN118_PARAMS)[0] is True
+    assert meets_buy_criteria(score("X", 3.49), RUN118_PARAMS)[0] is False
 
 
 @pytest.mark.parametrize(
@@ -895,8 +895,8 @@ def test_each_grade_gate_is_inclusive_of_its_minimum(field, at_minimum, one_notc
 def test_momentum_grade_is_deliberately_not_a_buy_gate():
     """CHARACTERISES: momentum carries 0.15 of the composite but gates nothing.
 
-    An F in momentum is buyable as long as the composite clears QR 4.0. Pinned
-    so adding a momentum gate is a conscious model change.
+    An F in momentum is buyable as long as the composite clears the QR buy
+    floor. Pinned so adding a momentum gate is a conscious model change.
     """
     assert meets_buy_criteria(score("X", 4.5, momentum_grade="F"), RUN118_PARAMS)[0] is True
 

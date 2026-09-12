@@ -32,8 +32,8 @@ fi
 
 MANIFEST="${MANIFEST:-$ROOT/datasets/manifest.json}"
 DATASET="${DATASET:-$ROOT/datasets/dataset-v1.sqlite}"
-CONFIG="${CONFIG:-$ROOT/backtests/run118.toml}"
-BASELINE="${BASELINE:-$ROOT/backtests/baselines/run118.json}"
+CONFIG="${CONFIG:-$ROOT/backtests/run120.toml}"
+BASELINE="${BASELINE:-$ROOT/backtests/baselines/run120.json}"
 
 python3 -m worker.backtest download --dataset "$DATASET" --manifest "$MANIFEST"
 

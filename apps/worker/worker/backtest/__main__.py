@@ -5,11 +5,12 @@
     python -m worker.backtest membership --dataset datasets/dataset-v1.sqlite
     python -m worker.backtest score --dataset datasets/dataset-v1.sqlite
     python -m worker.backtest parity --dataset datasets/dataset-v1.sqlite
-    python -m worker.backtest run --config backtests/run118.toml --out /tmp/result.json
+    python -m worker.backtest run --config backtests/run120.toml --out /tmp/result.json
     python -m worker.backtest report /tmp/result.json
-    python -m worker.backtest compare /tmp/result.json backtests/baselines/run118.json
-    python -m worker.backtest compare /tmp/result.json backtests/baselines/run118.json --sweep
-    python -m worker.backtest walk-forward --config backtests/run118.toml
+    python -m worker.backtest compare /tmp/result.json backtests/baselines/run120.json
+    python -m worker.backtest compare /tmp/result.json backtests/baselines/run118.json --summary
+    python -m worker.backtest compare /tmp/result.json backtests/baselines/run120.json --sweep
+    python -m worker.backtest walk-forward --config backtests/run120.toml
     python -m worker.backtest hash --dataset datasets/dataset-v1.sqlite
     python -m worker.backtest upload --dataset datasets/dataset-v1.sqlite
     python -m worker.backtest download --dataset datasets/dataset-v1.sqlite
@@ -188,7 +189,7 @@ def cmd_compare(ns) -> dict:
     update = ns.update_baseline or os.environ.get("UPDATE_BASELINE") == "1"
     report = compare_results(current, baseline, update_baseline=update)
     if ns.sweep:
-        cfg_path = ns.config or "backtests/run118.toml"
+        cfg_path = ns.config or "backtests/run120.toml"
         cfg = load_config(cfg_path, dataset_override=ns.dataset)
         db = open_dataset(cfg.dataset)
         try:
@@ -377,7 +378,7 @@ def main(argv: list[str] | None = None) -> int:
         "walk-forward",
         help="Extend the dataset from live Postgres, score new Fridays, check engine drift",
     )
-    wf.add_argument("--config", default="backtests/run118.toml")
+    wf.add_argument("--config", default="backtests/run120.toml")
     wf.add_argument("--dataset", default=None)
     wf.add_argument("--from-url", default=os.environ.get("DATABASE_URL"))
     wf.add_argument("--manifest", default="datasets/manifest.json")

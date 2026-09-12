@@ -27,6 +27,12 @@ from app.services.replay import ReplayResult, ReplayTrade
 MIN_EVALUATIONS_FOR_RETURNS = 24
 MIN_EVALUATIONS_FOR_HOLDOUT = 48
 TRADING_DAYS_PER_YEAR = 252
+# Band the run120 QR-floor knob opens. Named after the historical 4.0 floor
+# and the product BUY badge (3.5), not the live `min_quant_rating`, so the
+# compare table still sizes that band after the default flips.
+QR_FLOOR_LEGACY = 4.0
+QR_BAND_LOW = 3.5
+TOP_N_GATE_FAILS = 25
 
 # Keys that constitute a performance claim. None of these may appear on a
 # payload or in a report while n_evaluations < MIN_EVALUATIONS_FOR_RETURNS.
@@ -71,9 +77,8 @@ def decision_diagnostics(
             key=lambda t: scores[t].quant_rating,
             reverse=True,
         )
-        gate_pass = [
-            t for t in ranked if meets_buy_criteria(scores[t], params)[0]
-        ]
+        gate = _gate_readout(ranked, scores, params)
+        gate_pass = gate["gate_pass"]
         bought = next(
             (t.ticker for t in ev.trades if t.side == "buy"),
             None,
@@ -105,10 +110,17 @@ def decision_diagnostics(
                 "universe_scope": scope,
                 "top_pick": bought or (gate_pass[0] if gate_pass else None),
                 "bought": bought,
-                "top_ranked": ranked[0] if ranked else None,
+                "top_ranked": gate["top_ranked"],
+                "top_ranked_qr": gate["top_ranked_qr"],
+                "max_qr": gate["max_qr"],
                 "gate_pass": gate_pass,
                 "n_gate_pass": len(gate_pass),
                 "n_scored": len(scores),
+                "n_qr_ge_4_0": gate["n_qr_ge_4_0"],
+                "n_qr_in_3_5_4_0": gate["n_qr_in_3_5_4_0"],
+                "gate_fail_counts": gate["gate_fail_counts"],
+                "gate_fail_counts_top25": gate["gate_fail_counts_top25"],
+                "score_cards": gate["score_cards"],
                 "rule_counts": dict(sorted(day_rules.items())),
                 "trades": [t.to_dict() for t in ev.trades],
                 "forced_exits": forced,
@@ -345,26 +357,66 @@ def decision_diff_table(
     dates = sorted(set(c_days) | set(b_days))
     top_pick_differ = 0
     jaccards: list[float] = []
+    spearmans: list[float] = []
+    friday_rows: list[dict[str, Any]] = []
     for d in dates:
         cf = c_days.get(d) or {}
         bf = b_days.get(d) or {}
         a = set(cf.get("gate_pass") or [])
         b = set(bf.get("gate_pass") or [])
         union = a | b
-        jaccards.append((len(a & b) / len(union)) if union else 1.0)
+        jaccard = (len(a & b) / len(union)) if union else 1.0
+        jaccards.append(jaccard)
         if cf.get("top_pick") != bf.get("top_pick"):
             top_pick_differ += 1
+        c_cards = cf.get("score_cards") or {}
+        b_cards = bf.get("score_cards") or {}
+        rho = _spearman_qr(_qr_map(c_cards), _qr_map(b_cards))
+        if rho is not None:
+            spearmans.append(rho)
+        admitted = sorted(a - b)
+        excluded = sorted(b - a)
+        friday_rows.append(
+            {
+                "as_of": d,
+                "top_pick_current": cf.get("top_pick"),
+                "top_pick_baseline": bf.get("top_pick"),
+                "n_scored_current": cf.get("n_scored"),
+                "n_scored_baseline": bf.get("n_scored"),
+                "n_gate_pass_current": cf.get("n_gate_pass"),
+                "n_gate_pass_baseline": bf.get("n_gate_pass"),
+                "top_ranked_current": cf.get("top_ranked"),
+                "top_ranked_baseline": bf.get("top_ranked"),
+                "top_ranked_qr_current": cf.get("top_ranked_qr"),
+                "top_ranked_qr_baseline": bf.get("top_ranked_qr"),
+                "max_qr_current": cf.get("max_qr"),
+                "max_qr_baseline": bf.get("max_qr"),
+                "n_qr_ge_4_0_current": cf.get("n_qr_ge_4_0"),
+                "n_qr_in_3_5_4_0_current": cf.get("n_qr_in_3_5_4_0"),
+                "gate_fail_counts_current": cf.get("gate_fail_counts") or {},
+                "gate_fail_counts_top25_current": cf.get("gate_fail_counts_top25") or {},
+                "gate_fail_counts_baseline": bf.get("gate_fail_counts") or {},
+                "gate_fail_counts_top25_baseline": bf.get("gate_fail_counts_top25") or {},
+                "jaccard": round(jaccard, 4),
+                "spearman_qr": round(rho, 4) if rho is not None else None,
+                "newly_admitted": _named_cards(admitted, c_cards),
+                "newly_excluded": _named_cards(excluded, b_cards or c_cards),
+            }
+        )
     mean_j = sum(jaccards) / len(jaccards) if jaccards else 1.0
+    mean_rho = sum(spearmans) / len(spearmans) if spearmans else None
     return {
         "n_fridays": len(dates),
         "top_pick_fridays_differ": top_pick_differ,
         "mean_gate_pass_jaccard": round(mean_j, 4),
+        "mean_spearman_qr": round(mean_rho, 4) if mean_rho is not None else None,
         "end_holdings_current": current.get("end_holdings") or [],
         "end_holdings_baseline": baseline.get("end_holdings") or [],
         "trades_by_action_current": current.get("trades_by_action") or {},
         "trades_by_action_baseline": baseline.get("trades_by_action") or {},
         "rule_counts_current": current.get("rule_counts") or {},
         "rule_counts_baseline": baseline.get("rule_counts") or {},
+        "fridays": friday_rows,
     }
 
 
@@ -395,6 +447,123 @@ def compare_payload(result_doc: dict[str, Any]) -> dict[str, Any]:
             },
         },
     }
+
+
+def _score_card(score: Any) -> dict[str, Any]:
+    return {
+        "quant_rating": round(float(score.quant_rating), 4),
+        "valuation_grade": score.valuation_grade,
+        "growth_grade": score.growth_grade,
+        "profitability_grade": score.profitability_grade,
+        "momentum_grade": score.momentum_grade,
+        "revisions_grade": score.revisions_grade,
+    }
+
+
+def _gate_readout(
+    ranked: list[str],
+    scores: dict,
+    params: StrategyParams,
+) -> dict[str, Any]:
+    fail_all: dict[str, int] = defaultdict(int)
+    fail_top25: dict[str, int] = defaultdict(int)
+    n_qr_ge_4_0 = 0
+    n_qr_in_3_5_4_0 = 0
+    gate_pass: list[str] = []
+    cards: dict[str, dict[str, Any]] = {}
+    for i, ticker in enumerate(ranked):
+        snapshot = scores[ticker]
+        cards[ticker] = _score_card(snapshot)
+        qr = snapshot.quant_rating
+        if qr >= QR_FLOOR_LEGACY:
+            n_qr_ge_4_0 += 1
+        elif qr >= QR_BAND_LOW:
+            n_qr_in_3_5_4_0 += 1
+        ok, checks = meets_buy_criteria(snapshot, params)
+        if ok:
+            gate_pass.append(ticker)
+        for check in checks:
+            if not check.passed:
+                fail_all[check.rule_id] += 1
+                if i < TOP_N_GATE_FAILS:
+                    fail_top25[check.rule_id] += 1
+    top = ranked[0] if ranked else None
+    top_qr = scores[top].quant_rating if top else None
+    max_qr = max((s.quant_rating for s in scores.values()), default=None)
+    return {
+        "gate_pass": gate_pass,
+        "score_cards": cards,
+        "gate_fail_counts": dict(sorted(fail_all.items())),
+        "gate_fail_counts_top25": dict(sorted(fail_top25.items())),
+        "n_qr_ge_4_0": n_qr_ge_4_0,
+        "n_qr_in_3_5_4_0": n_qr_in_3_5_4_0,
+        "top_ranked": top,
+        "top_ranked_qr": round(float(top_qr), 4) if top_qr is not None else None,
+        "max_qr": round(float(max_qr), 4) if max_qr is not None else None,
+    }
+
+
+def _qr_map(cards: dict) -> dict[str, float]:
+    out: dict[str, float] = {}
+    for ticker, card in (cards or {}).items():
+        if not isinstance(card, dict):
+            continue
+        qr = card.get("quant_rating")
+        if qr is None:
+            continue
+        out[str(ticker)] = float(qr)
+    return out
+
+
+def _named_cards(tickers: list[str], cards: dict) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for ticker in tickers:
+        row: dict[str, Any] = {"ticker": ticker}
+        card = (cards or {}).get(ticker) or {}
+        if isinstance(card, dict):
+            row.update(card)
+        rows.append(row)
+    return rows
+
+
+def _average_ranks(values: list[float]) -> list[float]:
+    indexed = sorted(enumerate(values), key=lambda iv: iv[1], reverse=True)
+    ranks = [0.0] * len(values)
+    i = 0
+    while i < len(indexed):
+        j = i + 1
+        while j < len(indexed) and indexed[j][1] == indexed[i][1]:
+            j += 1
+        avg = (i + 1 + j) / 2.0
+        for k in range(i, j):
+            ranks[indexed[k][0]] = avg
+        i = j
+    return ranks
+
+
+def _pearson(xs: list[float], ys: list[float]) -> float | None:
+    n = len(xs)
+    if n < 2 or n != len(ys):
+        return None
+    mx = sum(xs) / n
+    my = sum(ys) / n
+    num = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+    dx = sum((x - mx) ** 2 for x in xs)
+    dy = sum((y - my) ** 2 for y in ys)
+    if dx == 0 and dy == 0:
+        return 1.0
+    if dx == 0 or dy == 0:
+        return None
+    return num / math.sqrt(dx * dy)
+
+
+def _spearman_qr(left: dict[str, float], right: dict[str, float]) -> float | None:
+    common = sorted(set(left) & set(right))
+    if len(common) < 2:
+        return None
+    xs = [left[t] for t in common]
+    ys = [right[t] for t in common]
+    return _pearson(_average_ranks(xs), _average_ranks(ys))
 
 
 def _daily_returns(curve: list[dict]) -> list[float]:

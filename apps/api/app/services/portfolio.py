@@ -42,12 +42,15 @@ def params_from_portfolio(portfolio: Portfolio) -> StrategyParams:
     if not raw:
         return RUN118_PARAMS
     buy = raw.get("buy_criteria") or {}
+    defaults = RUN118_PARAMS.buy_criteria
     criteria = BuyCriteria(
-        min_quant_rating=buy.get("min_quant_rating", 4.0),
-        min_revisions_grade=buy.get("min_revisions_grade", "B+"),
-        min_growth_grade=buy.get("min_growth_grade", "B"),
-        min_profitability_grade=buy.get("min_profitability_grade", "D"),
-        min_valuation_grade=buy.get("min_valuation_grade", "C-"),
+        min_quant_rating=buy.get("min_quant_rating", defaults.min_quant_rating),
+        min_revisions_grade=buy.get("min_revisions_grade", defaults.min_revisions_grade),
+        min_growth_grade=buy.get("min_growth_grade", defaults.min_growth_grade),
+        min_profitability_grade=buy.get(
+            "min_profitability_grade", defaults.min_profitability_grade
+        ),
+        min_valuation_grade=buy.get("min_valuation_grade", defaults.min_valuation_grade),
     )
     known = {f.name for f in fields(StrategyParams) if f.name != "buy_criteria"}
     flat = {k: v for k, v in raw.items() if k in known}

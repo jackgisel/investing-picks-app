@@ -1,0 +1,541 @@
+{
+  "deployed_book": [
+    {
+      "action": "recycle_trim",
+      "keep_shares": null,
+      "metadata": {},
+      "reason": "Trim weakest (QR 3.5) to fund new buy",
+      "rules": [
+        {
+          "inputs": {
+            "qr": 3.45,
+            "shortfall": 6129.0,
+            "trim_shares": 35.0
+          },
+          "message": "Core Run 118 alpha: recycle weak names into new picks",
+          "passed": true,
+          "rule_id": "active_recycling",
+          "threshold": {
+            "weak_signal_threshold": 4.0
+          }
+        }
+      ],
+      "score": {
+        "growth_grade": "B+",
+        "momentum_grade": "C",
+        "profitability_grade": "B",
+        "quant_rating": 3.45,
+        "revisions_grade": "A",
+        "sector": "Industrials",
+        "ticker": "U15",
+        "valuation_grade": "B-"
+      },
+      "sell_shares": 35.0,
+      "ticker": "U15"
+    },
+    {
+      "action": "double_buy",
+      "keep_shares": null,
+      "metadata": {
+        "target_notional": 2443.0
+      },
+      "reason": "Conviction add (+43%): Quant 5.0, Rev=A, Gro=B+",
+      "rules": [
+        {
+          "inputs": {
+            "attempted": 1,
+            "limit": 1
+          },
+          "message": "Exactly 1 buy per eval (Run 118) \u2014 no adaptive filler",
+          "passed": true,
+          "rule_id": "max_adds_per_evaluation",
+          "threshold": {
+            "max_adds_per_evaluation": 1
+          }
+        },
+        {
+          "inputs": {
+            "gain_pct": 0.4286
+          },
+          "message": "",
+          "passed": true,
+          "rule_id": "double_buy",
+          "threshold": {
+            "min_gain": 0.3
+          }
+        },
+        {
+          "inputs": {
+            "quant_rating": 4.95
+          },
+          "message": "",
+          "passed": true,
+          "rule_id": "min_quant_rating",
+          "threshold": {
+            "min": 3.5
+          }
+        },
+        {
+          "inputs": {
+            "revisions_grade": "A"
+          },
+          "message": "",
+          "passed": true,
+          "rule_id": "min_revisions_grade",
+          "threshold": {
+            "min": "B+"
+          }
+        },
+        {
+          "inputs": {
+            "growth_grade": "B+"
+          },
+          "message": "",
+          "passed": true,
+          "rule_id": "min_growth_grade",
+          "threshold": {
+            "min": "B"
+          }
+        },
+        {
+          "inputs": {
+            "profitability_grade": "B"
+          },
+          "message": "",
+          "passed": true,
+          "rule_id": "min_profitability_grade",
+          "threshold": {
+            "min": "D"
+          }
+        },
+        {
+          "inputs": {
+            "valuation_grade": "B-"
+          },
+          "message": "",
+          "passed": true,
+          "rule_id": "min_valuation_grade",
+          "threshold": {
+            "min": "C-"
+          }
+        }
+      ],
+      "score": {
+        "growth_grade": "B+",
+        "momentum_grade": "A-",
+        "profitability_grade": "B",
+        "quant_rating": 4.95,
+        "revisions_grade": "A",
+        "sector": "Technology",
+        "ticker": "U00",
+        "valuation_grade": "B-"
+      },
+      "sell_shares": null,
+      "ticker": "U00"
+    }
+  ],
+  "mixed_book": [
+    {
+      "action": "trim",
+      "keep_shares": null,
+      "metadata": {},
+      "reason": "Trim: 25% \u2192 12%",
+      "rules": [
+        {
+          "inputs": {
+            "is_house_money": false,
+            "weight": 0.2473
+          },
+          "message": "",
+          "passed": true,
+          "rule_id": "position_weight_cap",
+          "threshold": {
+            "cap": 0.15,
+            "target": 0.12
+          }
+        }
+      ],
+      "score": null,
+      "sell_shares": 102.96,
+      "ticker": "BIG"
+    },
+    {
+      "action": "partial_sell",
+      "keep_shares": 60.0,
+      "metadata": {},
+      "reason": "Winner partial sell (keep house money, +150%)",
+      "rules": [
+        {
+          "inputs": {
+            "gain_pct": 1.5,
+            "qr": 2.2,
+            "sell_shares": 40.0
+          },
+          "message": "",
+          "passed": true,
+          "rule_id": "winners_circle",
+          "threshold": {
+            "hold_removal": 2.5,
+            "winner_threshold": 0.6
+          }
+        }
+      ],
+      "score": {
+        "growth_grade": "B",
+        "momentum_grade": "B",
+        "profitability_grade": "B",
+        "quant_rating": 2.2,
+        "revisions_grade": "B+",
+        "sector": "Technology",
+        "ticker": "WIN",
+        "valuation_grade": "B"
+      },
+      "sell_shares": 40.0,
+      "ticker": "WIN"
+    },
+    {
+      "action": "full_sell",
+      "keep_shares": null,
+      "metadata": {},
+      "reason": "Strong sell (QR 1.2)",
+      "rules": [
+        {
+          "inputs": {
+            "qr": 1.2
+          },
+          "message": "",
+          "passed": true,
+          "rule_id": "strong_sell",
+          "threshold": {
+            "max": 1.5
+          }
+        }
+      ],
+      "score": {
+        "growth_grade": "F",
+        "momentum_grade": "F",
+        "profitability_grade": "F",
+        "quant_rating": 1.2,
+        "revisions_grade": "F",
+        "sector": "Industrials",
+        "ticker": "DEAD",
+        "valuation_grade": "F"
+      },
+      "sell_shares": null,
+      "ticker": "DEAD"
+    },
+    {
+      "action": "full_sell",
+      "keep_shares": null,
+      "metadata": {},
+      "reason": "Underwater stop (300d, QR 2.8, -30%)",
+      "rules": [
+        {
+          "inputs": {
+            "days_held": 300,
+            "gain_pct": -0.3,
+            "qr": 2.8
+          },
+          "message": "",
+          "passed": true,
+          "rule_id": "underwater_stop",
+          "threshold": {
+            "max_days": 270,
+            "qr_max": 3.0
+          }
+        }
+      ],
+      "score": {
+        "growth_grade": "C",
+        "momentum_grade": "D",
+        "profitability_grade": "C",
+        "quant_rating": 2.8,
+        "revisions_grade": "C",
+        "sector": "Energy",
+        "ticker": "SINK",
+        "valuation_grade": "C"
+      },
+      "sell_shares": null,
+      "ticker": "SINK"
+    },
+    {
+      "action": "full_sell",
+      "keep_shares": null,
+      "metadata": {},
+      "reason": "Below hold (2.5)",
+      "rules": [
+        {
+          "inputs": {
+            "is_winner": false,
+            "qr": 2.3
+          },
+          "message": "",
+          "passed": true,
+          "rule_id": "hold_removal",
+          "threshold": {
+            "hold_removal": 2.5
+          }
+        }
+      ],
+      "score": {
+        "growth_grade": "C",
+        "momentum_grade": "C",
+        "profitability_grade": "C",
+        "quant_rating": 2.3,
+        "revisions_grade": "C",
+        "sector": "Financial Services",
+        "ticker": "MEH",
+        "valuation_grade": "C"
+      },
+      "sell_shares": null,
+      "ticker": "MEH"
+    },
+    {
+      "action": "buy",
+      "keep_shares": null,
+      "metadata": {
+        "target_notional": 4245.5
+      },
+      "reason": "Top pick: Quant 5.0, Rev=A, Gro=B+, Val=B-",
+      "rules": [
+        {
+          "inputs": {
+            "attempted": 1,
+            "limit": 1
+          },
+          "message": "Exactly 1 buy per eval (Run 118) \u2014 no adaptive filler",
+          "passed": true,
+          "rule_id": "max_adds_per_evaluation",
+          "threshold": {
+            "max_adds_per_evaluation": 1
+          }
+        },
+        {
+          "inputs": {
+            "quant_rating": 4.95
+          },
+          "message": "",
+          "passed": true,
+          "rule_id": "min_quant_rating",
+          "threshold": {
+            "min": 3.5
+          }
+        },
+        {
+          "inputs": {
+            "revisions_grade": "A"
+          },
+          "message": "",
+          "passed": true,
+          "rule_id": "min_revisions_grade",
+          "threshold": {
+            "min": "B+"
+          }
+        },
+        {
+          "inputs": {
+            "growth_grade": "B+"
+          },
+          "message": "",
+          "passed": true,
+          "rule_id": "min_growth_grade",
+          "threshold": {
+            "min": "B"
+          }
+        },
+        {
+          "inputs": {
+            "profitability_grade": "B"
+          },
+          "message": "",
+          "passed": true,
+          "rule_id": "min_profitability_grade",
+          "threshold": {
+            "min": "D"
+          }
+        },
+        {
+          "inputs": {
+            "valuation_grade": "B-"
+          },
+          "message": "",
+          "passed": true,
+          "rule_id": "min_valuation_grade",
+          "threshold": {
+            "min": "C-"
+          }
+        }
+      ],
+      "score": {
+        "growth_grade": "B+",
+        "momentum_grade": "A-",
+        "profitability_grade": "B",
+        "quant_rating": 4.95,
+        "revisions_grade": "A",
+        "sector": "Technology",
+        "ticker": "U00",
+        "valuation_grade": "B-"
+      },
+      "sell_shares": null,
+      "ticker": "U00"
+    }
+  ],
+  "mixed_book_daily_sells": [
+    {
+      "action": "trim",
+      "keep_shares": null,
+      "metadata": {},
+      "reason": "Trim: 25% \u2192 12%",
+      "rules": [
+        {
+          "inputs": {
+            "is_house_money": false,
+            "weight": 0.2473
+          },
+          "message": "",
+          "passed": true,
+          "rule_id": "position_weight_cap",
+          "threshold": {
+            "cap": 0.15,
+            "target": 0.12
+          }
+        }
+      ],
+      "score": null,
+      "sell_shares": 102.96,
+      "ticker": "BIG"
+    },
+    {
+      "action": "partial_sell",
+      "keep_shares": 60.0,
+      "metadata": {},
+      "reason": "Winner partial sell (keep house money, +150%)",
+      "rules": [
+        {
+          "inputs": {
+            "gain_pct": 1.5,
+            "qr": 2.2,
+            "sell_shares": 40.0
+          },
+          "message": "",
+          "passed": true,
+          "rule_id": "winners_circle",
+          "threshold": {
+            "hold_removal": 2.5,
+            "winner_threshold": 0.6
+          }
+        }
+      ],
+      "score": {
+        "growth_grade": "B",
+        "momentum_grade": "B",
+        "profitability_grade": "B",
+        "quant_rating": 2.2,
+        "revisions_grade": "B+",
+        "sector": "Technology",
+        "ticker": "WIN",
+        "valuation_grade": "B"
+      },
+      "sell_shares": 40.0,
+      "ticker": "WIN"
+    },
+    {
+      "action": "full_sell",
+      "keep_shares": null,
+      "metadata": {},
+      "reason": "Strong sell (QR 1.2)",
+      "rules": [
+        {
+          "inputs": {
+            "qr": 1.2
+          },
+          "message": "",
+          "passed": true,
+          "rule_id": "strong_sell",
+          "threshold": {
+            "max": 1.5
+          }
+        }
+      ],
+      "score": {
+        "growth_grade": "F",
+        "momentum_grade": "F",
+        "profitability_grade": "F",
+        "quant_rating": 1.2,
+        "revisions_grade": "F",
+        "sector": "Industrials",
+        "ticker": "DEAD",
+        "valuation_grade": "F"
+      },
+      "sell_shares": null,
+      "ticker": "DEAD"
+    },
+    {
+      "action": "full_sell",
+      "keep_shares": null,
+      "metadata": {},
+      "reason": "Underwater stop (300d, QR 2.8, -30%)",
+      "rules": [
+        {
+          "inputs": {
+            "days_held": 300,
+            "gain_pct": -0.3,
+            "qr": 2.8
+          },
+          "message": "",
+          "passed": true,
+          "rule_id": "underwater_stop",
+          "threshold": {
+            "max_days": 270,
+            "qr_max": 3.0
+          }
+        }
+      ],
+      "score": {
+        "growth_grade": "C",
+        "momentum_grade": "D",
+        "profitability_grade": "C",
+        "quant_rating": 2.8,
+        "revisions_grade": "C",
+        "sector": "Energy",
+        "ticker": "SINK",
+        "valuation_grade": "C"
+      },
+      "sell_shares": null,
+      "ticker": "SINK"
+    },
+    {
+      "action": "full_sell",
+      "keep_shares": null,
+      "metadata": {},
+      "reason": "Below hold (2.5)",
+      "rules": [
+        {
+          "inputs": {
+            "is_winner": false,
+            "qr": 2.3
+          },
+          "message": "",
+          "passed": true,
+          "rule_id": "hold_removal",
+          "threshold": {
+            "hold_removal": 2.5
+          }
+        }
+      ],
+      "score": {
+        "growth_grade": "C",
+        "momentum_grade": "C",
+        "profitability_grade": "C",
+        "quant_rating": 2.3,
+        "revisions_grade": "C",
+        "sector": "Financial Services",
+        "ticker": "MEH",
+        "valuation_grade": "C"
+      },
+      "sell_shares": null,
+      "ticker": "MEH"
+    }
+  ],
+  "params_version": "c39fe2ed9311"
+}

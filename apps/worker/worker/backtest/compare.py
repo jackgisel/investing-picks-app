@@ -74,21 +74,59 @@ def summary_markdown(report: dict) -> str:
     ]
     table = report.get("decision_diff") or {}
     if table:
+        spearman = table.get("mean_spearman_qr")
+        spearman_cell = spearman if spearman is not None else "n/a"
         lines.extend(
             [
                 "### Decision-diff (valid at any N)",
                 "",
                 f"- Top-pick Fridays that differ: {table.get('top_pick_fridays_differ')}",
                 f"- Mean gate-pass Jaccard: {table.get('mean_gate_pass_jaccard')}",
+                f"- Mean Spearman QR rank corr: {spearman_cell}",
                 f"- End holdings current: `{table.get('end_holdings_current')}`",
                 f"- End holdings baseline: `{table.get('end_holdings_baseline')}`",
+                f"- Trades current: `{table.get('trades_by_action_current')}`",
+                f"- Trades baseline: `{table.get('trades_by_action_baseline')}`",
                 "",
             ]
         )
+        friday_rows = table.get("fridays") or []
+        if friday_rows:
+            lines.extend(
+                [
+                    "| Friday | top_pick cur/base | n_gate_pass | top_ranked_qr | spearman | newly_admitted |",
+                    "| --- | --- | --- | --- | --- | --- |",
+                ]
+            )
+            for row in friday_rows:
+                admitted = _admitted_cell(row.get("newly_admitted") or [])
+                lines.append(
+                    "| {as_of} | `{cur}` / `{base}` | {ncur} / {nbase} | {qr} | {rho} | {adm} |".format(
+                        as_of=row.get("as_of"),
+                        cur=row.get("top_pick_current") or "-",
+                        base=row.get("top_pick_baseline") or "-",
+                        ncur=row.get("n_gate_pass_current"),
+                        nbase=row.get("n_gate_pass_baseline"),
+                        qr=row.get("top_ranked_qr_current")
+                        if row.get("top_ranked_qr_current") is not None
+                        else "-",
+                        rho=row.get("spearman_qr")
+                        if row.get("spearman_qr") is not None
+                        else "n/a",
+                        adm=admitted or "-",
+                    )
+                )
+            lines.append("")
+            fail_lines = _fail_count_lines(friday_rows)
+            if fail_lines:
+                lines.append("Per-gate fail counts (scored universe / top-25):")
+                lines.append("")
+                lines.extend(fail_lines)
+                lines.append("")
     if report["status"] == "baseline_stale":
         lines.append(
-            "Strategy or dataset changed. Regenerate `backtests/baselines/run118.json` "
-            "in this PR (`UPDATE_BASELINE=1`)."
+            "Strategy or dataset changed. Regenerate the committed baseline "
+            "(`backtests/baselines/<label>.json`) in this PR (`UPDATE_BASELINE=1`)."
         )
         lines.append("")
     if report["diffs"]:
@@ -106,6 +144,51 @@ def _short(value: str | None) -> str:
     if not value:
         return "-"
     return value[:12]
+
+
+def _admitted_cell(rows: list) -> str:
+    parts: list[str] = []
+    for row in rows[:8]:
+        if not isinstance(row, dict):
+            continue
+        ticker = row.get("ticker") or "?"
+        qr = row.get("quant_rating")
+        grades = "/".join(
+            str(row.get(k) or "-")
+            for k in (
+                "revisions_grade",
+                "growth_grade",
+                "profitability_grade",
+                "valuation_grade",
+                "momentum_grade",
+            )
+        )
+        if qr is None:
+            parts.append(str(ticker))
+        else:
+            parts.append(f"{ticker} {qr} {grades}")
+    extra = len(rows) - 8
+    if extra > 0:
+        parts.append(f"+{extra}")
+    return "; ".join(parts)
+
+
+def _fail_count_lines(friday_rows: list) -> list[str]:
+    lines: list[str] = []
+    for row in friday_rows:
+        fails = row.get("gate_fail_counts_current") or {}
+        top25 = row.get("gate_fail_counts_top25_current") or {}
+        if not fails and not top25:
+            continue
+        keys = sorted(set(fails) | set(top25))
+        bits = [f"`{k}` {fails.get(k, 0)}/{top25.get(k, 0)}" for k in keys]
+        band = ""
+        ge = row.get("n_qr_ge_4_0_current")
+        mid = row.get("n_qr_in_3_5_4_0_current")
+        if ge is not None or mid is not None:
+            band = f"; n_qr≥4.0={ge} n_qr∈[3.5,4.0)={mid}"
+        lines.append(f"- {row.get('as_of')}: {', '.join(bits)}{band}")
+    return lines
 
 
 def _cell(value: Any) -> str:

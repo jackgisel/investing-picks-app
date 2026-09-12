@@ -1,12 +1,16 @@
-"""Backtest dataset CLI: ingest | export | membership | hash | upload | score | parity.
+"""Backtest dataset CLI: ingest | export | membership | hash | upload | score | parity | run | report | compare | download.
 
     python -m worker.backtest ingest --dataset datasets/dataset-v1.sqlite
     python -m worker.backtest export --dataset datasets/dataset-v1.sqlite
     python -m worker.backtest membership --dataset datasets/dataset-v1.sqlite
     python -m worker.backtest score --dataset datasets/dataset-v1.sqlite
     python -m worker.backtest parity --dataset datasets/dataset-v1.sqlite
+    python -m worker.backtest run --config backtests/run118.toml --out /tmp/result.json
+    python -m worker.backtest report /tmp/result.json
+    python -m worker.backtest compare /tmp/result.json backtests/baselines/run118.json
     python -m worker.backtest hash --dataset datasets/dataset-v1.sqlite
     python -m worker.backtest upload --dataset datasets/dataset-v1.sqlite
+    python -m worker.backtest download --dataset datasets/dataset-v1.sqlite
 """
 
 from __future__ import annotations
@@ -15,7 +19,6 @@ import argparse
 import json
 import logging
 import os
-import sys
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -23,11 +26,16 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import get_settings
 from app.db.session import make_engine
+from worker.backtest.compare import compare_results, load_result as load_compare, summary_markdown
+from worker.backtest.config import load_config
+from worker.backtest.download import download_dataset
 from worker.backtest.export import export_live_vintages
 from worker.backtest.ingest import ingest_dataset
 from worker.backtest.manifest import write_manifest
 from worker.backtest.membership import write_universe_membership
 from worker.backtest.parity import parity_report
+from worker.backtest.report import load_result as load_report, render_report
+from worker.backtest.run import result_fingerprint, run_backtest, write_result
 from worker.backtest.score import score_dataset
 from worker.backtest.store import open_dataset
 from worker.backtest.upload import upload_dataset
@@ -125,6 +133,66 @@ def cmd_parity(ns) -> dict:
         engine.dispose()
 
 
+def cmd_run(ns) -> dict:
+    cfg = load_config(ns.config, dataset_override=ns.dataset)
+    db = open_dataset(cfg.dataset)
+    ledger_db = None
+    ledger_engine = None
+    try:
+        if ns.ledger_url:
+            ledger_engine = make_engine(ns.ledger_url)
+            ledger_db = sessionmaker(
+                bind=ledger_engine, autoflush=False, autocommit=False
+            )()
+        payload = run_backtest(
+            db,
+            cfg,
+            sensitivity=not ns.no_sensitivity,
+            skip_hash=ns.skip_hash,
+            ledger_db=ledger_db,
+            ledger_portfolio_id=ns.ledger_portfolio_id,
+        )
+        write_result(payload, Path(ns.out))
+        return {
+            "out": ns.out,
+            "params_version": payload["params_version"],
+            "dataset_sha256": payload["dataset_sha256"],
+            "n_evaluations": payload["diagnostics"]["n_evaluations"],
+            "metrics_status": payload["metrics"]["status"],
+            "fingerprint": result_fingerprint(payload),
+            "trades": len(payload["trades"]),
+        }
+    finally:
+        db.close()
+        if ledger_db is not None:
+            ledger_db.close()
+        if ledger_engine is not None:
+            ledger_engine.dispose()
+
+
+def cmd_report(ns) -> dict:
+    result = load_report(ns.result)
+    text = render_report(result)
+    if ns.out:
+        Path(ns.out).write_text(text + "\n")
+    print(text)
+    return {"out": ns.out, "n_evaluations": (result.get("diagnostics") or {}).get("n_evaluations")}
+
+
+def cmd_compare(ns) -> dict:
+    current = load_compare(ns.current)
+    baseline = load_compare(ns.baseline)
+    report = compare_results(current, baseline)
+    if ns.summary:
+        print(summary_markdown(report))
+    return report
+
+
+def cmd_download(ns) -> dict:
+    dest = Path(ns.dataset)
+    return download_dataset(dest, key=ns.key, sha256=ns.sha256)
+
+
 def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s"
@@ -171,6 +239,29 @@ def main(argv: list[str] | None = None) -> int:
     parity.add_argument("--from", dest="from_", default=None)
     parity.add_argument("--to", dest="to", default=None)
 
+    run = sub.add_parser("run", help="Replay the shipped engine and write result JSON")
+    run.add_argument("--config", required=True)
+    run.add_argument("--out", required=True)
+    run.add_argument("--dataset", default=None)
+    run.add_argument("--skip-hash", action="store_true")
+    run.add_argument("--no-sensitivity", action="store_true")
+    run.add_argument("--ledger-url", default=None)
+    run.add_argument("--ledger-portfolio-id", type=int, default=1)
+
+    report = sub.add_parser("report", help="Render a markdown report (no return numbers under N<24)")
+    report.add_argument("result")
+    report.add_argument("--out", default=None)
+
+    compare = sub.add_parser("compare", help="Diff a result against the committed baseline")
+    compare.add_argument("current")
+    compare.add_argument("baseline")
+    compare.add_argument("--summary", action="store_true")
+
+    download = sub.add_parser("download", help="Download the dataset from the Railway bucket")
+    download.add_argument("--dataset", required=True)
+    download.add_argument("--key", default=None)
+    download.add_argument("--sha256", default=None)
+
     ns = parser.parse_args(argv)
     fn = {
         "ingest": cmd_ingest,
@@ -180,9 +271,16 @@ def main(argv: list[str] | None = None) -> int:
         "upload": cmd_upload,
         "score": cmd_score,
         "parity": cmd_parity,
+        "run": cmd_run,
+        "report": cmd_report,
+        "compare": cmd_compare,
+        "download": cmd_download,
     }[ns.cmd]
     result = fn(ns)
-    print(json.dumps(result, default=str, indent=2))
+    if ns.cmd != "report":
+        print(json.dumps(result, default=str, indent=2))
+    if ns.cmd == "compare":
+        return int(result.get("exit_code") or 0)
     return 0
 
 

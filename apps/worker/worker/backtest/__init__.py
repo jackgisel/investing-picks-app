@@ -1,1 +1,1 @@
-"""Historical backtest dataset tools (ingest, PIT derive, score, parity)."""
+"""Historical backtest dataset tools (ingest, score, replay, report, compare)."""

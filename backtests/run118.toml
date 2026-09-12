@@ -1,0 +1,29 @@
+# Canonical Run 118 backtest. Measures the shipped engine at $1,000 per pick
+# over the real-data window (Segment A top-400 vintages until Segment B `full`
+# Fridays exist). Return metrics stay gated at n_evaluations >= 24.
+#
+# Dataset is not in git. Pin matches datasets/manifest.json.
+
+dataset = "datasets/dataset-v1.sqlite"
+dataset_sha256 = "b052a791ebc827e7e750b7a251b07e515235708fe612a1e4b0bf9192a6f724c0"
+
+# First Friday with a revisions pair (July 2026 Fridays are unscored).
+start = "2026-08-07"
+# Latest complete evaluation Friday in the pinned dataset.
+end = "2026-09-04"
+
+position_size_usd = 1000
+initial_cash = 50000
+max_adds_per_evaluation = 1
+
+# Live 11:00 mark ≈ same-close 0 bps. next_close + 10 bps is the sensitivity run.
+fill_price = "same_close"
+slippage_bps = 0
+
+# Include every labelled Friday; the report never silently mixes scopes.
+universe_scope = "all"
+params_version_label = "run118"
+
+[sensitivity]
+fill_price = "next_close"
+slippage_bps = 10

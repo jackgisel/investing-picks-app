@@ -1,0 +1,213 @@
+"""Phase 4 CLI: run / report / compare, N≥24 gate, $1,000 sizing."""
+
+from __future__ import annotations
+
+from datetime import date
+from pathlib import Path
+
+import pytest
+
+from outpick_strategy import RUN118_PARAMS
+
+from app.db.models import CompositeScore, PriceBar, UniverseMembership
+from worker.backtest.__main__ import main
+from worker.backtest.compare import compare_results
+from worker.backtest.config import load_config
+from worker.backtest.report import render_report
+from worker.backtest.run import params_from_config, run_backtest
+from worker.backtest.store import open_dataset
+
+FRIDAY = date(2026, 8, 7)
+FRIDAY2 = date(2026, 8, 21)
+
+
+def _toml(tmp_path: Path, dataset: Path) -> Path:
+    text = f"""
+dataset = "{dataset}"
+dataset_sha256 = "deadbeef"
+start = "2026-08-07"
+end = "2026-08-21"
+position_size_usd = 1000
+initial_cash = 50000
+max_adds_per_evaluation = 1
+fill_price = "same_close"
+slippage_bps = 0
+universe_scope = "all"
+params_version_label = "run118"
+
+[sensitivity]
+fill_price = "next_close"
+slippage_bps = 10
+"""
+    path = tmp_path / "run118.toml"
+    path.write_text(text)
+    return path
+
+
+def _seed(db):
+    for ticker, qr, sector in (
+        ("AAA", 4.9, "Technology"),
+        ("BBB", 4.8, "Health Care"),
+    ):
+        for as_of in (FRIDAY, FRIDAY2):
+            db.add(
+                CompositeScore(
+                    ticker=ticker,
+                    as_of=as_of,
+                    quant_rating=qr,
+                    composite=90.0,
+                    valuation_grade="A",
+                    growth_grade="A",
+                    profitability_grade="A",
+                    momentum_grade="A",
+                    revisions_grade="A",
+                    sector=sector,
+                )
+            )
+            db.add(
+                UniverseMembership(
+                    as_of=as_of,
+                    ticker=ticker,
+                    universe_scope="top400_live",
+                    market_cap=2e9,
+                    close=50.0,
+                )
+            )
+    for d in (FRIDAY, date(2026, 8, 10), FRIDAY2, date(2026, 8, 24)):
+        db.add(PriceBar(ticker="AAA", date=d, close=50.0))
+        db.add(PriceBar(ticker="BBB", date=d, close=40.0))
+    db.commit()
+
+
+def test_config_pins_thousand_dollar_size_and_one_add(tmp_path):
+    dataset = tmp_path / "dataset-v1.sqlite"
+    dataset.write_bytes(b"x")
+    cfg = load_config(_toml(tmp_path, dataset))
+    assert cfg.position_size_usd == 1000
+    assert cfg.max_adds_per_evaluation == 1
+    assert cfg.initial_cash == 50_000
+    params = params_from_config(cfg)
+    assert params.position_size_usd == 1000
+    assert params.max_adds_per_evaluation == 1
+    assert params.version_hash() != RUN118_PARAMS.version_hash()
+
+
+def test_config_rejects_adaptive_max_adds(tmp_path):
+    dataset = tmp_path / "d.sqlite"
+    dataset.write_bytes(b"x")
+    path = tmp_path / "bad.toml"
+    path.write_text(
+        f"""
+dataset = "{dataset}"
+dataset_sha256 = "x"
+start = "2026-08-07"
+end = "2026-08-21"
+position_size_usd = 1000
+max_adds_per_evaluation = 3
+"""
+    )
+    with pytest.raises(ValueError, match="must be 1"):
+        load_config(path)
+
+
+def test_run_report_compare_on_a_tiny_dataset(tmp_path):
+    dataset = tmp_path / "dataset-v1.sqlite"
+    db = open_dataset(dataset)
+    _seed(db)
+    cfg = load_config(_toml(tmp_path, dataset))
+    payload = run_backtest(db, cfg, sensitivity=True, skip_hash=True)
+    db.close()
+
+    assert payload["config"]["position_size_usd"] == 1000
+    assert payload["config"]["max_adds_per_evaluation"] == 1
+    assert payload["diagnostics"]["n_evaluations"] == 2
+    assert payload["metrics"]["status"] == "insufficient_sample"
+    assert "cagr_pct" not in payload["metrics"]
+    assert "sharpe" not in payload["metrics"]
+    assert "return_pct" not in payload["metrics"]
+    buys = [t for t in payload["trades"] if t["side"] == "buy"]
+    assert len(buys) == 2
+    assert all(abs(t["notional"] - 1000) < 1e-6 for t in buys)
+    assert payload["sensitivity"]["fill"]["price"] == "next_close"
+    assert payload["sensitivity"]["fill"]["slippage_bps"] == 10
+    assert "Remove the BUG-P1/P2" in payload["recommendation"]
+
+    md = render_report(payload)
+    assert "insufficient sample" in md.lower()
+    assert "cagr_pct:" not in md.lower()
+    assert "return_pct:" not in md.lower()
+    assert "Remove the BUG-P1/P2" in md
+
+    out = tmp_path / "result.json"
+    baseline = tmp_path / "baseline.json"
+    from worker.backtest.run import write_result
+
+    write_result(payload, out)
+    write_result(payload, baseline)
+    match = compare_results(payload, payload)
+    assert match["exit_code"] == 0
+
+    from app.services.backtest_metrics import compare_payload
+
+    left = dict(payload)
+    right = dict(payload)
+    right["trades"] = []
+    right["compare"] = compare_payload(right)
+    left["compare"] = compare_payload(left)
+    det = compare_results(left, right)
+    assert det["status"] == "determinism_failure"
+    assert det["exit_code"] == 1
+
+    stale = dict(payload)
+    stale["params_version"] = "changed"
+    stale["compare"] = compare_payload(stale)
+    base = dict(payload)
+    base["compare"] = compare_payload(base)
+    assert compare_results(stale, base)["exit_code"] == 2
+
+
+def test_cli_run_report_compare_roundtrip(tmp_path):
+    dataset = tmp_path / "dataset-v1.sqlite"
+    db = open_dataset(dataset)
+    _seed(db)
+    db.close()
+    cfg = _toml(tmp_path, dataset)
+    out = tmp_path / "result.json"
+    md = tmp_path / "report.md"
+    assert (
+        main(
+            [
+                "run",
+                "--config",
+                str(cfg),
+                "--dataset",
+                str(dataset),
+                "--out",
+                str(out),
+                "--skip-hash",
+            ]
+        )
+        == 0
+    )
+    assert out.exists()
+    assert main(["report", str(out), "--out", str(md)]) == 0
+    text = md.read_text().lower()
+    assert "insufficient sample" in text
+    assert "cagr_pct:" not in text
+    assert main(["compare", str(out), str(out)]) == 0
+
+
+def test_shipped_toml_is_canonical():
+    from worker.backtest.config import repo_root
+
+    cfg = load_config(repo_root() / "backtests/run118.toml")
+    assert cfg.position_size_usd == 1000
+    assert cfg.max_adds_per_evaluation == 1
+    assert cfg.initial_cash == 50_000
+    assert cfg.fill_price == "same_close"
+    assert cfg.slippage_bps == 0
+    assert cfg.sensitivity_fill_price == "next_close"
+    assert cfg.sensitivity_slippage_bps == 10
+    assert cfg.dataset_sha256 == (
+        "b052a791ebc827e7e750b7a251b07e515235708fe612a1e4b0bf9192a6f724c0"
+    )

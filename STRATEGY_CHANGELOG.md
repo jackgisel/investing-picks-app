@@ -49,7 +49,7 @@ Dataset revisions self-pair fix (BUG-P8). **Not a strategy version.**
 | What changed | `derive_ticker` anchors the revisions pair on the estimate vintage date, not the evaluation Friday, and `_prior_estimate_snapshot` ignores `source=pit` rows |
 | Why | On Aug 7 / Aug 21 the tape paired a Saturday vintage with itself (`revisionLookbackDays = 6`, every `epsRevisionPct = 0.0`) so every scored name was Rev B- and the buy gate was unpassable |
 | `deriveVersion` | 2 |
-| Pin | superseded tape kept as `backtests/baselines/run118-tape-b052a791.json` (dataset `b052a791ebc8`) |
+| Pin | `d61437921c87` (`derive_version` 2); superseded tape kept as `backtests/baselines/run118-tape-b052a791.json` (`b052a791ebc8`) |
 
 ### Mechanism
 
@@ -67,16 +67,36 @@ share is ≥ 0.90 (unless `--allow-degenerate-revisions`).
 
 ### Audit / compare
 
-Filled after the full-window re-score and `compare` against
-`backtests/baselines/run118-tape-b052a791.json`. Branch A = genuine pair on
-Aug 7 / Aug 21 (spread revisions, non-null top pick). Branch B = Aug 7 drops
-as unscored (`fridays_only_in_baseline`). Either way the tape must not keep a
-B- ×245 Friday.
+Production `audit_segment_a` was not run here (`DATABASE_URL` unset). The
+re-scored pin is **Branch A**: both Aug Fridays have genuine pairs (modal
+revisions-grade share 0.29, `n_self_paired = 0`). Aug 7 / Aug 21 are not empty.
+
+Compare vs `backtests/baselines/run118-tape-b052a791.json` (`params_version`
+`28bf660fdbab` both sides; dataset `b052a791` → `d61437921c87`; tape `None` → `2`):
+
+| | old tape | tape v2 |
+|---|---|---|
+| Fridays | Aug 7 / Aug 21 / Sep 4 | same 3 (`fridays_only_in_baseline` = []) |
+| `revisions_grade` mode share | B- ×245 / B- ×246 / spread | C+ 0.29 / C+ 0.29 / C 0.15 |
+| `revision_lookback_days` | 6 / 6 / 27 (self-pair) | 5–7 / 7–21 / 21; `n_self_paired = 0` |
+| `n_scored` | 245 / 247 / 252 | 239 / 239 / 249 |
+| `n_gate_pass` | 0 / 0 / 18 | **14 / 16 / 18** |
+| `max_qr` | 4.261 / 4.267 / 4.469 | 4.548 / 4.554 / 4.465 |
+| `top_pick` | — / — / LLY | **FIX / GOOG / LLY** |
+| `top_pick_fridays_differ` | — | **2** |
+| `trades_by_action` | `{buy: 1}` | `{buy: 3}` |
+| `end_holdings` | `[LLY]` | `[FIX, GOOG, LLY]` |
+| Sensitivity (`next_close` + 10 bps) | same tickers | same tickers (`trade_diff` false) |
+
+Aug 21 buys GOOG because FIX (still top-ranked) was bought Aug 7 and is not up
+≥ 30% — `signals.py` moves to the next passer. Sep 4 still buys LLY; the
+18-name gate-pass set is the same names as the old tape. GEV is in the Aug 7
+gate-pass set (live's Aug 7 add). Return metrics stay gated at N ≥ 24.
 
 run119 (Val D) and run120 (QR 3.5) were judged on the self-paired tape; re-read
 from their existing JSON on the new pin. Neither is re-proposed here. The
 round-2 handoff (`momentum_penalty` 20 → 0) is the first strategy experiment
-once this tape is honest. Return metrics stay gated at N ≥ 24.
+once this tape is honest.
 
 ## run118
 

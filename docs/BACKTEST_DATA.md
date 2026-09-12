@@ -75,9 +75,10 @@ tables here. Until that query has been run, the shape is:
 - **Tape v2 (BUG-P8):** `derive_ticker` now pairs from the estimate vintage
   date, not the evaluation Friday, and ignores `source=pit` rows. The audit
   below still counts live `fundamentals` pairs (it already anchored on
-  `snap.as_of`). Paste production `--json` here when it has been run; until
-  then Branch A vs B for Aug 7 is read from the re-scored dataset, not from
-  this table.
+  `snap.as_of`). Production `--json` was not available in the run121
+  environment. The re-scored pin (`d61437921c87`, `derive_version = 2`) is
+  Branch A: Aug 7 and Aug 21 both score with a spread revisions factor
+  (mode share 0.29, `n_gate_pass` 14 / 16) rather than dropping as unscored.
 
 The pytest fixture in `apps/api/tests/test_consensus_snapshot.py`
 (`test_audit_segment_a_counts_pairs_and_evaluation_fridays`) pins the

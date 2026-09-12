@@ -1,47 +1,225 @@
 {
   "compare": {
-    "dataset_sha256": "b052a791ebc827e7e750b7a251b07e515235708fe612a1e4b0bf9192a6f724c0",
+    "dataset_sha256": "d61437921c87c4130d008c17dbaa5de7ec7bf211e66e4b46e99a90b3a2ed6205",
     "diagnostics": {
       "end_holdings": [
+        "FIX",
+        "GOOG",
         "LLY"
       ],
-      "end_position_count": 1,
+      "end_position_count": 3,
       "forced_exits": [],
       "fridays": [
         {
           "as_of": "2026-08-07",
-          "bought": null,
+          "bought": "FIX",
           "forced_exits": [],
-          "gate_pass": [],
-          "holdings_after": [],
-          "n_gate_pass": 0,
-          "n_scored": 245,
-          "rule_counts": {},
-          "signals": [],
-          "top_pick": null,
-          "top_ranked": "MU",
-          "trades": [],
+          "gate_fail_counts": {
+            "min_growth_grade": 125,
+            "min_profitability_grade": 1,
+            "min_quant_rating": 223,
+            "min_revisions_grade": 163,
+            "min_valuation_grade": 19
+          },
+          "gate_pass": [
+            "FIX",
+            "GOOG",
+            "TER",
+            "BE",
+            "VRT",
+            "AMZN",
+            "WDC",
+            "BMY",
+            "ALAB",
+            "LRCX",
+            "PWR",
+            "GEV",
+            "KO",
+            "EME"
+          ],
+          "holdings_after": [
+            "FIX"
+          ],
+          "max_qr": 4.548,
+          "n_gate_pass": 14,
+          "n_qr_ge_4_0": 16,
+          "n_scored": 239,
+          "n_self_paired": 0,
+          "revision_lookback_days": {
+            "5": 371,
+            "7": 1
+          },
+          "revisions_grade_counts": {
+            "A": 23,
+            "A+": 13,
+            "A-": 19,
+            "B": 18,
+            "B+": 21,
+            "B-": 27,
+            "C": 19,
+            "C+": 69,
+            "C-": 8,
+            "D": 8,
+            "D+": 4,
+            "D-": 7,
+            "F": 3
+          },
+          "revisions_grade_mode": "C+",
+          "revisions_grade_mode_share": 0.2887,
+          "rule_counts": {
+            "max_adds_per_evaluation": 1,
+            "min_growth_grade": 1,
+            "min_profitability_grade": 1,
+            "min_quant_rating": 1,
+            "min_revisions_grade": 1,
+            "min_valuation_grade": 1
+          },
+          "signals": [
+            {
+              "action": "buy",
+              "reason": "Top pick: Quant 4.5, Rev=A+, Gro=A, Val=C+",
+              "rules": [
+                "max_adds_per_evaluation",
+                "min_quant_rating",
+                "min_revisions_grade",
+                "min_growth_grade",
+                "min_profitability_grade",
+                "min_valuation_grade"
+              ],
+              "ticker": "FIX"
+            }
+          ],
+          "top_pick": "FIX",
+          "top_ranked": "FIX",
+          "top_ranked_qr": 4.548,
+          "trades": [
+            {
+              "action": "buy",
+              "eval_date": "2026-08-07",
+              "fill_date": "2026-08-07",
+              "notional": 1000.0,
+              "price": 1694.55,
+              "reason": "Top pick: Quant 4.5, Rev=A+, Gro=A, Val=C+",
+              "shares": 0.590127,
+              "side": "buy",
+              "ticker": "FIX"
+            }
+          ],
           "universe_scope": "top400_live"
         },
         {
           "as_of": "2026-08-21",
-          "bought": null,
+          "bought": "GOOG",
           "forced_exits": [],
-          "gate_pass": [],
-          "holdings_after": [],
-          "n_gate_pass": 0,
-          "n_scored": 247,
-          "rule_counts": {},
-          "signals": [],
-          "top_pick": null,
-          "top_ranked": "MU",
-          "trades": [],
+          "gate_fail_counts": {
+            "min_growth_grade": 124,
+            "min_profitability_grade": 1,
+            "min_quant_rating": 221,
+            "min_revisions_grade": 163,
+            "min_valuation_grade": 19
+          },
+          "gate_pass": [
+            "FIX",
+            "GOOG",
+            "TER",
+            "VRT",
+            "BE",
+            "AMZN",
+            "WDC",
+            "GEV",
+            "BMY",
+            "LRCX",
+            "CVNA",
+            "PWR",
+            "ALAB",
+            "KO",
+            "CBOE",
+            "EME"
+          ],
+          "holdings_after": [
+            "FIX",
+            "GOOG"
+          ],
+          "max_qr": 4.554,
+          "n_gate_pass": 16,
+          "n_qr_ge_4_0": 18,
+          "n_scored": 239,
+          "n_self_paired": 0,
+          "revision_lookback_days": {
+            "19": 1,
+            "21": 368,
+            "5": 1,
+            "7": 15
+          },
+          "revisions_grade_counts": {
+            "A": 22,
+            "A+": 13,
+            "A-": 23,
+            "B": 17,
+            "B+": 18,
+            "B-": 27,
+            "C": 19,
+            "C+": 70,
+            "C-": 9,
+            "D": 8,
+            "D+": 3,
+            "D-": 7,
+            "F": 3
+          },
+          "revisions_grade_mode": "C+",
+          "revisions_grade_mode_share": 0.2929,
+          "rule_counts": {
+            "max_adds_per_evaluation": 1,
+            "min_growth_grade": 1,
+            "min_profitability_grade": 1,
+            "min_quant_rating": 1,
+            "min_revisions_grade": 1,
+            "min_valuation_grade": 1
+          },
+          "signals": [
+            {
+              "action": "buy",
+              "reason": "Top pick: Quant 4.5, Rev=A, Gro=A, Val=C+",
+              "rules": [
+                "max_adds_per_evaluation",
+                "min_quant_rating",
+                "min_revisions_grade",
+                "min_growth_grade",
+                "min_profitability_grade",
+                "min_valuation_grade"
+              ],
+              "ticker": "GOOG"
+            }
+          ],
+          "top_pick": "GOOG",
+          "top_ranked": "FIX",
+          "top_ranked_qr": 4.554,
+          "trades": [
+            {
+              "action": "buy",
+              "eval_date": "2026-08-21",
+              "fill_date": "2026-08-21",
+              "notional": 1000.0,
+              "price": 341.75,
+              "reason": "Top pick: Quant 4.5, Rev=A, Gro=A, Val=C+",
+              "shares": 2.926116,
+              "side": "buy",
+              "ticker": "GOOG"
+            }
+          ],
           "universe_scope": "top400_live"
         },
         {
           "as_of": "2026-09-04",
           "bought": "LLY",
           "forced_exits": [],
+          "gate_fail_counts": {
+            "min_growth_grade": 134,
+            "min_profitability_grade": 3,
+            "min_quant_rating": 230,
+            "min_revisions_grade": 174,
+            "min_valuation_grade": 18
+          },
           "gate_pass": [
             "LLY",
             "GOOG",
@@ -53,20 +231,48 @@
             "COHR",
             "WDC",
             "PSX",
-            "ALAB",
             "AMGN",
-            "TWLO",
-            "CBOE",
+            "ALAB",
             "PWR",
+            "TWLO",
             "CAT",
-            "KEYS",
-            "BMY"
+            "CBOE",
+            "BMY",
+            "KEYS"
           ],
           "holdings_after": [
+            "FIX",
+            "GOOG",
             "LLY"
           ],
+          "max_qr": 4.465,
           "n_gate_pass": 18,
-          "n_scored": 252,
+          "n_qr_ge_4_0": 19,
+          "n_scored": 249,
+          "n_self_paired": 0,
+          "revision_lookback_days": {
+            "21": 378,
+            "28": 1,
+            "5": 1,
+            "7": 4
+          },
+          "revisions_grade_counts": {
+            "A": 26,
+            "A+": 10,
+            "A-": 28,
+            "B": 25,
+            "B+": 11,
+            "B-": 33,
+            "C": 38,
+            "C+": 34,
+            "C-": 25,
+            "D": 6,
+            "D+": 8,
+            "D-": 2,
+            "F": 3
+          },
+          "revisions_grade_mode": "C",
+          "revisions_grade_mode_share": 0.1526,
           "rule_counts": {
             "max_adds_per_evaluation": 1,
             "min_growth_grade": 1,
@@ -92,6 +298,7 @@
           ],
           "top_pick": "LLY",
           "top_ranked": "LLY",
+          "top_ranked_qr": 4.465,
           "trades": [
             {
               "action": "buy",
@@ -111,15 +318,15 @@
       "mixed_scopes": false,
       "n_evaluations": 3,
       "rule_counts": {
-        "max_adds_per_evaluation": 1,
-        "min_growth_grade": 1,
-        "min_profitability_grade": 1,
-        "min_quant_rating": 1,
-        "min_revisions_grade": 1,
-        "min_valuation_grade": 1
+        "max_adds_per_evaluation": 3,
+        "min_growth_grade": 3,
+        "min_profitability_grade": 3,
+        "min_quant_rating": 3,
+        "min_revisions_grade": 3,
+        "min_valuation_grade": 3
       },
       "trades_by_action": {
-        "buy": 1
+        "buy": 3
       },
       "universe_scopes": [
         "top400_live"
@@ -139,11 +346,13 @@
     "sensitivity": {
       "diagnostics": {
         "end_holdings": [
+          "FIX",
+          "GOOG",
           "LLY"
         ],
         "n_evaluations": 3,
         "trades_by_action": {
-          "buy": 1
+          "buy": 3
         }
       },
       "fill": {
@@ -151,6 +360,28 @@
         "slippage_bps": 10.0
       },
       "trades": [
+        {
+          "action": "buy",
+          "eval_date": "2026-08-07",
+          "fill_date": "2026-08-10",
+          "notional": 1000.0,
+          "price": 1676.51484,
+          "reason": "Top pick: Quant 4.5, Rev=A+, Gro=A, Val=C+",
+          "shares": 0.596475,
+          "side": "buy",
+          "ticker": "FIX"
+        },
+        {
+          "action": "buy",
+          "eval_date": "2026-08-21",
+          "fill_date": "2026-08-24",
+          "notional": 1000.0,
+          "price": 344.93459,
+          "reason": "Top pick: Quant 4.5, Rev=A, Gro=A, Val=C+",
+          "shares": 2.8991,
+          "side": "buy",
+          "ticker": "GOOG"
+        },
         {
           "action": "buy",
           "eval_date": "2026-09-04",
@@ -165,7 +396,30 @@
       ]
     },
     "start": "2026-08-07",
+    "tape_version": 2,
     "trades": [
+      {
+        "action": "buy",
+        "eval_date": "2026-08-07",
+        "fill_date": "2026-08-07",
+        "notional": 1000.0,
+        "price": 1694.55,
+        "reason": "Top pick: Quant 4.5, Rev=A+, Gro=A, Val=C+",
+        "shares": 0.590127,
+        "side": "buy",
+        "ticker": "FIX"
+      },
+      {
+        "action": "buy",
+        "eval_date": "2026-08-21",
+        "fill_date": "2026-08-21",
+        "notional": 1000.0,
+        "price": 341.75,
+        "reason": "Top pick: Quant 4.5, Rev=A, Gro=A, Val=C+",
+        "shares": 2.926116,
+        "side": "buy",
+        "ticker": "GOOG"
+      },
       {
         "action": "buy",
         "eval_date": "2026-09-04",
@@ -190,48 +444,226 @@
     "start": "2026-08-07",
     "universe_scope": "all"
   },
-  "dataset_sha256": "b052a791ebc827e7e750b7a251b07e515235708fe612a1e4b0bf9192a6f724c0",
+  "dataset_sha256": "d61437921c87c4130d008c17dbaa5de7ec7bf211e66e4b46e99a90b3a2ed6205",
   "diagnostics": {
     "end_holdings": [
+      "FIX",
+      "GOOG",
       "LLY"
     ],
-    "end_position_count": 1,
+    "end_position_count": 3,
     "forced_exits": [],
     "fridays": [
       {
         "as_of": "2026-08-07",
-        "bought": null,
+        "bought": "FIX",
         "forced_exits": [],
-        "gate_pass": [],
-        "holdings_after": [],
-        "n_gate_pass": 0,
-        "n_scored": 245,
-        "rule_counts": {},
-        "signals": [],
-        "top_pick": null,
-        "top_ranked": "MU",
-        "trades": [],
+        "gate_fail_counts": {
+          "min_growth_grade": 125,
+          "min_profitability_grade": 1,
+          "min_quant_rating": 223,
+          "min_revisions_grade": 163,
+          "min_valuation_grade": 19
+        },
+        "gate_pass": [
+          "FIX",
+          "GOOG",
+          "TER",
+          "BE",
+          "VRT",
+          "AMZN",
+          "WDC",
+          "BMY",
+          "ALAB",
+          "LRCX",
+          "PWR",
+          "GEV",
+          "KO",
+          "EME"
+        ],
+        "holdings_after": [
+          "FIX"
+        ],
+        "max_qr": 4.548,
+        "n_gate_pass": 14,
+        "n_qr_ge_4_0": 16,
+        "n_scored": 239,
+        "n_self_paired": 0,
+        "revision_lookback_days": {
+          "5": 371,
+          "7": 1
+        },
+        "revisions_grade_counts": {
+          "A": 23,
+          "A+": 13,
+          "A-": 19,
+          "B": 18,
+          "B+": 21,
+          "B-": 27,
+          "C": 19,
+          "C+": 69,
+          "C-": 8,
+          "D": 8,
+          "D+": 4,
+          "D-": 7,
+          "F": 3
+        },
+        "revisions_grade_mode": "C+",
+        "revisions_grade_mode_share": 0.2887,
+        "rule_counts": {
+          "max_adds_per_evaluation": 1,
+          "min_growth_grade": 1,
+          "min_profitability_grade": 1,
+          "min_quant_rating": 1,
+          "min_revisions_grade": 1,
+          "min_valuation_grade": 1
+        },
+        "signals": [
+          {
+            "action": "buy",
+            "reason": "Top pick: Quant 4.5, Rev=A+, Gro=A, Val=C+",
+            "rules": [
+              "max_adds_per_evaluation",
+              "min_quant_rating",
+              "min_revisions_grade",
+              "min_growth_grade",
+              "min_profitability_grade",
+              "min_valuation_grade"
+            ],
+            "ticker": "FIX"
+          }
+        ],
+        "top_pick": "FIX",
+        "top_ranked": "FIX",
+        "top_ranked_qr": 4.548,
+        "trades": [
+          {
+            "action": "buy",
+            "eval_date": "2026-08-07",
+            "fill_date": "2026-08-07",
+            "notional": 1000.0,
+            "price": 1694.55,
+            "reason": "Top pick: Quant 4.5, Rev=A+, Gro=A, Val=C+",
+            "shares": 0.590127,
+            "side": "buy",
+            "ticker": "FIX"
+          }
+        ],
         "universe_scope": "top400_live"
       },
       {
         "as_of": "2026-08-21",
-        "bought": null,
+        "bought": "GOOG",
         "forced_exits": [],
-        "gate_pass": [],
-        "holdings_after": [],
-        "n_gate_pass": 0,
-        "n_scored": 247,
-        "rule_counts": {},
-        "signals": [],
-        "top_pick": null,
-        "top_ranked": "MU",
-        "trades": [],
+        "gate_fail_counts": {
+          "min_growth_grade": 124,
+          "min_profitability_grade": 1,
+          "min_quant_rating": 221,
+          "min_revisions_grade": 163,
+          "min_valuation_grade": 19
+        },
+        "gate_pass": [
+          "FIX",
+          "GOOG",
+          "TER",
+          "VRT",
+          "BE",
+          "AMZN",
+          "WDC",
+          "GEV",
+          "BMY",
+          "LRCX",
+          "CVNA",
+          "PWR",
+          "ALAB",
+          "KO",
+          "CBOE",
+          "EME"
+        ],
+        "holdings_after": [
+          "FIX",
+          "GOOG"
+        ],
+        "max_qr": 4.554,
+        "n_gate_pass": 16,
+        "n_qr_ge_4_0": 18,
+        "n_scored": 239,
+        "n_self_paired": 0,
+        "revision_lookback_days": {
+          "19": 1,
+          "21": 368,
+          "5": 1,
+          "7": 15
+        },
+        "revisions_grade_counts": {
+          "A": 22,
+          "A+": 13,
+          "A-": 23,
+          "B": 17,
+          "B+": 18,
+          "B-": 27,
+          "C": 19,
+          "C+": 70,
+          "C-": 9,
+          "D": 8,
+          "D+": 3,
+          "D-": 7,
+          "F": 3
+        },
+        "revisions_grade_mode": "C+",
+        "revisions_grade_mode_share": 0.2929,
+        "rule_counts": {
+          "max_adds_per_evaluation": 1,
+          "min_growth_grade": 1,
+          "min_profitability_grade": 1,
+          "min_quant_rating": 1,
+          "min_revisions_grade": 1,
+          "min_valuation_grade": 1
+        },
+        "signals": [
+          {
+            "action": "buy",
+            "reason": "Top pick: Quant 4.5, Rev=A, Gro=A, Val=C+",
+            "rules": [
+              "max_adds_per_evaluation",
+              "min_quant_rating",
+              "min_revisions_grade",
+              "min_growth_grade",
+              "min_profitability_grade",
+              "min_valuation_grade"
+            ],
+            "ticker": "GOOG"
+          }
+        ],
+        "top_pick": "GOOG",
+        "top_ranked": "FIX",
+        "top_ranked_qr": 4.554,
+        "trades": [
+          {
+            "action": "buy",
+            "eval_date": "2026-08-21",
+            "fill_date": "2026-08-21",
+            "notional": 1000.0,
+            "price": 341.75,
+            "reason": "Top pick: Quant 4.5, Rev=A, Gro=A, Val=C+",
+            "shares": 2.926116,
+            "side": "buy",
+            "ticker": "GOOG"
+          }
+        ],
         "universe_scope": "top400_live"
       },
       {
         "as_of": "2026-09-04",
         "bought": "LLY",
         "forced_exits": [],
+        "gate_fail_counts": {
+          "min_growth_grade": 134,
+          "min_profitability_grade": 3,
+          "min_quant_rating": 230,
+          "min_revisions_grade": 174,
+          "min_valuation_grade": 18
+        },
         "gate_pass": [
           "LLY",
           "GOOG",
@@ -243,20 +675,48 @@
           "COHR",
           "WDC",
           "PSX",
-          "ALAB",
           "AMGN",
-          "TWLO",
-          "CBOE",
+          "ALAB",
           "PWR",
+          "TWLO",
           "CAT",
-          "KEYS",
-          "BMY"
+          "CBOE",
+          "BMY",
+          "KEYS"
         ],
         "holdings_after": [
+          "FIX",
+          "GOOG",
           "LLY"
         ],
+        "max_qr": 4.465,
         "n_gate_pass": 18,
-        "n_scored": 252,
+        "n_qr_ge_4_0": 19,
+        "n_scored": 249,
+        "n_self_paired": 0,
+        "revision_lookback_days": {
+          "21": 378,
+          "28": 1,
+          "5": 1,
+          "7": 4
+        },
+        "revisions_grade_counts": {
+          "A": 26,
+          "A+": 10,
+          "A-": 28,
+          "B": 25,
+          "B+": 11,
+          "B-": 33,
+          "C": 38,
+          "C+": 34,
+          "C-": 25,
+          "D": 6,
+          "D+": 8,
+          "D-": 2,
+          "F": 3
+        },
+        "revisions_grade_mode": "C",
+        "revisions_grade_mode_share": 0.1526,
         "rule_counts": {
           "max_adds_per_evaluation": 1,
           "min_growth_grade": 1,
@@ -282,6 +742,7 @@
         ],
         "top_pick": "LLY",
         "top_ranked": "LLY",
+        "top_ranked_qr": 4.465,
         "trades": [
           {
             "action": "buy",
@@ -301,15 +762,15 @@
     "mixed_scopes": false,
     "n_evaluations": 3,
     "rule_counts": {
-      "max_adds_per_evaluation": 1,
-      "min_growth_grade": 1,
-      "min_profitability_grade": 1,
-      "min_quant_rating": 1,
-      "min_revisions_grade": 1,
-      "min_valuation_grade": 1
+      "max_adds_per_evaluation": 3,
+      "min_growth_grade": 3,
+      "min_profitability_grade": 3,
+      "min_quant_rating": 3,
+      "min_revisions_grade": 3,
+      "min_valuation_grade": 3
     },
     "trades_by_action": {
-      "buy": 1
+      "buy": 3
     },
     "universe_scopes": [
       "top400_live"
@@ -318,151 +779,151 @@
   "end": "2026-09-04",
   "equity_curve": [
     {
-      "cash": 50000.0,
-      "date": "2026-08-07",
-      "equity": 50000.0,
-      "invested": 0.0,
-      "position_count": 0
-    },
-    {
-      "cash": 50000.0,
-      "date": "2026-08-10",
-      "equity": 50000.0,
-      "invested": 0.0,
-      "position_count": 0
-    },
-    {
-      "cash": 50000.0,
-      "date": "2026-08-11",
-      "equity": 50000.0,
-      "invested": 0.0,
-      "position_count": 0
-    },
-    {
-      "cash": 50000.0,
-      "date": "2026-08-12",
-      "equity": 50000.0,
-      "invested": 0.0,
-      "position_count": 0
-    },
-    {
-      "cash": 50000.0,
-      "date": "2026-08-13",
-      "equity": 50000.0,
-      "invested": 0.0,
-      "position_count": 0
-    },
-    {
-      "cash": 50000.0,
-      "date": "2026-08-14",
-      "equity": 50000.0,
-      "invested": 0.0,
-      "position_count": 0
-    },
-    {
-      "cash": 50000.0,
-      "date": "2026-08-17",
-      "equity": 50000.0,
-      "invested": 0.0,
-      "position_count": 0
-    },
-    {
-      "cash": 50000.0,
-      "date": "2026-08-18",
-      "equity": 50000.0,
-      "invested": 0.0,
-      "position_count": 0
-    },
-    {
-      "cash": 50000.0,
-      "date": "2026-08-19",
-      "equity": 50000.0,
-      "invested": 0.0,
-      "position_count": 0
-    },
-    {
-      "cash": 50000.0,
-      "date": "2026-08-20",
-      "equity": 50000.0,
-      "invested": 0.0,
-      "position_count": 0
-    },
-    {
-      "cash": 50000.0,
-      "date": "2026-08-21",
-      "equity": 50000.0,
-      "invested": 0.0,
-      "position_count": 0
-    },
-    {
-      "cash": 50000.0,
-      "date": "2026-08-24",
-      "equity": 50000.0,
-      "invested": 0.0,
-      "position_count": 0
-    },
-    {
-      "cash": 50000.0,
-      "date": "2026-08-25",
-      "equity": 50000.0,
-      "invested": 0.0,
-      "position_count": 0
-    },
-    {
-      "cash": 50000.0,
-      "date": "2026-08-26",
-      "equity": 50000.0,
-      "invested": 0.0,
-      "position_count": 0
-    },
-    {
-      "cash": 50000.0,
-      "date": "2026-08-27",
-      "equity": 50000.0,
-      "invested": 0.0,
-      "position_count": 0
-    },
-    {
-      "cash": 50000.0,
-      "date": "2026-08-28",
-      "equity": 50000.0,
-      "invested": 0.0,
-      "position_count": 0
-    },
-    {
-      "cash": 50000.0,
-      "date": "2026-08-31",
-      "equity": 50000.0,
-      "invested": 0.0,
-      "position_count": 0
-    },
-    {
-      "cash": 50000.0,
-      "date": "2026-09-01",
-      "equity": 50000.0,
-      "invested": 0.0,
-      "position_count": 0
-    },
-    {
-      "cash": 50000.0,
-      "date": "2026-09-02",
-      "equity": 50000.0,
-      "invested": 0.0,
-      "position_count": 0
-    },
-    {
-      "cash": 50000.0,
-      "date": "2026-09-03",
-      "equity": 50000.0,
-      "invested": 0.0,
-      "position_count": 0
-    },
-    {
       "cash": 49000.0,
-      "date": "2026-09-04",
+      "date": "2026-08-07",
       "equity": 50000.0,
       "invested": 1000.0,
       "position_count": 1
+    },
+    {
+      "cash": 49000.0,
+      "date": "2026-08-10",
+      "equity": 49988.37,
+      "invested": 988.37,
+      "position_count": 1
+    },
+    {
+      "cash": 49000.0,
+      "date": "2026-08-11",
+      "equity": 49996.16,
+      "invested": 996.16,
+      "position_count": 1
+    },
+    {
+      "cash": 49000.0,
+      "date": "2026-08-12",
+      "equity": 50026.12,
+      "invested": 1026.12,
+      "position_count": 1
+    },
+    {
+      "cash": 49000.0,
+      "date": "2026-08-13",
+      "equity": 50019.53,
+      "invested": 1019.53,
+      "position_count": 1
+    },
+    {
+      "cash": 49000.0,
+      "date": "2026-08-14",
+      "equity": 50046.92,
+      "invested": 1046.92,
+      "position_count": 1
+    },
+    {
+      "cash": 49000.0,
+      "date": "2026-08-17",
+      "equity": 50110.14,
+      "invested": 1110.14,
+      "position_count": 1
+    },
+    {
+      "cash": 49000.0,
+      "date": "2026-08-18",
+      "equity": 50026.28,
+      "invested": 1026.28,
+      "position_count": 1
+    },
+    {
+      "cash": 49000.0,
+      "date": "2026-08-19",
+      "equity": 50000.89,
+      "invested": 1000.89,
+      "position_count": 1
+    },
+    {
+      "cash": 49000.0,
+      "date": "2026-08-20",
+      "equity": 49987.25,
+      "invested": 987.25,
+      "position_count": 1
+    },
+    {
+      "cash": 48000.0,
+      "date": "2026-08-21",
+      "equity": 49977.02,
+      "invested": 1977.02,
+      "position_count": 2
+    },
+    {
+      "cash": 48000.0,
+      "date": "2026-08-24",
+      "equity": 49958.23,
+      "invested": 1958.23,
+      "position_count": 2
+    },
+    {
+      "cash": 48000.0,
+      "date": "2026-08-25",
+      "equity": 49926.41,
+      "invested": 1926.41,
+      "position_count": 2
+    },
+    {
+      "cash": 48000.0,
+      "date": "2026-08-26",
+      "equity": 49945.71,
+      "invested": 1945.71,
+      "position_count": 2
+    },
+    {
+      "cash": 48000.0,
+      "date": "2026-08-27",
+      "equity": 49941.22,
+      "invested": 1941.22,
+      "position_count": 2
+    },
+    {
+      "cash": 48000.0,
+      "date": "2026-08-28",
+      "equity": 49899.55,
+      "invested": 1899.55,
+      "position_count": 2
+    },
+    {
+      "cash": 48000.0,
+      "date": "2026-08-31",
+      "equity": 49893.56,
+      "invested": 1893.56,
+      "position_count": 2
+    },
+    {
+      "cash": 48000.0,
+      "date": "2026-09-01",
+      "equity": 49888.83,
+      "invested": 1888.83,
+      "position_count": 2
+    },
+    {
+      "cash": 48000.0,
+      "date": "2026-09-02",
+      "equity": 49897.35,
+      "invested": 1897.35,
+      "position_count": 2
+    },
+    {
+      "cash": 48000.0,
+      "date": "2026-09-03",
+      "equity": 49924.7,
+      "invested": 1924.7,
+      "position_count": 2
+    },
+    {
+      "cash": 47000.0,
+      "date": "2026-09-04",
+      "equity": 49931.46,
+      "invested": 2931.46,
+      "position_count": 3
     }
   ],
   "fill": {
@@ -470,11 +931,23 @@
     "slippage_bps": 0.0
   },
   "final": {
-    "cash": 49000.0,
-    "equity": 50000.0,
-    "invested": 1000.0,
-    "position_count": 1,
+    "cash": 47000.0,
+    "equity": 49931.46,
+    "invested": 2931.46,
+    "position_count": 3,
     "positions": {
+      "FIX": {
+        "avg_cost": 1694.55,
+        "current_price": 1610.34,
+        "is_house_money": false,
+        "shares": 0.590127
+      },
+      "GOOG": {
+        "avg_cost": 341.75,
+        "current_price": 335.31,
+        "is_house_money": false,
+        "shares": 2.926116
+      },
       "LLY": {
         "avg_cost": 1149.36,
         "current_price": 1149.36,
@@ -523,45 +996,223 @@
   "sensitivity": {
     "diagnostics": {
       "end_holdings": [
+        "FIX",
+        "GOOG",
         "LLY"
       ],
-      "end_position_count": 1,
+      "end_position_count": 3,
       "forced_exits": [],
       "fridays": [
         {
           "as_of": "2026-08-07",
-          "bought": null,
+          "bought": "FIX",
           "forced_exits": [],
-          "gate_pass": [],
-          "holdings_after": [],
-          "n_gate_pass": 0,
-          "n_scored": 245,
-          "rule_counts": {},
-          "signals": [],
-          "top_pick": null,
-          "top_ranked": "MU",
-          "trades": [],
+          "gate_fail_counts": {
+            "min_growth_grade": 125,
+            "min_profitability_grade": 1,
+            "min_quant_rating": 223,
+            "min_revisions_grade": 163,
+            "min_valuation_grade": 19
+          },
+          "gate_pass": [
+            "FIX",
+            "GOOG",
+            "TER",
+            "BE",
+            "VRT",
+            "AMZN",
+            "WDC",
+            "BMY",
+            "ALAB",
+            "LRCX",
+            "PWR",
+            "GEV",
+            "KO",
+            "EME"
+          ],
+          "holdings_after": [
+            "FIX"
+          ],
+          "max_qr": 4.548,
+          "n_gate_pass": 14,
+          "n_qr_ge_4_0": 16,
+          "n_scored": 239,
+          "n_self_paired": 0,
+          "revision_lookback_days": {
+            "5": 371,
+            "7": 1
+          },
+          "revisions_grade_counts": {
+            "A": 23,
+            "A+": 13,
+            "A-": 19,
+            "B": 18,
+            "B+": 21,
+            "B-": 27,
+            "C": 19,
+            "C+": 69,
+            "C-": 8,
+            "D": 8,
+            "D+": 4,
+            "D-": 7,
+            "F": 3
+          },
+          "revisions_grade_mode": "C+",
+          "revisions_grade_mode_share": 0.2887,
+          "rule_counts": {
+            "max_adds_per_evaluation": 1,
+            "min_growth_grade": 1,
+            "min_profitability_grade": 1,
+            "min_quant_rating": 1,
+            "min_revisions_grade": 1,
+            "min_valuation_grade": 1
+          },
+          "signals": [
+            {
+              "action": "buy",
+              "reason": "Top pick: Quant 4.5, Rev=A+, Gro=A, Val=C+",
+              "rules": [
+                "max_adds_per_evaluation",
+                "min_quant_rating",
+                "min_revisions_grade",
+                "min_growth_grade",
+                "min_profitability_grade",
+                "min_valuation_grade"
+              ],
+              "ticker": "FIX"
+            }
+          ],
+          "top_pick": "FIX",
+          "top_ranked": "FIX",
+          "top_ranked_qr": 4.548,
+          "trades": [
+            {
+              "action": "buy",
+              "eval_date": "2026-08-07",
+              "fill_date": "2026-08-10",
+              "notional": 1000.0,
+              "price": 1676.51484,
+              "reason": "Top pick: Quant 4.5, Rev=A+, Gro=A, Val=C+",
+              "shares": 0.596475,
+              "side": "buy",
+              "ticker": "FIX"
+            }
+          ],
           "universe_scope": "top400_live"
         },
         {
           "as_of": "2026-08-21",
-          "bought": null,
+          "bought": "GOOG",
           "forced_exits": [],
-          "gate_pass": [],
-          "holdings_after": [],
-          "n_gate_pass": 0,
-          "n_scored": 247,
-          "rule_counts": {},
-          "signals": [],
-          "top_pick": null,
-          "top_ranked": "MU",
-          "trades": [],
+          "gate_fail_counts": {
+            "min_growth_grade": 124,
+            "min_profitability_grade": 1,
+            "min_quant_rating": 221,
+            "min_revisions_grade": 163,
+            "min_valuation_grade": 19
+          },
+          "gate_pass": [
+            "FIX",
+            "GOOG",
+            "TER",
+            "VRT",
+            "BE",
+            "AMZN",
+            "WDC",
+            "GEV",
+            "BMY",
+            "LRCX",
+            "CVNA",
+            "PWR",
+            "ALAB",
+            "KO",
+            "CBOE",
+            "EME"
+          ],
+          "holdings_after": [
+            "FIX",
+            "GOOG"
+          ],
+          "max_qr": 4.554,
+          "n_gate_pass": 16,
+          "n_qr_ge_4_0": 18,
+          "n_scored": 239,
+          "n_self_paired": 0,
+          "revision_lookback_days": {
+            "19": 1,
+            "21": 368,
+            "5": 1,
+            "7": 15
+          },
+          "revisions_grade_counts": {
+            "A": 22,
+            "A+": 13,
+            "A-": 23,
+            "B": 17,
+            "B+": 18,
+            "B-": 27,
+            "C": 19,
+            "C+": 70,
+            "C-": 9,
+            "D": 8,
+            "D+": 3,
+            "D-": 7,
+            "F": 3
+          },
+          "revisions_grade_mode": "C+",
+          "revisions_grade_mode_share": 0.2929,
+          "rule_counts": {
+            "max_adds_per_evaluation": 1,
+            "min_growth_grade": 1,
+            "min_profitability_grade": 1,
+            "min_quant_rating": 1,
+            "min_revisions_grade": 1,
+            "min_valuation_grade": 1
+          },
+          "signals": [
+            {
+              "action": "buy",
+              "reason": "Top pick: Quant 4.5, Rev=A, Gro=A, Val=C+",
+              "rules": [
+                "max_adds_per_evaluation",
+                "min_quant_rating",
+                "min_revisions_grade",
+                "min_growth_grade",
+                "min_profitability_grade",
+                "min_valuation_grade"
+              ],
+              "ticker": "GOOG"
+            }
+          ],
+          "top_pick": "GOOG",
+          "top_ranked": "FIX",
+          "top_ranked_qr": 4.554,
+          "trades": [
+            {
+              "action": "buy",
+              "eval_date": "2026-08-21",
+              "fill_date": "2026-08-24",
+              "notional": 1000.0,
+              "price": 344.93459,
+              "reason": "Top pick: Quant 4.5, Rev=A, Gro=A, Val=C+",
+              "shares": 2.8991,
+              "side": "buy",
+              "ticker": "GOOG"
+            }
+          ],
           "universe_scope": "top400_live"
         },
         {
           "as_of": "2026-09-04",
           "bought": "LLY",
           "forced_exits": [],
+          "gate_fail_counts": {
+            "min_growth_grade": 134,
+            "min_profitability_grade": 3,
+            "min_quant_rating": 230,
+            "min_revisions_grade": 174,
+            "min_valuation_grade": 18
+          },
           "gate_pass": [
             "LLY",
             "GOOG",
@@ -573,20 +1224,48 @@
             "COHR",
             "WDC",
             "PSX",
-            "ALAB",
             "AMGN",
-            "TWLO",
-            "CBOE",
+            "ALAB",
             "PWR",
+            "TWLO",
             "CAT",
-            "KEYS",
-            "BMY"
+            "CBOE",
+            "BMY",
+            "KEYS"
           ],
           "holdings_after": [
+            "FIX",
+            "GOOG",
             "LLY"
           ],
+          "max_qr": 4.465,
           "n_gate_pass": 18,
-          "n_scored": 252,
+          "n_qr_ge_4_0": 19,
+          "n_scored": 249,
+          "n_self_paired": 0,
+          "revision_lookback_days": {
+            "21": 378,
+            "28": 1,
+            "5": 1,
+            "7": 4
+          },
+          "revisions_grade_counts": {
+            "A": 26,
+            "A+": 10,
+            "A-": 28,
+            "B": 25,
+            "B+": 11,
+            "B-": 33,
+            "C": 38,
+            "C+": 34,
+            "C-": 25,
+            "D": 6,
+            "D+": 8,
+            "D-": 2,
+            "F": 3
+          },
+          "revisions_grade_mode": "C",
+          "revisions_grade_mode_share": 0.1526,
           "rule_counts": {
             "max_adds_per_evaluation": 1,
             "min_growth_grade": 1,
@@ -612,6 +1291,7 @@
           ],
           "top_pick": "LLY",
           "top_ranked": "LLY",
+          "top_ranked_qr": 4.465,
           "trades": [
             {
               "action": "buy",
@@ -631,15 +1311,15 @@
       "mixed_scopes": false,
       "n_evaluations": 3,
       "rule_counts": {
-        "max_adds_per_evaluation": 1,
-        "min_growth_grade": 1,
-        "min_profitability_grade": 1,
-        "min_quant_rating": 1,
-        "min_revisions_grade": 1,
-        "min_valuation_grade": 1
+        "max_adds_per_evaluation": 3,
+        "min_growth_grade": 3,
+        "min_profitability_grade": 3,
+        "min_quant_rating": 3,
+        "min_revisions_grade": 3,
+        "min_valuation_grade": 3
       },
       "trades_by_action": {
-        "buy": 1
+        "buy": 3
       },
       "universe_scopes": [
         "top400_live"
@@ -659,6 +1339,28 @@
     "trades": [
       {
         "action": "buy",
+        "eval_date": "2026-08-07",
+        "fill_date": "2026-08-10",
+        "notional": 1000.0,
+        "price": 1676.51484,
+        "reason": "Top pick: Quant 4.5, Rev=A+, Gro=A, Val=C+",
+        "shares": 0.596475,
+        "side": "buy",
+        "ticker": "FIX"
+      },
+      {
+        "action": "buy",
+        "eval_date": "2026-08-21",
+        "fill_date": "2026-08-24",
+        "notional": 1000.0,
+        "price": 344.93459,
+        "reason": "Top pick: Quant 4.5, Rev=A, Gro=A, Val=C+",
+        "shares": 2.8991,
+        "side": "buy",
+        "ticker": "GOOG"
+      },
+      {
+        "action": "buy",
         "eval_date": "2026-09-04",
         "fill_date": "2026-09-08",
         "notional": 1000.0,
@@ -672,7 +1374,30 @@
     "warnings": []
   },
   "start": "2026-08-07",
+  "tape_version": 2,
   "trades": [
+    {
+      "action": "buy",
+      "eval_date": "2026-08-07",
+      "fill_date": "2026-08-07",
+      "notional": 1000.0,
+      "price": 1694.55,
+      "reason": "Top pick: Quant 4.5, Rev=A+, Gro=A, Val=C+",
+      "shares": 0.590127,
+      "side": "buy",
+      "ticker": "FIX"
+    },
+    {
+      "action": "buy",
+      "eval_date": "2026-08-21",
+      "fill_date": "2026-08-21",
+      "notional": 1000.0,
+      "price": 341.75,
+      "reason": "Top pick: Quant 4.5, Rev=A, Gro=A, Val=C+",
+      "shares": 2.926116,
+      "side": "buy",
+      "ticker": "GOOG"
+    },
     {
       "action": "buy",
       "eval_date": "2026-09-04",

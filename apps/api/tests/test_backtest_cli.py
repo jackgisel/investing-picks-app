@@ -240,7 +240,7 @@ def test_shipped_toml_is_canonical():
     assert cfg.sensitivity_fill_price == "next_close"
     assert cfg.sensitivity_slippage_bps == 10
     assert cfg.dataset_sha256 == (
-        "b052a791ebc827e7e750b7a251b07e515235708fe612a1e4b0bf9192a6f724c0"
+        "d61437921c87c4130d008c17dbaa5de7ec7bf211e66e4b46e99a90b3a2ed6205"
     )
 
 

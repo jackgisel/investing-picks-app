@@ -25,6 +25,7 @@ from outpick_strategy.signals import meets_buy_criteria
 from app.services.replay import ReplayResult, ReplayTrade
 
 MIN_EVALUATIONS_FOR_RETURNS = 24
+MIN_EVALUATIONS_FOR_HOLDOUT = 48
 TRADING_DAYS_PER_YEAR = 252
 
 # Keys that constitute a performance claim. None of these may appear on a
@@ -226,6 +227,145 @@ def assert_no_return_metrics(metrics: dict[str, Any]) -> None:
     leaked = sorted(k for k in RETURN_METRIC_KEYS if k in metrics)
     if leaked:
         raise ValueError(f"return metrics leaked under the N≥24 gate: {leaked}")
+
+
+def holdout_split(
+    diagnostics: dict[str, Any],
+    *,
+    equity_curve: list[dict] | None = None,
+    trades: list[ReplayTrade] | None = None,
+    spy_closes: dict[date, float] | None = None,
+) -> dict[str, Any]:
+    """Chronological half/half in-sample vs holdout. Silent until N ≥ 48."""
+    fridays = list(diagnostics.get("fridays") or [])
+    n = int(diagnostics.get("n_evaluations") or len(fridays))
+    if n < MIN_EVALUATIONS_FOR_HOLDOUT or len(fridays) < MIN_EVALUATIONS_FOR_HOLDOUT:
+        return {
+            "status": "insufficient_sample",
+            "n_evaluations": n,
+            "min_evaluations": MIN_EVALUATIONS_FOR_HOLDOUT,
+            "in_sample": None,
+            "out_of_sample": None,
+        }
+    mid = n // 2
+    in_s, oos = fridays[:mid], fridays[mid:]
+    payload = {
+        "status": "ok",
+        "n_evaluations": n,
+        "min_evaluations": MIN_EVALUATIONS_FOR_HOLDOUT,
+        "in_sample": _holdout_slice(in_s, equity_curve, trades, spy_closes),
+        "out_of_sample": _holdout_slice(oos, equity_curve, trades, spy_closes),
+    }
+    return payload
+
+
+def _holdout_slice(
+    fridays: list[dict[str, Any]],
+    equity_curve: list[dict] | None,
+    trades: list[ReplayTrade] | None,
+    spy_closes: dict[date, float] | None,
+) -> dict[str, Any]:
+    start = fridays[0]["as_of"]
+    end = fridays[-1]["as_of"]
+    slice_n = len(fridays)
+    out: dict[str, Any] = {
+        "n_evaluations": slice_n,
+        "start": start,
+        "end": end,
+        "top_picks": [f.get("top_pick") for f in fridays],
+        "n_gate_pass_mean": round(
+            sum(int(f.get("n_gate_pass") or 0) for f in fridays) / slice_n, 2
+        ),
+        "metrics": {
+            "status": "insufficient_sample",
+            "n_evaluations": slice_n,
+            "min_evaluations": MIN_EVALUATIONS_FOR_RETURNS,
+        },
+    }
+    if (
+        slice_n >= MIN_EVALUATIONS_FOR_RETURNS
+        and equity_curve
+        and trades is not None
+    ):
+        curve = [
+            p
+            for p in equity_curve
+            if start <= str(p.get("date") or "") <= end
+        ]
+        window_trades = [
+            t
+            for t in trades
+            if start <= t.eval_date.isoformat() <= end
+        ]
+        out["metrics"] = risk_return_metrics(
+            n_evaluations=slice_n,
+            equity_curve=curve,
+            trades=window_trades,
+            spy_closes=spy_closes,
+        )
+        assert_no_return_metrics(out["metrics"])
+    return out
+
+
+def promotion_gates(n_evaluations: int) -> dict[str, Any]:
+    """Which comparison tables are honest at this sample size."""
+    return {
+        "decision_diff": {
+            "status": "ok",
+            "n_evaluations": n_evaluations,
+            "min_evaluations": 0,
+        },
+        "returns": {
+            "status": (
+                "ok"
+                if n_evaluations >= MIN_EVALUATIONS_FOR_RETURNS
+                else "insufficient_sample"
+            ),
+            "n_evaluations": n_evaluations,
+            "min_evaluations": MIN_EVALUATIONS_FOR_RETURNS,
+        },
+        "holdout": {
+            "status": (
+                "ok"
+                if n_evaluations >= MIN_EVALUATIONS_FOR_HOLDOUT
+                else "insufficient_sample"
+            ),
+            "n_evaluations": n_evaluations,
+            "min_evaluations": MIN_EVALUATIONS_FOR_HOLDOUT,
+        },
+    }
+
+
+def decision_diff_table(
+    current: dict[str, Any], baseline: dict[str, Any]
+) -> dict[str, Any]:
+    """Always-valid compare: top picks, Jaccard of gate-pass, rule/trade/holdings."""
+    c_days = {f["as_of"]: f for f in current.get("fridays") or []}
+    b_days = {f["as_of"]: f for f in baseline.get("fridays") or []}
+    dates = sorted(set(c_days) | set(b_days))
+    top_pick_differ = 0
+    jaccards: list[float] = []
+    for d in dates:
+        cf = c_days.get(d) or {}
+        bf = b_days.get(d) or {}
+        a = set(cf.get("gate_pass") or [])
+        b = set(bf.get("gate_pass") or [])
+        union = a | b
+        jaccards.append((len(a & b) / len(union)) if union else 1.0)
+        if cf.get("top_pick") != bf.get("top_pick"):
+            top_pick_differ += 1
+    mean_j = sum(jaccards) / len(jaccards) if jaccards else 1.0
+    return {
+        "n_fridays": len(dates),
+        "top_pick_fridays_differ": top_pick_differ,
+        "mean_gate_pass_jaccard": round(mean_j, 4),
+        "end_holdings_current": current.get("end_holdings") or [],
+        "end_holdings_baseline": baseline.get("end_holdings") or [],
+        "trades_by_action_current": current.get("trades_by_action") or {},
+        "trades_by_action_baseline": baseline.get("trades_by_action") or {},
+        "rule_counts_current": current.get("rule_counts") or {},
+        "rule_counts_baseline": baseline.get("rule_counts") or {},
+    }
 
 
 def compare_payload(result_doc: dict[str, Any]) -> dict[str, Any]:

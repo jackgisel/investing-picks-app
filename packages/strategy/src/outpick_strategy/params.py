@@ -91,6 +91,9 @@ class StrategyParams:
     drawdown_resume_pct: float = -0.10
     enable_daily_sell_pass: bool = False
 
+    # Any change to these defaults, signals.py, or scoring.py MUST bump this
+    # label (run118 → run119 …), regenerate the golden snapshot and backtest
+    # baseline in the same PR, and add a STRATEGY_CHANGELOG.md entry.
     version_label: str = "run118"
 
     def target_notional(self, equity: float) -> float:

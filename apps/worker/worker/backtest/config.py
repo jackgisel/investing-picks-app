@@ -6,6 +6,7 @@ import tomllib
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
+import re
 
 
 def repo_root(start: Path | None = None) -> Path:
@@ -70,3 +71,22 @@ def load_config(path: str | Path, *, dataset_override: str | None = None) -> Bac
         sensitivity_slippage_bps=float(sensitivity.get("slippage_bps", 10)),
         source=path,
     )
+
+
+def update_config_pin(path: str | Path, *, end: date, dataset_sha256: str) -> None:
+    """Rewrite `end` and `dataset_sha256` in the canonical toml, keep comments."""
+    path = Path(path)
+    text = path.read_text()
+    text = re.sub(
+        r'(?m)^end = ".*"',
+        f'end = "{end.isoformat()}"',
+        text,
+        count=1,
+    )
+    text = re.sub(
+        r'(?m)^dataset_sha256 = ".*"',
+        f'dataset_sha256 = "{dataset_sha256}"',
+        text,
+        count=1,
+    )
+    path.write_text(text)

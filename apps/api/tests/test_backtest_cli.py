@@ -122,6 +122,9 @@ def test_run_report_compare_on_a_tiny_dataset(tmp_path):
     assert payload["config"]["max_adds_per_evaluation"] == 1
     assert payload["diagnostics"]["n_evaluations"] == 2
     assert payload["metrics"]["status"] == "insufficient_sample"
+    assert payload["holdout"]["status"] == "insufficient_sample"
+    assert payload["gates"]["decision_diff"]["status"] == "ok"
+    assert payload["gates"]["holdout"]["status"] == "insufficient_sample"
     assert "cagr_pct" not in payload["metrics"]
     assert "sharpe" not in payload["metrics"]
     assert "return_pct" not in payload["metrics"]
@@ -194,7 +197,24 @@ def test_cli_run_report_compare_roundtrip(tmp_path):
     text = md.read_text().lower()
     assert "insufficient sample" in text
     assert "cagr_pct:" not in text
+    assert "holdout" in text
     assert main(["compare", str(out), str(out)]) == 0
+    assert (
+        main(
+            [
+                "compare",
+                str(out),
+                str(out),
+                "--sweep",
+                "--config",
+                str(cfg),
+                "--dataset",
+                str(dataset),
+                "--skip-hash",
+            ]
+        )
+        == 0
+    )
 
 
 def test_shipped_toml_is_canonical():
@@ -285,3 +305,61 @@ def test_workflow_declares_the_backtest_job():
     assert "run-backtest" in text
     assert "actions/cache@v4" in text
     assert "BACKTEST_DATASET_URL" in text
+    assert "name: walk-forward" in text
+    assert "scripts/walk-forward-ci.sh" in text
+    assert "peter-evans/create-pull-request" in text
+    assert "STRATEGY_CHANGELOG.md" in text
+
+
+def test_sweep_never_touches_max_adds_or_size_and_reports_experiments(tmp_path):
+    from worker.backtest.sweep import NEVER_SWEEP, SWEEP_FIELDS, run_sweep
+
+    assert "max_adds_per_evaluation" in NEVER_SWEEP
+    assert "position_size_usd" in NEVER_SWEEP
+    assert "max_adds_per_evaluation" not in SWEEP_FIELDS
+
+    dataset = tmp_path / "dataset-v1.sqlite"
+    db = open_dataset(dataset)
+    _seed(db)
+    cfg = load_config(_toml(tmp_path, dataset))
+    payload = run_backtest(db, cfg, sensitivity=False, skip_hash=True)
+    report = run_sweep(db, cfg, payload, skip_hash=True)
+    db.close()
+    assert report["canonical_position_size_usd"] == 1000
+    assert report["max_adds_per_evaluation"] == 1
+    names = {row["name"] for row in report["rows"]}
+    assert "hold_removal_rating_plus_10pct" in names
+    assert "sector_concentration_minus_10pct" in names
+    exp = {row["name"] for row in report["experiments"]}
+    assert "min_holding_days_30" in exp
+    assert "drawdown_breaker_on" in exp
+    assert "hold_removal_2_7" in exp
+    assert "sector_cap_20pct" in exp
+    deferred = {row["name"] for row in report["deferred"]}
+    assert "four_window_momentum" in deferred
+    params = params_from_config(cfg, {"max_adds_per_evaluation": 9, "position_size_usd": 50})
+    assert params.max_adds_per_evaluation == 1
+    assert params.position_size_usd == 1000
+
+
+def test_walk_forward_cli_skips_without_database_url(monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    assert main(["walk-forward"]) == 0
+
+
+def test_update_config_pin_rewrites_end_and_hash(tmp_path):
+    from datetime import date as date_cls
+
+    from worker.backtest.config import update_config_pin
+
+    dataset = tmp_path / "d.sqlite"
+    dataset.write_bytes(b"x")
+    path = _toml(tmp_path, dataset)
+    update_config_pin(
+        path, end=date_cls(2026, 9, 18), dataset_sha256="abc" * 10 + "abcd"
+    )
+    text = path.read_text()
+    assert 'end = "2026-09-18"' in text
+    assert "abcabcabcabcabcabcabcabcabcabcabcd" in text
+    assert "position_size_usd = 1000" in text
+

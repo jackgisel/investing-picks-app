@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 from app.services.backtest_metrics import (
+    MIN_EVALUATIONS_FOR_HOLDOUT,
     MIN_EVALUATIONS_FOR_RETURNS,
     RETURN_METRIC_KEYS,
     assert_no_return_metrics,
@@ -62,12 +63,16 @@ def render_report(result: dict) -> str:
             "- **Mixed scopes.** Fridays are labelled individually; do not pool them."
         )
     lines.append("")
-    lines.append("## Sample-size gate")
+    lines.append("## Sample-size gates")
     lines.append("")
+    lines.append(
+        "- Decision-diff: **ok** at any N (top-pick Fridays, gate-pass Jaccard, "
+        "rule firings, trades, holdings)."
+    )
     if metrics.get("status") == "insufficient_sample" or n < MIN_EVALUATIONS_FOR_RETURNS:
         lines.append(
-            f"`n_evaluations` = {n} < {MIN_EVALUATIONS_FOR_RETURNS}. "
-            "Return metrics are not computed."
+            f"- Return metrics: **insufficient sample** "
+            f"(`n_evaluations` = {n} < {MIN_EVALUATIONS_FOR_RETURNS})."
         )
         lines.append("")
         lines.append(
@@ -76,9 +81,10 @@ def render_report(result: dict) -> str:
         )
     else:
         lines.append(
-            f"`n_evaluations` = {n} ≥ {MIN_EVALUATIONS_FOR_RETURNS}. "
-            "Risk/return with bootstrap bands:"
+            f"- Return metrics: **ok** (`n_evaluations` = {n} ≥ {MIN_EVALUATIONS_FOR_RETURNS})."
         )
+        lines.append("")
+        lines.append("Risk/return with bootstrap bands:")
         lines.append("")
         for key in (
             "cagr_pct",
@@ -97,6 +103,20 @@ def render_report(result: dict) -> str:
         bands = metrics.get("bands") or {}
         if bands:
             lines.append(f"- bands: {bands}")
+    holdout = result.get("holdout") or {}
+    if holdout.get("status") != "ok":
+        lines.append(
+            f"- In-sample / holdout: **insufficient sample** "
+            f"(`n_evaluations` = {n} < {MIN_EVALUATIONS_FOR_HOLDOUT})."
+        )
+    else:
+        ins = holdout.get("in_sample") or {}
+        oos = holdout.get("out_of_sample") or {}
+        lines.append(
+            f"- In-sample / holdout: **ok** "
+            f"(IS {ins.get('start')} → {ins.get('end')}, "
+            f"OOS {oos.get('start')} → {oos.get('end')})."
+        )
     lines.append("")
     lines.append("## Decision diagnostics")
     lines.append("")

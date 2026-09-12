@@ -13,7 +13,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from app.services.backtest_metrics import compare_payload
+from app.services.backtest_metrics import compare_payload, decision_diff_table
 
 
 def load_result(path: str | Path) -> dict:
@@ -40,6 +40,10 @@ def compare_results(
     if update_baseline:
         status = "update_baseline"
         exit_code = 0
+    table = decision_diff_table(
+        (current.get("diagnostics") or {}),
+        (baseline.get("diagnostics") or {}),
+    )
     return {
         "status": status,
         "exit_code": exit_code,
@@ -47,6 +51,7 @@ def compare_results(
         "same_data": same_data,
         "n_diffs": len(diffs),
         "diffs": diffs[:50],
+        "decision_diff": table,
         "params_version": {"current": left.get("params_version"), "baseline": right.get("params_version")},
         "dataset_sha256": {
             "current": left.get("dataset_sha256"),
@@ -67,6 +72,19 @@ def summary_markdown(report: dict) -> str:
         f"- Diffs: {report['n_diffs']}",
         "",
     ]
+    table = report.get("decision_diff") or {}
+    if table:
+        lines.extend(
+            [
+                "### Decision-diff (valid at any N)",
+                "",
+                f"- Top-pick Fridays that differ: {table.get('top_pick_fridays_differ')}",
+                f"- Mean gate-pass Jaccard: {table.get('mean_gate_pass_jaccard')}",
+                f"- End holdings current: `{table.get('end_holdings_current')}`",
+                f"- End holdings baseline: `{table.get('end_holdings_baseline')}`",
+                "",
+            ]
+        )
     if report["status"] == "baseline_stale":
         lines.append(
             "Strategy or dataset changed. Regenerate `backtests/baselines/run118.json` "

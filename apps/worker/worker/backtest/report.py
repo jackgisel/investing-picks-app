@@ -16,6 +16,27 @@ def load_result(path: str | Path) -> dict:
     return json.loads(Path(path).read_text())
 
 
+def write_equity_csv(result: dict, dest: Path) -> Path:
+    dest = Path(dest)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    rows = result.get("equity_curve") or []
+    lines = ["date,cash,invested,equity,position_count"]
+    for row in rows:
+        lines.append(
+            ",".join(
+                [
+                    str(row.get("date", "")),
+                    str(row.get("cash", "")),
+                    str(row.get("invested", "")),
+                    str(row.get("equity", "")),
+                    str(row.get("position_count", "")),
+                ]
+            )
+        )
+    dest.write_text("\n".join(lines) + "\n")
+    return dest
+
+
 def render_report(result: dict) -> str:
     metrics = result.get("metrics") or {}
     assert_no_return_metrics(metrics)

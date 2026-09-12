@@ -28,13 +28,13 @@ from app.config import get_settings
 from app.db.session import make_engine
 from worker.backtest.compare import compare_results, load_result as load_compare, summary_markdown
 from worker.backtest.config import load_config
-from worker.backtest.download import download_dataset
+from worker.backtest.download import download_dataset, fetch_pinned_dataset
 from worker.backtest.export import export_live_vintages
 from worker.backtest.ingest import ingest_dataset
 from worker.backtest.manifest import write_manifest
 from worker.backtest.membership import write_universe_membership
 from worker.backtest.parity import parity_report
-from worker.backtest.report import load_result as load_report, render_report
+from worker.backtest.report import load_result as load_report, render_report, write_equity_csv
 from worker.backtest.run import result_fingerprint, run_backtest, write_result
 from worker.backtest.score import score_dataset
 from worker.backtest.store import open_dataset
@@ -182,7 +182,8 @@ def cmd_report(ns) -> dict:
 def cmd_compare(ns) -> dict:
     current = load_compare(ns.current)
     baseline = load_compare(ns.baseline)
-    report = compare_results(current, baseline)
+    update = ns.update_baseline or os.environ.get("UPDATE_BASELINE") == "1"
+    report = compare_results(current, baseline, update_baseline=update)
     if ns.summary:
         print(summary_markdown(report))
     return report
@@ -190,7 +191,18 @@ def cmd_compare(ns) -> dict:
 
 def cmd_download(ns) -> dict:
     dest = Path(ns.dataset)
+    manifest = Path(ns.manifest) if ns.manifest else None
+    if manifest or os.environ.get("BACKTEST_DATASET_URL"):
+        return fetch_pinned_dataset(
+            dest, manifest=manifest, key=ns.key, sha256=ns.sha256
+        )
     return download_dataset(dest, key=ns.key, sha256=ns.sha256)
+
+
+def cmd_equity_csv(ns) -> dict:
+    result = load_report(ns.result)
+    path = write_equity_csv(result, Path(ns.out))
+    return {"out": str(path), "rows": len(result.get("equity_curve") or [])}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -256,11 +268,21 @@ def main(argv: list[str] | None = None) -> int:
     compare.add_argument("current")
     compare.add_argument("baseline")
     compare.add_argument("--summary", action="store_true")
+    compare.add_argument(
+        "--update-baseline",
+        action="store_true",
+        help="Do not fail when the strategy/dataset changed (UPDATE_BASELINE=1)",
+    )
 
-    download = sub.add_parser("download", help="Download the dataset from the Railway bucket")
+    download = sub.add_parser("download", help="Download the dataset from URL or the Railway bucket")
     download.add_argument("--dataset", required=True)
     download.add_argument("--key", default=None)
     download.add_argument("--sha256", default=None)
+    download.add_argument("--manifest", default=None)
+
+    equity = sub.add_parser("equity-csv", help="Write the equity curve as CSV")
+    equity.add_argument("result")
+    equity.add_argument("--out", required=True)
 
     ns = parser.parse_args(argv)
     fn = {
@@ -275,12 +297,16 @@ def main(argv: list[str] | None = None) -> int:
         "report": cmd_report,
         "compare": cmd_compare,
         "download": cmd_download,
+        "equity-csv": cmd_equity_csv,
     }[ns.cmd]
     result = fn(ns)
-    if ns.cmd != "report":
-        print(json.dumps(result, default=str, indent=2))
+    if ns.cmd == "report":
+        return 0
     if ns.cmd == "compare":
+        if not ns.summary:
+            print(json.dumps(result, default=str, indent=2))
         return int(result.get("exit_code") or 0)
+    print(json.dumps(result, default=str, indent=2))
     return 0
 
 

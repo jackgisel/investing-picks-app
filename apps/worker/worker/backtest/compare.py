@@ -20,7 +20,9 @@ def load_result(path: str | Path) -> dict:
     return json.loads(Path(path).read_text())
 
 
-def compare_results(current: dict, baseline: dict) -> dict[str, Any]:
+def compare_results(
+    current: dict, baseline: dict, *, update_baseline: bool = False
+) -> dict[str, Any]:
     left = current.get("compare") or compare_payload(current)
     right = baseline.get("compare") or compare_payload(baseline)
     diffs = _diff(left, right, path="$")
@@ -35,6 +37,9 @@ def compare_results(current: dict, baseline: dict) -> dict[str, Any]:
     else:
         status = "baseline_stale"
         exit_code = 2
+    if update_baseline:
+        status = "update_baseline"
+        exit_code = 0
     return {
         "status": status,
         "exit_code": exit_code,

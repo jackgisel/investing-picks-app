@@ -211,3 +211,77 @@ def test_shipped_toml_is_canonical():
     assert cfg.dataset_sha256 == (
         "b052a791ebc827e7e750b7a251b07e515235708fe612a1e4b0bf9192a6f724c0"
     )
+
+
+def test_fetch_pinned_dataset_from_url_and_cache(tmp_path, monkeypatch):
+    import hashlib
+    import json
+
+    from worker.backtest.download import fetch_pinned_dataset
+
+    blob = b"pinned-dataset-bytes"
+    remote = tmp_path / "remote.sqlite"
+    remote.write_bytes(blob)
+    digest = hashlib.sha256(blob).hexdigest()
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(
+        json.dumps({"dataset": "dataset-v1.sqlite", "sha256": digest, "bytes": len(blob)})
+    )
+    monkeypatch.setenv("BACKTEST_DATASET_URL", remote.resolve().as_uri())
+    dest = tmp_path / "dataset-v1.sqlite"
+    first = fetch_pinned_dataset(dest, manifest=manifest)
+    assert dest.read_bytes() == blob
+    assert first["cached"] is False
+    assert first["sha256"] == digest
+    second = fetch_pinned_dataset(dest, manifest=manifest)
+    assert second["cached"] is True
+
+
+def test_fetch_pinned_dataset_rejects_hash_mismatch(tmp_path, monkeypatch):
+    import json
+
+    from worker.backtest.download import fetch_pinned_dataset
+
+    remote = tmp_path / "remote.sqlite"
+    remote.write_bytes(b"nope")
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(json.dumps({"dataset": "dataset-v1.sqlite", "sha256": "abc"}))
+    monkeypatch.setenv("BACKTEST_DATASET_URL", remote.resolve().as_uri())
+    with pytest.raises(RuntimeError, match="hash mismatch"):
+        fetch_pinned_dataset(tmp_path / "out.sqlite", manifest=manifest)
+
+
+def test_equity_csv_and_update_baseline_compare(tmp_path):
+    from worker.backtest.compare import compare_results
+    from worker.backtest.report import write_equity_csv
+
+    result = {
+        "equity_curve": [
+            {"date": "2026-08-07", "cash": 49000, "invested": 1000, "equity": 50000, "position_count": 1}
+        ],
+        "compare": {"params_version": "aaa", "dataset_sha256": "bbb", "trades": [1]},
+    }
+    csv_path = write_equity_csv(result, tmp_path / "eq.csv")
+    text = csv_path.read_text()
+    assert text.splitlines()[0] == "date,cash,invested,equity,position_count"
+    assert "2026-08-07,49000,1000,50000,1" in text
+
+    drifted = {"compare": {"params_version": "ccc", "dataset_sha256": "ddd", "trades": []}}
+    stale = compare_results(result, drifted)
+    assert stale["exit_code"] == 2
+    refreshed = compare_results(result, drifted, update_baseline=True)
+    assert refreshed["exit_code"] == 0
+    assert refreshed["status"] == "update_baseline"
+
+
+def test_workflow_declares_the_backtest_job():
+    from worker.backtest.config import repo_root
+
+    text = (repo_root() / ".github/workflows/test.yml").read_text()
+    assert "name: backtest" in text
+    assert "scripts/backtest-ci.sh" in text
+    assert "backtests/baselines/run118.json" in text
+    assert "cron: \"0 8 * * *\"" in text
+    assert "run-backtest" in text
+    assert "actions/cache@v4" in text
+    assert "BACKTEST_DATASET_URL" in text

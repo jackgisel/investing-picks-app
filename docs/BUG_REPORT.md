@@ -544,7 +544,7 @@ data replay.
 
 The live thesis row confirms the old system ran:
 - factor weights `val 0.05 / gro 0.35 / pro 0.15 / mom 0.15 / rev 0.30`
-- buy criteria `QR 4.0, rev B+, gro B, pro D, val C-`
+- buy criteria `QR 4.0, rev B+, gro B, pro D, val D` (was `val C-` through run118)
 - signal thresholds `4.5 / 3.5 / 2.5 / 1.5`, `max_positions 50`,
   `hold_removal 2.5`, biweekly
 

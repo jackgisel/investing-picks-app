@@ -879,7 +879,7 @@ def test_min_quant_rating_boundary():
         ("revisions_grade", "B+", "B"),
         ("growth_grade", "B", "B-"),
         ("profitability_grade", "D", "D-"),
-        ("valuation_grade", "C-", "D+"),
+        ("valuation_grade", "D", "D-"),
     ],
 )
 def test_each_grade_gate_is_inclusive_of_its_minimum(field, at_minimum, one_notch_below):

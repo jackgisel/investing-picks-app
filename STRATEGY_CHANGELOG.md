@@ -37,6 +37,46 @@ Until the holdout gate, promote with decision-diff plus two live shadow cycles
 Robustness: `python -m worker.backtest compare RESULT BASELINE --sweep` perturbs
 numeric thresholds ±10% (never `max_adds_per_evaluation` or `position_size_usd`).
 
+## run119
+
+Loosen the valuation buy gate from C- (15th percentile of sector) to D
+(5th percentile). Hypothesis: the valuation gate at C-, not the QR 4.0
+floor, is the marginal decider of Run 118 picks, because a
+growth+revisions model's sector leaders are structurally among the most
+expensive names in their sector; moving the gate to D will widen the
+gate-pass set on every non-empty Friday and change the top pick on at
+least one Friday in the window, while per-Friday rank correlation stays
+exactly 1.0.
+
+Experiment card: [`/cursor/stores/bc-f1616977-269d-4932-bb39-f751d6f7b989/docs/run119-experiment.md`](/cursor/stores/bc-f1616977-269d-4932-bb39-f751d6f7b989/docs/run119-experiment.md).
+
+| | |
+|---|---|
+| `version_label` | `run119` |
+| Change | `BuyCriteria.min_valuation_grade`: `C-` → `D` |
+| Unchanged | weights, penalty, Z floor, exits, sizing, cadence, `max_adds_per_evaluation=1`, `position_size_usd=1000` |
+| Side | `evaluate()` only — same score tape as run118, no re-score |
+| Canonical size | `$1,000` per pick, `max_adds_per_evaluation=1`, `$50k` starting cash |
+| Sample | below the return and holdout gates; publish decision diagnostics only |
+| PR | [#33](https://github.com/jackgisel/investing-picks-app/pull/33) |
+
+### Decision-diff vs run118 (pinned window 2026-08-07 → 2026-09-04, 3 Fridays)
+
+| | run119 | run118 |
+|---|---|---|
+| `params_version` | `d9aeff3d4146` | `28bf660fdbab` |
+| Dataset | `b052a791ebc8` (unchanged) | `b052a791ebc8` |
+| `n_scored` | 245 / 247 / 252 | identical |
+| `n_gate_pass` | 0 / 0 / 18 | 0 / 0 / 18 |
+| Top pick | none / none / LLY | none / none / LLY |
+| `top_pick_fridays_differ` | 0 | — |
+| `mean_gate_pass_jaccard` | 1.0 | — |
+| `trades_by_action` | `{buy: 1}` | `{buy: 1}` |
+| End holdings | `[LLY]` | `[LLY]` |
+| Sensitivity (`next_close` + 10 bps) | same tickers | same tickers |
+
+Null result on this pin: loosening C- → D did not admit anyone new and did not change the pick. Aug 7 / Aug 21 stay empty (`n_gate_pass=0`, top ranked MU); Sep 4 still buys LLY from the same 18-name gate-pass set. Rank correlation is 1.0 by construction (same score tape). Sample is below the return gate; no performance claim. The card's reject criterion 1 (null: `top_pick_fridays_differ = 0` and Jaccard ≥ 0.9) is met on this window.
+
 ## run118
 
 Shipped engine as of 2026-09. Measures what actually runs, not the old marketing

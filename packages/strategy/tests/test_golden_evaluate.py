@@ -10,7 +10,7 @@ Regenerate deliberately with:
 
     UPDATE_GOLDEN=1 python -m pytest packages/strategy/tests/test_golden_evaluate.py
 
-and review the resulting diff in `golden/run118_evaluate.json` line by line.
+and review the resulting diff in `golden/<version_label>_evaluate.json` line by line.
 """
 
 from __future__ import annotations
@@ -29,7 +29,9 @@ from outpick_strategy import (
     evaluate_sells_only,
 )
 
-GOLDEN_PATH = Path(__file__).parent / "golden" / "run118_evaluate.json"
+GOLDEN_PATH = (
+    Path(__file__).parent / "golden" / f"{RUN118_PARAMS.version_label}_evaluate.json"
+)
 AS_OF = date(2026, 7, 17)  # a 3rd Friday
 
 SECTORS = [

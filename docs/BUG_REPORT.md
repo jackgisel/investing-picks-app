@@ -282,6 +282,32 @@ are a faithful port. The scoring model is not:
 **Consequence: even on identical price data, the new engine picks different
 stocks than Run 118 did.** Parity is not reachable by fixing defects alone.
 
+## BUG-P8 — dataset revisions self-pair on Segment A Fridays
+`apps/worker/worker/services/backtest_derive.py` — **HIGH — VERIFIED** (round-2
+`score_cards` on `backtests/baselines/run120.json`; live unaffected)
+
+`derive_ticker` asked `compute_estimate_revisions(..., as_of=friday)` after
+forward-filling the latest live `fundamentals` row with `as_of ≤ friday`. For a
+1st/3rd Friday that row is the previous Saturday (`friday − 6`). The prior
+lookup then prefers a vintage ≤ `friday − 21`, else the newest row
+`≤ friday − 5` — which is the same Saturday. `_pct_change(x, x) = 0.0` for EPS
+and revenue, `revisionLookbackDays = 6`, coverage 1.0, so every name is scored
+on a constant revisions factor. `factor_percentile_score` maps an all-tie
+universe to 50.0 → **B- for everyone**. `min_revisions_grade = B+` then fails
+the whole Friday (Aug 7: 245/245; Aug 21: 246/247). Sep 4 escaped because a
+same-FY vintage ≤ 21 days before its Saturday existed.
+
+Live is fine: `refresh_fundamentals` fetches today's estimate so vintage ==
+`as_of`, and `as_of < today` already excludes it. `worker.audit_segment_a`
+also anchors on the vintage. Only the backtest derive path anchored on the
+Friday. A re-derive made it worse: the previous pass's `source=pit` row at
+`as_of = friday` became "current" and earlier Fridays' pit rows became priors.
+
+**Fix (tape v2, strategy still run118):** skip pit rows as vintages; pair from
+`estimateVintageAsOf`; stamp `deriveVersion = 2`; re-score the pinned window.
+A knob cannot fix a constant factor — lowering `min_revisions_grade` to B-
+would admit every name.
+
 ## What this means for Aug 7
 
 Parity with Run 118 cannot currently be demonstrated, for three independent

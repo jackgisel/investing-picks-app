@@ -168,6 +168,17 @@ def test_run_report_compare_on_a_tiny_dataset(tmp_path):
     base["compare"] = compare_payload(base)
     assert compare_results(stale, base)["exit_code"] == 2
 
+    tape = dict(payload)
+    tape["tape_version"] = 2
+    tape["compare"] = compare_payload(tape)
+    old_tape = dict(payload)
+    old_tape["tape_version"] = 1
+    old_tape["compare"] = compare_payload(old_tape)
+    report = compare_results(tape, old_tape)
+    assert report["status"] == "baseline_stale"
+    assert report["exit_code"] == 2
+    assert report["same_data"] is False
+
 
 def test_cli_run_report_compare_roundtrip(tmp_path):
     dataset = tmp_path / "dataset-v1.sqlite"
@@ -229,7 +240,7 @@ def test_shipped_toml_is_canonical():
     assert cfg.sensitivity_fill_price == "next_close"
     assert cfg.sensitivity_slippage_bps == 10
     assert cfg.dataset_sha256 == (
-        "b052a791ebc827e7e750b7a251b07e515235708fe612a1e4b0bf9192a6f724c0"
+        "d61437921c87c4130d008c17dbaa5de7ec7bf211e66e4b46e99a90b3a2ed6205"
     )
 
 

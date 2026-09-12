@@ -26,6 +26,11 @@ from app.services.portfolio import load_scores_as_of
 from app.services.replay import FillModel, ReplayResult, replay
 from worker.backtest.config import BacktestConfig
 from worker.backtest.manifest import sha256_file
+from worker.backtest.score import (
+    DEGENERATE_REVISIONS_SHARE,
+    revisions_tape_stats,
+)
+from worker.services.backtest_derive import DERIVE_VERSION
 
 
 def params_from_config(
@@ -115,11 +120,13 @@ def _diagnostics(db: Session, result: ReplayResult, params: StrategyParams) -> d
     dates = [ev.as_of for ev in result.evaluations]
     scores = {d: load_scores_as_of(db, d) for d in dates}
     scopes = universe_scope_by_date(db, dates)
+    tape = {d: revisions_tape_stats(db, d) for d in dates}
     return decision_diagnostics(
         result,
         params=params,
         scores_by_date=scores,
         universe_scope_by_date=scopes,
+        tape_stats_by_date=tape,
     )
 
 
@@ -164,6 +171,24 @@ def run_backtest(
     spy = spy_closes(db, cfg.start, cfg.end)
     diagnostics = _diagnostics(db, result, params)
     metrics = _metrics(result, spy)
+    warnings = list(result.warnings or [])
+    for friday in diagnostics.get("fridays") or []:
+        share = friday.get("revisions_grade_mode_share")
+        n_scored = int(friday.get("n_scored") or 0)
+        if (
+            n_scored > 0
+            and share is not None
+            and share >= DEGENERATE_REVISIONS_SHARE
+        ):
+            warnings.append(
+                f"degenerate revisions on {friday['as_of']}: mode "
+                f"{friday.get('revisions_grade_mode')} share={share:.3f} n={n_scored}"
+            )
+        if int(friday.get("n_self_paired") or 0) > 0:
+            warnings.append(
+                f"self-paired revisions on {friday['as_of']}: "
+                f"n_self_paired={friday['n_self_paired']}"
+            )
 
     payload: dict = {
         "config": {
@@ -179,6 +204,7 @@ def run_backtest(
         },
         "params_version": result.params_version,
         "dataset_sha256": digest,
+        "tape_version": DERIVE_VERSION,
         "fill": {"price": cfg.fill_price, "slippage_bps": cfg.slippage_bps},
         "start": cfg.start.isoformat(),
         "end": cfg.end.isoformat(),
@@ -196,7 +222,7 @@ def run_backtest(
         "trades": [t.to_dict() for t in result.trades],
         "equity_curve": result.equity_curve,
         "final": result.final.snapshot(),
-        "warnings": result.warnings,
+        "warnings": warnings,
         "recommendation": (
             "Remove the BUG-P1/P2 marketing figures (+250% / 39% CAGR) rather "
             "than replacing them. Publish nothing performance-shaped until "

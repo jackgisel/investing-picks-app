@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import math
 import random
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import date
 from typing import Any
 
@@ -57,6 +57,7 @@ def decision_diagnostics(
     params: StrategyParams,
     scores_by_date: dict[date, dict],
     universe_scope_by_date: dict[date, str],
+    tape_stats_by_date: dict[date, dict] | None = None,
 ) -> dict[str, Any]:
     """Per-Friday decisions. Valid at any N, including N = 4."""
     rule_totals: dict[str, int] = defaultdict(int)
@@ -71,9 +72,25 @@ def decision_diagnostics(
             key=lambda t: scores[t].quant_rating,
             reverse=True,
         )
-        gate_pass = [
-            t for t in ranked if meets_buy_criteria(scores[t], params)[0]
-        ]
+        gate_pass: list[str] = []
+        fail_counts: dict[str, int] = defaultdict(int)
+        for t in ranked:
+            ok, checks = meets_buy_criteria(scores[t], params)
+            if ok:
+                gate_pass.append(t)
+                continue
+            for check in checks:
+                if not check.passed:
+                    fail_counts[check.rule_id] += 1
+        grade_list = [scores[t].revisions_grade for t in ranked]
+        grade_counts = dict(Counter(grade_list).most_common())
+        mode = None
+        mode_share = None
+        if grade_list:
+            mode, count = Counter(grade_list).most_common(1)[0]
+            mode_share = round(count / len(grade_list), 4)
+        qrs = [scores[t].quant_rating for t in ranked]
+        tape = (tape_stats_by_date or {}).get(ev.as_of) or {}
         bought = next(
             (t.ticker for t in ev.trades if t.side == "buy"),
             None,
@@ -109,6 +126,15 @@ def decision_diagnostics(
                 "gate_pass": gate_pass,
                 "n_gate_pass": len(gate_pass),
                 "n_scored": len(scores),
+                "max_qr": round(max(qrs), 3) if qrs else None,
+                "top_ranked_qr": round(qrs[0], 3) if qrs else None,
+                "n_qr_ge_4_0": sum(1 for q in qrs if q >= 4.0),
+                "revisions_grade_counts": grade_counts,
+                "revisions_grade_mode": mode,
+                "revisions_grade_mode_share": mode_share,
+                "gate_fail_counts": dict(sorted(fail_counts.items())),
+                "revision_lookback_days": tape.get("revision_lookback_days") or {},
+                "n_self_paired": int(tape.get("n_self_paired") or 0),
                 "rule_counts": dict(sorted(day_rules.items())),
                 "trades": [t.to_dict() for t in ev.trades],
                 "forced_exits": forced,
@@ -339,13 +365,21 @@ def promotion_gates(n_evaluations: int) -> dict[str, Any]:
 def decision_diff_table(
     current: dict[str, Any], baseline: dict[str, Any]
 ) -> dict[str, Any]:
-    """Always-valid compare: top picks, Jaccard of gate-pass, rule/trade/holdings."""
+    """Always-valid compare: top picks, Jaccard of gate-pass, rule/trade/holdings.
+
+    Fridays present on only one side are listed explicitly and excluded from
+    `top_pick_fridays_differ` so a dropped (unscored) Friday reads as a window
+    change, not a pick change.
+    """
     c_days = {f["as_of"]: f for f in current.get("fridays") or []}
     b_days = {f["as_of"]: f for f in baseline.get("fridays") or []}
     dates = sorted(set(c_days) | set(b_days))
+    only_current = sorted(set(c_days) - set(b_days))
+    only_baseline = sorted(set(b_days) - set(c_days))
+    shared = sorted(set(c_days) & set(b_days))
     top_pick_differ = 0
     jaccards: list[float] = []
-    for d in dates:
+    for d in shared:
         cf = c_days.get(d) or {}
         bf = b_days.get(d) or {}
         a = set(cf.get("gate_pass") or [])
@@ -357,6 +391,9 @@ def decision_diff_table(
     mean_j = sum(jaccards) / len(jaccards) if jaccards else 1.0
     return {
         "n_fridays": len(dates),
+        "n_fridays_shared": len(shared),
+        "fridays_only_in_current": only_current,
+        "fridays_only_in_baseline": only_baseline,
         "top_pick_fridays_differ": top_pick_differ,
         "mean_gate_pass_jaccard": round(mean_j, 4),
         "end_holdings_current": current.get("end_holdings") or [],
@@ -373,6 +410,7 @@ def compare_payload(result_doc: dict[str, Any]) -> dict[str, Any]:
     return {
         "params_version": result_doc.get("params_version"),
         "dataset_sha256": result_doc.get("dataset_sha256"),
+        "tape_version": result_doc.get("tape_version"),
         "fill": result_doc.get("fill"),
         "start": result_doc.get("start"),
         "end": result_doc.get("end"),

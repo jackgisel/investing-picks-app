@@ -78,6 +78,7 @@ def parity_report(
     exact = 0
     overlap_n = 0
     abs_qr = 0.0
+    rev_exact = 0
     for as_of, scope in sorted(fridays, key=lambda row: row[0]):
         if scope != "top400_live":
             continue
@@ -86,6 +87,7 @@ def parity_report(
         shared = sorted(set(left) & set(right))
         day_exact = 0
         day_abs = 0.0
+        day_rev_exact = 0
         for ticker in shared:
             overlap_n += 1
             d_qr = float(left[ticker].quant_rating)
@@ -98,6 +100,9 @@ def parity_report(
             if round(d_qr, 3) == round(l_qr, 3):
                 exact += 1
                 day_exact += 1
+            if (left[ticker].revisions_grade or "") == (right[ticker].revisions_grade or ""):
+                rev_exact += 1
+                day_rev_exact += 1
         by_day.append(
             {
                 "as_of": as_of.isoformat(),
@@ -107,6 +112,10 @@ def parity_report(
                 "overlap": len(shared),
                 "exact_qr": day_exact,
                 "mean_abs_qr_diff": (day_abs / len(shared)) if shared else None,
+                "revisions_grade_exact": day_rev_exact,
+                "revisions_grade_exact_pct": (
+                    (day_rev_exact / len(shared)) if shared else None
+                ),
             }
         )
     return {
@@ -118,4 +127,6 @@ def parity_report(
         "exact_qr_pct": (exact / overlap_n) if overlap_n else None,
         "mean_abs_qr_diff": (abs_qr / overlap_n) if overlap_n else None,
         "spearman_qr": _spearman(qr_derived, qr_live) if overlap_n else None,
+        "revisions_grade_exact": rev_exact,
+        "revisions_grade_exact_pct": (rev_exact / overlap_n) if overlap_n else None,
     }

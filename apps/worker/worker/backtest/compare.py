@@ -27,7 +27,9 @@ def compare_results(
     right = baseline.get("compare") or compare_payload(baseline)
     diffs = _diff(left, right, path="$")
     same_strategy = left.get("params_version") == right.get("params_version")
-    same_data = left.get("dataset_sha256") == right.get("dataset_sha256")
+    same_hash = left.get("dataset_sha256") == right.get("dataset_sha256")
+    same_tape = left.get("tape_version") == right.get("tape_version")
+    same_data = same_hash and same_tape
     if not diffs:
         status = "match"
         exit_code = 0
@@ -57,6 +59,10 @@ def compare_results(
             "current": left.get("dataset_sha256"),
             "baseline": right.get("dataset_sha256"),
         },
+        "tape_version": {
+            "current": left.get("tape_version"),
+            "baseline": right.get("tape_version"),
+        },
     }
 
 
@@ -69,6 +75,8 @@ def summary_markdown(report: dict) -> str:
         f"baseline `{report['params_version']['baseline']}`",
         f"- Dataset: current `{_short(report['dataset_sha256']['current'])}` / "
         f"baseline `{_short(report['dataset_sha256']['baseline'])}`",
+        f"- Tape: current `{report.get('tape_version', {}).get('current')}` / "
+        f"baseline `{report.get('tape_version', {}).get('baseline')}`",
         f"- Diffs: {report['n_diffs']}",
         "",
     ]
@@ -79,6 +87,8 @@ def summary_markdown(report: dict) -> str:
                 "### Decision-diff (valid at any N)",
                 "",
                 f"- Top-pick Fridays that differ: {table.get('top_pick_fridays_differ')}",
+                f"- Fridays only in current: {table.get('fridays_only_in_current') or []}",
+                f"- Fridays only in baseline: {table.get('fridays_only_in_baseline') or []}",
                 f"- Mean gate-pass Jaccard: {table.get('mean_gate_pass_jaccard')}",
                 f"- End holdings current: `{table.get('end_holdings_current')}`",
                 f"- End holdings baseline: `{table.get('end_holdings_baseline')}`",

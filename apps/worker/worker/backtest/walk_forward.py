@@ -31,8 +31,9 @@ from worker.backtest.ingest import ingest_delta
 from worker.backtest.manifest import sha256_file, write_manifest
 from worker.backtest.membership import write_universe_membership
 from worker.backtest.run import params_from_config, run_backtest, scored_eval_dates, write_result
-from worker.backtest.score import score_dataset
+from worker.backtest.score import earliest_stale_derive_date, score_dataset
 from worker.backtest.upload import upload_dataset
+from worker.services.backtest_derive import DERIVE_VERSION
 from worker.services.fmp import FMPClient
 from worker.services.ingest import missing_snapshot_weekdays
 
@@ -325,7 +326,12 @@ def walk_forward(
             raise WalkForwardError("FMP access error during delta ingest")
 
     last_scored = last_scored_friday(dataset_db)
-    member_start = (last_scored + timedelta(days=1)) if last_scored else cfg.start
+    new_from = (last_scored + timedelta(days=1)) if last_scored else cfg.start
+    stale_from = (
+        None if skip_score else earliest_stale_derive_date(dataset_db, cfg.start, complete)
+    )
+    starts = [d for d in (new_from, stale_from) if d is not None]
+    member_start = min(starts) if starts else cfg.start
     if member_start > complete:
         membership_rows = 0
         scored = {"n_fridays": 0, "fridays": []}
@@ -338,7 +344,10 @@ def walk_forward(
 
     new_end = complete
     if dataset_path is not None:
-        extra = {"walk_forward_as_of": today.isoformat()}
+        extra = {
+            "walk_forward_as_of": today.isoformat(),
+            "derive_version": DERIVE_VERSION,
+        }
         if manifest_path is not None:
             written = write_manifest(dataset_path, manifest_path, extra=extra)
             new_hash = written["sha256"]

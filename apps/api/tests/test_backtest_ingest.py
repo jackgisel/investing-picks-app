@@ -234,6 +234,8 @@ def test_manifest_hashes_the_file(tmp_path):
     assert payload["sha256"] == sha256_file(path)
     assert payload["bytes"] == 3
     assert '"sha256"' in manifest.read_text()
+    assert payload["derive_version"] == 2
+    assert '"derive_version"' in manifest.read_text()
 
 
 def test_ingest_stops_on_plan_restriction(tmp_path):

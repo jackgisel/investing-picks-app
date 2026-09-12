@@ -80,7 +80,7 @@ jobs:
   backtest:
     name: backtest
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     # Fork PRs cannot read the dataset secrets.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     env:
@@ -232,6 +232,15 @@ jobs:
               exit 0
             fi
             exit 2
+          fi
+          TAPE=backtests/baselines/run118-tape-b052a791.json
+          if [ -f "$TAPE" ]; then
+            {
+              echo ""
+              echo "### vs superseded tape \`$TAPE\`"
+              echo ""
+            } >> "$GITHUB_STEP_SUMMARY"
+            python3 -m worker.backtest compare "$OUT" "$TAPE" --summary >> "$GITHUB_STEP_SUMMARY" || true
           fi
           python3 -m worker.backtest compare "$OUT" "$BASELINE" $FLAGS >> "$GITHUB_STEP_SUMMARY"
 

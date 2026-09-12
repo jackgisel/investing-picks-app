@@ -5,7 +5,7 @@
 # Dataset is not in git. Pin matches datasets/manifest.json.
 
 dataset = "datasets/dataset-v1.sqlite"
-dataset_sha256 = "b052a791ebc827e7e750b7a251b07e515235708fe612a1e4b0bf9192a6f724c0"
+dataset_sha256 = "d61437921c87c4130d008c17dbaa5de7ec7bf211e66e4b46e99a90b3a2ed6205"
 
 # First Friday with a revisions pair (July 2026 Fridays are unscored).
 start = "2026-08-07"

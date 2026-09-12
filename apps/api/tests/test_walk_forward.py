@@ -429,3 +429,71 @@ def test_emit_github_output_separates_dataset_parity_from_engine_drift(
     assert "changed=true" in text
     assert "parity=false" in text
     assert "engine_drift=true" in text
+
+
+def test_walk_forward_rescores_stale_derive_version(tmp_path):
+    from app.db.models import Fundamentals, MarketCapHistory, Stock
+    from worker.services.backtest_derive import DERIVE_VERSION
+
+    dataset = tmp_path / "dataset-v1.sqlite"
+    live_path = tmp_path / "live.sqlite"
+    dest = open_dataset(dataset)
+    live = open_dataset(live_path)
+    today = date(2026, 9, 12)
+    _fill_weekdays(live, date(2026, 8, 3), today)
+    dest.add(
+        Stock(
+            ticker="AAA",
+            sector="Technology",
+            market_cap=2e9,
+            is_active=True,
+            is_etf=False,
+        )
+    )
+    for as_of in (date(2026, 8, 7), date(2026, 8, 21), date(2026, 9, 4)):
+        _score(dest, "AAA", as_of)
+        _bar(dest, "AAA", as_of)
+        dest.add(MarketCapHistory(ticker="AAA", date=as_of, market_cap=2e9))
+        dest.add(
+            UniverseMembership(
+                as_of=as_of,
+                ticker="AAA",
+                universe_scope="top400_live",
+                market_cap=2e9,
+                close=50.0,
+            )
+        )
+        dest.add(
+            Fundamentals(
+                ticker="AAA",
+                as_of=as_of,
+                data={
+                    "source": "pit",
+                    "deriveVersion": 1,
+                    "universe_scope": "top400_live",
+                },
+            )
+        )
+    dest.commit()
+    cfg = load_config(_toml(tmp_path, dataset))
+    result = walk_forward(
+        dest,
+        live,
+        cfg,
+        today=today,
+        skip_ingest=True,
+        skip_score=False,
+        require_parity=False,
+        dataset_path=dataset,
+        manifest_path=tmp_path / "manifest.json",
+        upload=False,
+    )
+    assert result["scored"]["n_fridays"] >= 1
+    pit = (
+        dest.query(Fundamentals)
+        .filter(Fundamentals.ticker == "AAA", Fundamentals.as_of == date(2026, 8, 7))
+        .one()
+    )
+    assert pit.data.get("deriveVersion") == DERIVE_VERSION
+    live.close()
+    dest.close()

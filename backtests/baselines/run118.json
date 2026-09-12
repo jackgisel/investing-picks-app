@@ -135,7 +135,7 @@
       "n_evaluations": 3,
       "status": "insufficient_sample"
     },
-    "params_version": "28bf660fdbab",
+    "params_version": "d9aeff3d4146",
     "sensitivity": {
       "diagnostics": {
         "end_holdings": [
@@ -518,7 +518,7 @@
   },
   "min_evaluations_for_holdout": 48,
   "min_evaluations_for_returns": 24,
-  "params_version": "28bf660fdbab",
+  "params_version": "d9aeff3d4146",
   "recommendation": "Remove the BUG-P1/P2 marketing figures (+250% / 39% CAGR) rather than replacing them. Publish nothing performance-shaped until n_evaluations >= 24.",
   "sensitivity": {
     "diagnostics": {

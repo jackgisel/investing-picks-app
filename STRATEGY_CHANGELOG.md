@@ -58,8 +58,24 @@ Experiment card: [`/cursor/stores/bc-f1616977-269d-4932-bb39-f751d6f7b989/docs/r
 | Side | `evaluate()` only — same score tape as run118, no re-score |
 | Canonical size | `$1,000` per pick, `max_adds_per_evaluation=1`, `$50k` starting cash |
 | Sample | below the return and holdout gates; publish decision diagnostics only |
+| PR | [#33](https://github.com/jackgisel/investing-picks-app/pull/33) |
 
-Compare table vs run118 will be pasted after the pinned-dataset replay in this PR.
+### Decision-diff vs run118 (pinned window 2026-08-07 → 2026-09-04, 3 Fridays)
+
+| | run119 | run118 |
+|---|---|---|
+| `params_version` | `d9aeff3d4146` | `28bf660fdbab` |
+| Dataset | `b052a791ebc8` (unchanged) | `b052a791ebc8` |
+| `n_scored` | 245 / 247 / 252 | identical |
+| `n_gate_pass` | 0 / 0 / 18 | 0 / 0 / 18 |
+| Top pick | none / none / LLY | none / none / LLY |
+| `top_pick_fridays_differ` | 0 | — |
+| `mean_gate_pass_jaccard` | 1.0 | — |
+| `trades_by_action` | `{buy: 1}` | `{buy: 1}` |
+| End holdings | `[LLY]` | `[LLY]` |
+| Sensitivity (`next_close` + 10 bps) | same tickers | same tickers |
+
+Null result on this pin: loosening C- → D did not admit anyone new and did not change the pick. Aug 7 / Aug 21 stay empty (`n_gate_pass=0`, top ranked MU); Sep 4 still buys LLY from the same 18-name gate-pass set. Rank correlation is 1.0 by construction (same score tape). Sample is below the return gate; no performance claim. The card's reject criterion 1 (null: `top_pick_fridays_differ = 0` and Jaccard ≥ 0.9) is met on this window.
 
 ## run118
 

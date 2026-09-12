@@ -24,11 +24,14 @@ def write_manifest(
     *,
     extra: dict | None = None,
 ) -> dict:
+    from worker.services.backtest_derive import DERIVE_VERSION
+
     payload = {
         "dataset": dataset_path.name,
         "sha256": sha256_file(dataset_path),
         "bytes": dataset_path.stat().st_size,
         "built_at": datetime.now(timezone.utc).isoformat(),
+        "derive_version": DERIVE_VERSION,
     }
     if extra:
         payload.update(extra)

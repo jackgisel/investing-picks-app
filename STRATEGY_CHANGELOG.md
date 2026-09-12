@@ -37,6 +37,47 @@ Until the holdout gate, promote with decision-diff plus two live shadow cycles
 Robustness: `python -m worker.backtest compare RESULT BASELINE --sweep` perturbs
 numeric thresholds ±10% (never `max_adds_per_evaluation` or `position_size_usd`).
 
+## run121 — tape v2 (strategy run118 unchanged)
+
+Dataset revisions self-pair fix (BUG-P8). **Not a strategy version.**
+`StrategyParams.version_label` stays `run118`; `params_version` must read
+`28bf660fdbab` on both sides of the compare. `evaluate()`, buy-gate defaults,
+`scoring.py`, `signals.py`, and worker `compute_scores` are untouched.
+
+| | |
+|---|---|
+| What changed | `derive_ticker` anchors the revisions pair on the estimate vintage date, not the evaluation Friday, and `_prior_estimate_snapshot` ignores `source=pit` rows |
+| Why | On Aug 7 / Aug 21 the tape paired a Saturday vintage with itself (`revisionLookbackDays = 6`, every `epsRevisionPct = 0.0`) so every scored name was Rev B- and the buy gate was unpassable |
+| `deriveVersion` | 2 |
+| Pin | superseded tape kept as `backtests/baselines/run118-tape-b052a791.json` (dataset `b052a791ebc8`) |
+
+### Mechanism
+
+`current_estimate` returns `(estimate, vintage_as_of)` from the live
+`fundamentals` row or the max `consensus_snapshots.as_of`, skipping pit rows.
+`derive_ticker` calls `compute_estimate_revisions(..., vintage_as_of=vintage)`.
+Priors are `< vintage`; the 5–21 day window is measured from the vintage.
+Re-deriving a Friday is idempotent: the previous pass's pit row cannot become
+the current estimate or a prior.
+
+Nightly walk-forward re-derives any Friday whose pit rows carry an older or
+missing `deriveVersion`, so a tape fix cannot leave Aug 7 / Aug 21 on v1
+forever. `score_dataset` raises if a scored Friday's modal `revisions_grade`
+share is ≥ 0.90 (unless `--allow-degenerate-revisions`).
+
+### Audit / compare
+
+Filled after the full-window re-score and `compare` against
+`backtests/baselines/run118-tape-b052a791.json`. Branch A = genuine pair on
+Aug 7 / Aug 21 (spread revisions, non-null top pick). Branch B = Aug 7 drops
+as unscored (`fridays_only_in_baseline`). Either way the tape must not keep a
+B- ×245 Friday.
+
+run119 (Val D) and run120 (QR 3.5) were judged on the self-paired tape; re-read
+from their existing JSON on the new pin. Neither is re-proposed here. The
+round-2 handoff (`momentum_penalty` 20 → 0) is the first strategy experiment
+once this tape is honest. Return metrics stay gated at N ≥ 24.
+
 ## run118
 
 Shipped engine as of 2026-09. Measures what actually runs, not the old marketing

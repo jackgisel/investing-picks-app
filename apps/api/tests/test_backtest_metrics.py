@@ -144,6 +144,9 @@ def test_diagnostics_uses_strategy_buy_gate_not_a_copy():
     assert diag["fridays"][0]["top_pick"] == "PASS"
     assert diag["fridays"][0]["universe_scope"] == "top400_live"
     assert diag["mixed_scopes"] is False
+    assert diag["fridays"][0]["revisions_grade_mode"] == "A"
+    assert diag["fridays"][0]["revisions_grade_mode_share"] == 0.5
+    assert diag["fridays"][0]["gate_fail_counts"]["min_revisions_grade"] == 1
 
 
 def _friday_rows(n: int, start: date = date(2026, 1, 2)):
@@ -214,3 +217,34 @@ def test_decision_diff_table_jaccard_and_top_picks():
     assert table["n_fridays"] == 2
     assert table["mean_gate_pass_jaccard"] == 0.75
     assert table["end_holdings_current"] == ["AAA"]
+    assert table["fridays_only_in_current"] == []
+    assert table["fridays_only_in_baseline"] == []
+
+
+def test_decision_diff_table_unequal_friday_sets_are_not_pick_changes():
+    current = {
+        "fridays": [
+            {"as_of": "2026-08-21", "top_pick": "AAA", "gate_pass": ["AAA"]},
+            {"as_of": "2026-09-04", "top_pick": "LLY", "gate_pass": ["LLY"]},
+        ],
+        "end_holdings": ["AAA", "LLY"],
+        "trades_by_action": {"buy": 2},
+        "rule_counts": {},
+    }
+    baseline = {
+        "fridays": [
+            {"as_of": "2026-08-07", "top_pick": None, "gate_pass": []},
+            {"as_of": "2026-08-21", "top_pick": "AAA", "gate_pass": ["AAA"]},
+            {"as_of": "2026-09-04", "top_pick": "LLY", "gate_pass": ["LLY"]},
+        ],
+        "end_holdings": ["LLY"],
+        "trades_by_action": {"buy": 1},
+        "rule_counts": {},
+    }
+    table = decision_diff_table(current, baseline)
+    assert table["fridays_only_in_baseline"] == ["2026-08-07"]
+    assert table["fridays_only_in_current"] == []
+    assert table["n_fridays"] == 3
+    assert table["n_fridays_shared"] == 2
+    assert table["top_pick_fridays_differ"] == 0
+    assert table["mean_gate_pass_jaccard"] == 1.0

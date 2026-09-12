@@ -117,7 +117,12 @@ def cmd_score(ns) -> dict:
     db = open_dataset(ns.dataset)
     try:
         start, end = _dates(ns)
-        return score_dataset(db, start, end)
+        return score_dataset(
+            db,
+            start,
+            end,
+            allow_degenerate_revisions=ns.allow_degenerate_revisions,
+        )
     finally:
         db.close()
 
@@ -325,6 +330,11 @@ def main(argv: list[str] | None = None) -> int:
     score.add_argument("--dataset", required=True)
     score.add_argument("--from", dest="from_", default=None)
     score.add_argument("--to", dest="to", default=None)
+    score.add_argument(
+        "--allow-degenerate-revisions",
+        action="store_true",
+        help="Do not raise when a Friday's modal revisions grade share is ≥ 0.90",
+    )
 
     parity = sub.add_parser("parity", help="Diff derived vs live scores on Segment A Fridays")
     parity.add_argument("--dataset", required=True)

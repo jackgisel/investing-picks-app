@@ -30,6 +30,9 @@ from worker.services.ingest import (
 log = logging.getLogger(__name__)
 
 SOURCE_PIT = "pit"
+# Tape stamp. Bump when derivation pairing rules change so score_dataset and
+# walk-forward re-derive Fridays that still carry an older pit payload.
+DERIVE_VERSION = 2
 
 
 def _num(row: dict | None, *keys) -> float | None:
@@ -114,31 +117,13 @@ def _latest_snapshots_as_of(db: Session, ticker: str, as_of: date) -> list[dict]
                 "date": period.isoformat() if isinstance(period, date) else str(period),
                 "epsAvg": row.eps_avg,
                 "revenueAvg": row.revenue_avg,
+                "_vintage_as_of": row.as_of,
             }
         )
     return estimates
 
 
-def _segment_a_estimate(db: Session, ticker: str, as_of: date) -> dict | None:
-    """Fall back to an exported live fundamentals vintage (Segment A)."""
-    row = (
-        db.query(Fundamentals)
-        .filter(Fundamentals.ticker == ticker, Fundamentals.as_of <= as_of)
-        .order_by(Fundamentals.as_of.desc(), Fundamentals.id.desc())
-        .first()
-    )
-    if row is None:
-        return None
-    data = dict(row.data or {})
-    if data.get("source") == SOURCE_PIT:
-        # A previous derive pass — estimates are already in the payload.
-        if not data.get("estimatePeriod"):
-            return None
-        return {
-            "estimatePeriod": data.get("estimatePeriod"),
-            "epsEstimateAvg": data.get("epsEstimateAvg"),
-            "revenueEstimateAvg": data.get("revenueEstimateAvg"),
-        }
+def _estimate_from_fundamentals(data: dict) -> dict | None:
     if not data.get("estimatePeriod"):
         return None
     return {
@@ -148,10 +133,55 @@ def _segment_a_estimate(db: Session, ticker: str, as_of: date) -> dict | None:
     }
 
 
-def current_estimate(db: Session, ticker: str, as_of: date) -> dict | None:
-    estimate = _forward_estimate(_latest_snapshots_as_of(db, ticker, as_of), as_of)
+def _segment_a_estimate(
+    db: Session, ticker: str, as_of: date
+) -> tuple[dict | None, date | None]:
+    """Fall back to an exported live fundamentals vintage (Segment A).
+
+    Skip `source=pit` rows: those are this module's own writes and must never
+    supply the current estimate (or a prior) on a re-derive.
+    """
+    rows = (
+        db.query(Fundamentals)
+        .filter(Fundamentals.ticker == ticker, Fundamentals.as_of <= as_of)
+        .order_by(Fundamentals.as_of.desc(), Fundamentals.id.desc())
+        .all()
+    )
+    for row in rows:
+        data = dict(row.data or {})
+        if data.get("source") == SOURCE_PIT:
+            continue
+        estimate = _estimate_from_fundamentals(data)
+        if estimate is None:
+            continue
+        return estimate, row.as_of
+    return None, None
+
+
+def _vintage_for_estimate(snapshots: list[dict], estimate: dict) -> date | None:
+    period = estimate.get("estimatePeriod")
+    for snap in snapshots:
+        if str(snap.get("date") or "") == str(period or ""):
+            vintage = snap.get("_vintage_as_of")
+            if isinstance(vintage, date):
+                return vintage
+    vintages = [
+        snap["_vintage_as_of"]
+        for snap in snapshots
+        if isinstance(snap.get("_vintage_as_of"), date)
+    ]
+    return max(vintages) if vintages else None
+
+
+def current_estimate(
+    db: Session, ticker: str, as_of: date
+) -> tuple[dict | None, date | None]:
+    """Return (estimate, vintage_as_of). Vintage is the snapshot/row `as_of`
+    that supplied the estimate, never a `source=pit` row."""
+    snapshots = _latest_snapshots_as_of(db, ticker, as_of)
+    estimate = _forward_estimate(snapshots, as_of)
     if estimate:
-        return estimate
+        return estimate, _vintage_for_estimate(snapshots, estimate)
     return _segment_a_estimate(db, ticker, as_of)
 
 
@@ -272,7 +302,7 @@ def derive_ticker(db: Session, ticker: str, as_of: date, universe_scope: str | N
     if market_cap is None and close is not None and shares:
         market_cap = close * shares
 
-    data: dict = {"source": SOURCE_PIT}
+    data: dict = {"source": SOURCE_PIT, "deriveVersion": DERIVE_VERSION}
     if universe_scope:
         data["universe_scope"] = universe_scope
     data.update(compute_ttm_growth(income))
@@ -289,10 +319,16 @@ def derive_ticker(db: Session, ticker: str, as_of: date, universe_scope: str | N
     z_score = altman_z(market_cap=market_cap, income=income, balance=balance)
     if z_score is not None:
         data["altmanZ"] = z_score
-    estimate = current_estimate(db, ticker, as_of)
+    estimate, vintage_as_of = current_estimate(db, ticker, as_of)
     if estimate:
         data.update(estimate)
-        data.update(compute_estimate_revisions(db, ticker, estimate, as_of))
+        if vintage_as_of is not None:
+            data["estimateVintageAsOf"] = vintage_as_of.isoformat()
+        data.update(
+            compute_estimate_revisions(
+                db, ticker, estimate, as_of, vintage_as_of=vintage_as_of
+            )
+        )
     return data
 
 

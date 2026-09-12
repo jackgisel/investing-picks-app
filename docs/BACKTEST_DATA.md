@@ -72,6 +72,12 @@ tables here. Until that query has been run, the shape is:
 - Expected Fridays if the first vintage is ~mid-July 2026: 17 Jul, 7 Aug,
   21 Aug, 4 Sep (holiday-shifted to the last session with a bar). Pair counts
   are zero until a ticker has two same-FY estimates ≥ 5 days apart.
+- **Tape v2 (BUG-P8):** `derive_ticker` now pairs from the estimate vintage
+  date, not the evaluation Friday, and ignores `source=pit` rows. The audit
+  below still counts live `fundamentals` pairs (it already anchored on
+  `snap.as_of`). Paste production `--json` here when it has been run; until
+  then Branch A vs B for Aug 7 is read from the re-scored dataset, not from
+  this table.
 
 The pytest fixture in `apps/api/tests/test_consensus_snapshot.py`
 (`test_audit_segment_a_counts_pairs_and_evaluation_fridays`) pins the

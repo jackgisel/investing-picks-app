@@ -168,6 +168,17 @@ def test_run_report_compare_on_a_tiny_dataset(tmp_path):
     base["compare"] = compare_payload(base)
     assert compare_results(stale, base)["exit_code"] == 2
 
+    tape = dict(payload)
+    tape["tape_version"] = 2
+    tape["compare"] = compare_payload(tape)
+    old_tape = dict(payload)
+    old_tape["tape_version"] = 1
+    old_tape["compare"] = compare_payload(old_tape)
+    report = compare_results(tape, old_tape)
+    assert report["status"] == "baseline_stale"
+    assert report["exit_code"] == 2
+    assert report["same_data"] is False
+
 
 def test_cli_run_report_compare_roundtrip(tmp_path):
     dataset = tmp_path / "dataset-v1.sqlite"

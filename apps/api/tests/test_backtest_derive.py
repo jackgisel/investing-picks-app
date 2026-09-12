@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
+import pytest
+
 from outpick_strategy import RUN118_PARAMS
 
 from app.db.models import (
@@ -268,6 +270,9 @@ def test_parity_exact_match_on_shared_friday(db, tmp_path):
     assert report["exact_qr"] == 1
     assert report["exact_qr_pct"] == 1.0
     assert report["mean_abs_qr_diff"] == 0.0
+    assert report["revisions_grade_exact"] == 1
+    assert report["revisions_grade_exact_pct"] == 1.0
+    assert report["fridays"][0]["revisions_grade_exact_pct"] == 1.0
     live.close()
 
 
@@ -326,3 +331,148 @@ def test_persist_scores_replaces_same_day_row(db):
     persist_scores(db, scored, AS_OF)
     persist_scores(db, scored, AS_OF)
     assert db.query(CompositeScore).filter(CompositeScore.as_of == AS_OF).count() == 1
+
+
+def _live_vintage(db, ticker, as_of, eps, revenue=1000.0, period="2026-12-31"):
+    db.add(
+        Fundamentals(
+            ticker=ticker,
+            as_of=as_of,
+            data={
+                "estimatePeriod": period,
+                "epsEstimateAvg": eps,
+                "revenueEstimateAvg": revenue,
+            },
+        )
+    )
+
+
+def test_single_saturday_vintage_does_not_self_pair(db):
+    """Weekly Saturday vintage, Friday d, one vintage before d → revisions absent."""
+    _stock(db, "AAA")
+    _eight_quarters(db, "AAA")
+    _live_vintage(db, "AAA", date(2026, 8, 1), 2.0)
+    db.commit()
+    out = derive_ticker(db, "AAA", AS_OF)
+    assert out["deriveVersion"] == 2
+    assert out["estimateVintageAsOf"] == "2026-08-01"
+    assert out.get("epsEstimateAvg") == 2.0
+    assert "epsRevisionPct" not in out
+    assert "revenueRevisionPct" not in out
+
+
+def test_two_saturday_vintages_pair_week_over_week(db):
+    _stock(db, "AAA")
+    _eight_quarters(db, "AAA")
+    _live_vintage(db, "AAA", date(2026, 7, 25), 1.90)
+    _live_vintage(db, "AAA", date(2026, 8, 1), 2.09)
+    db.commit()
+    out = derive_ticker(db, "AAA", AS_OF)
+    assert out["estimateVintageAsOf"] == "2026-08-01"
+    assert out["revisionBasisDate"] == "2026-07-25"
+    assert out["revisionBasisDate"] != out["estimateVintageAsOf"]
+    assert out["revisionLookbackDays"] == 7
+    assert out["epsRevisionPct"] == pytest.approx(0.10)
+
+
+def test_prior_pit_row_is_ignored_as_vintage(db):
+    _stock(db, "AAA")
+    _eight_quarters(db, "AAA")
+    db.add(
+        Fundamentals(
+            ticker="AAA",
+            as_of=date(2026, 7, 17),
+            data={
+                "source": "pit",
+                "deriveVersion": 1,
+                "estimatePeriod": "2026-12-31",
+                "epsEstimateAvg": 1.0,
+                "revenueEstimateAvg": 500.0,
+                "estimateVintageAsOf": "2026-07-17",
+            },
+        )
+    )
+    _live_vintage(db, "AAA", date(2026, 8, 1), 2.0)
+    db.commit()
+    out = derive_ticker(db, "AAA", AS_OF)
+    assert "epsRevisionPct" not in out
+    assert out["estimateVintageAsOf"] == "2026-08-01"
+
+
+def test_rederive_same_friday_is_idempotent(db):
+    from worker.services.backtest_derive import upsert_derived_fundamentals
+
+    _stock(db, "AAA")
+    _eight_quarters(db, "AAA")
+    _live_vintage(db, "AAA", date(2026, 7, 25), 1.90)
+    _live_vintage(db, "AAA", date(2026, 8, 1), 2.09)
+    db.commit()
+    first = derive_ticker(db, "AAA", AS_OF)
+    upsert_derived_fundamentals(db, "AAA", AS_OF, first)
+    db.commit()
+    second = derive_ticker(db, "AAA", AS_OF)
+    assert second["epsRevisionPct"] == first["epsRevisionPct"]
+    assert second["revisionLookbackDays"] == first["revisionLookbackDays"]
+    assert second["revisionBasisDate"] == first["revisionBasisDate"]
+    assert second["estimateVintageAsOf"] == first["estimateVintageAsOf"]
+    assert second["revisionBasisDate"] != second["estimateVintageAsOf"]
+    assert second["deriveVersion"] == 2
+
+
+def test_compute_estimate_revisions_vintage_equals_as_of_matches_live(db):
+    from worker.services.ingest import compute_estimate_revisions
+
+    today = date(2026, 7, 24)
+    _live_vintage(db, "AAA", today - timedelta(days=7), 2.00)
+    db.commit()
+    current = {
+        "estimatePeriod": "2026-12-31",
+        "epsEstimateAvg": 2.10,
+        "revenueEstimateAvg": 1000.0,
+    }
+    live = compute_estimate_revisions(db, "AAA", current, today)
+    locked = compute_estimate_revisions(
+        db, "AAA", current, today, vintage_as_of=today
+    )
+    assert live == locked
+    assert live["revisionLookbackDays"] == 7
+
+
+def test_degeneracy_guard_raises_on_constant_grade():
+    from worker.backtest.score import (
+        DegenerateRevisionsError,
+        assert_revisions_not_degenerate,
+    )
+
+    with pytest.raises(DegenerateRevisionsError, match="degenerate revisions"):
+        assert_revisions_not_degenerate(["B-"] * 245, as_of=date(2026, 8, 7))
+    mode, share = assert_revisions_not_degenerate(
+        ["B-"] * 10, as_of=date(2026, 8, 7), allow=True
+    )
+    assert mode == "B-"
+    assert share == 1.0
+    assert_revisions_not_degenerate([], as_of=date(2026, 8, 7))
+
+
+def test_degeneracy_guard_passes_sep4_shaped_distribution():
+    from worker.backtest.score import assert_revisions_not_degenerate
+
+    grades = (
+        ["C"] * 40
+        + ["B-"] * 34
+        + ["C+"] * 32
+        + ["A-"] * 29
+        + ["A"] * 27
+        + ["C-"] * 26
+        + ["B"] * 24
+        + ["B+"] * 11
+        + ["A+"] * 10
+        + ["D+"] * 8
+        + ["D"] * 6
+        + ["F"] * 3
+        + ["D-"] * 2
+    )
+    mode, share = assert_revisions_not_degenerate(grades, as_of=date(2026, 9, 4))
+    assert share < 0.90
+    assert mode == "C"
+

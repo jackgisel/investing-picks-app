@@ -907,7 +907,13 @@ def _prior_estimate_snapshot(
         .order_by(Fundamentals.as_of.desc(), Fundamentals.id.desc())
         .all()
     ):
-        priors.append(PriorEstimate(row.as_of, dict(row.data or {})))
+        data = dict(row.data or {})
+        # Derived PIT rows are not vintages. Pairing them with themselves (or
+        # with a later Friday's pit copy of the same Saturday estimate) is
+        # what made Segment A Fridays a constant revisions factor.
+        if data.get("source") == "pit":
+            continue
+        priors.append(PriorEstimate(row.as_of, data))
     # Stable sort: snapshots were appended first, so on the same as_of they
     # stay ahead of the fundamentals row.
     priors.sort(key=lambda row: row.as_of, reverse=True)
@@ -938,7 +944,12 @@ def _pct_change(current, prior) -> float | None:
 
 
 def compute_estimate_revisions(
-    db: Session, ticker: str, current: dict, as_of: date
+    db: Session,
+    ticker: str,
+    current: dict,
+    as_of: date,
+    *,
+    vintage_as_of: date | None = None,
 ) -> dict:
     """Period-over-period change in consensus estimates — a real revision.
 
@@ -954,11 +965,18 @@ def compute_estimate_revisions(
     the factor is null until a ticker has two snapshots of the same fiscal
     period spanning the lookback. A real next-year rollover stays null until
     that pair exists. A restated year-end date on the same FY is not a rollover.
+
+    `vintage_as_of` is the observation date of `current`. Live callers omit it
+    (the estimate was fetched today, so vintage == `as_of`). The backtest
+    derive path passes the Saturday vintage that was forward-filled onto an
+    evaluation Friday, so the 5–21 day window is measured from that vintage
+    and does not self-pair with the same row.
     """
     period = current.get("estimatePeriod")
     if not period:
         return {}
-    prior_row = _prior_estimate_snapshot(db, ticker, as_of, period)
+    lookback_as_of = vintage_as_of or as_of
+    prior_row = _prior_estimate_snapshot(db, ticker, lookback_as_of, period)
     prior = (prior_row.data or {}) if prior_row else {}
     if not prior:
         return {}
@@ -973,7 +991,7 @@ def compute_estimate_revisions(
         out["revenueRevisionPct"] = rev_rev
     if out:
         out["revisionBasisDate"] = prior_row.as_of.isoformat()
-        out["revisionLookbackDays"] = (as_of - prior_row.as_of).days
+        out["revisionLookbackDays"] = (lookback_as_of - prior_row.as_of).days
     return out
 
 

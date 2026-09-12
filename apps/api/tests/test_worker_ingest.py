@@ -535,6 +535,29 @@ def test_revision_falls_back_to_oldest_snapshot_when_history_is_young(db):
     assert out["revisionLookbackDays"] == 7
 
 
+def test_revision_ignores_pit_fundamentals_as_priors(db):
+    today = date(2026, 7, 24)
+    db.add(
+        Fundamentals(
+            ticker="AAA",
+            as_of=today - timedelta(days=7),
+            data={
+                "source": "pit",
+                "estimatePeriod": "2026-12-31",
+                "epsEstimateAvg": 1.00,
+                "revenueEstimateAvg": 500.0,
+            },
+        )
+    )
+    db.commit()
+    current = {
+        "estimatePeriod": "2026-12-31",
+        "epsEstimateAvg": 2.10,
+        "revenueEstimateAvg": 1000.0,
+    }
+    assert compute_estimate_revisions(db, "AAA", current, today) == {}
+
+
 # ---------------------------------------------------------------------------
 # Manually entered positions have no Stock row
 # ---------------------------------------------------------------------------

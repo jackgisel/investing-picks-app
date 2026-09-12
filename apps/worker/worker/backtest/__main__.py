@@ -375,7 +375,7 @@ def main(argv: list[str] | None = None) -> int:
 
     wf = sub.add_parser(
         "walk-forward",
-        help="Extend the dataset from live Postgres, score new Fridays, check ledger parity",
+        help="Extend the dataset from live Postgres, score new Fridays, check engine drift",
     )
     wf.add_argument("--config", default="backtests/run118.toml")
     wf.add_argument("--dataset", default=None)
@@ -384,7 +384,11 @@ def main(argv: list[str] | None = None) -> int:
     wf.add_argument("--today", default=None)
     wf.add_argument("--skip-ingest", action="store_true")
     wf.add_argument("--skip-score", action="store_true")
-    wf.add_argument("--no-parity", action="store_true")
+    wf.add_argument(
+        "--no-parity",
+        action="store_true",
+        help="Skip the dataset ledger diagnostic and the live-score engine-drift check",
+    )
     wf.add_argument("--upload", action="store_true")
     wf.add_argument("--baseline", default=None, help="Write regenerated baseline JSON here")
     wf.add_argument("--ledger-portfolio-id", type=int, default=1)

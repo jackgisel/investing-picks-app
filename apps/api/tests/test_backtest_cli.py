@@ -308,6 +308,8 @@ def test_workflow_declares_the_backtest_job():
     assert "name: walk-forward" in text
     assert "scripts/walk-forward-ci.sh" in text
     assert "peter-evans/create-pull-request" in text
+    assert "Engine drift" in text
+    assert "do not block this PR" in text
     assert "STRATEGY_CHANGELOG.md" in text
 
 

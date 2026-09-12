@@ -69,31 +69,37 @@ default flip as live.
 
 ### Compare vs run118
 
-Filled from `python -m worker.backtest compare <run120 result> backtests/baselines/run118.json --summary`.
+From `python -m worker.backtest compare <run120 result> backtests/baselines/run118.json --summary`
+(CI artifact of run `34710334263`). Pin 2026-08-07 → 2026-09-04, 3 Fridays,
+`top400_live`, dataset `b052a791ebc8`.
+
+**Headline: null on picks.** `top_pick_fridays_differ = 0`. Aug 7 / Aug 21 stay
+empty. The QR floor was not what closed them: `top_ranked_qr` is 4.261 / 4.267
+(≥ 4.0), with 3 names at QR ≥ 4.0 each day, and the top-25 fail `min_revisions_grade`
+25/25. Sep 4 still buys LLY; gate-pass 18 → 31 (13 names in [3.5, 4.0), Jaccard
+0.5806). Sensitivity (`next_close` + 10 bps) same tickers.
 
 | | run118 | run120 | Reading |
 |---|---|---|---|
-| `n_scored` | 245 / 247 / 252 | pending CI | control — same tape |
-| Spearman QR rank corr | — | pending CI | must be 1.0; n/a vs uninstrumented baseline |
-| `top_ranked_qr` Aug 7 / Aug 21 | not recorded | pending CI | hypothesis: 3.5 ≤ x < 4.0 |
-| `n_gate_pass` | 0 / 0 / 18 | pending CI | |
-| `top_pick` | — / — / LLY | pending CI | headline: `top_pick_fridays_differ` |
-| `trades_by_action` | `{buy: 1}` | pending CI | |
-| `end_holdings` | `[LLY]` | pending CI | |
+| `n_scored` | 245 / 247 / 252 | 245 / 247 / 252 | same tape |
+| Spearman QR rank corr | — | n/a vs uninstrumented baseline; 1.0 by construction (same dataset hash, evaluate()-side) | control |
+| `top_ranked` | MU / MU / LLY | MU / MU / LLY | |
+| `top_ranked_qr` | not recorded | **4.261 / 4.267 / 4.469** | hypothesis wanted 3.5 ≤ x < 4.0 on Aug; falsified |
+| `n_qr_ge_4_0` | — | 3 / 3 / 19 | names already above the old floor |
+| `n_qr_in_3_5_4_0` | — | 33 / 35 / 39 | band the knob opens |
+| `n_gate_pass` | 0 / 0 / 18 | **0 / 0 / 31** | August still empty |
+| `top_pick` | — / — / LLY | — / — / LLY | `top_pick_fridays_differ = 0` |
+| `mean_gate_pass_jaccard` | — | 0.8602 | 1.0 / 1.0 / 0.5806 |
+| `trades_by_action` | `{buy: 1}` | `{buy: 1}` | |
+| `end_holdings` | `[LLY]` | `[LLY]` | |
+| Top-25 fail (Aug 7 / 21) | — | `min_revisions_grade` 25/25 both days | the binding gate |
+| Sensitivity | same tickers | same tickers | |
 
-PR: pending.
+Reject criterion 1 of the card. Hand revisions (tie-mass / thin first pair) to
+round 3. Do not promote. `weak_signal_threshold` coupling is moot if 3.5 does
+not buy on this tape.
 
-## run118
-|---|---|---|
-| Decision-diff | always | Top-pick Fridays, Jaccard of the buy-gate set, rule firings, trades by action, end holdings |
-| Return metrics | `n_evaluations >= 24` | CAGR, Sharpe, Sortino, max DD, Calmar, turnover, hit rate, with bootstrap bands |
-| In-sample / holdout | `n_evaluations >= 48` | Chronological half/half split; not meaningful on the current short window |
-
-Until the holdout gate, promote with decision-diff plus two live shadow cycles
-(`params_json` override, `dry_run`), then flip the default.
-
-Robustness: `python -m worker.backtest compare RESULT BASELINE --sweep` perturbs
-numeric thresholds ±10% (never `max_adds_per_evaluation` or `position_size_usd`).
+PR: [#34](https://github.com/jackgisel/investing-picks-app/pull/34).
 
 ## run118
 

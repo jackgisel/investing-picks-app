@@ -9,6 +9,7 @@ import {
 import { isSameOriginBrowserPost } from "./billing-security";
 import {
   buildCheckoutParams,
+  checkoutSuccessUrl,
   isProductionTestAccount,
 } from "./stripe-checkout";
 import { snapshotStripeSubscription } from "./stripe-webhook";
@@ -165,13 +166,21 @@ describe("Checkout parameters and browser origin", () => {
           offer_type: "founders",
         },
       },
-      success_url: "https://outpick.xyz/welcome?checkout=success",
+      success_url:
+        "https://outpick.xyz/welcome?checkout=success&session_id={CHECKOUT_SESSION_ID}",
       cancel_url: "https://outpick.xyz/subscribe?checkout=canceled",
     });
     expect(params).not.toHaveProperty("automatic_tax");
     expect(params).not.toHaveProperty("customer_update");
     expect(params.metadata).not.toHaveProperty("datafast_visitor_id");
     expect(params.metadata).not.toHaveProperty("datafast_session_id");
+    expect(params.success_url).not.toContain("%7B");
+  });
+
+  it("leaves Stripe's Checkout Session placeholder unencoded", () => {
+    expect(checkoutSuccessUrl(new URL("https://outpick.xyz"))).toBe(
+      "https://outpick.xyz/welcome?checkout=success&session_id={CHECKOUT_SESSION_ID}",
+    );
   });
 
   it("opts into classic Stripe Tax only when asked", () => {

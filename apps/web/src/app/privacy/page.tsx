@@ -114,6 +114,21 @@ export default function PrivacyPage() {
             </a>
             .
           </p>
+          <p className="mb-2">
+            <strong className="text-text">Google Ads</strong> — Conversion
+            measurement. We load the Google tag site-wide and send a conversion
+            event after a successful Stripe Checkout, including the paid amount
+            and a unique transaction identifier. See{" "}
+            <a
+              href="https://policies.google.com/privacy"
+              className="text-accent-green hover:underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Google&apos;s Privacy Policy
+            </a>
+            .
+          </p>
           <p>
             <strong className="text-text">Email provider</strong> — We use a
             transactional email service to deliver alerts and notifications. Your

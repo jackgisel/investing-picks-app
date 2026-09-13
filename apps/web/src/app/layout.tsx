@@ -13,6 +13,7 @@ import { Footer } from "@/components/layout/footer";
 import { MarketingFooter, MarketingOnly } from "@/components/layout/app-chrome";
 import { CookieBanner } from "@/components/layout/cookie-banner";
 import { DataFastScript } from "@/components/layout/datafast-script";
+import { GoogleAdsScript } from "@/components/layout/google-ads-script";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 
@@ -140,6 +141,7 @@ export default function RootLayout({
               <Footer />
             </MarketingFooter>
             <CookieBanner />
+            <GoogleAdsScript />
             <DataFastScript />
           </QueryProvider>
         </ThemeProvider>

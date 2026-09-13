@@ -67,7 +67,14 @@ export function buildCheckoutParams(args: {
     billing_address_collection: "required",
     metadata: sessionMetadata,
     subscription_data: { metadata },
-    success_url: new URL("/welcome?checkout=success", args.appUrl).toString(),
+    success_url: checkoutSuccessUrl(args.appUrl),
     cancel_url: new URL("/subscribe?checkout=canceled", args.appUrl).toString(),
   };
+}
+
+export function checkoutSuccessUrl(appUrl: URL): string {
+  // Stripe substitutes the literal `{CHECKOUT_SESSION_ID}` token. The URL
+  // constructor would percent-encode the braces and the substitution would
+  // not run.
+  return `${new URL("/welcome?checkout=success", appUrl).toString()}&session_id={CHECKOUT_SESSION_ID}`;
 }

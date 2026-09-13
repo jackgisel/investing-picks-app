@@ -202,7 +202,8 @@ describe("billing routes", () => {
     expect(params).toEqual(
       expect.objectContaining({
         discounts: [{ coupon: "coupon_founders" }],
-        success_url: "https://outpick.test/welcome?checkout=success",
+        success_url:
+          "https://outpick.test/welcome?checkout=success&session_id={CHECKOUT_SESSION_ID}",
         cancel_url: "https://outpick.test/subscribe?checkout=canceled",
       }),
     );

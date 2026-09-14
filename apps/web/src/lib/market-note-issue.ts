@@ -1,4 +1,11 @@
 import { pool } from "@/lib/db";
+import {
+  composeMarketNoteBodyMd,
+  normalizeDates,
+  normalizeWatchlist,
+  type MarketNoteUpcomingDate,
+  type MarketNoteWatchItem,
+} from "@/lib/market-note-preview";
 
 /**
  * Issues of the free weekly Market Note.
@@ -10,6 +17,11 @@ import { pool } from "@/lib/db";
  * Keyed by ISO week rather than by date so a compose page opened twice in one
  * week edits one issue instead of creating two, and so the dispatch ledger key
  * and the row key are the same string.
+ *
+ * The Sunday Market Preview editor writes four first-class fields (watchlist,
+ * sectors, sentiment, dates). `body_md` is still what gets mailed — composed
+ * from those fields on save, or kept as-is for issues written before the
+ * sections existed.
  */
 
 export type MarketNoteIssue = {
@@ -18,6 +30,10 @@ export type MarketNoteIssue = {
   subject: string;
   lede: string | null;
   bodyMd: string | null;
+  watchlist: MarketNoteWatchItem[];
+  sectorsMd: string | null;
+  sentimentMd: string | null;
+  dates: MarketNoteUpcomingDate[];
   confirmedAt: string | null;
   sentAt: string | null;
   recipients: number;
@@ -31,6 +47,10 @@ type Row = {
   subject: string;
   lede: string | null;
   body_md: string | null;
+  watchlist: unknown;
+  sectors_md: string | null;
+  sentiment_md: string | null;
+  dates: unknown;
   confirmed_at: Date | null;
   sent_at: Date | null;
   recipients: number;
@@ -38,8 +58,8 @@ type Row = {
   updated_at: Date;
 };
 
-const COLUMNS = `id, week_key, subject, lede, body_md, confirmed_at, sent_at,
-  recipients, created_at, updated_at`;
+const COLUMNS = `id, week_key, subject, lede, body_md, watchlist, sectors_md,
+  sentiment_md, dates, confirmed_at, sent_at, recipients, created_at, updated_at`;
 
 function toIssue(r: Row): MarketNoteIssue {
   return {
@@ -48,6 +68,10 @@ function toIssue(r: Row): MarketNoteIssue {
     subject: r.subject,
     lede: r.lede,
     bodyMd: r.body_md,
+    watchlist: normalizeWatchlist(r.watchlist),
+    sectorsMd: r.sectors_md,
+    sentimentMd: r.sentiment_md,
+    dates: normalizeDates(r.dates),
     confirmedAt: r.confirmed_at ? r.confirmed_at.toISOString() : null,
     sentAt: r.sent_at ? r.sent_at.toISOString() : null,
     recipients: r.recipients,
@@ -103,17 +127,68 @@ export async function ensureIssue(
 /**
  * Save edits. Refuses once the issue has gone out — there is no un-send, and an
  * archive that no longer matches what landed in inboxes is worse than none.
+ *
+ * Structured preview fields win: if any of the four sections have content, they
+ * are composed into `body_md`. Otherwise the legacy body is kept so older
+ * drafts still send.
  */
+export type MarketNoteIssueFields = {
+  subject: string;
+  lede: string | null;
+  bodyMd: string | null;
+  watchlist: unknown;
+  sectorsMd: string | null;
+  sentimentMd: string | null;
+  dates: unknown;
+};
+
+export function resolvedMarketNoteBodyMd(
+  fields: Omit<MarketNoteIssueFields, "subject" | "lede">,
+): string | null {
+  const watchlist = normalizeWatchlist(fields.watchlist);
+  const dates = normalizeDates(fields.dates);
+  return (
+    composeMarketNoteBodyMd({
+      watchlist,
+      sectorsMd: fields.sectorsMd,
+      sentimentMd: fields.sentimentMd,
+      dates,
+    }) ?? (fields.bodyMd?.trim() || null)
+  );
+}
+
 export async function saveIssue(
   id: string,
-  fields: { subject: string; lede: string | null; bodyMd: string | null },
+  fields: MarketNoteIssueFields,
 ): Promise<MarketNoteIssue | null> {
+  const watchlist = normalizeWatchlist(fields.watchlist);
+  const dates = normalizeDates(fields.dates);
+  const sectorsMd = fields.sectorsMd?.trim() || null;
+  const sentimentMd = fields.sentimentMd?.trim() || null;
+  const bodyMd = resolvedMarketNoteBodyMd({
+    watchlist,
+    sectorsMd,
+    sentimentMd,
+    dates,
+    bodyMd: fields.bodyMd,
+  });
   const { rows } = await pool.query<Row>(
     `UPDATE market_note_issue
-        SET subject = $2, lede = $3, body_md = $4, updated_at = NOW()
+        SET subject = $2, lede = $3, body_md = $4, watchlist = $5::jsonb,
+            sectors_md = $6, sentiment_md = $7, dates = $8::jsonb,
+            updated_at = NOW()
       WHERE id = $1 AND sent_at IS NULL
       RETURNING ${COLUMNS}`,
-    [id, fields.subject, fields.lede, fields.bodyMd],
+    [
+      id,
+      fields.subject,
+      fields.lede,
+      bodyMd,
+      JSON.stringify(watchlist),
+      sectorsMd,
+      sentimentMd,
+      JSON.stringify(dates),
+    ],
   );
   return rows[0] ? toIssue(rows[0]) : null;
 }

@@ -518,4 +518,22 @@ export async function runAppMigrations() {
     CREATE INDEX IF NOT EXISTS x_thread_queue_idx
       ON x_thread(status, created_at DESC)
   `);
+
+  /*
+   * Sunday Market Preview sections on the Market Note issue.
+   *
+   * The mailed body is still `body_md`. These columns are how the compose page
+   * stores the four pieces as first-class fields instead of one markdown blob:
+   * three names we are looking at, where sectors are moving, fears/excitements,
+   * and dates ahead. CREATE TABLE IF NOT EXISTS above will not add them to
+   * existing deployments, so they are ALTER'd here the same way other columns
+   * were widened.
+   */
+  await pool.query(`
+    ALTER TABLE market_note_issue
+      ADD COLUMN IF NOT EXISTS watchlist JSONB NOT NULL DEFAULT '[]'::jsonb,
+      ADD COLUMN IF NOT EXISTS sectors_md TEXT,
+      ADD COLUMN IF NOT EXISTS sentiment_md TEXT,
+      ADD COLUMN IF NOT EXISTS dates JSONB NOT NULL DEFAULT '[]'::jsonb
+  `);
 }

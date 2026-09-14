@@ -873,7 +873,7 @@ export function renderWeeklyReviewOpsEmail(args: {
         : `Noon PT passed without a confirm, so this week's review was not published and was not emailed. The draft is still in ops if you want to confirm and send it now.`,
       24,
     )}
-    ${pillButton(args.opsUrl, "Open weekly review")}
+    ${pillButton(args.opsUrl, "Open Friday Portfolio Review")}
   `;
 
   return shell({
@@ -918,7 +918,7 @@ export function renderMarketNoteOpsEmail(args: {
     ${eyebrow(copy.label, args.kind === "sent" ? "mint" : "coral")}
     ${heading(copy.head)}
     ${paragraph(escapeHtml(copy.body), 24)}
-    ${pillButton(args.opsUrl, "Open the Market Note queue")}
+    ${pillButton(args.opsUrl, "Open Sunday Market Preview")}
     ${fallbackLink(args.opsUrl)}
   `;
 

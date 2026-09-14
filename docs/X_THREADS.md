@@ -4,8 +4,9 @@ Long-form reply threads posted to our own X account, drafted from the same
 book facts the Friday review runs on.
 
 Nothing reaches the timeline without an admin confirming it in
-`/dashboard/ops/x-threads`. That gate is the point of the feature, not a
-formality: these threads make public performance claims about a real book.
+Communication → X Threads (`/dashboard/ops/communication?tab=x-threads`).
+That gate is the point of the feature, not a formality: these threads make
+public performance claims about a real book.
 
 ## Setup
 

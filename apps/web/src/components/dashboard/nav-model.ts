@@ -10,10 +10,6 @@ import {
   Wallet,
   Lightbulb,
   Inbox,
-  CalendarDays,
-  Mail,
-  Repeat,
-  Hash,
   type LucideIcon,
 } from "lucide-react";
 
@@ -105,29 +101,16 @@ const NAV_GROUPS: readonly NavGroup[] = [
         icon: FileText,
       },
       {
-        label: "Weekly review",
-        href: "/dashboard/ops/weekly-review",
-        icon: CalendarDays,
-      },
-      {
-        label: "Market Note",
-        href: "/dashboard/ops/market-note",
-        icon: Mail,
-      },
-      {
-        label: "X threads",
-        href: "/dashboard/ops/x-threads",
-        icon: Hash,
-      },
-      {
-        label: "Weekly $1k",
-        href: "/dashboard/dca",
-        icon: Repeat,
-      },
-      {
-        label: "Product updates",
-        href: "/dashboard/ops/product-updates",
+        label: "Communication",
+        href: "/dashboard/ops/communication",
         icon: Megaphone,
+        owns: [
+          "/dashboard/ops/weekly-review",
+          "/dashboard/ops/market-note",
+          "/dashboard/ops/x-threads",
+          "/dashboard/ops/product-updates",
+          "/dashboard/dca",
+        ],
       },
       {
         label: "Feature requests",

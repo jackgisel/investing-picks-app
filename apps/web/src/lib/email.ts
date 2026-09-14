@@ -476,7 +476,7 @@ export async function sendWeeklyReviewOpsEmail(args: {
   banner?: string;
 }): Promise<SendResult> {
   if (args.to.length === 0) return { ok: true };
-  const opsUrl = `${SITE_URL}/dashboard/ops/weekly-review`;
+  const opsUrl = `${SITE_URL}/dashboard/ops/communication?tab=friday-portfolio-review`;
   const html = renderWeeklyReviewOpsEmail({
     kind: args.kind,
     periodLabel: args.periodLabel,
@@ -510,7 +510,7 @@ export async function sendMarketNoteOpsEmail(args: {
   banner?: string;
 }): Promise<SendResult> {
   if (args.to.length === 0) return { ok: true };
-  const opsUrl = `${SITE_URL}/dashboard/ops/market-note`;
+  const opsUrl = `${SITE_URL}/dashboard/ops/communication?tab=sunday-market-preview`;
   const html = renderMarketNoteOpsEmail({
     kind: args.kind,
     weekKey: args.weekKey,

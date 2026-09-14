@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     monday.setUTCDate(monday.getUTCDate() + 2);
     const weekKey = isoWeekKey(monday);
 
-    const issue = await ensureIssue(weekKey, `Market Note — ${weekKey}`);
+    const issue = await ensureIssue(weekKey, `Sunday Market Preview — ${weekKey}`);
     const ready = await getSendableIssue();
 
     if (!ready) {

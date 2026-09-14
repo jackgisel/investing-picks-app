@@ -37,6 +37,10 @@ export async function PATCH(
     subject?: string;
     lede?: string | null;
     bodyMd?: string | null;
+    watchlist?: unknown;
+    sectorsMd?: string | null;
+    sentimentMd?: string | null;
+    dates?: unknown;
     confirmed?: boolean;
   };
 
@@ -55,17 +59,33 @@ export async function PATCH(
   }
 
   let issue = existing;
-  if (body.subject !== undefined) {
-    if (!body.subject.trim()) {
+  const touchingContent =
+    body.subject !== undefined ||
+    body.lede !== undefined ||
+    body.bodyMd !== undefined ||
+    body.watchlist !== undefined ||
+    body.sectorsMd !== undefined ||
+    body.sentimentMd !== undefined ||
+    body.dates !== undefined;
+
+  if (touchingContent) {
+    if (body.subject !== undefined && !body.subject.trim()) {
       return NextResponse.json(
         { error: "A subject line is required." },
         { status: 400 },
       );
     }
     const saved = await saveIssue(id, {
-      subject: body.subject.trim(),
-      lede: body.lede?.trim() || null,
-      bodyMd: body.bodyMd?.trim() || null,
+      subject: (body.subject ?? issue.subject).trim(),
+      lede: (body.lede ?? issue.lede)?.trim() || null,
+      bodyMd: body.bodyMd !== undefined ? body.bodyMd : issue.bodyMd,
+      watchlist:
+        body.watchlist !== undefined ? body.watchlist : issue.watchlist,
+      sectorsMd:
+        body.sectorsMd !== undefined ? body.sectorsMd : issue.sectorsMd,
+      sentimentMd:
+        body.sentimentMd !== undefined ? body.sentimentMd : issue.sentimentMd,
+      dates: body.dates !== undefined ? body.dates : issue.dates,
     });
     if (!saved) {
       return NextResponse.json({ error: "Could not save." }, { status: 409 });
@@ -76,7 +96,10 @@ export async function PATCH(
   if (body.confirmed !== undefined) {
     if (body.confirmed && !issue.bodyMd?.trim()) {
       return NextResponse.json(
-        { error: "Write the body before marking it ready." },
+        {
+          error:
+            "Write the four preview sections before marking it ready.",
+        },
         { status: 400 },
       );
     }

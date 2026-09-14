@@ -184,13 +184,30 @@ describe("visibleGroups", () => {
       "/dashboard/ops",
       "/dashboard/ops/book",
       "/dashboard/ops/insights",
-      "/dashboard/ops/weekly-review",
-      "/dashboard/ops/market-note",
-      "/dashboard/ops/x-threads",
-      "/dashboard/dca",
-      "/dashboard/ops/product-updates",
+      "/dashboard/ops/communication",
       "/dashboard/ops/feature-requests",
     ]);
+  });
+
+  it("keeps retired comms URLs highlighting Communication", () => {
+    expect(activeHref("/dashboard/ops/weekly-review", ALL)).toBe(
+      "/dashboard/ops/communication",
+    );
+    expect(activeHref("/dashboard/ops/market-note", ALL)).toBe(
+      "/dashboard/ops/communication",
+    );
+    expect(activeHref("/dashboard/ops/x-threads", ALL)).toBe(
+      "/dashboard/ops/communication",
+    );
+    expect(activeHref("/dashboard/ops/product-updates", ALL)).toBe(
+      "/dashboard/ops/communication",
+    );
+    expect(activeHref("/dashboard/dca", ALL)).toBe(
+      "/dashboard/ops/communication",
+    );
+    expect(activeHref("/dashboard/ops/communication", ALL)).toBe(
+      "/dashboard/ops/communication",
+    );
   });
 });
 

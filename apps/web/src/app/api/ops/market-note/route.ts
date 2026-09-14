@@ -32,6 +32,6 @@ export async function POST() {
 
   await ensureMigrations();
   const weekKey = isoWeekKey();
-  const issue = await ensureIssue(weekKey, `Market Note — ${weekKey}`);
+  const issue = await ensureIssue(weekKey, `Sunday Market Preview — ${weekKey}`);
   return NextResponse.json({ issue });
 }

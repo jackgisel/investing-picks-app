@@ -12,10 +12,16 @@ export function ArtMasthead({
   className = "",
   /** Taller on featured/index; shorter on article headers. */
   size = "md",
+  fade = true,
 }: {
   art: ArtPiece;
   className?: string;
   size?: "sm" | "md" | "lg";
+  /**
+   * Blog headers fade into the page so type can sit on the print. Email-style
+   * surfaces (research notes) want the crop, not the scrim.
+   */
+  fade?: boolean;
 }) {
   const height =
     size === "lg"
@@ -37,9 +43,13 @@ export function ArtMasthead({
         className="object-cover object-center"
         priority={size === "lg"}
       />
-      {/* Keep ink readable in light mode; let more texture show through. */}
-      <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/25 to-bg/10 dark:from-bg dark:via-bg/40 dark:to-bg/20" />
-      <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-bg to-transparent" />
+      {fade ? (
+        <>
+          {/* Keep ink readable in light mode; let more texture show through. */}
+          <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/25 to-bg/10 dark:from-bg dark:via-bg/40 dark:to-bg/20" />
+          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-bg to-transparent" />
+        </>
+      ) : null}
     </div>
   );
 }

@@ -68,6 +68,23 @@ export function artForWeek(weekKey: string): ArtPiece {
   return artForKey(weekKey);
 }
 
+/**
+ * Same print the pick / weekly-review email used for this note.
+ *
+ * Weekly reviews carry the week in the slug. Pick, add, and exit notes use
+ * the week they were published (or created, for a draft still in review),
+ * which is the key `sendNewPickEmail` stamps at send time.
+ */
+export function artForInsight(insight: {
+  slug: string;
+  publishedAt: string | null;
+  createdAt: string;
+}): ArtPiece {
+  const fromSlug = weekKeyFromInsightSlug(insight.slug);
+  if (fromSlug) return artForWeek(fromSlug);
+  return artForWeek(isoWeekKey(new Date(insight.publishedAt ?? insight.createdAt)));
+}
+
 /** Normalize `2026-w35` / `2026-W35` → `2026-W35`. */
 export function normalizeWeekKey(weekKey: string): string | null {
   const m = /^(\d{4})-[wW](\d{1,2})$/.exec(weekKey.trim());

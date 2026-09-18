@@ -15,6 +15,8 @@ import { SITE_NAME, SITE_URL } from "@/lib/constants";
 import { isoWeekKey } from "@/lib/email-dispatch";
 import { weeklyReviewSlug } from "@/lib/insights";
 import { getInsightBySlug } from "@/lib/insights-db";
+import { artAbsoluteUrl } from "@/lib/art";
+import { artForInsight } from "@/lib/art-pool";
 import {
   fetchQuantRatingForTicker,
   fetchWeekVsSpy,
@@ -44,6 +46,7 @@ export async function generateMetadata({
   const url = `${SITE_URL}/dashboard/insights/${insight.slug}`;
   const title = insight.title ?? undefined;
   const description = insight.description ?? undefined;
+  const art = artAbsoluteUrl(artForInsight(insight), SITE_URL);
 
   return {
     title,
@@ -59,8 +62,9 @@ export async function generateMetadata({
       publishedTime: insight.publishedAt ?? undefined,
       authors: insight.author ? [insight.author] : undefined,
       tags: insight.tags,
+      images: [{ url: art }],
     },
-    twitter: { card: "summary", title, description },
+    twitter: { card: "summary_large_image", title, description, images: [art] },
   };
 }
 

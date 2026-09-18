@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   artForWeek,
+  artForInsight,
   nextSpareCover,
   normalizeWeekKey,
   poolStatus,
@@ -31,6 +32,24 @@ describe("art pool", () => {
   it("falls back outside the pre-generated window", () => {
     expect(artForWeek("2027-W01").src.startsWith("/art/")).toBe(true);
     expect(artForWeek("2027-W01").src).not.toContain("/pool/2027");
+  });
+
+  it("gives a pick note the same weekly print the email used", () => {
+    const art = artForInsight({
+      slug: "sndk-stock-buy-sandisks-nand-upcycle",
+      publishedAt: "2026-09-18T16:00:00.000Z",
+      createdAt: "2026-09-18T12:00:00.000Z",
+    });
+    expect(art.src).toBe("/art/pool/2026-W38.png");
+  });
+
+  it("reads the week from a weekly-review slug, not the timestamps", () => {
+    const art = artForInsight({
+      slug: "weekly-review-2026-w35",
+      publishedAt: "2026-09-18T16:00:00.000Z",
+      createdAt: "2026-09-18T12:00:00.000Z",
+    });
+    expect(art.src).toBe("/art/pool/2026-W35.png");
   });
 
   it("exposes spare covers for future blog posts", () => {

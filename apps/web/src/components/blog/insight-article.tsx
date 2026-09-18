@@ -1,9 +1,11 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { ArtMasthead } from "@/components/art/art-masthead";
 import { Callout, KeyTakeaway, LI, Lede, P, TLDR, UL } from "@/components/blog/prose";
 import { MarkdownProse } from "@/components/blog/markdown-prose";
 import { CompanyLogo } from "@/components/ui/company-logo";
+import { artForInsight } from "@/lib/art-pool";
 import { SITE_NAME } from "@/lib/constants";
 import { insightCategoryLabel } from "@/lib/insights";
 import type { Insight } from "@/lib/insights";
@@ -45,9 +47,16 @@ export function formatInsightDate(iso: string): string {
 
 export function InsightHeader({ insight }: { insight: Insight }) {
   const dateLabel = insight.publishedAt ?? insight.createdAt;
+  const art = artForInsight(insight);
 
   return (
     <header className="mt-6 border-b border-border pb-8">
+      <ArtMasthead
+        art={art}
+        size="md"
+        fade={false}
+        className="mb-8 rounded-xl border border-border"
+      />
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <span
           className={`inline-flex items-center rounded-lg px-2.5 py-1 font-sans text-[10px] font-bold uppercase tracking-[0.12em] text-text-muted ${insightTone(

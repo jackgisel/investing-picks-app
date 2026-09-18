@@ -176,8 +176,11 @@ export default function OpsEvaluationsPage() {
           </div>
         </div>
         <p className="text-xs text-text-dim max-w-xl">
-          Read-only. Computes what the strategy would do against current marks and scores —
-          writes nothing to the book or the decision ledger.
+          Read-only. Computes what the strategy would do against current marks and
+          scores, and writes nothing to the book or the decision ledger.{" "}
+          <Link href="/dashboard/ops/friday-buy" className="text-text hover:text-text-muted">
+            Ranked Friday buy queue
+          </Link>
         </p>
         {dry.isFetching && !dry.data && <p className="text-text-muted text-sm">Computing…</p>}
         {dry.error && <p className="text-accent-red text-sm">Dry-run unavailable (is the API up?)</p>}

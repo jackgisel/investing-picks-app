@@ -9,7 +9,12 @@ from outpick_strategy.types import (
     Signal,
     RuleCheck,
 )
-from outpick_strategy.signals import evaluate, evaluate_dca_sells, evaluate_sells_only
+from outpick_strategy.signals import (
+    evaluate,
+    evaluate_dca_sells,
+    evaluate_sells_only,
+    explain_buy_queue,
+)
 from outpick_strategy.cadence import (
     evaluation_fridays_between,
     is_evaluation_friday,
@@ -35,6 +40,7 @@ __all__ = [
     "evaluate",
     "evaluate_dca_sells",
     "evaluate_sells_only",
+    "explain_buy_queue",
     "evaluation_fridays_between",
     "is_evaluation_friday",
     "next_evaluation_friday",

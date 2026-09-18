@@ -32,6 +32,15 @@ class RuleCheck:
     threshold: dict[str, Any] = field(default_factory=dict)
     message: str = ""
 
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "rule_id": self.rule_id,
+            "passed": self.passed,
+            "inputs": self.inputs,
+            "threshold": self.threshold,
+            "message": self.message,
+        }
+
 
 @dataclass
 class ScoreSnapshot:
@@ -44,6 +53,18 @@ class ScoreSnapshot:
     revisions_grade: str = "F"
     sector: str | None = None
     prior_quant_rating: float | None = None  # for optional QR velocity
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "ticker": self.ticker,
+            "quant_rating": self.quant_rating,
+            "valuation_grade": self.valuation_grade,
+            "growth_grade": self.growth_grade,
+            "profitability_grade": self.profitability_grade,
+            "momentum_grade": self.momentum_grade,
+            "revisions_grade": self.revisions_grade,
+            "sector": self.sector,
+        }
 
 
 @dataclass
@@ -109,27 +130,7 @@ class Signal:
             "reason": self.reason,
             "sell_shares": self.sell_shares,
             "keep_shares": self.keep_shares,
-            "rules": [
-                {
-                    "rule_id": r.rule_id,
-                    "passed": r.passed,
-                    "inputs": r.inputs,
-                    "threshold": r.threshold,
-                    "message": r.message,
-                }
-                for r in self.rules
-            ],
-            "score": None
-            if not self.score
-            else {
-                "ticker": self.score.ticker,
-                "quant_rating": self.score.quant_rating,
-                "valuation_grade": self.score.valuation_grade,
-                "growth_grade": self.score.growth_grade,
-                "profitability_grade": self.score.profitability_grade,
-                "momentum_grade": self.score.momentum_grade,
-                "revisions_grade": self.score.revisions_grade,
-                "sector": self.score.sector,
-            },
+            "rules": [r.to_dict() for r in self.rules],
+            "score": None if not self.score else self.score.to_dict(),
             "metadata": self.metadata,
         }

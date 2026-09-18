@@ -6,6 +6,7 @@ Hard rule: no I/O. Callers supply PortfolioState + scores.
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from datetime import date
 
 from outpick_strategy.grades import grade_meets_minimum
@@ -774,3 +775,318 @@ def _reconcile_exits(weight_trims: list[Signal], removals: list[Signal]) -> list
     signals = [t for t in weight_trims if t.ticker not in superseded]
     signals.extend(removals)
     return signals
+
+
+# How many high-QR names that fail a buy criterion to keep on the queue after
+# the names that actually clear the grade gates. The rest of the universe is
+# noise for an operator validating Friday's pick.
+NEAR_MISS_LIMIT = 10
+
+_BUY_ACTIONS = (Action.BUY, Action.DOUBLE_BUY)
+
+
+@dataclass
+class BuyQueueEntry:
+    """One ranked name, with the reason it is or is not Friday's buy."""
+
+    ticker: str
+    rank: int
+    score: ScoreSnapshot
+    held: bool
+    criteria_ok: bool
+    criteria: list[RuleCheck]
+    status: str  # selected | blocked | near_miss
+    blocked_by: str | None = None
+    message: str = ""
+    action: str | None = None
+
+    def to_dict(self) -> dict:
+        return {
+            "ticker": self.ticker,
+            "rank": self.rank,
+            "held": self.held,
+            "criteria_ok": self.criteria_ok,
+            "criteria": [c.to_dict() for c in self.criteria],
+            "status": self.status,
+            "blocked_by": self.blocked_by,
+            "message": self.message,
+            "action": self.action,
+            "score": self.score.to_dict(),
+        }
+
+
+@dataclass
+class BuyQueue:
+    selected_ticker: str | None
+    selected_action: str | None
+    drawdown_halted: bool
+    candidates: list[BuyQueueEntry]
+
+    def to_dict(self) -> dict:
+        return {
+            "selected_ticker": self.selected_ticker,
+            "selected_action": self.selected_action,
+            "drawdown_halted": self.drawdown_halted,
+            "candidates": [c.to_dict() for c in self.candidates],
+        }
+
+
+def _buy_session_state(
+    portfolio: PortfolioState,
+    scores: dict[str, ScoreSnapshot],
+    params: StrategyParams,
+    as_of: date,
+) -> tuple[list[Signal], bool, set[str], set[str], float, float]:
+    """Cash, held set, and exit list `_buy_signals` starts from.
+
+    Same prior-signal construction as `evaluate()`: weight trims reconciled
+    against removals, then proceeds from those exits added to cash. The
+    explainer has to see that book, not the pre-eval one, or a name funded by
+    a pending sell would look unfundable.
+    """
+    prior = _reconcile_exits(
+        _weight_trim_signals(portfolio, params),
+        _removal_signals(portfolio, scores, params, as_of),
+    )
+    halted, _ = _drawdown_halted(portfolio, params)
+    exiting = {s.ticker for s in prior if s.action == Action.FULL_SELL}
+    already_trimmed = {
+        s.ticker
+        for s in prior
+        if s.action in (Action.TRIM, Action.RECYCLE_TRIM, Action.PARTIAL_SELL)
+    }
+    held = set(portfolio.positions.keys()) - exiting
+    target_notional = params.target_notional(portfolio.equity)
+    freed: dict[str, float] = {}
+    for s in prior:
+        pos = portfolio.positions.get(s.ticker)
+        if not pos:
+            continue
+        if s.action == Action.FULL_SELL:
+            freed[s.ticker] = freed.get(s.ticker, 0.0) + pos.market_value
+        elif s.sell_shares:
+            freed[s.ticker] = freed.get(s.ticker, 0.0) + s.sell_shares * pos.current_price
+    sim_cash = portfolio.cash + sum(
+        min(proceeds, portfolio.positions[t].market_value) for t, proceeds in freed.items()
+    )
+    return prior, halted, held, already_trimmed, sim_cash, target_notional
+
+
+def _funding_blocked(
+    ticker: str,
+    portfolio: PortfolioState,
+    scores: dict[str, ScoreSnapshot],
+    params: StrategyParams,
+    sim_cash: float,
+    target_notional: float,
+    exiting: set[str],
+    already_trimmed: set[str],
+) -> bool:
+    """True when `_buy_signals` would `continue` for insufficient cash."""
+    reserve = params.cash_reserve_buys * target_notional
+    cash = sim_cash
+    shortfall = max(0.0, target_notional + reserve - cash)
+    if shortfall > 0:
+        recycle = _plan_recycle_trims(
+            portfolio,
+            scores,
+            shortfall,
+            params,
+            exiting | already_trimmed | {ticker},
+        )
+        if recycle:
+            for r in recycle:
+                cash += (r.sell_shares or 0) * portfolio.positions[r.ticker].current_price
+        elif cash < target_notional:
+            return True
+    return cash < target_notional * 0.5
+
+
+def _book_gate(
+    ticker: str,
+    score: ScoreSnapshot,
+    portfolio: PortfolioState,
+    scores: dict[str, ScoreSnapshot],
+    params: StrategyParams,
+    held: set[str],
+    already_trimmed: set[str],
+    sim_cash: float,
+    target_notional: float,
+    exiting: set[str],
+) -> tuple[str | None, str]:
+    """Book constraint that stops this name, or (None, '') if it would buy.
+
+    Mirrors the continue-points inside `_buy_signals` after `meets_buy_criteria`
+    has already passed. Does not apply the one-add cap — the caller does that
+    once it knows whether evaluate() already picked someone.
+    """
+    if ticker in held:
+        if not params.allow_double_buy:
+            return "already_held", "Already held; conviction adds are off"
+        pos = portfolio.positions.get(ticker)
+        if not pos:
+            return "already_held", "Already held"
+        if ticker in already_trimmed:
+            return "already_trimmed", "Trimmed this evaluation; no conviction add"
+        if pos.gain_pct < params.double_buy_min_gain:
+            return (
+                "conviction_add_gain",
+                (
+                    f"Already held; gain {pos.gain_pct:.0%} is below the "
+                    f"{params.double_buy_min_gain:.0%} conviction-add minimum"
+                ),
+            )
+        if _funding_blocked(
+            ticker, portfolio, scores, params, sim_cash, target_notional, exiting, already_trimmed
+        ):
+            return "insufficient_cash", "Not enough cash for a conviction add, even after recycle"
+        return None, ""
+
+    if len(held) >= params.max_positions:
+        return "no_slot", f"Book is at max_positions ({params.max_positions})"
+    if _would_exceed_sector_cap(
+        ticker, score.sector, held, scores, portfolio.positions, params
+    ):
+        cap_pct = int(params.sector_concentration * 100)
+        return "sector_cap", f"Would exceed the {cap_pct}% sector cap"
+    if _funding_blocked(
+        ticker, portfolio, scores, params, sim_cash, target_notional, exiting, already_trimmed
+    ):
+        return "insufficient_cash", "Not enough cash for a new name, even after recycle"
+    return None, ""
+
+
+def _near_miss_message(checks: list[RuleCheck]) -> str:
+    failed = [c.rule_id for c in checks if not c.passed]
+    if not failed:
+        return "Fails a buy criterion"
+    return "Fails " + ", ".join(failed)
+
+
+def explain_buy_queue(
+    portfolio: PortfolioState,
+    scores: dict[str, ScoreSnapshot],
+    ranked_tickers: list[str],
+    params: StrategyParams | None = None,
+    as_of: date | None = None,
+    near_miss_limit: int = NEAR_MISS_LIMIT,
+) -> BuyQueue:
+    """Ranked Friday-buy queue with skip reasons. Does not change evaluate().
+
+    `selected_ticker` is taken from `evaluate()` so the ops page cannot disagree
+    with the dry-run about who the engine would buy. Book-gate reasons on the
+    other names reuse the same predicates `_buy_signals` uses.
+    """
+    params = params or StrategyParams()
+    as_of = as_of or portfolio.as_of or date.today()
+
+    signals = evaluate(portfolio, scores, ranked_tickers, params, as_of)
+    chosen = next((s for s in signals if s.action in _BUY_ACTIONS), None)
+    selected_ticker = chosen.ticker if chosen else None
+    selected_action = chosen.action.value if chosen else None
+
+    _prior, halted, held, already_trimmed, sim_cash, target_notional = _buy_session_state(
+        portfolio, scores, params, as_of
+    )
+    exiting = {s.ticker for s in _prior if s.action == Action.FULL_SELL}
+
+    candidates: list[BuyQueueEntry] = []
+    near_misses: list[BuyQueueEntry] = []
+
+    for rank, ticker in enumerate(ranked_tickers, start=1):
+        score = scores.get(ticker)
+        if not score:
+            continue
+        ok, criteria = meets_buy_criteria(score, params)
+        held_now = ticker in held
+
+        if not ok:
+            if len(near_misses) < near_miss_limit:
+                near_misses.append(
+                    BuyQueueEntry(
+                        ticker=ticker,
+                        rank=rank,
+                        score=score,
+                        held=held_now,
+                        criteria_ok=False,
+                        criteria=criteria,
+                        status="near_miss",
+                        blocked_by="criteria",
+                        message=_near_miss_message(criteria),
+                    )
+                )
+            continue
+
+        if halted:
+            candidates.append(
+                BuyQueueEntry(
+                    ticker=ticker,
+                    rank=rank,
+                    score=score,
+                    held=held_now,
+                    criteria_ok=True,
+                    criteria=criteria,
+                    status="blocked",
+                    blocked_by="drawdown",
+                    message="Buys halted by drawdown circuit breaker",
+                )
+            )
+            continue
+
+        if ticker == selected_ticker:
+            candidates.append(
+                BuyQueueEntry(
+                    ticker=ticker,
+                    rank=rank,
+                    score=score,
+                    held=held_now,
+                    criteria_ok=True,
+                    criteria=criteria,
+                    status="selected",
+                    message=chosen.reason if chosen else "",
+                    action=selected_action,
+                )
+            )
+            continue
+
+        blocked_by, message = _book_gate(
+            ticker,
+            score,
+            portfolio,
+            scores,
+            params,
+            held,
+            already_trimmed,
+            sim_cash,
+            target_notional,
+            exiting,
+        )
+        if blocked_by is None and selected_ticker:
+            blocked_by = "max_adds"
+            message = "Clears the gates; another name took the one add"
+        elif blocked_by is None:
+            # evaluate() found no buy, but this name looks clear. Surface it
+            # rather than dropping it — a silent omission is how the ops page
+            # and the ledger drift apart.
+            blocked_by = "not_selected"
+            message = "Passes the gates here; evaluate() did not buy"
+        candidates.append(
+            BuyQueueEntry(
+                ticker=ticker,
+                rank=rank,
+                score=score,
+                held=held_now,
+                criteria_ok=True,
+                criteria=criteria,
+                status="blocked",
+                blocked_by=blocked_by,
+                message=message,
+            )
+        )
+
+    return BuyQueue(
+        selected_ticker=selected_ticker,
+        selected_action=selected_action,
+        drawdown_halted=halted,
+        candidates=candidates + near_misses,
+    )

@@ -10,6 +10,7 @@ import {
   Wallet,
   Lightbulb,
   Inbox,
+  ListOrdered,
   type LucideIcon,
 } from "lucide-react";
 
@@ -88,6 +89,11 @@ const NAV_GROUPS: readonly NavGroup[] = [
         href: "/dashboard/ops",
         icon: ScanSearch,
         owns: ["/dashboard/ops/evaluations"],
+      },
+      {
+        label: "Friday buy",
+        href: "/dashboard/ops/friday-buy",
+        icon: ListOrdered,
       },
       {
         label: "Virtual book",

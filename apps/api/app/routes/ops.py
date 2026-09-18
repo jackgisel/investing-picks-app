@@ -43,6 +43,7 @@ from app.services.replay import FillModel, reconstruct_book, replay, score_histo
 from app.routes.public_v1 import _latest_fundamentals_by_ticker
 from outpick_strategy import (
     evaluate,
+    explain_buy_queue,
     grade_meets_minimum,
     next_evaluation_friday,
     RUN118_PARAMS,
@@ -906,6 +907,124 @@ def dry_run_preview(simulate: bool = False, db: Session = Depends(get_db)):
             ),
         },
         "signals": [s.to_dict() for s in signals],
+    }
+
+
+def _last_executed_buy(db: Session, portfolio_id: int) -> dict | None:
+    """The buy that actually landed, not the next dry-run candidate.
+
+    Prefers an executed engine signal so a live Friday buy wins over a later
+    manual correction. Falls back to the latest buy-side trade when the book
+    was seeded by hand and has no ledger signal yet.
+    """
+    signal = (
+        db.query(SignalRow)
+        .join(Evaluation, Evaluation.id == SignalRow.evaluation_id)
+        .filter(
+            Evaluation.portfolio_id == portfolio_id,
+            Evaluation.executed.is_(True),
+            SignalRow.action.in_(("buy", "double_buy")),
+            SignalRow.executed.is_(True),
+        )
+        .order_by(Evaluation.created_at.desc(), SignalRow.id.desc())
+        .first()
+    )
+    if signal is not None:
+        created = signal.evaluation.created_at if signal.evaluation else None
+        return {
+            "ticker": signal.ticker,
+            "action": signal.action,
+            "reason": signal.reason,
+            "evaluation_id": signal.evaluation_id,
+            "executed_at": created.isoformat() if created else None,
+            "source": "signal",
+        }
+    trade = (
+        db.query(Trade)
+        .filter(
+            Trade.portfolio_id == portfolio_id,
+            Trade.side == "buy",
+            Trade.action.in_(("buy", "double_buy", "manual_buy")),
+        )
+        .order_by(Trade.timestamp.desc())
+        .first()
+    )
+    if trade is None:
+        return None
+    return {
+        "ticker": trade.ticker,
+        "action": trade.action or "buy",
+        "reason": trade.reason,
+        "evaluation_id": trade.evaluation_id,
+        "executed_at": trade.timestamp.isoformat() if trade.timestamp else None,
+        "source": "trade",
+    }
+
+
+@router.get("/buy-queue", dependencies=[Depends(require_ops_key)])
+def buy_queue_preview(db: Session = Depends(get_db)):
+    """Ranked Friday-buy queue with skip reasons. Writes nothing.
+
+    `engine_pick` is what `evaluate()` would buy this cycle. `last_buy` is the
+    name that already landed in the book. They are not the same job, and this
+    payload keeps them apart on purpose.
+    """
+    portfolio = ensure_default_portfolio(db, get_settings().initial_cash)
+    params = params_from_portfolio(portfolio)
+    state = load_portfolio_state(db, portfolio)
+    scores = load_latest_scores(db)
+    ranked = ranked_candidates(scores)
+
+    signals = evaluate(state, scores, ranked, params)
+    buy = next(
+        (s for s in signals if s.action.value in ("buy", "double_buy")),
+        None,
+    )
+    queue = explain_buy_queue(state, scores, ranked, params)
+    if queue.selected_ticker != (buy.ticker if buy else None):
+        log.error(
+            "buy-queue explainer selected %s; evaluate() selected %s",
+            queue.selected_ticker,
+            buy.ticker if buy else None,
+        )
+
+    names = {}
+    tickers = [c.ticker for c in queue.candidates]
+    if tickers:
+        names = {
+            row.ticker: row.name
+            for row in db.query(Stock).filter(Stock.ticker.in_(tickers)).all()
+        }
+
+    candidates = []
+    for entry in queue.candidates:
+        row = entry.to_dict()
+        row["name"] = names.get(entry.ticker)
+        candidates.append(row)
+
+    engine_pick = None
+    if buy is not None:
+        engine_pick = {
+            "ticker": buy.ticker,
+            "action": buy.action.value,
+            "reason": buy.reason,
+            "score": buy.score.to_dict() if buy.score else None,
+            "rules": [r.to_dict() for r in buy.rules],
+        }
+
+    return {
+        "params_version": params.version_hash(),
+        "target_notional": params.target_notional(state.equity),
+        "next_evaluation": _next_evaluation(db),
+        "portfolio": {
+            "cash": state.cash,
+            "equity": state.equity,
+            "position_count": state.position_count(),
+        },
+        "engine_pick": engine_pick,
+        "last_buy": _last_executed_buy(db, portfolio.id),
+        "drawdown_halted": queue.drawdown_halted,
+        "candidates": candidates,
     }
 
 

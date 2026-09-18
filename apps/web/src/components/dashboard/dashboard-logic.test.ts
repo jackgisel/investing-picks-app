@@ -85,6 +85,9 @@ describe("activeHref", () => {
   it("prefers the more specific of two nested admin items", () => {
     expect(activeHref("/dashboard/ops/book", ALL)).toBe("/dashboard/ops/book");
     expect(activeHref("/dashboard/ops", ALL)).toBe("/dashboard/ops");
+    expect(activeHref("/dashboard/ops/friday-buy", ALL)).toBe(
+      "/dashboard/ops/friday-buy",
+    );
   });
 
   // The bug the `owns` list exists to fix: these used to highlight nothing.
@@ -182,6 +185,7 @@ describe("visibleGroups", () => {
     expect(groups[1].label).toBe("Admin");
     expect(groups[1].items.map((i) => i.href)).toEqual([
       "/dashboard/ops",
+      "/dashboard/ops/friday-buy",
       "/dashboard/ops/book",
       "/dashboard/ops/insights",
       "/dashboard/ops/communication",

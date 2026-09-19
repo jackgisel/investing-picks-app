@@ -47,7 +47,7 @@ export const SPARE_POOL: readonly string[] = [
  * `nextSpareCover()` skips it.
  */
 export const SPARE_CLAIMED: Readonly<Record<string, string>> = {
-  // "spare-01": "some-future-slug",
+  "spare-01": "when-to-sell-a-stock-thesis-broken",
 };
 
 function poolPiece(id: string, label: string): ArtPiece {

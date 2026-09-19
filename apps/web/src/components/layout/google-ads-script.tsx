@@ -1,4 +1,3 @@
-import Script from "next/script";
 import { googleAdsMeasurementId } from "@/lib/google-ads";
 
 export function GoogleAdsScript() {
@@ -7,18 +6,16 @@ export function GoogleAdsScript() {
 
   return (
     <>
-      <Script
-        src={`https://www.googletagmanager.com/gtag/js?id=${id}`}
-        strategy="afterInteractive"
-      />
-      <Script id="google-ads-gtag" strategy="afterInteractive">
-        {`
-window.dataLayer = window.dataLayer || [];
+      <script async src={`https://www.googletagmanager.com/gtag/js?id=${id}`} />
+      <script
+        id="google-ads-gtag"
+        dangerouslySetInnerHTML={{
+          __html: `window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
 gtag('js', new Date());
-gtag('config', '${id}');
-`}
-      </Script>
+gtag('config', '${id}');`,
+        }}
+      />
     </>
   );
 }

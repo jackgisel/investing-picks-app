@@ -4,6 +4,7 @@ import { GoogleAdsConversion } from "@/components/layout/google-ads-conversion";
 import { ensureMigrations } from "@/lib/auth";
 import { isSubscriptionEntitled } from "@/lib/billing";
 import { loadGoogleAdsCheckoutConversion } from "@/lib/google-ads-session";
+import { welcomeLoginNext } from "@/lib/login-redirect";
 import { getServerUser } from "@/lib/server-session";
 import { getSubscription } from "@/lib/subscription";
 import { WelcomeExperience } from "./welcome-experience";
@@ -21,10 +22,11 @@ export default async function WelcomePage({
   searchParams: Promise<{ checkout?: string; session_id?: string }>;
 }) {
   await ensureMigrations();
-  const user = await getServerUser();
-  if (!user) redirect("/login?next=/welcome");
-
   const query = await searchParams;
+  const user = await getServerUser();
+  if (!user) {
+    redirect(`/login?next=${encodeURIComponent(welcomeLoginNext(query))}`);
+  }
   const [subscription, conversion] = await Promise.all([
     getSubscription(user.id),
     loadGoogleAdsCheckoutConversion({

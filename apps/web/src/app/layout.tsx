@@ -129,6 +129,7 @@ export default function RootLayout({
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <GoogleAdsScript />
       </head>
       <body className="font-sans antialiased text-text bg-bg min-h-screen selection:bg-accent-yellow/50">
         <ThemeProvider>
@@ -141,7 +142,6 @@ export default function RootLayout({
               <Footer />
             </MarketingFooter>
             <CookieBanner />
-            <GoogleAdsScript />
             <DataFastScript />
           </QueryProvider>
         </ThemeProvider>

@@ -168,15 +168,37 @@ describe("Checkout conversion payload", () => {
 });
 
 describe("Google Ads is loaded once from the root layout", () => {
-  it("does not duplicate the gtag snippet on the thank-you page", () => {
+  it("puts the Google tag in <head> as real script tags", () => {
     const layout = readFileSync(join(webRoot, "src/app/layout.tsx"), "utf8");
+    const script = readFileSync(
+      join(webRoot, "src/components/layout/google-ads-script.tsx"),
+      "utf8",
+    );
     const welcome = readFileSync(join(webRoot, "src/app/welcome/page.tsx"), "utf8");
     const thankYou = readFileSync(
       join(webRoot, "src/app/welcome/welcome-experience.tsx"),
       "utf8",
     );
-    expect(layout).toContain("<GoogleAdsScript />");
+    const conversion = readFileSync(
+      join(webRoot, "src/components/layout/google-ads-conversion.tsx"),
+      "utf8",
+    );
+    const head = layout.slice(
+      layout.indexOf("<head>"),
+      layout.indexOf("</head>"),
+    );
+    expect(head).toContain("<GoogleAdsScript />");
+    expect(layout.slice(layout.indexOf("<body"))).not.toContain(
+      "<GoogleAdsScript />",
+    );
+    expect(script).toContain(
+      "https://www.googletagmanager.com/gtag/js?id=${id}",
+    );
+    expect(script).not.toContain('from "next/script"');
+    expect(script).not.toContain("afterInteractive");
+    expect(conversion).toContain("gtag('event', 'conversion'");
     expect(welcome).toContain("GoogleAdsConversion");
+    expect(welcome).toContain("welcomeLoginNext");
     expect(welcome).not.toContain("GoogleAdsScript");
     expect(thankYou).not.toContain("gtag");
     expect(thankYou).not.toContain("googletagmanager");

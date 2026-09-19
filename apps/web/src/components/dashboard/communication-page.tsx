@@ -4,6 +4,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { FridayPortfolioReviewPanel } from "@/components/dashboard/friday-portfolio-review-panel";
 import { FridayStockPickPanel } from "@/components/dashboard/friday-stock-pick-panel";
+import { InvitesPanel } from "@/components/dashboard/invites-panel";
 import { ProductUpdatesPanel } from "@/components/dashboard/product-updates-panel";
 import { SundayMarketPreviewPanel } from "@/components/dashboard/sunday-market-preview-panel";
 import { TabPanel, Tabs } from "@/components/dashboard/tabs";
@@ -32,7 +33,7 @@ export function CommunicationPage() {
         <h1 className="page-title">Communication</h1>
         <p className="mt-1 max-w-[640px] font-sans text-[13px] leading-relaxed text-text-dim">
           Friday pick and portfolio review, Sunday market preview, X threads,
-          and product updates — one queue.
+          and product updates — one queue. Complimentary invites live here too.
         </p>
       </div>
 
@@ -75,6 +76,13 @@ export function CommunicationPage() {
           <div className="pt-5">
             <TabPanel id="product-updates">
               <ProductUpdatesPanel />
+            </TabPanel>
+          </div>
+        )}
+        {tab === "invites" && (
+          <div className="pt-5">
+            <TabPanel id="invites">
+              <InvitesPanel />
             </TabPanel>
           </div>
         )}

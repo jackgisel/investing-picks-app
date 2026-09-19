@@ -34,6 +34,7 @@ const state = vi.hoisted(() => ({
   foundersActive: true,
   /** Whether the deployment asks anyone to verify. See `requireEmailVerification`. */
   verificationRequired: true,
+  complimentary: false,
   stripe: {
     customers: { retrieve: vi.fn(), create: vi.fn() },
     subscriptions: { list: vi.fn() },
@@ -52,6 +53,10 @@ vi.mock("@/lib/founders-server", () => ({
   isFoundersWindowActive: async () => state.foundersActive,
 }));
 vi.mock("@/lib/stripe", () => ({ getStripe: () => state.stripe }));
+vi.mock("@/lib/membership-invites", () => ({
+  isComplimentaryInviteEmail: async () => state.complimentary,
+  ensureComplimentaryCoupon: vi.fn(async () => "coupon_free"),
+}));
 vi.mock("@/lib/subscription", () => ({
   getSubscriptionRecord: async () => state.subscription,
   saveStripeCustomer: state.saveCustomer,
@@ -80,6 +85,9 @@ describe("billing routes", () => {
     process.env.STRIPE_AUTOMATIC_TAX_ENABLED = "false";
     delete process.env.STRIPE_PRODUCTION_TEST_EMAIL;
     delete process.env.STRIPE_PRODUCTION_TEST_COUPON_ID;
+    delete process.env.STRIPE_COMPLIMENTARY_EMAILS;
+    delete process.env.STRIPE_COMPLIMENTARY_COUPON_ID;
+    state.complimentary = false;
     state.user = {
       id: "user_1",
       email: "member@example.test",
@@ -266,6 +274,36 @@ describe("billing routes", () => {
     const response = await checkout(request());
     expect(response.status).toBe(503);
     expect(state.stripe.checkout.sessions.create).not.toHaveBeenCalled();
+  });
+
+  it("gives the complimentary coupon priority over founders", async () => {
+    state.complimentary = true;
+    await checkout(request());
+    expect(state.stripe.checkout.sessions.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        discounts: [{ coupon: "coupon_free" }],
+        payment_method_collection: "if_required",
+        billing_address_collection: "auto",
+        metadata: expect.objectContaining({
+          offer_type: "complimentary",
+          founders_offer: "false",
+        }),
+      }),
+      { idempotencyKey: "outpick-checkout-v2-user_1-complimentary" },
+    );
+  });
+
+  it("fails safely instead of charging full price when the complimentary coupon cannot be created", async () => {
+    state.complimentary = true;
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { ensureComplimentaryCoupon } = await import("@/lib/membership-invites");
+    vi.mocked(ensureComplimentaryCoupon).mockRejectedValueOnce(
+      new Error("No such coupon"),
+    );
+    const response = await checkout(request());
+    expect(response.status).toBe(503);
+    expect(state.stripe.checkout.sessions.create).not.toHaveBeenCalled();
+    spy.mockRestore();
   });
 
   it("never reapplies the founders coupon after redemption", async () => {

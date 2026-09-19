@@ -4,6 +4,7 @@ import { getMigrations } from "better-auth/db/migration";
 import { pool } from "@/lib/db";
 import { runAppMigrations } from "@/lib/app-migrations";
 import { sendDeleteAccountEmail, sendMagicLinkEmail } from "@/lib/email";
+import { flushPendingMembershipInvites } from "@/lib/membership-invites";
 import { cancelStripeSubscriptionForDeletedUser } from "@/lib/subscription";
 
 /**
@@ -84,6 +85,11 @@ export async function ensureMigrations() {
       await runAppMigrations();
       migrated = true;
       console.log("Migrations applied");
+      // Do not await: a Resend outage must not fail the request that triggered
+      // migrations. Failures leave sent_at NULL so the next boot retries.
+      void flushPendingMembershipInvites().catch((error) => {
+        console.error("Failed to send pending membership invites:", error);
+      });
     } catch (e) {
       console.error("Migration failed:", e);
       // Don't permanently lock — let the next request retry.

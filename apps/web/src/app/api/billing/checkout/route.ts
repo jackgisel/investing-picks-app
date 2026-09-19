@@ -23,6 +23,10 @@ import {
   type CheckoutOffer,
 } from "@/lib/stripe-checkout";
 import {
+  ensureComplimentaryCoupon,
+  isComplimentaryInviteEmail,
+} from "@/lib/membership-invites";
+import {
   getSubscriptionRecord,
   saveStripeCustomer,
 } from "@/lib/subscription";
@@ -142,10 +146,31 @@ async function createCheckoutResponse(request: NextRequest) {
     );
   }
 
-  const foundersEligible = !productionTest && isFoundersOfferEligible({
-    foundersWindowActive: await isFoundersWindowActive(),
-    redeemedAt: subscription.foundersDiscountRedeemedAt,
-  });
+  const complimentary =
+    !productionTest && (await isComplimentaryInviteEmail(user.email));
+  let complimentaryCouponId: string | null = null;
+  if (complimentary) {
+    try {
+      complimentaryCouponId = await ensureComplimentaryCoupon(
+        stripe,
+        annualPriceId,
+      );
+    } catch (error) {
+      console.error("Complimentary coupon is unavailable:", error);
+      return NextResponse.json(
+        { error: "Complimentary checkout is temporarily unavailable" },
+        { status: 503 },
+      );
+    }
+  }
+
+  const foundersEligible =
+    !productionTest &&
+    !complimentary &&
+    isFoundersOfferEligible({
+      foundersWindowActive: await isFoundersWindowActive(),
+      redeemedAt: subscription.foundersDiscountRedeemedAt,
+    });
   const foundersCouponId = process.env.STRIPE_FOUNDERS_COUPON_ID?.trim() || null;
   if (foundersEligible && !foundersCouponId) {
     return NextResponse.json(
@@ -156,14 +181,18 @@ async function createCheckoutResponse(request: NextRequest) {
 
   const offer: CheckoutOffer = productionTest
     ? "production_test"
-    : foundersEligible
-      ? "founders"
-      : "standard";
+    : complimentary
+      ? "complimentary"
+      : foundersEligible
+        ? "founders"
+        : "standard";
   const couponId = productionTest
     ? productionTestCouponId
-    : foundersEligible
-      ? foundersCouponId
-      : null;
+    : complimentary
+      ? complimentaryCouponId
+      : foundersEligible
+        ? foundersCouponId
+        : null;
 
   const session = await stripe.checkout.sessions.create(
     buildCheckoutParams({

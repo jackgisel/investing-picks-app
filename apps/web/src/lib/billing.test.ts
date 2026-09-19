@@ -10,6 +10,7 @@ import { isSameOriginBrowserPost } from "./billing-security";
 import {
   buildCheckoutParams,
   checkoutSuccessUrl,
+  isComplimentaryAccount,
   isProductionTestAccount,
 } from "./stripe-checkout";
 import { snapshotStripeSubscription } from "./stripe-webhook";
@@ -197,6 +198,35 @@ describe("Checkout parameters and browser origin", () => {
     expect(params.customer_update).toEqual({ address: "auto", name: "auto" });
   });
 
+  it("builds a $0 complimentary checkout that does not demand a card", () => {
+    const params = buildCheckoutParams({
+      appUrl,
+      userId: "user_1",
+      customerId: "cus_1",
+      annualPriceId: "price_annual",
+      couponId: "outpick_complimentary",
+      offer: "complimentary",
+      automaticTax: false,
+    });
+    expect(params).toMatchObject({
+      discounts: [{ coupon: "outpick_complimentary" }],
+      payment_method_collection: "if_required",
+      billing_address_collection: "auto",
+      metadata: {
+        outpick_user_id: "user_1",
+        founders_offer: "false",
+        offer_type: "complimentary",
+      },
+      subscription_data: {
+        metadata: {
+          outpick_user_id: "user_1",
+          founders_offer: "false",
+          offer_type: "complimentary",
+        },
+      },
+    });
+  });
+
   it("omits discounts after founders eligibility ends", () => {
     const params = buildCheckoutParams({
       appUrl,
@@ -246,6 +276,19 @@ describe("Checkout parameters and browser origin", () => {
     expect(
       isProductionTestAccount("one@example.com", "two@example.com"),
     ).toBe(false);
+  });
+
+  it("matches complimentary emails from a comma-separated list", () => {
+    expect(
+      isComplimentaryAccount(
+        " SenecaFuller@gmail.com ",
+        "other@example.com, senecafuller@gmail.com",
+      ),
+    ).toBe(true);
+    expect(
+      isComplimentaryAccount("member@example.com", "senecafuller@gmail.com"),
+    ).toBe(false);
+    expect(isComplimentaryAccount("member@example.com", undefined)).toBe(false);
   });
 
   it("accepts only same-origin POSTs", () => {

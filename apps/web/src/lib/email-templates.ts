@@ -641,6 +641,45 @@ export function renderMagicLinkEmail(args: {
   });
 }
 
+export function renderMembershipInviteEmail(args: {
+  name: string | null;
+  inviteUrl: string;
+  siteUrl: string;
+  banner?: string;
+}): string {
+  const greeting = args.name
+    ? `Hi ${escapeHtml(args.name.split(" ")[0])},`
+    : "Hi there,";
+
+  const body = `
+    ${eyebrow("You're invited", "mint")}
+    ${heading("A complimentary Outpick membership is waiting")}
+    ${paragraph(greeting, 14)}
+    ${paragraph(
+      `You've been given complimentary access to ${escapeHtml(SITE_NAME)}. Sign in with this email address, continue through checkout, and membership will be $0 — no card needed.`,
+      22,
+    )}
+    ${card(`
+      ${fieldLabel("Use this address")}
+      <p class="dm-text" style="margin:0;font-family:${FONT_SANS};font-size:14px;color:${TEXT};">
+        The complimentary rate is tied to the inbox this mail reached. Sign in with it so checkout can apply the grant.
+      </p>`)}
+    ${pillButton(args.inviteUrl, "Accept the invitation")}
+    ${fallbackLink(args.inviteUrl)}
+    <p class="dm-dim" style="margin:0;font-family:${FONT_SANS};font-size:12px;color:${TEXT_DIM};line-height:1.6;">
+      Didn't expect this? You can ignore the email — nothing is billed unless you sign in and complete checkout.
+    </p>
+  `;
+
+  return shell({
+    preview: `You're invited to ${SITE_NAME} — complimentary membership, no card needed.`,
+    bodyHtml: body,
+    siteUrl: args.siteUrl,
+    banner: args.banner,
+    artUrl: artAbsoluteUrl(ART[2], args.siteUrl),
+  });
+}
+
 /* ------------------------- Membership welcome email ------------------------- */
 
 export function renderMembershipWelcomeEmail(args: {

@@ -62,6 +62,7 @@ import onePickEveryTwoWeeks from "@/content/blog/why-we-publish-one-stock-pick-e
 import firstHundredDays from "@/content/blog/first-100-days-of-a-live-stock-portfolio";
 import inflationNotMiddleEast from "@/content/blog/inflation-is-not-a-five-month-middle-east-story";
 import japanTreasuryAiEnergy from "@/content/blog/japan-treasury-intervention-and-ai-energy-two-clocks";
+import whenToSellAStock from "@/content/blog/when-to-sell-a-stock-thesis-broken";
 
 export const articles: Article[] = [
   howToOutperformSp500,
@@ -80,6 +81,7 @@ export const articles: Article[] = [
   firstHundredDays,
   inflationNotMiddleEast,
   japanTreasuryAiEnergy,
+  whenToSellAStock,
 ].sort((a, b) => b.meta.publishedAt.localeCompare(a.meta.publishedAt));
 
 export function getArticleBySlug(slug: string): Article | undefined {

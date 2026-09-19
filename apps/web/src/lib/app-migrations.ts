@@ -1,5 +1,6 @@
 import { pool } from "@/lib/db";
 import { reviewWindowHours } from "@/lib/review-window";
+import { seedBootstrapMembershipInvites } from "@/lib/membership-invites";
 
 /**
  * App-owned tables that aren't managed by BetterAuth.
@@ -536,4 +537,21 @@ export async function runAppMigrations() {
       ADD COLUMN IF NOT EXISTS sentiment_md TEXT,
       ADD COLUMN IF NOT EXISTS dates JSONB NOT NULL DEFAULT '[]'::jsonb
   `);
+
+  /*
+   * Complimentary membership invites. Checkout applies a 100% Stripe coupon
+   * when the signed-in address is in this table (or STRIPE_COMPLIMENTARY_EMAILS).
+   * `sent_at` is the mail ledger: NULL means the invite still needs to go out.
+   */
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS membership_invite (
+      email TEXT PRIMARY KEY,
+      name TEXT,
+      note TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      sent_at TIMESTAMPTZ,
+      invited_by TEXT
+    )
+  `);
+  await seedBootstrapMembershipInvites();
 }

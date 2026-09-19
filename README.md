@@ -63,6 +63,11 @@ code `txcd_10701401` (Website Information Services – Personal Use), a $1,000
 USD yearly Price with exclusive tax, and a Product-restricted $750 coupon with
 `duration=once`. Confirm the tax code with the business's tax adviser.
 
+Complimentary membership is a 100% forever Coupon (`outpick_complimentary`,
+created on first use) applied automatically when the signed-in address is in
+`membership_invite` or `STRIPE_COMPLIMENTARY_EMAILS`. Invites are sent from
+`/dashboard/ops/communication?tab=invites`.
+
 Enable payment-method updates, invoice downloads, and cancellation at period
 end in the Stripe Customer Portal. Register `/api/webhooks/stripe` for
 `checkout.session.completed` and `customer.subscription.created`, `.updated`,

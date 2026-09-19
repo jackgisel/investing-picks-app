@@ -1,7 +1,8 @@
 {
   "dataset": "dataset-v1.sqlite",
-  "sha256": "d61437921c87c4130d008c17dbaa5de7ec7bf211e66e4b46e99a90b3a2ed6205",
-  "bytes": 310874112,
-  "built_at": "2026-09-12T18:42:01.123750+00:00",
-  "derive_version": 2
+  "sha256": "b719a636f61a26bae412c1e5ec6c86e06a886a4c30b9fab340b09cc61d97e309",
+  "bytes": 368738304,
+  "built_at": "2026-09-19T12:50:18.252584+00:00",
+  "derive_version": 2,
+  "walk_forward_as_of": "2026-09-19"
 }

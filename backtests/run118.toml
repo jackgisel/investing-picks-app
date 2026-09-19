@@ -5,12 +5,12 @@
 # Dataset is not in git. Pin matches datasets/manifest.json.
 
 dataset = "datasets/dataset-v1.sqlite"
-dataset_sha256 = "d61437921c87c4130d008c17dbaa5de7ec7bf211e66e4b46e99a90b3a2ed6205"
+dataset_sha256 = "b719a636f61a26bae412c1e5ec6c86e06a886a4c30b9fab340b09cc61d97e309"
 
 # First Friday with a revisions pair (July 2026 Fridays are unscored).
 start = "2026-08-07"
 # Latest complete evaluation Friday in the pinned dataset.
-end = "2026-09-04"
+end = "2026-09-18"
 
 position_size_usd = 1000
 initial_cash = 50000

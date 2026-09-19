@@ -11,6 +11,7 @@ export const COMMUNICATION_TABS = [
   { id: "sunday-market-preview", label: "Sunday Market Preview" },
   { id: "x-threads", label: "X Threads" },
   { id: "product-updates", label: "Product Updates" },
+  { id: "invites", label: "Invites" },
 ] as const;
 
 export type CommunicationTabId = (typeof COMMUNICATION_TABS)[number]["id"];

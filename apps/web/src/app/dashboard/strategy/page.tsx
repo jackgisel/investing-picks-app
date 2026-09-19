@@ -268,6 +268,7 @@ export default function StrategyPage() {
                   : null
               }
               underwaterDays={num(params.max_underwater_days)}
+              minHoldingDays={num(params.min_holding_days)}
               capPct={
                 num(params.position_cap_normal) !== null
                   ? num(params.position_cap_normal)! * 100
@@ -284,7 +285,7 @@ export default function StrategyPage() {
           {/* Risk contract */}
           <section className="space-y-3">
             <p className="panel-label">The risk contract</p>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="data-card">
                 <p className="field-label">SECTOR CEILING</p>
                 <p className="mt-1.5 font-mono text-xl font-bold tabular-nums text-text">
@@ -297,6 +298,20 @@ export default function StrategyPage() {
                 <p className="mt-2 font-sans text-[12px] leading-relaxed text-text-dim">
                   The most positions we will hold in any one sector. Checked on
                   every buy, not reviewed after the fact.
+                </p>
+              </div>
+              <div className="data-card">
+                <p className="field-label">MINIMUM HOLD</p>
+                <p className="mt-1.5 font-mono text-xl font-bold tabular-nums text-text">
+                  {num(params.min_holding_days) ?? "—"}
+                  <span className="font-sans text-[13px] font-medium text-text-dim">
+                    {" "}
+                    days
+                  </span>
+                </p>
+                <p className="mt-2 font-sans text-[12px] leading-relaxed text-text-dim">
+                  A weak score does not sell a young position. A sharp
+                  breakdown still exits immediately.
                 </p>
               </div>
               <div className="data-card">

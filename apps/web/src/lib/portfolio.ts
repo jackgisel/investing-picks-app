@@ -161,6 +161,24 @@ export function daysUntilCalendarDate(
 }
 
 /**
+ * Whole local calendar days since `iso`. Null when the input is not a date.
+ *
+ * Same clock as `daysUntilCalendarDate`, inverted and floored at 0 — a
+ * future entry date is 0 days held, not a negative stay. Used for the
+ * minimum-holding check, which must match the engine's
+ * `(as_of - entry_date).days` rather than a UTC `Date` parse that slips a
+ * day west of Greenwich.
+ */
+export function calendarDaysHeld(
+  iso: string | null | undefined,
+  now: Date = new Date(),
+): number | null {
+  const until = daysUntilCalendarDate(iso, now);
+  if (until === null) return null;
+  return Math.max(0, -until);
+}
+
+/**
  * "in 13 days" / "today" / "tomorrow" / "overdue". Null for an unknown date.
  *
  * "Overdue" rather than "3 days ago": the only way an evaluation date can be

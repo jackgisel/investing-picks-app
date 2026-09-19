@@ -16,6 +16,7 @@ import {
   splitLeadersAndLaggards,
   surprisePulse,
 } from "./pulse-model";
+import { describeOpenRating } from "./open-rating";
 import type { Holding } from "@/lib/hooks/use-strategy";
 import {
   insightForTicker,
@@ -708,5 +709,60 @@ describe("leadersLaggardsEmptyCopy", () => {
     expect(leadersLaggardsEmptyCopy("laggards", 3, 3)).toBe(
       "Every scored position is already in the leading list.",
     );
+  });
+});
+
+describe("describeOpenRating", () => {
+  const now = new Date(2026, 8, 19);
+  const sofi = {
+    signal: "sell" as const,
+    entryDate: "2026-06-05",
+    minHoldingDays: 180,
+    ratingAsOf: "Sep 19",
+    now,
+  };
+
+  it("does not print SELL while the minimum hold is still running", () => {
+    const out = describeOpenRating(sofi);
+    expect(out.kind).toBe("holding");
+    expect(out.label).toBe("Holding");
+    expect(out.badgeClass).toBe("badge-holding");
+    expect(out.detail).toBe("Score is sell · 74 days left");
+    expect(out.title).not.toMatch(/sell this/i);
+    expect(out.title).toMatch(/not selling/i);
+  });
+
+  it("prints SELL the day the minimum is met", () => {
+    // Engine: days_held < min_holding_days. Equality exits.
+    const out = describeOpenRating({
+      ...sofi,
+      now: new Date(2026, 11, 2), // Dec 2 = 180 days after Jun 5
+    });
+    expect(out.kind).toBe("rating");
+    expect(out.label).toBe("SELL");
+    expect(out.badgeClass).toBe("badge-sell");
+  });
+
+  it("never locks a strong sell behind the minimum hold", () => {
+    const out = describeOpenRating({ ...sofi, signal: "strong_sell" });
+    expect(out.kind).toBe("rating");
+    expect(out.label).toBe("STRONG SELL");
+    expect(out.badgeClass).toBe("badge-sell");
+  });
+
+  it("leaves buy and hold badges alone", () => {
+    expect(describeOpenRating({ ...sofi, signal: "buy" }).label).toBe("BUY");
+    expect(describeOpenRating({ ...sofi, signal: "hold" }).label).toBe("HOLD");
+  });
+
+  it("does not invent a hold when min_holding_days is off", () => {
+    expect(describeOpenRating({ ...sofi, minHoldingDays: 0 }).label).toBe("SELL");
+    expect(describeOpenRating({ ...sofi, minHoldingDays: null }).label).toBe(
+      "SELL",
+    );
+  });
+
+  it("does not invent a hold when the entry date is unknown", () => {
+    expect(describeOpenRating({ ...sofi, entryDate: null }).label).toBe("SELL");
   });
 });

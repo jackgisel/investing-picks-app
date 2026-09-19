@@ -331,6 +331,13 @@
     @apply bg-accent-red-soft text-accent-red;
   }
 
+  /* Ordinary SELL that we are not actually exiting — the score is weak, the
+     minimum hold is still running. Must not share badge-sell's red, or it
+     still reads as an order. Peach is unused by buy / hold / sell. */
+  .badge-holding {
+    @apply bg-accent-peach/25 text-text;
+  }
+
   /* Landing motion — restrained editorial reveals */
   .hero-reveal {
     opacity: 0;

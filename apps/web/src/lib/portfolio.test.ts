@@ -9,6 +9,7 @@ import {
   countWinningPositions,
   daysBetweenISO,
   daysSinceInception,
+  calendarDaysHeld,
   daysUntilCalendarDate,
   describeDaysUntil,
   describeLiveCagr,
@@ -589,6 +590,24 @@ describe("daysUntilCalendarDate", () => {
   it("does not lose a day west of Greenwich", () => {
     const lateEvening = new Date(2026, 9, 1, 23, 0);
     expect(daysUntilCalendarDate("2026-10-02", lateEvening)).toBe(1);
+  });
+});
+
+describe("calendarDaysHeld", () => {
+  const now = new Date(2026, 8, 19, 15, 30);
+
+  it("counts whole local days since entry", () => {
+    expect(calendarDaysHeld("2026-06-05", now)).toBe(106);
+    expect(calendarDaysHeld("2026-09-19", now)).toBe(0);
+  });
+
+  it("does not go negative for a future date", () => {
+    expect(calendarDaysHeld("2026-10-02", now)).toBe(0);
+  });
+
+  it("is unknown when the date is", () => {
+    expect(calendarDaysHeld(null, now)).toBeNull();
+    expect(calendarDaysHeld("soon", now)).toBeNull();
   });
 });
 

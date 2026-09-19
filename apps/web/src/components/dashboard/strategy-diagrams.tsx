@@ -258,15 +258,21 @@ export function PickFunnel() {
 export function PositionLifecycle({
   winnerThresholdPct,
   underwaterDays,
+  minHoldingDays,
   capPct,
   trimToPct,
 }: {
   winnerThresholdPct: number | null;
   underwaterDays: number | null;
+  minHoldingDays: number | null;
   capPct: number | null;
   trimToPct: number | null;
 }) {
   const pct = (n: number | null) => (n === null ? "—" : `${Math.round(n)}%`);
+  const holdWait =
+    minHoldingDays && minHoldingDays > 0
+      ? ` A weak score does not sell a young position. Ordinary exits wait ${minHoldingDays} days.`
+      : "";
 
   const steps = [
     {
@@ -277,7 +283,7 @@ export function PositionLifecycle({
     {
       tone: "cyan" as PastelTone,
       title: "Held and re-scored",
-      body: "Re-ranked against its sector every cycle. The rating moves before the position does.",
+      body: "Re-ranked against its sector every cycle. The rating moves before the position does." + holdWait,
     },
     {
       tone: "yellow" as PastelTone,
@@ -292,7 +298,7 @@ export function PositionLifecycle({
     {
       tone: "coral" as PastelTone,
       title: "Exited",
-      body: `Either the rating breaks down, or the position spends ${underwaterDays ?? "—"} days underwater without recovering. Both are rules, decided in advance.`,
+      body: `Either the rating breaks down hard enough to exit immediately, or the position spends ${underwaterDays ?? "—"} days underwater without recovering. Both are rules, decided in advance.`,
     },
   ];
 

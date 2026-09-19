@@ -20,11 +20,13 @@ import {
 } from "@/components/dashboard/data-table";
 import { HScroll } from "@/components/ui/h-scroll";
 import {
+  calendarDaysHeld,
   comparePnl,
   formatDayMonth,
   formatPctOrDash,
   pnlClass,
 } from "@/lib/portfolio";
+import { describeOpenRating } from "@/components/dashboard/open-rating";
 import { insightForTicker } from "@/lib/insights";
 import { useInsights } from "@/lib/hooks/use-insights";
 import { CompanyLogo } from "@/components/ui/company-logo";
@@ -62,20 +64,6 @@ function buildColumns(ratingNote: string | null): readonly Column<SortKey>[] {
   ];
 }
 
-function daysHeld(entryDate: string | null): string {
-  if (!entryDate) return "—";
-  const start = new Date(entryDate).getTime();
-  if (Number.isNaN(start)) return "—";
-  return `${Math.max(0, Math.floor((Date.now() - start) / 86400000))}d`;
-}
-
-/** Buy-ish ratings read green, sell-ish red, hold neutral. */
-function signalBadgeClass(signal: string): string {
-  if (signal === "strong_buy" || signal === "buy") return "badge-buy";
-  if (signal === "hold") return "badge-hold";
-  return "badge-sell";
-}
-
 export function PositionsOpen() {
   const strategyQuery = useStrategy();
   const picksQuery = usePicks("active");
@@ -109,6 +97,10 @@ export function PositionsOpen() {
   const ratingAsOf = picksQuery.data?.rating_as_of ?? null;
   const ratingDate = formatDayMonth(ratingAsOf);
   const columns = buildColumns(ratingDate && `as of ${ratingDate}`);
+  const minHoldingDays =
+    typeof strategy?.params?.min_holding_days === "number"
+      ? strategy.params.min_holding_days
+      : null;
 
   const sorted = holdings
     ? [...holdings].sort((a, b) => {
@@ -184,6 +176,13 @@ export function PositionsOpen() {
                   const signal = h.ticker
                     ? signalByTicker.get(h.ticker)
                     : undefined;
+                  const rating = describeOpenRating({
+                    signal,
+                    entryDate: h.entry_date,
+                    minHoldingDays,
+                    ratingAsOf: ratingDate,
+                  });
+                  const held = calendarDaysHeld(h.entry_date);
                   const tier = marketCapTier(h.market_cap);
                   return (
                     <tr
@@ -266,23 +265,26 @@ export function PositionsOpen() {
                         </span>
                       </td>
                       <td className="px-3 py-3.5 sm:px-5">
-                        {signal ? (
-                          <span
-                            className={`badge ${signalBadgeClass(signal)}`}
-                            title={
-                              ratingAsOf
-                                ? `The strategy's read on ${h.ticker} as of ${ratingAsOf}. Ratings are re-struck each trading day, not live.`
-                                : undefined
-                            }
-                          >
-                            {signal.replace("_", " ").toUpperCase()}
-                          </span>
-                        ) : (
+                        {rating.kind === "unrated" ? (
                           <span
                             className="font-mono text-[11px] text-text-dim"
-                            title="This name has no score in the latest run, so the strategy has no rating to publish for it."
+                            title={rating.title}
                           >
-                            unrated
+                            {rating.label}
+                          </span>
+                        ) : (
+                          <span className="block">
+                            <span
+                              className={`badge ${rating.badgeClass}`}
+                              title={rating.title}
+                            >
+                              {rating.label}
+                            </span>
+                            {rating.detail && (
+                              <span className="mt-1 block font-sans text-[10px] leading-snug text-text-dim">
+                                {rating.detail}
+                              </span>
+                            )}
                           </span>
                         )}
                       </td>
@@ -290,7 +292,7 @@ export function PositionsOpen() {
                         {h.entry_date ?? "—"}
                       </td>
                       <td className="px-3 py-3.5 font-mono text-[12px] tabular-nums text-text-muted sm:px-5">
-                        {daysHeld(h.entry_date)}
+                        {held === null ? "—" : `${held}d`}
                       </td>
                       <td
                         className={`px-3 py-3.5 font-mono text-[13px] font-semibold tabular-nums sm:px-5 ${pnlClass(

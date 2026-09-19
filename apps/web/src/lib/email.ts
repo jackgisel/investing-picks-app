@@ -20,6 +20,7 @@ import {
   renderProductUpdateEmail,
   renderJobFailureEmail,
   renderFeatureRequestEmail,
+  renderMembershipInviteEmail,
   type PerformanceAlertKind,
   type PickStat,
 } from "@/lib/email-templates";
@@ -306,6 +307,30 @@ export async function sendMagicLinkEmail(args: {
   return send({
     to: args.to,
     subject: `Sign in to ${SITE_NAME}`,
+    html,
+    text,
+  });
+}
+
+/* -------------------------- Membership invite -------------------------- */
+
+export async function sendMembershipInviteEmail(args: {
+  to: string;
+  name: string | null;
+  inviteUrl: string;
+  banner?: string;
+}): Promise<SendResult> {
+  const html = renderMembershipInviteEmail({
+    name: args.name,
+    inviteUrl: args.inviteUrl,
+    siteUrl: SITE_URL,
+    banner: args.banner,
+  });
+  const text = `You're invited to ${SITE_NAME}.\n\nYou've been given complimentary membership. Sign in with this email, continue through checkout, and it will be $0 — no card needed.\n\n${args.inviteUrl}\n\nIf you didn't expect this, you can ignore the email.`;
+
+  return send({
+    to: args.to,
+    subject: `You're invited to ${SITE_NAME} — complimentary membership`,
     html,
     text,
   });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { signIn } from "@/lib/auth-client";
 import { OutpickWordmark } from "@/components/ui/outpick-logo";
@@ -47,6 +47,11 @@ export default function LoginPage() {
   const [linkSentTo, setLinkSentTo] = useState<string | null>(null);
   const [resending, setResending] = useState(false);
   const [resent, setResent] = useState(false);
+
+  useEffect(() => {
+    const preset = new URLSearchParams(window.location.search).get("email")?.trim();
+    if (preset) setEmail(preset);
+  }, []);
 
   /**
    * There is no password on this account model — one email field, one link.

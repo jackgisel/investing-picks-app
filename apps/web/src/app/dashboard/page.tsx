@@ -1,12 +1,16 @@
 "use client";
 
 import { useStrategy } from "@/lib/hooks/use-strategy";
-import { useInceptionDate } from "@/lib/hooks/use-inception";
 import { usePicks } from "@/lib/hooks/use-picks";
 import { LiveStatus } from "@/components/dashboard/live-status";
 import { StatTile } from "@/components/dashboard/stat-tile";
 import { InsightsCard } from "@/components/dashboard/insights-card";
+import { HoldingsPulse } from "@/components/dashboard/holdings-pulse";
 import { resolvePageAccessState } from "@/components/dashboard/access-state";
+import {
+  leadersLaggardsEmptyCopy,
+  splitLeadersAndLaggards,
+} from "@/components/dashboard/pulse-model";
 import { CompanyLogo } from "@/components/ui/company-logo";
 import {
   DataState,
@@ -17,19 +21,19 @@ import {
 } from "@/components/ui/data-state";
 import {
   closedWinRate,
-  comparePnl,
+  computeBookReturnPct,
   computePortfolioReturnPct,
-  daysSinceInception,
-  formatPct,
+  describeWinRate,
   formatPctOrDash,
   pnlClass,
+  pnlTone,
 } from "@/lib/portfolio";
 import {
   TrendingUp,
-  Activity,
   Layers,
   ArrowUpRight,
   Trophy,
+  Wallet,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -49,7 +53,6 @@ export default function DashboardPage() {
   // Closed picks drive the win rate — the only version of that number the
   // product can stand behind.
   const closedQuery = usePicks("closed");
-  const { inceptionISO } = useInceptionDate();
   const { data: strategy } = strategyQuery;
   const { data: picksData } = picksQuery;
 
@@ -78,36 +81,36 @@ export default function DashboardPage() {
 
   const strategyFailed = strategyState === "error";
 
-  // Portfolio total return % derived from holdings — UI never shows dollars.
-  const computedReturnPct = computePortfolioReturnPct(strategy);
-  const totalReturnPct = computedReturnPct ?? 0;
-  const hasReturn = computedReturnPct !== null;
+  // Two returns, deliberately side by side and deliberately labelled.
+  //
+  // `picksReturnPct` is the headline: what the stocks we picked did with the
+  // capital put into them (closed picks included, idle cash excluded). The UI
+  // never shows dollars. `bookReturnPct` is the whole-book equity return, cash
+  // drag included — on a book that is 13% invested the two differ by ~18
+  // points, and showing only the flattering one is how a research product
+  // starts to look like a brokerage statement. Neither is coerced to 0 when
+  // unknown; the tile prints an em dash.
+  const picksReturnPct = computePortfolioReturnPct(strategy);
+  const bookReturnPct = computeBookReturnPct(strategy);
 
   // The win rate is RESOLVED results only — closed positions that finished
   // above cost. The tile used to count open positions marked in the green,
   // which reads as a track record but is unrealized: a book that opened into a
   // rising fortnight shows 8 of 8 having proven nothing, and the number falls
   // apart the moment the market turns.
-  const winRate = closedWinRate(closedQuery.data?.picks);
+  const winRate = describeWinRate(closedWinRate(closedQuery.data?.picks));
 
-  // Top 5 holdings by P&L
-  const topHoldings = holdings
-    ? [...holdings].sort((a, b) => comparePnl(a.pnl_pct, b.pnl_pct, "desc")).slice(0, 5)
-    : undefined;
+  // The two ends of the open book by unrealized P&L. Disjoint by construction,
+  // and unknown returns are in neither — see splitLeadersAndLaggards.
+  const { leaders, laggards } = holdings
+    ? splitLeadersAndLaggards(holdings)
+    : { leaders: undefined, laggards: undefined };
+  const scoredCount =
+    holdings?.filter(
+      (h) => typeof h.pnl_pct === "number" && Number.isFinite(h.pnl_pct),
+    ).length ?? 0;
 
-  // Bottom 5 holdings by P&L
-  const bottomHoldings = holdings
-    ? [...holdings].sort((a, b) => comparePnl(a.pnl_pct, b.pnl_pct, "asc")).slice(0, 5)
-    : undefined;
-
-  const days = daysSinceInception(inceptionISO);
-
-  // Most recent picks (sorted by entry date desc)
-  const recentPicks = picksData?.picks
-    ? [...picksData.picks]
-        .sort((a, b) => b.entry_date.localeCompare(a.entry_date))
-        .slice(0, 4)
-    : undefined;
+  const maxPositions = strategyMeta?.max_positions ?? null;
 
   let subtitle = "Loading...";
   if (gate) {
@@ -137,46 +140,52 @@ export default function DashboardPage() {
         />
       ) : (
         <>
-          {/* Live status banner */}
+          {/* Provenance and cadence: live, since when, next evaluation. The
+              figures live in the tiles below and nowhere else. */}
           <LiveStatus />
 
-          {/* Live stats */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Four figures, each with its definition under it. Two of them are
+              returns and they are not interchangeable — see the comment on
+              picksReturnPct above. */}
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <StatTile
               label="PICKS RETURN"
-              value={hasReturn ? formatPct(totalReturnPct) : "—"}
+              value={formatPctOrDash(picksReturnPct)}
+              caption="Capital in picks. Idle cash excluded, closed picks included."
               icon={TrendingUp}
               tone="mint"
-              valueTone={
-                !hasReturn ? "neutral" : totalReturnPct >= 0 ? "green" : "red"
-              }
+              valueTone={pnlTone(picksReturnPct)}
               loading={strategyQuery.isPending}
             />
             <StatTile
-              label="POSITIONS"
-              value={portfolio ? portfolio.position_count.toString() : "—"}
-              icon={Layers}
-              tone="mint"
+              label="BOOK RETURN"
+              value={formatPctOrDash(bookReturnPct)}
+              caption="Whole book, idle cash included. The gap is cash drag."
+              icon={Wallet}
+              tone="cyan"
+              valueTone={pnlTone(bookReturnPct)}
               loading={strategyQuery.isPending}
             />
             {/* Reads "—" until there are exits. Zero closed positions is "no
                 record yet"; rendering it as 0% would be a claim, and a false
-                one. */}
+                one. Open names marked green never count. */}
             <StatTile
               label="WIN RATE"
-              value={
-                winRate.pct === null
-                  ? "—"
-                  : `${winRate.wins} / ${winRate.total}`
-              }
+              value={winRate.value}
+              caption={winRate.caption}
               icon={Trophy}
               tone="mint"
               loading={closedQuery.isPending}
             />
             <StatTile
-              label="DAYS LIVE"
-              value={days.toString()}
-              icon={Activity}
+              label="POSITIONS"
+              value={portfolio ? portfolio.position_count.toString() : "—"}
+              caption={
+                maxPositions
+                  ? `Open now · cap ${maxPositions} · equal size at entry`
+                  : "Open now · equal size at entry"
+              }
+              icon={Layers}
               tone="mint"
               loading={strategyQuery.isPending}
             />
@@ -194,74 +203,50 @@ export default function DashboardPage() {
               onRetry={() => void strategyQuery.refetch()}
             />
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <HoldingsCard
-                title="TOP PERFORMERS"
-                holdings={topHoldings}
-                state={strategyState}
-              />
-              <HoldingsCard
-                title="WORST PERFORMERS"
-                holdings={bottomHoldings}
-                state={strategyState}
-              />
-            </div>
+            <>
+              {/* "Top / worst performers" were two sorts of one list. On a
+                  book of five names they showed the same rows twice; on an
+                  all-green book "worst" was full of gains. These are the two
+                  ends of an unrealized ranking, and say so. */}
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <HoldingsCard
+                  title="LEADING"
+                  holdings={leaders}
+                  state={strategyState}
+                  emptyMessage={leadersLaggardsEmptyCopy(
+                    "leaders",
+                    holdings?.length ?? 0,
+                    scoredCount,
+                  )}
+                />
+                <HoldingsCard
+                  title="TRAILING"
+                  holdings={laggards}
+                  state={strategyState}
+                  emptyMessage={leadersLaggardsEmptyCopy(
+                    "laggards",
+                    holdings?.length ?? 0,
+                    scoredCount,
+                  )}
+                />
+              </div>
+
+              {holdings && holdings.length > 0 && (
+                <HoldingsPulse holdings={holdings} />
+              )}
+            </>
           )}
 
+          {/* No "recent picks" panel any more. Its four rows were the four
+              newest entry dates, which the Leading/Trailing lists already
+              print beside every name — the same tickers appeared three times
+              on one screen. Positions sorts by entry date for anyone who wants
+              recency on its own. */}
           <InsightsCard holdings={holdings} />
-
-          <div className="data-panel">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-              <span className="panel-label panel-label-mint">
-                RECENT PICKS
-              </span>
-              <Link
-                href="/dashboard/positions"
-                className="font-sans text-[10px] text-text font-bold tracking-[0.08em] underline underline-offset-2 hover:opacity-70 flex items-center gap-1"
-              >
-                ALL POSITIONS <ArrowUpRight size={10} />
-              </Link>
-            </div>
-            <div className="divide-y divide-border-light">
-              {hasDataState(picksState) ? (
-                <DataState
-                  compact
-                  state={picksState}
-                  error={picksQuery.error}
-                  onRetry={() => void picksQuery.refetch()}
-                  emptyTitle="No picks yet"
-                  emptyMessage="The next pick lands on the biweekly evaluation. It will show up here first."
-                />
-              ) : (
-                recentPicks?.map((p, i) => (
-                  <div
-                    key={`${p.ticker}-${i}`}
-                    className="flex items-center justify-between gap-3 px-5 py-4 hover:bg-bg-tertiary/50 transition-colors"
-                  >
-                    <span className="flex min-w-0 flex-col sm:flex-row sm:items-center sm:gap-3">
-                      <span className="font-mono text-[14px] font-semibold">
-                        {p.ticker}
-                      </span>
-                      <span className="font-mono text-[11px] text-text-dim">
-                        Entered {p.entry_date}
-                      </span>
-                    </span>
-                    <span
-                      className={`shrink-0 font-mono text-[12px] font-semibold tabular-nums ${pnlClass(
-                        p.pnl_pct,
-                      )}`}
-                    >
-                      {formatPctOrDash(p.pnl_pct)}
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
 
           <Link
             href="/dashboard/strategy"
-            className="block data-card hover:bg-bg-tertiary transition-colors group"
+            className="group block data-card transition-colors duration-150 hover:bg-bg-tertiary"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -278,7 +263,8 @@ export default function DashboardPage() {
               </div>
               <ArrowUpRight
                 size={18}
-                className="mt-1 shrink-0 text-text-dim group-hover:opacity-70 transition-colors"
+                strokeWidth={2}
+                className="mt-1 shrink-0 text-text-dim transition-[color,transform] duration-150 ease-out-strong group-hover:translate-x-0.5 group-hover:text-text motion-reduce:transition-none"
               />
             </div>
           </Link>
@@ -293,33 +279,45 @@ function HoldingsCard({
   title,
   holdings,
   state,
+  emptyMessage = "The book is empty right now.",
 }: {
   title: string;
   holdings:
     | { ticker: string | null; pnl_pct: number | null; entry_date: string | null }[]
     | undefined;
   state: DataStateKind | null;
+  emptyMessage?: string;
 }) {
+  // A list that resolved to nothing (every scored name is in the other
+  // panel) is an empty state of its own, distinct from the query being empty.
+  const localState: DataStateKind | null =
+    state ?? (holdings && holdings.length === 0 ? "empty" : null);
+
   return (
     <div className="data-panel">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-        <span className="panel-label panel-label-mint">
-          {title}
+      <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
+        <span className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
+          <span className="panel-label panel-label-mint">{title}</span>
+          {/* The qualifier the label needs. These are marks on positions we
+              still hold, against cost — not a track record. */}
+          <span className="font-sans text-[10px] font-medium tracking-[0.06em] text-text-dim">
+            OPEN P&amp;L · UNREALIZED
+          </span>
         </span>
         <Link
           href="/dashboard/positions"
-          className="font-sans text-[11px] text-text font-semibold underline underline-offset-2 hover:opacity-70 flex items-center gap-1"
+          className="flex shrink-0 items-center gap-1 font-sans text-[10px] font-bold tracking-[0.08em] text-text underline underline-offset-2 hover:opacity-70"
         >
-          VIEW ALL <ArrowUpRight size={10} />
+          ALL POSITIONS <ArrowUpRight size={10} strokeWidth={2.5} />
         </Link>
       </div>
       <div className="divide-y divide-border-light">
-        {hasDataState(state) ? (
+        {hasDataState(localState) ? (
           <DataState
             compact
-            state={state}
-            emptyTitle="No holdings"
-            emptyMessage="The book is empty right now."
+            state={localState}
+            emptyTitle="Nothing to show"
+            emptyMessage={emptyMessage}
           />
         ) : (
           holdings?.map((h, index) => (
@@ -328,11 +326,11 @@ function HoldingsCard({
               // public rows; resolvePageAccessState prevents those rows from
               // rendering on this paid surface in normal operation.
               key={h.ticker ?? `anonymous-holding-${index}`}
-              className="flex items-center justify-between px-5 py-3 hover:bg-bg-tertiary/50 transition-colors"
+              className="flex items-center justify-between px-5 py-3 transition-colors duration-100 hover:bg-bg-tertiary/50"
             >
               <div className="flex items-center gap-3">
                 <CompanyLogo ticker={h.ticker} size="sm" />
-                <span className="font-mono text-[14px] font-semibold w-14">
+                <span className="w-14 font-mono text-[14px] font-semibold">
                   {h.ticker}
                 </span>
                 <span className="font-mono text-[11px] text-text-dim">
@@ -340,7 +338,7 @@ function HoldingsCard({
                 </span>
               </div>
               <span
-                className={`font-mono text-[13px] font-semibold ${pnlClass(
+                className={`font-mono text-[13px] font-semibold tabular-nums ${pnlClass(
                   h.pnl_pct,
                 )}`}
               >

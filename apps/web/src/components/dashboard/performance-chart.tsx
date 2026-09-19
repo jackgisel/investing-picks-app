@@ -224,7 +224,7 @@ export function PerformanceChart({ compact = false }: { compact?: boolean }) {
                   return (
                     <div
                       key={b.key}
-                      className="rounded-soft border border-border px-4 py-3"
+                      className="rounded-lg border border-border px-4 py-3"
                     >
                       <p className="field-label">vs {b.label}</p>
                       <p

@@ -396,12 +396,14 @@ function Toggle({
         aria-label={label}
         onClick={() => onChange(!enabled)}
         disabled={disabled}
-        className={`shrink-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-          enabled ? "bg-accent-green" : "bg-bg-tertiary border border-border"
+        className={`press relative inline-flex h-6 w-11 shrink-0 items-center rounded-full disabled:cursor-not-allowed disabled:opacity-40 ${
+          enabled ? "bg-accent-green" : "border border-border bg-bg-tertiary"
         }`}
       >
+        {/* The knob slides; the track colour is the static cue that survives
+            reduced motion, where the slide snaps instead. */}
         <span
-          className={`inline-block h-4 w-4 rounded-full transform transition-transform ${
+          className={`inline-block h-4 w-4 rounded-full transition-[transform,background-color] duration-150 ease-out-strong motion-reduce:transition-none ${
             enabled ? "translate-x-6 bg-inverse" : "translate-x-1 bg-text-muted"
           }`}
         />
@@ -536,7 +538,7 @@ function SubscriptionPanel() {
       </div>
 
       {loaded && sub?.cancelAtPeriodEnd && (
-        <div className="rounded-soft bg-accent-yellow/10 border border-accent-yellow/30 px-4 py-3">
+        <div className="rounded-lg bg-accent-yellow/10 border border-accent-yellow/30 px-4 py-3">
           <p className="font-sans text-[12px] text-text-muted">
             Your membership is set to cancel on{" "}
             <span className="text-text font-semibold">
@@ -548,7 +550,7 @@ function SubscriptionPanel() {
       )}
 
       {loaded && status === "canceled" && canceledAt && (
-        <div className="rounded-soft bg-accent-red-soft/30 border border-accent-red/30 px-4 py-3">
+        <div className="rounded-lg bg-accent-red-soft/30 border border-accent-red/30 px-4 py-3">
           <p className="font-sans text-[12px] text-text-muted">
             Subscription canceled on{" "}
             <span className="text-text font-semibold">{canceledAt}</span>.
@@ -557,7 +559,7 @@ function SubscriptionPanel() {
       )}
 
       {loaded && status === "past_due" && (
-        <div className="rounded-soft bg-accent-red-soft/30 border border-accent-red/30 px-4 py-3">
+        <div className="rounded-lg bg-accent-red-soft/30 border border-accent-red/30 px-4 py-3">
           <p className="font-sans text-[12px] text-text-muted">
             Your last payment failed. You still have access while Stripe retries
             the payment. Open billing to update your payment method.
@@ -650,13 +652,9 @@ function StatusBadge({ status }: { status: SubscriptionStatus }) {
     },
   };
   const { label, className } = config[status];
-  return (
-    <span
-      className={`font-mono text-[10px] tracking-[1.5px] font-bold px-2.5 py-1 inline-block ${className}`}
-    >
-      {label}
-    </span>
-  );
+  // `.badge` is the one status-chip shape in the product (see globals.css).
+  // This was the only chip drawn as a sharp-cornered block.
+  return <span className={`badge ${className}`}>{label}</span>;
 }
 
 function BulletRow({ text }: { text: string }) {
@@ -727,7 +725,7 @@ function DeleteAccountPanel() {
               setConfirming(true);
               setStatus({ kind: "idle" });
             }}
-            className="pill-outline !text-accent-red !border-accent-red/40 hover:!bg-accent-red hover:!text-inverse-fg inline-flex items-center gap-2"
+            className="pill-outline press !text-accent-red !border-accent-red/40 hover:!bg-accent-red hover:!text-inverse-fg inline-flex items-center gap-2"
           >
             <Trash2 size={12} />
             DELETE ACCOUNT
@@ -742,7 +740,7 @@ function DeleteAccountPanel() {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-soft bg-accent-red-soft/30 border border-accent-red/30 px-4 py-3">
+      <div className="rounded-lg bg-accent-red-soft/30 border border-accent-red/30 px-4 py-3">
         <p className="font-sans text-[13px] text-text leading-relaxed">
           <strong>This will permanently delete your account.</strong> Your
           Stripe subscription is canceled automatically as part of deletion —
@@ -763,11 +761,14 @@ function DeleteAccountPanel() {
       </FieldRow>
 
       <div className="flex items-center gap-3">
+        {/* Deliberately no press scale on the destructive confirm: the motion
+            budget goes to reversible actions, and this one should feel like a
+            decision, not a tap. */}
         <button
           type="button"
           onClick={handleRequestDelete}
           disabled={!canConfirm || status.kind === "saving"}
-          className="rounded-pill font-mono text-[11px] bg-accent-red text-inverse-fg px-5 py-2.5 font-semibold tracking-wider hover:opacity-90 transition-opacity disabled:opacity-30 disabled:cursor-not-allowed"
+          className="press press-static rounded-pill font-mono text-[11px] bg-accent-red text-inverse-fg px-5 py-2.5 font-semibold tracking-wider hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed"
         >
           {status.kind === "saving" ? "SENDING..." : "SEND CONFIRMATION EMAIL"}
         </button>

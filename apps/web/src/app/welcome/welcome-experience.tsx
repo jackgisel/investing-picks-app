@@ -183,10 +183,17 @@ export function WelcomeExperience({
                 </p>
                 <Link
                   href={step.href}
-                  className="mt-6 inline-flex items-center gap-2 font-sans text-[12px] font-bold uppercase tracking-[0.1em] text-text hover:gap-3 transition-all"
+                  className="group mt-6 inline-flex items-center gap-2 font-sans text-[12px] font-bold uppercase tracking-[0.1em] text-text"
                 >
                   {step.label}
-                  <ArrowRight size={14} aria-hidden="true" />
+                  {/* Move the arrow, not the gap: animating `gap` re-lays out
+                      the row on every hover frame; a transform does not. */}
+                  <ArrowRight
+                    size={14}
+                    strokeWidth={2.5}
+                    aria-hidden="true"
+                    className="transition-transform duration-150 ease-out-strong group-hover:translate-x-1 motion-reduce:transition-none"
+                  />
                 </Link>
               </article>
             );

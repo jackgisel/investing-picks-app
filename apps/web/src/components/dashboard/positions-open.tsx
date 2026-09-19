@@ -30,7 +30,13 @@ import { useInsights } from "@/lib/hooks/use-insights";
 import { CompanyLogo } from "@/components/ui/company-logo";
 import { formatCompactUsd, marketCapTier } from "@/lib/market-cap";
 
-type SortKey = "ticker" | "sector" | "market_cap" | "entry_date" | "pnl_pct";
+type SortKey =
+  | "ticker"
+  | "sector"
+  | "market_cap"
+  | "weight_pct"
+  | "entry_date"
+  | "pnl_pct";
 
 /**
  * `ratingNote` stamps the RATING column with the date those ratings were
@@ -44,6 +50,11 @@ function buildColumns(ratingNote: string | null): readonly Column<SortKey>[] {
     { label: "TICKER", sortKey: "ticker" },
     { label: "SECTOR", sortKey: "sector" },
     { label: "MARKET CAP", sortKey: "market_cap" },
+    // Share of INVESTED capital (see asShareOfInvested). The sector card
+    // above the table already used these weights; the table never showed
+    // them per name, so "SEZL is a fifth of what we own" was not readable
+    // anywhere a subscriber looks at SEZL.
+    { label: "WEIGHT", sortKey: "weight_pct", note: "of invested" },
     { label: "RATING", note: ratingNote ?? undefined },
     { label: "ENTRY DATE", sortKey: "entry_date" },
     { label: "DAYS HELD" },
@@ -105,6 +116,8 @@ export function PositionsOpen() {
         // not touch them.
         if (sortKey === "pnl_pct")
           return comparePnl(a.pnl_pct, b.pnl_pct, sortDir);
+        if (sortKey === "weight_pct")
+          return comparePnl(a.weight_pct, b.weight_pct, sortDir);
         let cmp = 0;
         if (sortKey === "ticker")
           cmp = (a.ticker ?? "").localeCompare(b.ticker ?? "");
@@ -179,7 +192,7 @@ export function PositionsOpen() {
                         h.entry_date ??
                         `anonymous-holding-${index}`
                       }
-                      className="group border-b border-border transition-colors last:border-b-0 hover:bg-bg-tertiary/50"
+                      className="group border-b border-border transition-colors duration-100 last:border-b-0 hover:bg-bg-tertiary/50"
                     >
                       <td className="sticky-col px-3 py-3.5 group-hover:bg-bg-tertiary sm:px-5">
                         <span className="flex items-center gap-2.5">
@@ -227,6 +240,30 @@ export function PositionsOpen() {
                             {tier.toUpperCase()} CAP
                           </span>
                         )}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-3.5 sm:px-5">
+                        <span className="flex items-center gap-2">
+                          <span className="font-mono text-[12px] tabular-nums text-text-muted">
+                            {typeof h.weight_pct === "number"
+                              ? `${h.weight_pct.toFixed(1)}%`
+                              : "—"}
+                          </span>
+                          {/* A 40px bar as the shape of the number. Read at
+                              a glance down the column, not per cell. */}
+                          {typeof h.weight_pct === "number" && (
+                            <span
+                              className="hidden h-1 w-10 overflow-hidden rounded-full bg-bg-tertiary md:block"
+                              aria-hidden
+                            >
+                              <span
+                                className="block h-full rounded-full bg-accent-mint"
+                                style={{
+                                  width: `${Math.min(100, Math.max(0, h.weight_pct))}%`,
+                                }}
+                              />
+                            </span>
+                          )}
+                        </span>
                       </td>
                       <td className="px-3 py-3.5 sm:px-5">
                         {signal ? (

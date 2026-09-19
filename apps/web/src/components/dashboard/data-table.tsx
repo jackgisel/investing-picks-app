@@ -148,7 +148,7 @@ export function FilterChips<T extends string>({
           type="button"
           onClick={() => onChange(opt)}
           aria-pressed={value === opt}
-          className={`rounded-pill px-3.5 py-1.5 font-sans text-[10px] font-bold uppercase tracking-[0.1em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 focus-visible:ring-offset-bg ${
+          className={`press rounded-pill px-3.5 py-1.5 font-sans text-[10px] font-bold uppercase tracking-[0.1em] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 focus-visible:ring-offset-bg ${
             value === opt
               ? "bg-inverse text-inverse-fg"
               : "border border-border bg-bg text-text-dim hover:text-text"

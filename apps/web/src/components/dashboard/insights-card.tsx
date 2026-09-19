@@ -23,7 +23,7 @@ function InsightRow({ insight }: { insight: InsightMeta }) {
   return (
     <Link
       href={`/dashboard/insights/${insight.slug}`}
-      className="group flex items-start gap-3 px-5 py-3.5 transition-colors hover:bg-bg-tertiary/50 focus-visible:outline-none focus-visible:bg-bg-tertiary/50"
+      className="group flex items-start gap-3 px-5 py-3.5 transition-colors duration-100 hover:bg-bg-tertiary/50 focus-visible:outline-none focus-visible:bg-bg-tertiary/50"
     >
       {insight.ticker && (
         <span className="mt-px flex w-[82px] shrink-0 items-center gap-2 font-mono text-[12px] font-semibold">
@@ -42,7 +42,8 @@ function InsightRow({ insight }: { insight: InsightMeta }) {
       </span>
       <ArrowUpRight
         size={13}
-        className="mt-1 shrink-0 text-text-dim group-hover:text-text"
+        strokeWidth={2}
+        className="mt-1 shrink-0 text-text-dim transition-colors duration-100 group-hover:text-text"
         aria-hidden
       />
     </Link>

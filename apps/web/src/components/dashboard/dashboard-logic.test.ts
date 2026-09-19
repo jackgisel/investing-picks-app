@@ -10,6 +10,14 @@ import {
 } from "./sector-model";
 import { actionMeta } from "./trade-action";
 import {
+  concentration,
+  leadersLaggardsEmptyCopy,
+  revisionPulse,
+  splitLeadersAndLaggards,
+  surprisePulse,
+} from "./pulse-model";
+import type { Holding } from "@/lib/hooks/use-strategy";
+import {
   insightForTicker,
   insightsForTickers,
   type InsightMeta,
@@ -456,5 +464,249 @@ describe("sectorPositionCap", () => {
 
   it("treats a cap that floors to zero as no cap at all", () => {
     expect(sectorPositionCap(0.05, 10)).toBeNull();
+  });
+});
+
+/* -------------------------- pulse-model -------------------------- */
+
+function facts(
+  over: Partial<NonNullable<Holding["fundamentals"]>>,
+): NonNullable<Holding["fundamentals"]> {
+  return {
+    as_of: "2026-08-22",
+    growth_basis_period: null,
+    estimate_period: null,
+    revenue_growth_ttm_pct: null,
+    eps_growth_ttm_pct: null,
+    revenue_estimate: null,
+    eps_estimate: null,
+    revenue_revision_pct: null,
+    eps_revision_pct: null,
+    earnings_report_date: null,
+    revenue_actual: null,
+    revenue_report_estimate: null,
+    revenue_surprise_pct: null,
+    eps_actual: null,
+    eps_report_estimate: null,
+    eps_surprise_pct: null,
+    mark: null,
+    price_target_low: null,
+    price_target_mean: null,
+    price_target_high: null,
+    price_target_analyst_count: null,
+    ...over,
+  };
+}
+
+function holding(
+  ticker: string,
+  over: Partial<Holding> = {},
+): Holding {
+  return { ticker, entry_date: "2026-04-10", pnl_pct: 1, ...over };
+}
+
+describe("revisionPulse", () => {
+  const book: Holding[] = [
+    holding("A", { fundamentals: facts({ eps_revision_pct: 11.88 }) }),
+    holding("B", { fundamentals: facts({ eps_revision_pct: 2.41 }) }),
+    holding("C", { fundamentals: facts({ eps_revision_pct: -0.09 }) }),
+    // Inside ±0.05 is "unchanged", matching the fundamentals table.
+    holding("D", { fundamentals: facts({ eps_revision_pct: 0.02 }) }),
+    // No fundamentals at all: left out of the denominator, counted in total.
+    holding("E", { fundamentals: null }),
+    holding("F", { fundamentals: facts({ eps_revision_pct: null }) }),
+  ];
+
+  it("counts up, down and flat against the scored names only", () => {
+    const p = revisionPulse(book);
+    expect(p.up).toBe(2);
+    expect(p.down).toBe(1);
+    expect(p.flat).toBe(1);
+    expect(p.scored).toBe(4);
+    expect(p.total).toBe(6);
+  });
+
+  it("finds the biggest mover each way", () => {
+    const p = revisionPulse(book);
+    expect(p.topUp).toEqual({ ticker: "A", pct: 11.88 });
+    expect(p.topDown).toEqual({ ticker: "C", pct: -0.09 });
+  });
+
+  it("takes the median over scored names", () => {
+    // sorted: -0.09, 0.02, 2.41, 11.88 -> (0.02 + 2.41) / 2
+    expect(revisionPulse(book).medianPct).toBeCloseTo(1.215);
+  });
+
+  it("is honest about an unscored book", () => {
+    const p = revisionPulse([holding("E", { fundamentals: null })]);
+    expect(p.scored).toBe(0);
+    expect(p.medianPct).toBeNull();
+    expect(p.topUp).toBeNull();
+    expect(p.asOf).toBeNull();
+  });
+
+  it("carries the snapshot date the revisions were struck against", () => {
+    expect(revisionPulse(book).asOf).toBe("2026-08-22");
+  });
+});
+
+describe("surprisePulse", () => {
+  const book: Holding[] = [
+    holding("A", {
+      fundamentals: facts({
+        revenue_surprise_pct: 10.8,
+        eps_surprise_pct: 9.7,
+        earnings_report_date: "2026-08-06",
+      }),
+    }),
+    holding("B", {
+      fundamentals: facts({
+        revenue_surprise_pct: -1.2,
+        eps_surprise_pct: 3.3,
+        earnings_report_date: "2026-08-06",
+      }),
+    }),
+    holding("C", {
+      fundamentals: facts({
+        revenue_surprise_pct: 2.0,
+        eps_surprise_pct: null,
+        earnings_report_date: "2026-07-29",
+      }),
+    }),
+    holding("D", { fundamentals: null }),
+  ];
+
+  it("counts beats per line over names with a known surprise", () => {
+    const p = surprisePulse(book);
+    expect(p.revenueBeats).toBe(2);
+    expect(p.revenueScored).toBe(3);
+    expect(p.epsBeats).toBe(2);
+    expect(p.epsScored).toBe(2);
+    expect(p.total).toBe(4);
+  });
+
+  // A zero surprise is "in line", not a beat.
+  it("does not count an exact match as a beat", () => {
+    const p = surprisePulse([
+      holding("Z", { fundamentals: facts({ eps_surprise_pct: 0 }) }),
+    ]);
+    expect(p.epsScored).toBe(1);
+    expect(p.epsBeats).toBe(0);
+  });
+
+  it("reports the most recent report date and who reported then", () => {
+    const p = surprisePulse(book);
+    expect(p.latestReport).toBe("2026-08-06");
+    expect(p.latestTickers).toEqual(["A", "B"]);
+  });
+
+  it("has no latest report for an unscored book", () => {
+    const p = surprisePulse([holding("D", { fundamentals: null })]);
+    expect(p.latestReport).toBeNull();
+    expect(p.latestTickers).toEqual([]);
+  });
+});
+
+describe("concentration", () => {
+  // Raw weights are shares of equity on a book that is 12.9% invested.
+  const book: Holding[] = [
+    holding("SEZL", { weight_pct: 1.95, is_house_money: false }),
+    holding("WT", { weight_pct: 1.37 }),
+    holding("ATLC", { weight_pct: 1.31, is_house_money: true }),
+    holding("ROKU", { weight_pct: 1.23 }),
+    holding("X", { weight_pct: undefined }),
+  ];
+
+  it("reports the top name as a share of invested capital, not of equity", () => {
+    const c = concentration(book);
+    const invested = 1.95 + 1.37 + 1.31 + 1.23;
+    expect(c.top?.ticker).toBe("SEZL");
+    expect(c.top?.weightPct).toBeCloseTo((1.95 / invested) * 100);
+  });
+
+  it("sums the top three", () => {
+    const c = concentration(book);
+    const invested = 1.95 + 1.37 + 1.31 + 1.23;
+    expect(c.topThreePct).toBeCloseTo(((1.95 + 1.37 + 1.31) / invested) * 100);
+  });
+
+  it("counts house-money names explicitly", () => {
+    expect(concentration(book).houseMoney).toBe(1);
+    expect(concentration(book).total).toBe(5);
+  });
+
+  it("is unknown without weights", () => {
+    const c = concentration([holding("X")]);
+    expect(c.top).toBeNull();
+    expect(c.topThreePct).toBeNull();
+  });
+});
+
+describe("splitLeadersAndLaggards", () => {
+  it("never puts the same name in both lists", () => {
+    const book = ["A", "B", "C", "D", "E", "F", "G"].map((t, i) =>
+      holding(t, { pnl_pct: i * 10 - 30 }),
+    );
+    const { leaders, laggards } = splitLeadersAndLaggards(book, 5);
+    const overlap = leaders.filter((h) => laggards.includes(h));
+    expect(overlap).toEqual([]);
+    expect(leaders.map((h) => h.ticker)).toEqual(["G", "F", "E", "D", "C"]);
+    expect(laggards.map((h) => h.ticker)).toEqual(["A", "B"]);
+  });
+
+  // The old page sorted the same five names twice; "worst" was "top" reversed.
+  it("leaves the trailing list empty on a small book", () => {
+    const book = ["A", "B", "C"].map((t, i) => holding(t, { pnl_pct: i }));
+    const { leaders, laggards } = splitLeadersAndLaggards(book, 5);
+    expect(leaders).toHaveLength(3);
+    expect(laggards).toEqual([]);
+  });
+
+  it("keeps an unknown return out of both lists", () => {
+    const book = [
+      holding("A", { pnl_pct: 5 }),
+      holding("B", { pnl_pct: null }),
+      holding("C", { pnl_pct: -5 }),
+    ];
+    const { leaders, laggards } = splitLeadersAndLaggards(book, 1);
+    expect(leaders.map((h) => h.ticker)).toEqual(["A"]);
+    expect(laggards.map((h) => h.ticker)).toEqual(["C"]);
+  });
+
+  it("orders the trailing list worst first", () => {
+    const book = [
+      holding("A", { pnl_pct: 9 }),
+      holding("B", { pnl_pct: -7 }),
+      holding("C", { pnl_pct: -4 }),
+      holding("D", { pnl_pct: 2 }),
+    ];
+    const { laggards } = splitLeadersAndLaggards(book, 2);
+    expect(laggards.map((h) => h.ticker)).toEqual(["B", "C"]);
+  });
+});
+
+describe("leadersLaggardsEmptyCopy", () => {
+  it("does not tell an empty book that every name is already in leading", () => {
+    expect(leadersLaggardsEmptyCopy("laggards", 0, 0)).toBe(
+      "The book is empty right now.",
+    );
+    expect(leadersLaggardsEmptyCopy("leaders", 0, 0)).toBe(
+      "The book is empty right now.",
+    );
+  });
+
+  it("says so when the book has names but none are marked", () => {
+    expect(leadersLaggardsEmptyCopy("leaders", 11, 0)).toBe(
+      "No marked returns to rank yet.",
+    );
+    expect(leadersLaggardsEmptyCopy("laggards", 11, 0)).toBe(
+      "No marked returns to rank yet.",
+    );
+  });
+
+  it("reserves the overlap sentence for a small fully-scored book", () => {
+    expect(leadersLaggardsEmptyCopy("laggards", 3, 3)).toBe(
+      "Every scored position is already in the leading list.",
+    );
   });
 });

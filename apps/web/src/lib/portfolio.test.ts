@@ -9,7 +9,10 @@ import {
   countWinningPositions,
   daysBetweenISO,
   daysSinceInception,
+  daysUntilCalendarDate,
+  describeDaysUntil,
   describeLiveCagr,
+  describeWinRate,
   formatDayMonth,
   formatPct,
   formatPctOrDash,
@@ -18,6 +21,7 @@ import {
   foundersDealDaysRemaining,
   isFoundersDealActive,
   pnlClass,
+  pnlTone,
   resolveLiveCagr,
 } from "./portfolio";
 import { FOUNDERS_DEAL_ENDS_ISO, LIVE_PORTFOLIO } from "./constants";
@@ -520,6 +524,89 @@ describe("comparePnl", () => {
     expect([5, 0, null].sort((a, b) => comparePnl(a, b, "desc"))).toEqual([
       5, 0, null,
     ]);
+  });
+});
+
+describe("describeWinRate", () => {
+  // The tile printed `wins / total` under WIN RATE — not a rate, and nothing
+  // said open positions were excluded. Both facts are now in the copy.
+  it("renders an em dash and says why when nothing has closed", () => {
+    const out = describeWinRate({ wins: 0, total: 0, pct: null });
+    expect(out.value).toBe("—");
+    expect(out.caption).toMatch(/nothing closed yet/i);
+    expect(out.caption).toMatch(/open names/i);
+  });
+
+  it("renders a percentage headline and the count as caption", () => {
+    const out = describeWinRate({ wins: 4, total: 6, pct: (4 / 6) * 100 });
+    expect(out.value).toBe("67%");
+    expect(out.caption).toContain("4 of 6 closed above cost");
+    expect(out.caption).toMatch(/open names not counted/i);
+  });
+
+  it("never prints 0% for an empty record", () => {
+    expect(describeWinRate(closedWinRate([])).value).toBe("—");
+    expect(describeWinRate(closedWinRate([{ pnl_pct: null }])).value).toBe("—");
+  });
+
+  it("does print 0% when every closed pick lost", () => {
+    expect(describeWinRate(closedWinRate([{ pnl_pct: -3 }])).value).toBe("0%");
+  });
+});
+
+describe("pnlTone", () => {
+  it("mirrors pnlClass: unknown and flat are neutral, only gains are green", () => {
+    expect(pnlTone(null)).toBe("neutral");
+    expect(pnlTone(undefined)).toBe("neutral");
+    expect(pnlTone(0)).toBe("neutral");
+    expect(pnlTone(0.01)).toBe("green");
+    expect(pnlTone(-0.01)).toBe("red");
+  });
+});
+
+describe("daysUntilCalendarDate", () => {
+  const now = new Date(2026, 8, 19, 15, 30); // local Sep 19, mid-afternoon
+
+  it("counts whole local calendar days, ignoring the time of day", () => {
+    expect(daysUntilCalendarDate("2026-10-02", now)).toBe(13);
+    expect(daysUntilCalendarDate("2026-09-20", now)).toBe(1);
+    expect(daysUntilCalendarDate("2026-09-19", now)).toBe(0);
+  });
+
+  it("goes negative for a date that has passed", () => {
+    expect(daysUntilCalendarDate("2026-09-17", now)).toBe(-2);
+  });
+
+  it("is unknown for a missing or malformed date", () => {
+    expect(daysUntilCalendarDate(null, now)).toBeNull();
+    expect(daysUntilCalendarDate(undefined, now)).toBeNull();
+    expect(daysUntilCalendarDate("2026-13-45", now)).toBeNull();
+    expect(daysUntilCalendarDate("soon", now)).toBeNull();
+  });
+
+  // Regression: `new Date("2026-10-02")` is UTC midnight, which is Oct 1 in
+  // every US timezone. The count must come from the calendar parts.
+  it("does not lose a day west of Greenwich", () => {
+    const lateEvening = new Date(2026, 9, 1, 23, 0);
+    expect(daysUntilCalendarDate("2026-10-02", lateEvening)).toBe(1);
+  });
+});
+
+describe("describeDaysUntil", () => {
+  it("speaks in plain words", () => {
+    expect(describeDaysUntil(0)).toBe("today");
+    expect(describeDaysUntil(1)).toBe("tomorrow");
+    expect(describeDaysUntil(13)).toBe("in 13 days");
+  });
+
+  // A past evaluation date means the run has not published, not that the
+  // strategy ran 3 days ago — say that rather than counting down past zero.
+  it("calls a past date overdue rather than 'in -3 days'", () => {
+    expect(describeDaysUntil(-3)).toBe("overdue");
+  });
+
+  it("is unknown for an unknown count", () => {
+    expect(describeDaysUntil(null)).toBeNull();
   });
 });
 

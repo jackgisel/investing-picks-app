@@ -4,6 +4,10 @@ const withOpacity = (variable: string) => `rgb(var(${variable}) / <alpha-value>)
 
 const config: Config = {
   darkMode: "class",
+  // `hover:` compiles to `@media (hover: hover)`. Touch screens fire hover on
+  // tap and then leave it stuck, so every hover tint in the dashboard used to
+  // linger on the last row someone touched.
+  future: { hoverOnlyWhenSupported: true },
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -64,6 +68,11 @@ const config: Config = {
       borderRadius: {
         pill: "9999px",
         soft: "1.25rem",
+      },
+      // The one interaction curve. Starts fast, lands without overshoot —
+      // the built-in `ease-out` is too weak to read as intentional.
+      transitionTimingFunction: {
+        "out-strong": "cubic-bezier(0.2, 0, 0, 1)",
       },
       letterSpacing: {
         widest: "0.2em",

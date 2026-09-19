@@ -89,6 +89,19 @@ export function pnlClass(n: number | null | undefined): string {
   return "text-text-muted";
 }
 
+/**
+ * `pnlClass` for components that take a tone rather than a class — same three
+ * rules: unknown and flat are neutral, only a real gain is green.
+ */
+export function pnlTone(
+  n: number | null | undefined,
+): "neutral" | "green" | "red" {
+  if (typeof n !== "number") return "neutral";
+  if (n > 0) return "green";
+  if (n < 0) return "red";
+  return "neutral";
+}
+
 export function daysSinceInception(
   inceptionISO: string = LIVE_PORTFOLIO.inceptionISO
 ): number {
@@ -128,6 +141,38 @@ export function formatDayMonth(iso: string | null | undefined): string | null {
   return d
     ? d.toLocaleDateString("en-US", { month: "short", day: "numeric" })
     : null;
+}
+
+/**
+ * Whole calendar days from today until `iso`, in the viewer's local calendar.
+ *
+ * Negative when the date has passed, 0 on the day itself. Null when the input
+ * is not a calendar date. Local-midnight arithmetic, not instants, so the
+ * count does not flip an hour early for anyone east of the server.
+ */
+export function daysUntilCalendarDate(
+  iso: string | null | undefined,
+  now: Date = new Date(),
+): number | null {
+  const target = iso ? parseCalendarDate(iso) : null;
+  if (!target) return null;
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((target.getTime() - today.getTime()) / 86_400_000);
+}
+
+/**
+ * "in 13 days" / "today" / "tomorrow" / "overdue". Null for an unknown date.
+ *
+ * "Overdue" rather than "3 days ago": the only way an evaluation date can be
+ * in the past is that the scheduled run has not published yet, and saying so
+ * is more useful than a countdown that went negative.
+ */
+export function describeDaysUntil(days: number | null): string | null {
+  if (days === null) return null;
+  if (days < 0) return "overdue";
+  if (days === 0) return "today";
+  if (days === 1) return "tomorrow";
+  return `in ${days} days`;
 }
 
 /** `2026-08-07` -> `Fri, Aug 7`. Null when the input is not a calendar date. */
@@ -464,5 +509,30 @@ export function closedWinRate(
     wins,
     total: scored.length,
     pct: scored.length > 0 ? (wins / scored.length) * 100 : null,
+  };
+}
+
+/**
+ * The win-rate tile, as value + caption.
+ *
+ * The tile used to print `wins / total` under the label WIN RATE — a fraction
+ * is not a rate, and nothing said which positions were in the denominator.
+ * The headline is the percentage; the caption carries the count and says,
+ * every time, that open positions are not in it. With nothing closed the
+ * value is an em dash, never 0%: no record is not a bad record.
+ */
+export function describeWinRate(rate: ClosedWinRate): {
+  value: string;
+  caption: string;
+} {
+  if (rate.pct === null) {
+    return {
+      value: "—",
+      caption: "Nothing closed yet. Open names don't count.",
+    };
+  }
+  return {
+    value: `${Math.round(rate.pct)}%`,
+    caption: `${rate.wins} of ${rate.total} closed above cost. Open names not counted.`,
   };
 }

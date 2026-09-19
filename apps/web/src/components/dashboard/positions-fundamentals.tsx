@@ -224,7 +224,7 @@ function FundamentalsRow({ holding }: { holding: Holding }) {
   const street = streetRangeFromFundamentals(facts);
 
   return (
-    <tr className="border-b border-border transition-colors last:border-b-0 hover:bg-bg-tertiary/50">
+    <tr className="border-b border-border transition-colors duration-100 last:border-b-0 hover:bg-bg-tertiary/50">
       <td className="px-5 py-4">
         <span className="flex items-center gap-2.5">
           <CompanyLogo ticker={holding.ticker} size="sm" />

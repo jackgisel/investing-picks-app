@@ -52,6 +52,9 @@ export function Tabs<T extends string>({
         >
         {tabs.map((tab) => {
           const selected = tab.id === value;
+          // Switching tabs is a tens-of-times-a-day action, so the panel
+          // itself never animates. The tab gets press feedback and a colour
+          // transition, nothing more.
           return (
             <button
               key={tab.id}
@@ -65,7 +68,7 @@ export function Tabs<T extends string>({
               aria-controls={`panel-${tab.id}`}
               tabIndex={selected ? 0 : -1}
               onClick={() => onChange(tab.id)}
-              className={`-mb-px flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-4 py-2.5 font-sans text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 focus-visible:ring-offset-bg ${
+              className={`press -mb-px flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-4 py-2.5 font-sans text-[13px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 focus-visible:ring-offset-bg ${
                 selected
                   ? "border-accent-mint text-text"
                   : "border-transparent text-text-dim hover:text-text-muted"

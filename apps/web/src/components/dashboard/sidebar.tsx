@@ -55,14 +55,16 @@ function NavLink({ item, isActive }: { item: NavItem; isActive: boolean }) {
       href={item.href}
       aria-current={isActive ? "page" : undefined}
       className={cn(
-        "flex items-center gap-3 px-3 py-2.5 text-[13px] font-sans font-medium rounded-pill transition-colors",
+        "press flex items-center gap-3 px-3 py-2.5 text-[13px] font-sans font-medium rounded-pill",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
         isActive
           ? "bg-inverse text-inverse-fg"
           : "text-text-muted hover:text-text hover:bg-bg-secondary",
       )}
     >
-      <item.icon size={16} />
+      {/* 1.75 sits between the 1.5 a regular label wants and the 2 a semibold
+          one does — the row is font-medium, and 2px read heavy at 16px. */}
+      <item.icon size={16} strokeWidth={1.75} />
       {item.label}
     </Link>
   );
@@ -83,14 +85,14 @@ function NavIconLink({ item, isActive }: { item: NavItem; isActive: boolean }) {
       aria-label={item.label}
       title={item.label}
       className={cn(
-        "flex h-8 w-8 items-center justify-center rounded-full transition-colors",
+        "press flex h-8 w-8 items-center justify-center rounded-full",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
         isActive
           ? "bg-inverse text-inverse-fg"
           : "text-text-muted hover:text-text hover:bg-bg-secondary",
       )}
     >
-      <item.icon size={16} />
+      <item.icon size={16} strokeWidth={1.75} />
     </Link>
   );
 }
@@ -174,7 +176,7 @@ export function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
 
 function navPillClass(isActive: boolean) {
   return cn(
-    "flex items-center gap-2 px-3.5 py-2 text-[12px] font-sans font-semibold whitespace-nowrap rounded-pill transition-colors",
+    "press flex items-center gap-2 px-3.5 py-2 text-[12px] font-sans font-semibold whitespace-nowrap rounded-pill",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
     isActive
       ? "bg-inverse text-inverse-fg"

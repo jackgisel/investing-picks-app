@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useStrategy } from "@/lib/hooks/use-strategy";
 import { usePicks } from "@/lib/hooks/use-picks";
 import { DataStateCard, resolveDataState } from "@/components/ui/data-state";
@@ -11,7 +11,12 @@ import { PositionsActivity } from "@/components/dashboard/positions-activity";
 import { PositionsFundamentals } from "@/components/dashboard/positions-fundamentals";
 import { resolvePageAccessState } from "@/components/dashboard/access-state";
 
-type TabId = "open" | "fundamentals" | "closed" | "activity";
+const POSITION_TABS = ["open", "fundamentals", "closed", "activity"] as const;
+type TabId = (typeof POSITION_TABS)[number];
+
+function parsePositionsTab(raw: string | null): TabId {
+  return POSITION_TABS.includes(raw as TabId) ? (raw as TabId) : "open";
+}
 
 /**
  * One surface for the book.
@@ -23,7 +28,18 @@ type TabId = "open" | "fundamentals" | "closed" | "activity";
  * answer "what do we own and what happened to it".
  */
 export default function PositionsPage() {
-  const [tab, setTab] = useState<TabId>("open");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const tab = parsePositionsTab(searchParams.get("tab"));
+
+  function setTab(next: TabId) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === "open") params.delete("tab");
+    else params.set("tab", next);
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }
 
   const strategyQuery = useStrategy();
   const closedQuery = usePicks("closed");

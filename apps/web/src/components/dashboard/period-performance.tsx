@@ -21,7 +21,12 @@ import {
 } from "@/components/dashboard/data-table";
 import { HScroll } from "@/components/ui/h-scroll";
 import { CompanyLogo } from "@/components/ui/company-logo";
-import { formatPctOrDash, formatWeekdayDate, pnlClass } from "@/lib/portfolio";
+import {
+  formatPctOrDash,
+  formatWeekdayDate,
+  pnlClass,
+  pnlTone,
+} from "@/lib/portfolio";
 import {
   PERIOD_ORDER,
   PERIOD_TAB_LABEL,
@@ -30,7 +35,7 @@ import {
   periodCaption,
   sortByPeriod,
 } from "@/lib/period-returns";
-import { TONE_TINT } from "@/lib/tones";
+import { StatTile } from "@/components/dashboard/stat-tile";
 
 /**
  * Short-horizon performance: today, this week, this month.
@@ -48,12 +53,13 @@ import { TONE_TINT } from "@/lib/tones";
 
 type SortKey = "ticker" | PeriodId;
 
+/** A StatTile whose value is a P&L percentage. Same frame as the home tiles. */
 function PeriodTile({
   label,
   caption,
   value,
   note,
-  icon: Icon,
+  icon,
   tone,
   loading,
 }: {
@@ -66,34 +72,16 @@ function PeriodTile({
   loading: boolean;
 }) {
   return (
-    <div className="data-card">
-      <div className="mb-2.5 flex items-center gap-2">
-        <span
-          className={`inline-flex items-center justify-center rounded-lg p-1.5 ${TONE_TINT[tone]}`}
-          aria-hidden
-        >
-          <Icon size={13} className="text-text-muted" />
-        </span>
-        <span className="field-label">{label}</span>
-      </div>
-      {loading ? (
-        <span className="block h-[26px] w-20 animate-pulse rounded bg-bg-tertiary" />
-      ) : (
-        <span
-          className={`block font-mono text-xl font-bold leading-[26px] tabular-nums ${pnlClass(value)}`}
-        >
-          {formatPctOrDash(value)}
-        </span>
-      )}
-      <span className="mt-1.5 block font-sans text-[11px] text-text-dim">
-        {caption}
-      </span>
-      {note && (
-        <span className="mt-0.5 block font-sans text-[10px] text-text-dim">
-          {note}
-        </span>
-      )}
-    </div>
+    <StatTile
+      label={label}
+      value={formatPctOrDash(value)}
+      caption={caption}
+      note={note}
+      icon={icon}
+      tone={tone}
+      valueTone={pnlTone(value)}
+      loading={loading}
+    />
   );
 }
 
@@ -242,7 +230,7 @@ export function PeriodPerformance() {
                 sorted?.map((row) => (
                   <tr
                     key={row.ticker}
-                    className="group border-b border-border transition-colors last:border-b-0 hover:bg-bg-tertiary/50"
+                    className="group border-b border-border transition-colors duration-100 last:border-b-0 hover:bg-bg-tertiary/50"
                   >
                     <td className="sticky-col px-3 py-3.5 group-hover:bg-bg-tertiary sm:px-5">
                       <span className="flex items-center gap-2.5">

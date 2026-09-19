@@ -12,7 +12,7 @@ const variants: Record<Variant, string> = {
 };
 
 const base =
-  "inline-flex items-center justify-center gap-2 font-sans text-xs sm:text-sm font-semibold tracking-[0.08em] uppercase rounded-pill px-5 py-2.5 transition-all duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0";
+  "press inline-flex items-center justify-center gap-2 font-sans text-xs sm:text-sm font-semibold tracking-[0.08em] uppercase rounded-pill px-5 py-2.5 hover:-translate-y-0.5 active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0";
 
 interface PillButtonProps {
   children: ReactNode;
@@ -40,7 +40,7 @@ export function PillButton({
       {arrow && (
         <span
           className={cn(
-            "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-transform duration-200 group-hover:translate-x-0.5",
+            "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-transform duration-150 ease-out-strong group-hover:translate-x-0.5 motion-reduce:transition-none",
             variant === "solid" ? "bg-inverse-fg/20" : "bg-text/10",
           )}
           aria-hidden

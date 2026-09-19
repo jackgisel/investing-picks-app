@@ -3,22 +3,36 @@
 import { useStrategy } from "@/lib/hooks/use-strategy";
 import { useInceptionDate } from "@/lib/hooks/use-inception";
 import {
-  computePortfolioReturnPct,
   daysSinceInception,
-  formatPctOrDash,
+  daysUntilCalendarDate,
+  describeDaysUntil,
   formatWeekdayDate,
-  pnlClass,
 } from "@/lib/portfolio";
-import { Radio } from "lucide-react";
+import { CalendarClock } from "lucide-react";
 
+/**
+ * The live-book banner. Its job is provenance and cadence, nothing else.
+ *
+ * It used to also carry Days live, Positions and Picks return — the same
+ * three figures the stat tiles directly beneath it showed, so the top of the
+ * page said everything twice and the one number only this strip knew, the
+ * next evaluation date, sat fourth in a row of duplicates with its
+ * explanation hidden in a `title` tooltip no touch screen can open.
+ *
+ * Now: one sentence on the left (what this is, since when, day N), and on the
+ * right the next evaluation with the countdown and the rule spelled out. A
+ * holdings table that has not changed in ten days is the strategy doing its
+ * job; without this line it looks like a strategy that stopped.
+ */
 export function LiveStatus() {
   const { data: strategy, isPending, isError } = useStrategy();
   const { inceptionISO } = useInceptionDate();
-  const isLoading = isPending;
   const days = daysSinceInception(inceptionISO);
-  const portfolio = strategy?.portfolio;
-  const totalReturnPct = computePortfolioReturnPct(strategy);
   const nextEvaluation = formatWeekdayDate(strategy?.next_evaluation_date);
+  const untilNext = describeDaysUntil(
+    daysUntilCalendarDate(strategy?.next_evaluation_date),
+  );
+  const cadence = strategy?.strategy?.evaluation_frequency ?? null;
 
   // A pulsing green "Live portfolio" banner full of em-dashes is worse than no
   // banner: it asserts everything is fine while the numbers are unavailable.
@@ -27,20 +41,18 @@ export function LiveStatus() {
 
   return (
     <div className="data-card">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-        <div className="flex items-center gap-4">
-          <span className="relative flex h-2.5 w-2.5 shrink-0">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-green opacity-75" />
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-accent-green" />
-          </span>
-          <div>
-            <div className="flex items-center gap-2">
-              <Radio size={12} className="text-accent-green" />
-              <span className="panel-label panel-label-mint">
-                Live portfolio
-              </span>
-            </div>
-            <p className="font-sans text-[13px] text-text-muted mt-1">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+        <div className="flex items-start gap-3.5">
+          {/* A slow opacity breathe, not `animate-ping`: the ring expanding
+              every second was the most active thing on a page whose data
+              changes twice a month. Stops entirely under reduced motion. */}
+          <span
+            className="op-live-glow mt-[5px] inline-flex h-2.5 w-2.5 shrink-0 rounded-full bg-accent-green"
+            aria-hidden
+          />
+          <div className="min-w-0">
+            <span className="panel-label panel-label-mint">Live portfolio</span>
+            <p className="mt-1 font-sans text-[13px] text-text-muted">
               Real trades · Tracked since{" "}
               {new Date(`${inceptionISO}T00:00:00Z`).toLocaleDateString(
                 "en-US",
@@ -50,46 +62,45 @@ export function LiveStatus() {
                   year: "numeric",
                   timeZone: "UTC",
                 },
-              )}
+              )}{" "}
+              ·{" "}
+              <span className="font-mono tabular-nums text-text">
+                Day {days}
+              </span>
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:flex sm:items-center gap-x-6 gap-y-4">
-          <div>
-            <span className="field-label block">
-              Days live
-            </span>
-            <span className="font-mono text-[18px] font-bold">{days}</span>
-          </div>
-          <div>
-            <span className="field-label block">
-              Positions
-            </span>
-            <span className="font-mono text-[18px] font-bold">
-              {isLoading ? "—" : (portfolio?.position_count ?? "—")}
-            </span>
-          </div>
-          <div>
-            <span className="field-label block">
-              Picks return
-            </span>
-            <span
-              className={`font-mono text-[18px] font-bold ${pnlClass(
-                isLoading ? null : totalReturnPct,
-              )}`}
-            >
-              {isLoading ? "—" : formatPctOrDash(totalReturnPct)}
-            </span>
-          </div>
-          <div>
-            <span className="field-label block">Next picks</span>
-            <span
-              className="font-mono text-[18px] font-bold whitespace-nowrap"
-              title="The book is re-evaluated on the 1st and 3rd Friday of each month. Holdings do not change in between."
-            >
-              {isLoading ? "—" : (nextEvaluation ?? "—")}
-            </span>
+        <div className="flex items-start gap-3 sm:items-center sm:text-right">
+          <span
+            className="inline-flex items-center justify-center rounded-lg bg-accent-mint/15 p-1.5 sm:order-2"
+            aria-hidden
+          >
+            <CalendarClock size={13} strokeWidth={2} className="text-text-muted" />
+          </span>
+          <div className="min-w-0 sm:order-1">
+            <span className="field-label block">Next evaluation</span>
+            <p className="mt-0.5 font-mono text-[16px] font-bold leading-tight tabular-nums">
+              {isPending ? (
+                <span className="inline-block h-[18px] w-24 animate-pulse rounded bg-bg-tertiary align-middle" />
+              ) : nextEvaluation ? (
+                <>
+                  {nextEvaluation}
+                  {untilNext && (
+                    <span className="ml-2 font-sans text-[12px] font-medium text-text-dim">
+                      {untilNext}
+                    </span>
+                  )}
+                </>
+              ) : (
+                "—"
+              )}
+            </p>
+            <p className="mt-1 font-sans text-[11px] leading-snug text-text-dim">
+              {cadence === "biweekly"
+                ? "1st and 3rd Friday · at most one new name per cycle · holdings don't change in between"
+                : "Holdings only change on evaluation days · at most one new name per cycle"}
+            </p>
           </div>
         </div>
       </div>

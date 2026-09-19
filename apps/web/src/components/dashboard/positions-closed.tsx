@@ -16,7 +16,7 @@ import {
   type SortDir,
 } from "@/components/dashboard/data-table";
 import { HScroll } from "@/components/ui/h-scroll";
-import { formatPctOrDash, pnlClass } from "@/lib/portfolio";
+import { comparePnl, formatPctOrDash, pnlClass } from "@/lib/portfolio";
 import { insightForTicker } from "@/lib/insights";
 import { useInsights } from "@/lib/hooks/use-insights";
 import { CompanyLogo } from "@/components/ui/company-logo";
@@ -59,10 +59,13 @@ export function PositionsClosed() {
 
   const sorted = picks
     ? [...picks].sort((a, b) => {
+        // An unknown result is not a 0% result. `?? 0` was filing it between
+        // the small winners and the small losers; comparePnl keeps unknowns
+        // at the bottom whichever way the column is flipped.
+        if (sortKey === "pnl_pct")
+          return comparePnl(a.pnl_pct, b.pnl_pct, sortDir);
         let cmp = 0;
         if (sortKey === "ticker") cmp = a.ticker.localeCompare(b.ticker);
-        else if (sortKey === "pnl_pct")
-          cmp = (a.pnl_pct ?? 0) - (b.pnl_pct ?? 0);
         else if (sortKey === "entry_date")
           cmp = a.entry_date.localeCompare(b.entry_date);
         else if (sortKey === "exit_date")
@@ -113,7 +116,7 @@ export function PositionsClosed() {
                   return (
                     <tr
                       key={`${p.ticker}-${p.entry_date}-${i}`}
-                      className="group border-b border-border transition-colors last:border-b-0 hover:bg-bg-tertiary/50"
+                      className="group border-b border-border transition-colors duration-100 last:border-b-0 hover:bg-bg-tertiary/50"
                     >
                       <td className="sticky-col px-3 py-3.5 group-hover:bg-bg-tertiary sm:px-5">
                         <span className="flex items-center gap-2.5">

@@ -127,6 +127,9 @@ function RequestForm() {
         <label htmlFor="fr-body" className="field-label block mb-2">
           Details <span className="normal-case tracking-normal">(optional)</span>
         </label>
+        {/* 8px inside the card's 12px. It used to be the same 12px as the
+            frame it sits 16px inside — the mismatch that makes nested corners
+            look slightly wrong without saying why. */}
         <textarea
           id="fr-body"
           value={body}
@@ -134,7 +137,7 @@ function RequestForm() {
           maxLength={MAX_BODY_LENGTH}
           rows={5}
           placeholder="What are you trying to do, and where does the current dashboard get in the way?"
-          className="field-input !rounded-xl resize-y leading-relaxed"
+          className="field-input !rounded-lg resize-y leading-relaxed"
         />
         <p className="font-mono text-[11px] text-text-dim mt-1.5 text-right">
           {body.length}/{MAX_BODY_LENGTH}
@@ -145,7 +148,7 @@ function RequestForm() {
         <button
           type="submit"
           disabled={!canSubmit}
-          className="btn-outline !py-2.5 !px-6 !text-[11px] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="btn-outline !py-2.5 !px-6 !text-[11px] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-text"
         >
           {submit.isPending ? "Sending…" : "Send request"}
         </button>
@@ -214,7 +217,7 @@ function RequestRow({ request }: { request: FeatureRequest }) {
       {/* The reply from triage. Worth more visual weight than the request
           itself — it is the part the member came back to read. */}
       {request.adminNote && (
-        <div className="rounded-soft border border-border bg-bg-secondary px-3 py-2 mt-2">
+        <div className="rounded-lg border border-border bg-bg-secondary px-3 py-2 mt-2">
           <p className="field-label mb-1">Response</p>
           <p className="font-sans text-[13px] text-text-muted leading-relaxed whitespace-pre-wrap">
             {request.adminNote}

@@ -9,7 +9,10 @@ import {
 import { isSameOriginBrowserPost } from "./billing-security";
 import {
   buildCheckoutParams,
+  checkoutDatafastUpdate,
   checkoutSuccessUrl,
+  findReusableCheckoutSession,
+  isCheckoutIdempotencyMismatch,
   isComplimentaryAccount,
   isProductionTestAccount,
 } from "./stripe-checkout";
@@ -241,7 +244,7 @@ describe("Checkout parameters and browser origin", () => {
     expect(params.metadata).toMatchObject({ founders_offer: "false" });
   });
 
-  it("puts DataFast cookies on the Checkout Session only", () => {
+  it("keeps DataFast cookies off the idempotent create payload", () => {
     const params = buildCheckoutParams({
       appUrl,
       userId: "user_1",
@@ -250,19 +253,72 @@ describe("Checkout parameters and browser origin", () => {
       couponId: null,
       offer: "standard",
       automaticTax: false,
-      datafastVisitorId: " vis_abc ",
-      datafastSessionId: "ses_123",
     });
-    expect(params.metadata).toMatchObject({
+    expect(params.metadata).toEqual({
       outpick_user_id: "user_1",
-      datafast_visitor_id: "vis_abc",
-      datafast_session_id: "ses_123",
+      founders_offer: "false",
+      offer_type: "standard",
     });
     expect(params.subscription_data?.metadata).toEqual({
       outpick_user_id: "user_1",
       founders_offer: "false",
       offer_type: "standard",
     });
+  });
+
+  it("attaches sanitized DataFast cookies only as a session update", () => {
+    expect(checkoutDatafastUpdate({})).toBeNull();
+    expect(
+      checkoutDatafastUpdate({ visitorId: " vis_abc ", sessionId: "ses_123" }),
+    ).toEqual({
+      metadata: {
+        datafast_visitor_id: "vis_abc",
+        datafast_session_id: "ses_123",
+      },
+    });
+  });
+
+  it("reuses an open Checkout Session for the same offer", () => {
+    expect(
+      findReusableCheckoutSession(
+        [
+          {
+            id: "cs_other",
+            url: "https://checkout.stripe.test/other",
+            metadata: { offer_type: "standard" },
+          },
+          {
+            id: "cs_founders",
+            url: "https://checkout.stripe.test/founders",
+            metadata: { offer_type: "founders" },
+          },
+        ],
+        "founders",
+      ),
+    ).toEqual({
+      id: "cs_founders",
+      url: "https://checkout.stripe.test/founders",
+    });
+    expect(
+      findReusableCheckoutSession(
+        [{ id: "cs_open", url: null, metadata: { offer_type: "founders" } }],
+        "founders",
+      ),
+    ).toBeNull();
+  });
+
+  it("detects Stripe's idempotency parameter mismatch", () => {
+    expect(
+      isCheckoutIdempotencyMismatch(
+        new Error(
+          "Keys for idempotent requests can only be used with the same parameters they were first used with. Try using a key other than 'outpick-checkout-v2-user_1-founders' if you meant to execute a different request.",
+        ),
+      ),
+    ).toBe(true);
+    expect(isCheckoutIdempotencyMismatch(new Error("No such coupon"))).toBe(
+      false,
+    );
+    expect(isCheckoutIdempotencyMismatch(null)).toBe(false);
   });
 
   it("matches the production-test allowlist case-insensitively", () => {

@@ -45,8 +45,6 @@ export function buildCheckoutParams(args: {
   couponId: string | null;
   offer: CheckoutOffer;
   automaticTax: boolean;
-  datafastVisitorId?: string | null;
-  datafastSessionId?: string | null;
 }): Stripe.Checkout.SessionCreateParams {
   // Production-test consumes the founders benefit so a smoke-test account
   // cannot claim a second discounted first year later. Complimentary is a
@@ -57,15 +55,6 @@ export function buildCheckoutParams(args: {
     outpick_user_id: args.userId,
     founders_offer: consumesFoundersOffer ? "true" : "false",
     offer_type: args.offer,
-  };
-  // Visitor/session ids belong on the Checkout Session only. Copying them onto
-  // the Subscription would persist marketing cookies on a long-lived object.
-  const sessionMetadata = {
-    ...metadata,
-    ...datafastCheckoutMetadata({
-      visitorId: args.datafastVisitorId,
-      sessionId: args.datafastSessionId,
-    }),
   };
 
   return {
@@ -93,11 +82,49 @@ export function buildCheckoutParams(args: {
         }
       : {}),
     billing_address_collection: complimentary ? "auto" : "required",
-    metadata: sessionMetadata,
+    // DataFast cookies must not appear here. They change between retries while
+    // the idempotency key stays `outpick-checkout-v2-${user}-${offer}` for 24
+    // hours, which is what 502'd Start membership after the first session
+    // already existed. Attach them with `checkoutDatafastUpdate` after create.
+    metadata,
     subscription_data: { metadata },
     success_url: checkoutSuccessUrl(args.appUrl),
     cancel_url: new URL("/subscribe?checkout=canceled", args.appUrl).toString(),
   };
+}
+
+export function checkoutDatafastUpdate(args: {
+  visitorId?: string | null;
+  sessionId?: string | null;
+}): Stripe.Checkout.SessionUpdateParams | null {
+  const metadata = datafastCheckoutMetadata(args);
+  if (Object.keys(metadata).length === 0) return null;
+  return { metadata };
+}
+
+export function findReusableCheckoutSession(
+  sessions: ReadonlyArray<
+    Pick<Stripe.Checkout.Session, "id" | "url" | "metadata">
+  >,
+  offer: CheckoutOffer,
+): { id: string; url: string } | null {
+  for (const session of sessions) {
+    if (session.metadata?.offer_type === offer && session.url) {
+      return { id: session.id, url: session.url };
+    }
+  }
+  return null;
+}
+
+export function isCheckoutIdempotencyMismatch(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const message =
+    "message" in error && typeof error.message === "string"
+      ? error.message
+      : "";
+  return message.includes(
+    "Keys for idempotent requests can only be used with the same parameters",
+  );
 }
 
 export function checkoutSuccessUrl(appUrl: URL): string {

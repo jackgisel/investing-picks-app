@@ -12,6 +12,7 @@ import {
 import { isFoundersWindowActive } from "@/lib/founders-server";
 import { getServerUser } from "@/lib/server-session";
 import { getStripe } from "@/lib/stripe";
+import type Stripe from "stripe";
 import {
   DATAFAST_SESSION_COOKIE,
   DATAFAST_VISITOR_COOKIE,
@@ -19,6 +20,9 @@ import {
 import {
   automaticTaxEnabled,
   buildCheckoutParams,
+  checkoutDatafastUpdate,
+  findReusableCheckoutSession,
+  isCheckoutIdempotencyMismatch,
   isProductionTestAccount,
   type CheckoutOffer,
 } from "@/lib/stripe-checkout";
@@ -193,34 +197,88 @@ async function createCheckoutResponse(request: NextRequest) {
       : foundersEligible
         ? foundersCouponId
         : null;
+  const datafast = {
+    visitorId: request.cookies.get(DATAFAST_VISITOR_COOKIE)?.value,
+    sessionId: request.cookies.get(DATAFAST_SESSION_COOKIE)?.value,
+  };
 
-  const session = await stripe.checkout.sessions.create(
-    buildCheckoutParams({
-      appUrl,
-      userId: user.id,
-      customerId,
-      annualPriceId,
-      couponId,
-      offer,
-      automaticTax: automaticTaxEnabled(),
-      datafastVisitorId: request.cookies.get(DATAFAST_VISITOR_COOKIE)?.value,
-      datafastSessionId: request.cookies.get(DATAFAST_SESSION_COOKIE)?.value,
-    }),
-    {
-      // Checkout Sessions default to a 24-hour lifetime, matching Stripe's
-      // minimum idempotency retention. Repeated or parallel attempts therefore
-      // cannot create two founders-discounted subscriptions.
-      // v2: payload no longer sends automatic_tax[enabled]=false, which
-      // Stripe Managed Payments rejects. The previous key would replay that
-      // 400 for 24 hours for anyone who already hit it.
-      idempotencyKey: `outpick-checkout-v2-${user.id}-${offer}`,
-    },
-  );
+  const open = await listOpenCheckoutSessions(stripe, customerId);
+  const reusable = findReusableCheckoutSession(open, offer);
+  if (reusable) {
+    return checkoutUrlResponse(stripe, reusable, datafast);
+  }
+
+  let session: Stripe.Checkout.Session;
+  try {
+    session = await stripe.checkout.sessions.create(
+      buildCheckoutParams({
+        appUrl,
+        userId: user.id,
+        customerId,
+        annualPriceId,
+        couponId,
+        offer,
+        automaticTax: automaticTaxEnabled(),
+      }),
+      {
+        // Checkout Sessions default to a 24-hour lifetime, matching Stripe's
+        // minimum idempotency retention. Repeated or parallel attempts therefore
+        // cannot create two founders-discounted subscriptions.
+        // v2: payload no longer sends automatic_tax[enabled]=false, which
+        // Stripe Managed Payments rejects. The previous key would replay that
+        // 400 for 24 hours for anyone who already hit it.
+        idempotencyKey: `outpick-checkout-v2-${user.id}-${offer}`,
+      },
+    );
+  } catch (error) {
+    if (isCheckoutIdempotencyMismatch(error)) {
+      const recovered = findReusableCheckoutSession(
+        await listOpenCheckoutSessions(stripe, customerId),
+        offer,
+      );
+      if (recovered) {
+        return checkoutUrlResponse(stripe, recovered, datafast);
+      }
+    }
+    throw error;
+  }
   if (!session.url) {
     return NextResponse.json(
       { error: "Checkout could not be created" },
       { status: 502 },
     );
+  }
+  return checkoutUrlResponse(
+    stripe,
+    { id: session.id, url: session.url },
+    datafast,
+  );
+}
+
+async function listOpenCheckoutSessions(
+  stripe: Stripe,
+  customerId: string,
+): Promise<Stripe.Checkout.Session[]> {
+  const open = await stripe.checkout.sessions.list({
+    customer: customerId,
+    status: "open",
+    limit: 10,
+  });
+  return open.data;
+}
+
+async function checkoutUrlResponse(
+  stripe: Stripe,
+  session: { id: string; url: string },
+  datafast: { visitorId?: string | null; sessionId?: string | null },
+) {
+  const update = checkoutDatafastUpdate(datafast);
+  if (update) {
+    try {
+      await stripe.checkout.sessions.update(session.id, update);
+    } catch (error) {
+      console.warn("Checkout DataFast attribution failed:", error);
+    }
   }
   return NextResponse.json({ url: session.url });
 }

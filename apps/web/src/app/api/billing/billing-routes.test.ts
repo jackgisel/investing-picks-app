@@ -38,7 +38,7 @@ const state = vi.hoisted(() => ({
   stripe: {
     customers: { retrieve: vi.fn(), create: vi.fn() },
     subscriptions: { list: vi.fn() },
-    checkout: { sessions: { create: vi.fn() } },
+    checkout: { sessions: { create: vi.fn(), list: vi.fn(), update: vi.fn() } },
     billingPortal: { sessions: { create: vi.fn() } },
   },
   saveCustomer: vi.fn(),
@@ -108,8 +108,11 @@ describe("billing routes", () => {
     state.stripe.customers.create.mockResolvedValue({ id: "cus_new" });
     state.stripe.subscriptions.list.mockResolvedValue({ data: [] });
     state.stripe.checkout.sessions.create.mockResolvedValue({
+      id: "cs_new",
       url: "https://checkout.stripe.test/session",
     });
+    state.stripe.checkout.sessions.list.mockResolvedValue({ data: [] });
+    state.stripe.checkout.sessions.update.mockResolvedValue({});
     state.stripe.billingPortal.sessions.create.mockResolvedValue({
       url: "https://billing.stripe.test/session",
     });
@@ -220,9 +223,15 @@ describe("billing routes", () => {
     expect(options).toEqual({
       idempotencyKey: "outpick-checkout-v2-user_1-founders",
     });
+    expect(state.stripe.checkout.sessions.list).toHaveBeenCalledWith({
+      customer: "cus_existing",
+      status: "open",
+      limit: 10,
+    });
+    expect(state.stripe.checkout.sessions.update).not.toHaveBeenCalled();
   });
 
-  it("forwards DataFast cookies into Checkout Session metadata", async () => {
+  it("keeps DataFast cookies off create and attaches them with a session update", async () => {
     await checkout(
       request(
         "https://outpick.test",
@@ -230,10 +239,10 @@ describe("billing routes", () => {
       ),
     );
     const [params] = state.stripe.checkout.sessions.create.mock.calls[0];
-    expect(params.metadata).toMatchObject({
+    expect(params.metadata).toEqual({
       outpick_user_id: "user_1",
-      datafast_visitor_id: "vis_abc",
-      datafast_session_id: "ses_123",
+      founders_offer: "true",
+      offer_type: "founders",
     });
     expect(params.subscription_data.metadata).not.toHaveProperty(
       "datafast_visitor_id",
@@ -241,6 +250,71 @@ describe("billing routes", () => {
     expect(params.subscription_data.metadata).not.toHaveProperty(
       "datafast_session_id",
     );
+    expect(state.stripe.checkout.sessions.update).toHaveBeenCalledWith("cs_new", {
+      metadata: {
+        datafast_visitor_id: "vis_abc",
+        datafast_session_id: "ses_123",
+      },
+    });
+  });
+
+  it("returns an existing open Checkout Session instead of creating another", async () => {
+    state.stripe.checkout.sessions.list.mockResolvedValue({
+      data: [
+        {
+          id: "cs_open",
+          url: "https://checkout.stripe.test/open",
+          metadata: { offer_type: "founders" },
+        },
+      ],
+    });
+    const response = await checkout(
+      request(
+        "https://outpick.test",
+        "datafast_visitor_id=vis_abc; datafast_session_id=ses_123",
+      ),
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      url: "https://checkout.stripe.test/open",
+    });
+    expect(state.stripe.checkout.sessions.create).not.toHaveBeenCalled();
+    expect(state.stripe.checkout.sessions.update).toHaveBeenCalledWith("cs_open", {
+      metadata: {
+        datafast_visitor_id: "vis_abc",
+        datafast_session_id: "ses_123",
+      },
+    });
+  });
+
+  it("recovers an open session when Stripe rejects a changed idempotency payload", async () => {
+    state.stripe.checkout.sessions.list
+      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({
+        data: [
+          {
+            id: "cs_open",
+            url: "https://checkout.stripe.test/open",
+            metadata: { offer_type: "founders" },
+          },
+        ],
+      });
+    state.stripe.checkout.sessions.create.mockRejectedValue(
+      Object.assign(
+        new Error(
+          "Keys for idempotent requests can only be used with the same parameters they were first used with. Try using a key other than 'outpick-checkout-v2-user_1-founders' if you meant to execute a different request.",
+        ),
+        { type: "idempotency_error" },
+      ),
+    );
+
+    const response = await checkout(request());
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      url: "https://checkout.stripe.test/open",
+    });
+    expect(state.stripe.checkout.sessions.create).toHaveBeenCalledTimes(1);
   });
 
   it("enables automatic tax only when explicitly configured", async () => {

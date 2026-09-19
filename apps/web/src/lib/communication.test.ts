@@ -47,9 +47,17 @@ describe("legacyCommunicationRedirect", () => {
     expect(legacyCommunicationRedirect("/dashboard/ops/feature-requests")).toBeNull();
   });
 
-  it("covers every tab exactly once from a legacy URL", () => {
+  it("covers every legacy comms URL exactly once", () => {
     const tabs = Object.values(LEGACY_COMMUNICATION_REDIRECTS);
-    expect(new Set(tabs).size).toBe(COMMUNICATION_TABS.length);
+    expect(new Set(tabs).size).toBe(tabs.length);
+    expect(tabs.every((tab) => COMMUNICATION_TABS.some((item) => item.id === tab))).toBe(
+      true,
+    );
     expect(COMMUNICATION_PATH).toBe("/dashboard/ops/communication");
+  });
+
+  it("includes an Invites tab that has no legacy URL", () => {
+    expect(COMMUNICATION_TABS.map((tab) => tab.id)).toContain("invites");
+    expect(Object.values(LEGACY_COMMUNICATION_REDIRECTS)).not.toContain("invites");
   });
 });

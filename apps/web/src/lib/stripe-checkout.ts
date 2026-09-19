@@ -1,10 +1,24 @@
 import type Stripe from "stripe";
 import { datafastCheckoutMetadata } from "@/lib/datafast";
 
-export type CheckoutOffer = "standard" | "founders" | "production_test";
+export type CheckoutOffer =
+  | "standard"
+  | "founders"
+  | "production_test"
+  | "complimentary";
+
+/** Stable Coupon id created on first complimentary checkout if none is configured. */
+export const COMPLIMENTARY_COUPON_ID = "outpick_complimentary";
 
 export function automaticTaxEnabled(): boolean {
   return process.env.STRIPE_AUTOMATIC_TAX_ENABLED?.trim().toLowerCase() === "true";
+}
+
+export function parseEmailList(value: string | undefined): string[] {
+  return (value ?? "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
 }
 
 export function isProductionTestAccount(
@@ -13,6 +27,14 @@ export function isProductionTestAccount(
 ): boolean {
   const allowlisted = configuredEmail?.trim().toLowerCase();
   return Boolean(allowlisted) && userEmail.trim().toLowerCase() === allowlisted;
+}
+
+export function isComplimentaryAccount(
+  userEmail: string,
+  configuredEmails: string | undefined,
+): boolean {
+  const email = userEmail.trim().toLowerCase();
+  return Boolean(email) && parseEmailList(configuredEmails).includes(email);
 }
 
 export function buildCheckoutParams(args: {
@@ -26,10 +48,11 @@ export function buildCheckoutParams(args: {
   datafastVisitorId?: string | null;
   datafastSessionId?: string | null;
 }): Stripe.Checkout.SessionCreateParams {
-  // The temporary production-test discount consumes the same one-time account
-  // benefit as the founders offer. This prevents the smoke-test account from
-  // claiming a second discounted first year later.
-  const consumesFoundersOffer = args.offer !== "standard";
+  // Production-test consumes the founders benefit so a smoke-test account
+  // cannot claim a second discounted first year later. Complimentary is a
+  // separate grant and must not burn that one-time offer.
+  const consumesFoundersOffer = args.offer === "founders" || args.offer === "production_test";
+  const complimentary = args.offer === "complimentary";
   const metadata = {
     outpick_user_id: args.userId,
     founders_offer: consumesFoundersOffer ? "true" : "false",
@@ -53,6 +76,11 @@ export function buildCheckoutParams(args: {
     ...(args.couponId
       ? { discounts: [{ coupon: args.couponId }] }
       : {}),
+    // 100% off forever still creates a subscription. Without this, Checkout
+    // demands a card for a $0 invoice.
+    ...(complimentary
+      ? { payment_method_collection: "if_required" as const }
+      : {}),
     // Never send `automatic_tax: { enabled: false }`. Accounts with Stripe
     // Managed Payments (the Dashboard default) reject that combination, which
     // is what blocked /subscribe after sign-up. Omitting the field lets the
@@ -64,7 +92,7 @@ export function buildCheckoutParams(args: {
           customer_update: { address: "auto" as const, name: "auto" as const },
         }
       : {}),
-    billing_address_collection: "required",
+    billing_address_collection: complimentary ? "auto" : "required",
     metadata: sessionMetadata,
     subscription_data: { metadata },
     success_url: checkoutSuccessUrl(args.appUrl),

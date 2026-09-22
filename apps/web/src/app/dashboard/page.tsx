@@ -2,6 +2,9 @@
 
 import { useStrategy } from "@/lib/hooks/use-strategy";
 import { usePicks } from "@/lib/hooks/use-picks";
+import { buildPicksComparison, useChart } from "@/lib/hooks/use-chart";
+import { usePeriodReturns } from "@/lib/hooks/use-period-returns";
+import { coverageNote, periodCaption } from "@/lib/period-returns";
 import { LiveStatus } from "@/components/dashboard/live-status";
 import { StatTile } from "@/components/dashboard/stat-tile";
 import { InsightsCard } from "@/components/dashboard/insights-card";
@@ -20,10 +23,7 @@ import {
   type DataStateKind,
 } from "@/components/ui/data-state";
 import {
-  closedWinRate,
-  computeBookReturnPct,
   computePortfolioReturnPct,
-  describeWinRate,
   formatPctOrDash,
   pnlClass,
   pnlTone,
@@ -32,8 +32,8 @@ import {
   TrendingUp,
   Layers,
   ArrowUpRight,
-  Trophy,
-  Wallet,
+  CalendarDays,
+  LineChart,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -50,9 +50,10 @@ function isGate(state: DataStateKind | null): state is "unauthenticated" | "subs
 export default function DashboardPage() {
   const strategyQuery = useStrategy();
   const picksQuery = usePicks("active");
-  // Closed picks drive the win rate — the only version of that number the
-  // product can stand behind.
-  const closedQuery = usePicks("closed");
+  // Like-for-like S&P: the same dollars, on the same dates, into SPY.
+  // Not the index's own calendar move, and not the cash book.
+  const chartQuery = useChart("inception");
+  const periodQuery = usePeriodReturns();
   const { data: strategy } = strategyQuery;
   const { data: picksData } = picksQuery;
 
@@ -81,24 +82,14 @@ export default function DashboardPage() {
 
   const strategyFailed = strategyState === "error";
 
-  // Two returns, deliberately side by side and deliberately labelled.
-  //
-  // `picksReturnPct` is the headline: what the stocks we picked did with the
-  // capital put into them (closed picks included, idle cash excluded). The UI
-  // never shows dollars. `bookReturnPct` is the whole-book equity return, cash
-  // drag included — on a book that is 13% invested the two differ by ~18
-  // points, and showing only the flattering one is how a research product
-  // starts to look like a brokerage statement. Neither is coerced to 0 when
-  // unknown; the tile prints an em dash.
+  // What the picks did with the money put into them. Each name is entered at
+  // the same size, and closed picks stay in so a sold loser does not vanish.
+  // Unknown stays an em dash — never coerced to 0.
   const picksReturnPct = computePortfolioReturnPct(strategy);
-  const bookReturnPct = computeBookReturnPct(strategy);
-
-  // The win rate is RESOLVED results only — closed positions that finished
-  // above cost. The tile used to count open positions marked in the green,
-  // which reads as a track record but is unrealized: a book that opened into a
-  // rising fortnight shows 8 of 8 having proven nothing, and the number falls
-  // apart the moment the market turns.
-  const winRate = describeWinRate(closedWinRate(closedQuery.data?.picks));
+  const spyReturnPct =
+    buildPicksComparison(chartQuery.data).benchmarks.find((b) => b.key === "SPY")
+      ?.latestPct ?? null;
+  const month = periodQuery.data?.periods.find((p) => p.id === "month");
 
   // The two ends of the open book by unrealized P&L. Disjoint by construction,
   // and unknown returns are in neither — see splitLeadersAndLaggards.
@@ -144,38 +135,36 @@ export default function DashboardPage() {
               figures live in the tiles below and nowhere else. */}
           <LiveStatus />
 
-          {/* Four figures, each with its definition under it. Two of them are
-              returns and they are not interchangeable — see the comment on
-              picksReturnPct above. */}
+          {/* Four figures. Picks return is the equal-size record. S&P is the
+              same dollars on the same dates, not the index's own move. */}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <StatTile
               label="PICKS RETURN"
               value={formatPctOrDash(picksReturnPct)}
-              caption="Capital in picks. Idle cash excluded, closed picks included."
+              caption="Each pick entered at the same size. Closed picks included."
               icon={TrendingUp}
               tone="mint"
               valueTone={pnlTone(picksReturnPct)}
               loading={strategyQuery.isPending}
             />
             <StatTile
-              label="BOOK RETURN"
-              value={formatPctOrDash(bookReturnPct)}
-              caption="Whole book, idle cash included. The gap is cash drag."
-              icon={Wallet}
+              label="S&P 500"
+              value={formatPctOrDash(spyReturnPct)}
+              caption="Same dollars, same dates as the picks."
+              icon={LineChart}
               tone="cyan"
-              valueTone={pnlTone(bookReturnPct)}
-              loading={strategyQuery.isPending}
+              valueTone={pnlTone(spyReturnPct)}
+              loading={chartQuery.isPending}
             />
-            {/* Reads "—" until there are exits. Zero closed positions is "no
-                record yet"; rendering it as 0% would be a claim, and a false
-                one. Open names marked green never count. */}
             <StatTile
-              label="WIN RATE"
-              value={winRate.value}
-              caption={winRate.caption}
-              icon={Trophy}
-              tone="mint"
-              loading={closedQuery.isPending}
+              label="THIS MONTH"
+              value={formatPctOrDash(month?.open_picks_return_pct)}
+              caption={month ? periodCaption(month) : undefined}
+              note={coverageNote(month)}
+              icon={CalendarDays}
+              tone="lilac"
+              valueTone={pnlTone(month?.open_picks_return_pct)}
+              loading={periodQuery.isPending}
             />
             <StatTile
               label="POSITIONS"

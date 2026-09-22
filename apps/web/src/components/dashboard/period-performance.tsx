@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarDays, LineChart, Sparkles } from "lucide-react";
+import { CalendarDays, Sparkles } from "lucide-react";
 import {
   usePeriodReturns,
   type PeriodId,
@@ -94,7 +94,7 @@ export function PeriodTiles({
 }) {
   const caption = periodCaption(summary);
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <PeriodTile
         label="Picks held"
         caption={caption}
@@ -102,14 +102,6 @@ export function PeriodTiles({
         note={coverageNote(summary)}
         icon={Sparkles}
         tone="mint"
-        loading={loading}
-      />
-      <PeriodTile
-        label="Book"
-        caption={`${caption} · cash included`}
-        value={summary?.book_return_pct}
-        icon={LineChart}
-        tone="cyan"
         loading={loading}
       />
       <PeriodTile

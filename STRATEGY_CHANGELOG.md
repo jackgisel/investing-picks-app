@@ -99,6 +99,9 @@ basket's excess return, and the top pick's. `--base weight_revisions=0` scores
 Fridays before the consensus tape, so momentum, valuation, growth and
 profitability can be judged on the full price and filing history.
 
+`.github/workflows/factor-ic.yml` runs `--rederive --standard` on a copy of the
+pinned dataset every Saturday and uploads the report (a report, not a gate).
+
 ### First read (2026-09-23)
 
 Re-derived working copy of `dataset-cadence.sqlite`, not the pin. Reports in

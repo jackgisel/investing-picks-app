@@ -1,0 +1,80 @@
+name: factor-ic
+
+# Weekly factor IC report on the pinned dataset. A report, not a gate:
+# factor_ic exits 0 whatever the ICs say.
+
+on:
+  schedule:
+    - cron: "0 12 * * 6"
+  workflow_dispatch:
+
+concurrency:
+  group: factor-ic
+  cancel-in-progress: true
+
+jobs:
+  factor-ic:
+    name: factor IC report
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      BACKTEST_DATASET_URL: ${{ secrets.BACKTEST_DATASET_URL }}
+      BACKTEST_DATASET_TOKEN: ${{ secrets.BACKTEST_DATASET_TOKEN }}
+      BACKTEST_S3_ENDPOINT: ${{ secrets.BACKTEST_S3_ENDPOINT }}
+      BACKTEST_S3_ACCESS_KEY: ${{ secrets.BACKTEST_S3_ACCESS_KEY }}
+      BACKTEST_S3_SECRET_KEY: ${{ secrets.BACKTEST_S3_SECRET_KEY }}
+      BACKTEST_S3_BUCKET: ${{ secrets.BACKTEST_S3_BUCKET }}
+      BACKTEST_S3_REGION: ${{ secrets.BACKTEST_S3_REGION }}
+      PYTHONPATH: apps/api:apps/worker:packages/strategy/src
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install python packages
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e packages/strategy
+          python -m pip install -e apps/api -e apps/worker boto3
+          sudo apt-get update -qq && sudo apt-get install -y -qq zstd
+
+      - name: Read dataset pin
+        id: pin
+        run: |
+          python3 - <<'PY'
+          import json, os
+          m = json.load(open("datasets/manifest.json"))
+          with open(os.environ["GITHUB_OUTPUT"], "a") as fh:
+              fh.write(f"sha256={m['sha256']}\n")
+          PY
+
+      - uses: actions/cache@v4
+        with:
+          path: datasets/dataset-v1.sqlite
+          key: backtest-dataset-${{ steps.pin.outputs.sha256 }}
+
+      - name: Download dataset
+        run: python3 -m worker.backtest download --dataset datasets/dataset-v1.sqlite --manifest datasets/manifest.json
+
+      # --rederive rewrites PIT rows, so it runs on a copy and the cached pin
+      # stays byte-identical.
+      - name: Factor IC
+        run: |
+          set -eu
+          COPY="$RUNNER_TEMP/factor-ic.sqlite"
+          cp datasets/dataset-v1.sqlite "$COPY"
+          python3 -m worker.backtest.factor_ic --dataset "$COPY" --rederive --standard \
+            --horizons 5,10,20 --out-md factor-ic.md --out-json factor-ic.json > /dev/null
+          cat factor-ic.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: factor-ic
+          path: |
+            factor-ic.md
+            factor-ic.json
+          if-no-files-found: error

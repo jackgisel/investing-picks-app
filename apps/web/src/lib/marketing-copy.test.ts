@@ -10,6 +10,8 @@ import { describe, expect, it } from "vitest";
  */
 const USER_FACING = [
   "src/components/pricing/pricing-page.tsx",
+  "src/content/pricing.ts",
+  "src/app/pricing/page.tsx",
   "src/lib/constants.ts",
   "src/content/faq.ts",
   "src/app/welcome/welcome-experience.tsx",

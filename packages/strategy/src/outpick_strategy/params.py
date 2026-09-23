@@ -91,6 +91,51 @@ class StrategyParams:
     drawdown_resume_pct: float = -0.10
     enable_daily_sell_pass: bool = False
 
+    # ── Research switches (OFF = Run 118 exactly) ────────────────────────────
+    # Each field below is measured by `python -m worker.backtest.factor_ic`
+    # (scoring switches) or a replay compare (book switches) before it may
+    # become a default. At its neutral value a switch is left out of
+    # `version_hash()`, so adding one does not relabel the shipped model.
+    #
+    # Scoring (worker compute_scores):
+    # 12-1 momentum: skip the most recent N calendar days of the 12m window.
+    # Short-term reversal lives in that last month.
+    momentum_skip_days: int = 0
+    # Average the 6m and 12m momentum percentiles (the original Run 118 port).
+    momentum_blend_6m: bool = False
+    # "pct": EPS revision as % change of the prior estimate (Run 118).
+    # "price": EPS revision as (new - old) estimate / share price. A $0.02 ->
+    # $0.04 estimate is +100% under "pct" and noise under "price".
+    revisions_eps_scaling: str = "pct"
+    # Treat a revisions pair shorter than this as missing. 0 = any pair.
+    revision_min_lookback_days: int = 0
+    # Blend next-fiscal-year revisions into the factor when available.
+    revisions_fy2_blend: bool = False
+    # Loss-makers carry no P/E or PEG. Missing reads as "not measured", so a
+    # loss-maker is valued on sales and book alone. True ranks it worst on
+    # P/E and PEG instead.
+    valuation_penalize_losses: bool = False
+    # EPS growth and net-income growth are close to the same number, so
+    # earnings carry two thirds of the growth factor. True drops net income.
+    growth_drop_net_income: bool = False
+    # Weight of the standardized earnings-surprise factor. 0 = factor absent.
+    weight_surprise: float = 0.0
+    #
+    # Book (evaluate):
+    # Rank by the mean of today's and the prior window's rating, so one noisy
+    # snapshot cannot decide the single add.
+    rank_smoothing: bool = False
+    # Skip a buy when the name reports earnings within N calendar days.
+    earnings_blackout_days: int = 0
+    # Skip a new name whose daily-return correlation with any holding is above
+    # this. None = off.
+    max_pair_correlation: float | None = None
+    correlation_lookback_days: int = 90
+    # "max_positions": sector cap = sector_concentration x max_positions
+    # (Run 118; 15 names, so it does not bind on a young book).
+    # "held": sector_concentration x (names held + 1), floor 1.
+    sector_cap_basis: str = "max_positions"
+
     # Any change to these defaults, signals.py, or scoring.py MUST bump this
     # label (run118 → run119 …), regenerate the golden snapshot and backtest
     # baseline in the same PR, and add a STRATEGY_CHANGELOG.md entry.
@@ -103,13 +148,18 @@ class StrategyParams:
         return equity * self.position_size_pct
 
     def factor_weights(self) -> dict[str, float]:
-        return {
+        weights = {
             "valuation": self.weight_valuation,
             "growth": self.weight_growth,
             "profitability": self.weight_profitability,
             "momentum": self.weight_momentum,
             "revisions": self.weight_revisions,
         }
+        # Present only when weighted: min_factor_coverage = 1.0 would otherwise
+        # make every name without a recent report unscoreable.
+        if self.weight_surprise > 0:
+            weights["surprise"] = self.weight_surprise
+        return weights
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -149,11 +199,33 @@ class StrategyParams:
         return {k: d[k] for k in self.PUBLIC_FIELDS}
 
     def version_hash(self) -> str:
-        payload = json.dumps(self.to_dict(), sort_keys=True, default=str)
+        d = self.to_dict()
+        for name, neutral in RESEARCH_SWITCH_NEUTRAL.items():
+            if d.get(name) == neutral:
+                d.pop(name, None)
+        payload = json.dumps(d, sort_keys=True, default=str)
         return hashlib.sha256(payload.encode()).hexdigest()[:12]
 
     def with_overrides(self, **kwargs) -> StrategyParams:
         return replace(self, **kwargs)
 
+
+# Research switches and the value at which each one is a no-op. Omitted from
+# `version_hash()` at that value; any other value changes the hash.
+RESEARCH_SWITCH_NEUTRAL: dict[str, object] = {
+    "momentum_skip_days": 0,
+    "momentum_blend_6m": False,
+    "revisions_eps_scaling": "pct",
+    "revision_min_lookback_days": 0,
+    "revisions_fy2_blend": False,
+    "valuation_penalize_losses": False,
+    "growth_drop_net_income": False,
+    "weight_surprise": 0.0,
+    "rank_smoothing": False,
+    "earnings_blackout_days": 0,
+    "max_pair_correlation": None,
+    "correlation_lookback_days": 90,
+    "sector_cap_basis": "max_positions",
+}
 
 RUN118_PARAMS = StrategyParams()

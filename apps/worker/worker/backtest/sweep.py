@@ -40,6 +40,13 @@ EXPERIMENT_CANDIDATES: tuple[dict[str, Any], ...] = (
     },
     {"name": "hold_removal_2_7", "overrides": {"hold_removal_rating": 2.7}},
     {"name": "sector_cap_20pct", "overrides": {"sector_concentration": 0.20}},
+    # Book-level research switches. Scoring switches are judged by
+    # `python -m worker.backtest.factor_ic` instead: they change the ranking of
+    # hundreds of names, and one fortnightly add is too few to see that.
+    {"name": "rank_smoothing", "overrides": {"rank_smoothing": True}},
+    {"name": "earnings_blackout_7d", "overrides": {"earnings_blackout_days": 7}},
+    {"name": "max_pair_correlation_0_8", "overrides": {"max_pair_correlation": 0.8}},
+    {"name": "sector_cap_held_basis", "overrides": {"sector_cap_basis": "held"}},
 )
 
 DEFERRED_EXPERIMENTS = (

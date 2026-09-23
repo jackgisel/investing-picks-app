@@ -36,6 +36,7 @@ from app.services.portfolio import (
     load_portfolio_state,
     params_from_portfolio,
     ranked_candidates,
+    return_series_for,
     run_evaluation,
 )
 from app.services.job_runs import reap_stale_job_runs
@@ -858,8 +859,14 @@ def dry_run_preview(simulate: bool = False, db: Session = Depends(get_db)):
     else:
         scores = load_latest_scores(db)
 
-    ranked = ranked_candidates(scores)
-    signals = evaluate(state, scores, ranked, params)
+    ranked = ranked_candidates(scores, params)
+    signals = evaluate(
+        state,
+        scores,
+        ranked,
+        params,
+        return_series=return_series_for(db, state, scores, params, date.today()),
+    )
     # Without these counts an empty `signals` list is ambiguous: it reads as
     # "the strategy considered the universe and chose to do nothing" when it can
     # equally mean "there was no universe to consider". `_removal_signals` skips
@@ -973,14 +980,15 @@ def buy_queue_preview(db: Session = Depends(get_db)):
     params = params_from_portfolio(portfolio)
     state = load_portfolio_state(db, portfolio)
     scores = load_latest_scores(db)
-    ranked = ranked_candidates(scores)
+    ranked = ranked_candidates(scores, params)
+    series = return_series_for(db, state, scores, params, date.today())
 
-    signals = evaluate(state, scores, ranked, params)
+    signals = evaluate(state, scores, ranked, params, return_series=series)
     buy = next(
         (s for s in signals if s.action.value in ("buy", "double_buy")),
         None,
     )
-    queue = explain_buy_queue(state, scores, ranked, params)
+    queue = explain_buy_queue(state, scores, ranked, params, return_series=series)
     if queue.selected_ticker != (buy.ticker if buy else None):
         log.error(
             "buy-queue explainer selected %s; evaluate() selected %s",

@@ -1,6 +1,6 @@
 """Pure strategy package — no I/O. Live and backtest must call evaluate()."""
 
-from outpick_strategy.params import StrategyParams, RUN118_PARAMS
+from outpick_strategy.params import RESEARCH_SWITCH_NEUTRAL, StrategyParams, RUN118_PARAMS
 from outpick_strategy.types import (
     Action,
     PortfolioState,
@@ -14,6 +14,7 @@ from outpick_strategy.signals import (
     evaluate_dca_sells,
     evaluate_sells_only,
     explain_buy_queue,
+    rank_candidates,
 )
 from outpick_strategy.cadence import (
     evaluation_fridays_between,
@@ -31,6 +32,7 @@ from outpick_strategy.grades import (
 __all__ = [
     "StrategyParams",
     "RUN118_PARAMS",
+    "RESEARCH_SWITCH_NEUTRAL",
     "Action",
     "PortfolioState",
     "PositionState",
@@ -41,6 +43,7 @@ __all__ = [
     "evaluate_dca_sells",
     "evaluate_sells_only",
     "explain_buy_queue",
+    "rank_candidates",
     "evaluation_fridays_between",
     "is_evaluation_friday",
     "next_evaluation_friday",

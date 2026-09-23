@@ -51,20 +51,11 @@ FUNDAMENTALS_MAX_AGE_DAYS = 45
 MIN_SECTOR_POPULATION = 15
 
 # BUG-P3. `composite_from_factor_pcts` takes a `z_score` and rejects anything
-# below `params.z_score_floor` (1.8 in Run 118) as a bankruptcy-risk name — but
-# the parameter defaults to None and None means "skip the check", so a caller
-# that simply omits it disables the filter with no error anywhere. This caller
-# is the only production caller.
-#
-# We pass it EXPLICITLY as None because the input genuinely cannot be sourced
-# today, not because the check is unwanted: an Altman Z needs working capital,
-# retained earnings, EBIT, market cap, total liabilities, sales and total
-# assets, and `FMPClient` exposes no balance-sheet or financial-scores endpoint
-# at all. `Fundamentals.data` is `{**key_metrics_ttm, **ratios_ttm}` plus
-# derived growth/revisions, and no field in it carries a Z-score. Deriving one
-# from what IS there would be inventing a solvency number, which is worse than
-# not having one. `score_universe` warns every run so the gap stays visible
-# instead of reading as a filter that passes everything.
+# below `params.z_score_floor` (1.8 in Run 118) as a bankruptcy-risk name, and
+# None means "skip the check". Both paths now carry `altmanZ`: derived PIT rows
+# from filings, live rows from `refresh_fundamentals`, which calls the same
+# `backtest_derive.altman_z`. A name with no balance sheet still passes None,
+# and this constant is what that looks like at the call site.
 Z_SCORE_UNAVAILABLE = None
 
 # Each entry is (aliases, higher_is_better). Aliases are tried in order and
@@ -111,6 +102,16 @@ REVISION_FY2_KEYS = [
     (("epsRevisionPctFy2",), True),
     (("revenueRevisionPctFy2",), True),
 ]
+
+# A multiple with a non-positive denominator is not a price for earnings, book
+# or cash flow. FMP returns P/E -45 for a loss-maker and PEG -4 for a shrinking
+# one, and ranked "lower is better" those read as the cheapest names in the
+# sector. The backtest derive (`backtest_derive._valuation`) never emits them,
+# so live and the tape disagreed on 35% of live rows. Null them here, the one
+# place both paths pass through.
+NON_POSITIVE_IS_MISSING = {
+    alias for aliases, _ in VALUATION_KEYS for alias in aliases
+}
 
 # How recent a report must be for the surprise factor. One quarter plus slack.
 SURPRISE_MAX_AGE_DAYS = 100
@@ -426,6 +427,12 @@ def _rank_sector(
                         value = float(raw)
                     except (TypeError, ValueError):
                         value = None
+                    if (
+                        value is not None
+                        and alias in NON_POSITIVE_IS_MISSING
+                        and value <= 0
+                    ):
+                        value = None
                     if value is not None:
                         break
                 out[aliases[0]].append(value)
@@ -513,10 +520,8 @@ def _rank_sector(
             factor_pcts,
             params,
             momentum_12m=mom_raw[i],
-            # Live payloads have no altmanZ, so this stays None and the
-            # filter does not run — same as Z_SCORE_UNAVAILABLE. Derived
-            # PIT rows carry altmanZ when filings exist, and the floor
-            # then actually rejects distressed names.
+            # Live and PIT rows both carry altmanZ when a balance sheet
+            # exists; without one the floor abstains.
             z_score=z_score if z_score is not None else Z_SCORE_UNAVAILABLE,
         )
         if composite is None:

@@ -19,6 +19,7 @@ from app.services.portfolio import load_return_series, next_earnings_dates
 from worker.services.ingest import (
     _forward_estimate,
     compute_fy2_revisions,
+    refresh_fundamentals,
     upsert_earnings_history,
 )
 from worker.services.scoring import (
@@ -76,6 +77,16 @@ def _scored(db, params=RUN118_PARAMS):
 
 
 # ── valuation ───────────────────────────────────────────────────────────────
+
+
+def test_a_negative_pe_is_missing_not_the_cheapest_in_the_sector(db):
+    """FMP reports a loss-maker at P/E -45; "lower is better" read it as a bargain."""
+    _sector(db)
+    _name(db, "LOSS", priceToEarningsRatioTTM=-45.0, priceToEarningsGrowthRatioTTM=-4.0)
+    by, _ = _scored(db)
+    # The other three multiples tie with every pad (50th percentile). With the
+    # negative P/E and PEG counted, LOSS scored 100 on both and 70 overall.
+    assert by["LOSS"].factor_pcts["valuation"] == pytest.approx(50.0)
 
 
 def test_penalize_losses_ranks_missing_pe_worst_for_a_loss_maker(db):
@@ -263,3 +274,56 @@ def test_load_return_series_is_close_to_close(db):
     series = load_return_series(db, {"A"}, as_of, 30)
     assert series["A"][as_of - timedelta(days=1)] == pytest.approx(0.10)
     assert series["A"][as_of] == pytest.approx(-0.10)
+
+
+# ── live refresh parity ─────────────────────────────────────────────────────
+
+
+class ParityFMP:
+    def key_metrics_ttm(self, ticker):
+        return {"marketCap": 5e9}
+
+    def ratios_ttm(self, ticker):
+        return {}
+
+    def income_statement_quarterly(self, ticker, limit=8):
+        return [
+            {
+                "date": (date(2026, 6, 30) - timedelta(days=91 * i)).isoformat(),
+                "revenue": 1e9,
+                "netIncome": 1e8,
+                "operatingIncome": 2e8,
+                "weightedAverageShsOutDil": 1e8,
+            }
+            for i in range(8)
+        ]
+
+    def balance_sheet_quarterly(self, ticker, limit=12):
+        return [
+            {
+                "totalAssets": 4e9,
+                "totalCurrentAssets": 2e9,
+                "totalCurrentLiabilities": 1e9,
+                "retainedEarnings": 1e9,
+                "totalLiabilities": 2e9,
+            }
+        ]
+
+    def analyst_estimates(self, ticker):
+        return []
+
+    def earnings(self, ticker):
+        return [{"date": "2099-01-30", "epsActual": None, "epsEstimated": 1.0}]
+
+    def profile(self, ticker):
+        return {"sector": "Technology", "marketCap": 5e9}
+
+
+def test_live_refresh_stores_altman_z_and_earnings_rows(db):
+    db.add(Stock(ticker="AAA", sector="Technology", market_cap=5e9, is_active=True, is_etf=False))
+    db.commit()
+    refresh_fundamentals(db, ParityFMP())
+    row = db.query(Fundamentals).filter(Fundamentals.ticker == "AAA").one()
+    # 1.2(1/4) + 1.4(1/4) + 3.3(8e8/4e9) + 0.6(5e9/2e9) + 1.0(4e9/4e9)
+    assert row.data["altmanZ"] == pytest.approx(0.3 + 0.35 + 0.66 + 1.5 + 1.0)
+    assert db.query(EarningsHistory).filter(EarningsHistory.ticker == "AAA").count() == 1

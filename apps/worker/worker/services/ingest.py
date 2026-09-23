@@ -713,6 +713,14 @@ def _forward_estimate(
     }
 
 
+def _float_or_none(raw) -> float | None:
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return None
+    return value if value == value else None
+
+
 def upsert_earnings_history(db: Session, ticker: str, reports: list[dict]) -> int:
     """Store FMP earnings rows, replacing a scheduled row once it reports.
 
@@ -1221,13 +1229,20 @@ def refresh_fundamentals(db: Session, fmp: FMPClient, max_tickers: int = 400) ->
     # position prices and a hole in the published equity curve, which is far
     # worse than losing one factor for a day. Trip a breaker instead.
     growth_supported = True
+    balance_supported = True
+    z_available = 0
+    # Lazy: backtest_derive imports this module.
+    from worker.services.backtest_derive import altman_z
+
     for s in stocks:
         metrics = fmp.key_metrics_ttm(s.ticker) or {}
         ratios = fmp.ratios_ttm(s.ticker) or {}
         data = {**metrics, **ratios}
+        income: list[dict] = []
         if growth_supported:
             try:
-                growth = compute_ttm_growth(fmp.income_statement_quarterly(s.ticker))
+                income = fmp.income_statement_quarterly(s.ticker)
+                growth = compute_ttm_growth(income)
             except FMPAccessError:
                 log.exception(
                     "income-statement is not available on this FMP plan; growth "
@@ -1239,6 +1254,27 @@ def refresh_fundamentals(db: Session, fmp: FMPClient, max_tickers: int = 400) ->
             if growth:
                 growth_available += 1
                 data.update(growth)
+        # Altman Z with the backtest's own function, so the z_score_floor the
+        # tape has always applied also runs live. Before this, live payloads
+        # had no altmanZ and the floor silently passed everyone.
+        if balance_supported and income:
+            try:
+                balance = fmp.balance_sheet_quarterly(s.ticker, limit=2)
+            except FMPAccessError:
+                log.exception(
+                    "balance-sheet-statement is not available on this FMP plan; "
+                    "the Altman Z floor will not run live"
+                )
+                balance_supported = False
+                balance = []
+            z = altman_z(
+                market_cap=_float_or_none(metrics.get("marketCap")) or s.market_cap,
+                income=income,
+                balance=balance,
+            )
+            if z is not None:
+                z_available += 1
+                data["altmanZ"] = z
         estimates = fmp.analyst_estimates(s.ticker)
         estimate = _forward_estimate(estimates, as_of)
         if estimate:
@@ -1333,6 +1369,7 @@ def refresh_fundamentals(db: Session, fmp: FMPClient, max_tickers: int = 400) ->
         )
     else:
         log.info("TTM growth computed for %s/%s tickers", growth_available, n)
+    log.info("Altman Z computed for %s/%s tickers", z_available, n)
     return n
 
 

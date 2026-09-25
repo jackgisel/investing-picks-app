@@ -435,6 +435,189 @@ def compare_payload(result_doc: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+RESEARCH_SAMPLE_NOTE = (
+    "Short-window research result. Production return metrics stay blank "
+    "until 24 evaluations. Annualized volatility multiplies the daily "
+    "standard deviation by sqrt(252) and is an extrapolation, not a measured year."
+)
+
+
+def stock_book_returns(equity_curve: list[dict], trades: list[ReplayTrade]) -> list[float]:
+    """Flows-adjusted daily returns of capital already invested.
+
+    A buy or sell changes `invested` by about the trade notional. That cash
+    flow is removed, so a new $1,000 position is not a return. Days with no
+    prior invested capital are skipped (there is nothing to divide by).
+    """
+    buys: dict[date, float] = defaultdict(float)
+    sells: dict[date, float] = defaultdict(float)
+    for trade in trades:
+        if trade.side == "buy":
+            buys[trade.fill_date] += trade.notional
+        elif trade.side == "sell":
+            sells[trade.fill_date] += trade.notional
+
+    out: list[float] = []
+    prev: float | None = None
+    for point in equity_curve:
+        invested = float(point["invested"])
+        day = date.fromisoformat(point["date"])
+        if prev is not None and prev > 0:
+            pnl = invested - prev - buys.get(day, 0.0) + sells.get(day, 0.0)
+            out.append(pnl / prev)
+        prev = invested
+    return out
+
+
+def _spy_on_or_before(
+    spy_closes: dict[date, float], day: date
+) -> tuple[date, float] | None:
+    found = [(d, px) for d, px in spy_closes.items() if d <= day and px]
+    if not found:
+        return None
+    return max(found)
+
+
+def research_window_metrics(
+    *,
+    equity_curve: list[dict],
+    trades: list[ReplayTrade],
+    spy_closes: dict[date, float] | None = None,
+) -> dict[str, Any]:
+    """Stock-book vol and same-dollar SPY P&L for a window under 24 evaluations.
+
+    `status` is `research_short_window`, so `assert_no_return_metrics` does
+    not treat these keys as a leaked production claim. The official
+    `risk_return_metrics` gate is unchanged.
+    """
+    stock_rets = stock_book_returns(equity_curve, trades)
+    growth = 1.0
+    for ret in stock_rets:
+        growth *= 1.0 + ret
+    stock_return = (growth - 1.0) if stock_rets else None
+    daily_stdev = _stdev(stock_rets) if len(stock_rets) >= 2 else None
+    annualized = (
+        daily_stdev * math.sqrt(TRADING_DAYS_PER_YEAR) if daily_stdev is not None else None
+    )
+
+    equity_rets = _daily_returns(equity_curve)
+    equity_stdev = _stdev(equity_rets) if len(equity_rets) >= 2 else None
+    equity_ann = (
+        equity_stdev * math.sqrt(TRADING_DAYS_PER_YEAR) if equity_stdev is not None else None
+    )
+    first_eq = float(equity_curve[0]["equity"]) if equity_curve else None
+    last_point = equity_curve[-1] if equity_curve else None
+    last_eq = float(last_point["equity"]) if last_point else None
+    ending_invested = float(last_point["invested"]) if last_point else None
+    ending_cash = float(last_point["cash"]) if last_point else None
+    equity_return = (
+        (last_eq / first_eq - 1.0) if first_eq and last_eq is not None else None
+    )
+
+    net = 0.0
+    for trade in trades:
+        if trade.side == "buy":
+            net += trade.notional
+        elif trade.side == "sell":
+            net -= trade.notional
+    picks_pnl = (ending_invested - net) if ending_invested is not None else None
+
+    spy_block = _spy_matched_pnl(
+        trades, spy_closes or {}, equity_curve, picks_pnl=picks_pnl, net=net
+    )
+
+    return {
+        "status": "research_short_window",
+        "note": RESEARCH_SAMPLE_NOTE,
+        "min_evaluations_for_production": MIN_EVALUATIONS_FOR_RETURNS,
+        "stock_book": {
+            "n_return_days": len(stock_rets),
+            "return_pct": _pct(stock_return),
+            "daily_stdev_pct": _pct(daily_stdev),
+            "annualized_vol_pct": _pct(annualized),
+            "annualized_vol_is_extrapolation": True,
+        },
+        "total_equity": {
+            "cash_dominated": True,
+            "note": (
+                "Starting cash is $50,000 and each pick is $1,000, so this "
+                "volatility is mostly uninvested cash. It does not test the "
+                "thesis that a larger stock book is less volatile."
+            ),
+            "return_pct": _pct(equity_return),
+            "daily_stdev_pct": _pct(equity_stdev),
+            "annualized_vol_pct": _pct(equity_ann),
+            "ending_equity": round(last_eq, 2) if last_eq is not None else None,
+            "ending_invested": round(ending_invested, 2) if ending_invested is not None else None,
+            "ending_cash": round(ending_cash, 2) if ending_cash is not None else None,
+        },
+        "spy": spy_block,
+    }
+
+
+def _spy_matched_pnl(
+    trades: list[ReplayTrade],
+    spy_closes: dict[date, float],
+    equity_curve: list[dict],
+    *,
+    picks_pnl: float | None,
+    net: float,
+) -> dict[str, Any]:
+    """Buy and sell SPY with each fill's notional, then mark both books to the end."""
+    if not equity_curve:
+        return {
+            "status": "no_equity_curve",
+            "picks_pnl": None,
+            "spy_pnl": None,
+            "alpha_pnl": None,
+            "net_contribution": round(net, 2),
+            "missing_dates": [],
+        }
+    end = date.fromisoformat(equity_curve[-1]["date"])
+    end_spy = _spy_on_or_before(spy_closes, end)
+    missing: list[str] = []
+    shares = 0.0
+    spy_net = 0.0
+    for trade in trades:
+        if trade.side not in ("buy", "sell"):
+            continue
+        found = _spy_on_or_before(spy_closes, trade.fill_date)
+        if found is None:
+            missing.append(trade.fill_date.isoformat())
+            continue
+        _, px = found
+        qty = trade.notional / px
+        if trade.side == "buy":
+            shares += qty
+            spy_net += trade.notional
+        else:
+            shares -= qty
+            spy_net -= trade.notional
+
+    picks = round(picks_pnl, 2) if picks_pnl is not None else None
+    if missing or end_spy is None:
+        return {
+            "status": "missing_spy",
+            "picks_pnl": picks,
+            "spy_pnl": None,
+            "alpha_pnl": None,
+            "net_contribution": round(net, 2),
+            "missing_dates": missing or [end.isoformat()],
+        }
+    spy_value = shares * end_spy[1]
+    spy_pnl = spy_value - spy_net
+    alpha = None if picks_pnl is None else picks_pnl - spy_pnl
+    return {
+        "status": "ok",
+        "picks_pnl": picks,
+        "spy_pnl": round(spy_pnl, 2),
+        "alpha_pnl": round(alpha, 2) if alpha is not None else None,
+        "net_contribution": round(net, 2),
+        "spy_mark_date": end_spy[0].isoformat(),
+        "missing_dates": [],
+    }
+
+
 def _daily_returns(curve: list[dict]) -> list[float]:
     out: list[float] = []
     prev = None

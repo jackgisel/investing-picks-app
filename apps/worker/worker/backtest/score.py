@@ -171,6 +171,7 @@ def score_dataset(
     params: StrategyParams | None = None,
     *,
     allow_degenerate_revisions: bool = False,
+    dates: list[date] | None = None,
 ) -> dict:
     """Derive PIT fundamentals and score every evaluation Friday in the window.
 
@@ -178,9 +179,12 @@ def score_dataset(
     `[start, end]`. Walk-forward expands `start` to the earliest Friday whose
     pit rows carry an older or missing `deriveVersion` so a tape fix cannot
     leave stragglers.
+
+    `dates` replaces the 1st/3rd-Friday list. The weekly research replay
+    passes every Friday. The live scheduler does not.
     """
     params = params or RUN118_PARAMS
-    fridays = evaluation_fridays_between(start, end)
+    fridays = list(dates) if dates is not None else evaluation_fridays_between(start, end)
     results = []
     for friday in fridays:
         members = (

@@ -17,7 +17,9 @@ from app.services.backtest_metrics import (
     decision_diff_table,
     holdout_split,
     promotion_gates,
+    research_window_metrics,
     risk_return_metrics,
+    stock_book_returns,
 )
 from app.services.replay import (
     FillModel,
@@ -65,6 +67,41 @@ def test_below_gate_metrics_have_no_return_keys():
     leaked = RETURN_METRIC_KEYS & metrics.keys()
     assert leaked == set()
     assert_no_return_metrics(metrics)
+
+
+def test_a_buy_is_not_a_stock_book_return_and_the_gate_still_holds():
+    """The second $1,000 buy must not print as a 100% return on the stock book."""
+    trades = [
+        ReplayTrade(
+            date(2026, 8, 7), date(2026, 8, 7), "AAA", "buy", "buy", 20, 50, 1000, "a"
+        ),
+        ReplayTrade(
+            date(2026, 8, 10), date(2026, 8, 10), "BBB", "buy", "buy", 25, 40, 1000, "b"
+        ),
+    ]
+    curve = [
+        {"date": "2026-08-07", "invested": 1000.0, "equity": 50000.0, "cash": 49000.0},
+        {"date": "2026-08-10", "invested": 2000.0, "equity": 50000.0, "cash": 48000.0},
+        {"date": "2026-08-11", "invested": 2100.0, "equity": 50100.0, "cash": 48000.0},
+    ]
+    assert stock_book_returns(curve, trades) == pytest.approx([0.0, 0.05])
+    metrics = research_window_metrics(
+        equity_curve=curve,
+        trades=trades,
+        spy_closes={
+            date(2026, 8, 7): 100.0,
+            date(2026, 8, 10): 100.0,
+            date(2026, 8, 11): 110.0,
+        },
+    )
+    assert metrics["status"] == "research_short_window"
+    assert metrics["spy"]["picks_pnl"] == 100.0
+    assert metrics["spy"]["spy_pnl"] == 200.0
+    assert metrics["spy"]["alpha_pnl"] == -100.0
+    official = risk_return_metrics(n_evaluations=2, equity_curve=curve, trades=trades)
+    assert official["status"] == "insufficient_sample"
+    assert RETURN_METRIC_KEYS & official.keys() == set()
+    assert_no_return_metrics(official)
 
 
 def test_assert_no_return_metrics_raises_on_leak():

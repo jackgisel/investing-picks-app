@@ -49,15 +49,20 @@ def write_universe_membership(
     start: date,
     end: date,
     params: StrategyParams | None = None,
+    *,
+    dates: list[date] | None = None,
 ) -> int:
     """Rewrite membership for every evaluation Friday in [start, end].
 
     Membership on d: has a bar on the session, market cap ≥ $300M on d,
     close ≥ $5, not ETF. Segment A Fridays keep only the top 400 by cap
     (the live scoring width) and are labelled `top400_live`.
+
+    `dates` replaces the 1st/3rd-Friday list. The weekly research replay
+    passes every Friday. The live scheduler does not.
     """
     params = params or RUN118_PARAMS
-    fridays = evaluation_fridays_between(start, end)
+    fridays = list(dates) if dates is not None else evaluation_fridays_between(start, end)
     etf = {
         t
         for (t,) in db.query(Stock.ticker).filter(Stock.is_etf == True).all()  # noqa: E712

@@ -1,4 +1,4 @@
-"""Backtest dataset CLI: ingest | export | membership | hash | upload | score | parity | run | report | compare | download | walk-forward.
+"""Backtest dataset CLI: ingest | export | membership | hash | upload | score | parity | run | report | compare | cadence-compare | download | walk-forward.
 
     python -m worker.backtest ingest --dataset datasets/dataset-v1.sqlite
     python -m worker.backtest export --dataset datasets/dataset-v1.sqlite
@@ -9,6 +9,7 @@
     python -m worker.backtest report /tmp/result.json
     python -m worker.backtest compare /tmp/result.json backtests/baselines/run118.json
     python -m worker.backtest compare /tmp/result.json backtests/baselines/run118.json --sweep
+    python -m worker.backtest cadence-compare --config backtests/run118.toml
     python -m worker.backtest walk-forward --config backtests/run118.toml
     python -m worker.backtest hash --dataset datasets/dataset-v1.sqlite
     python -m worker.backtest upload --dataset datasets/dataset-v1.sqlite
@@ -225,6 +226,42 @@ def cmd_equity_csv(ns) -> dict:
     return {"out": str(path), "rows": len(result.get("equity_curve") or [])}
 
 
+def cmd_cadence_compare(ns) -> dict:
+    from worker.backtest.cadence_compare import (
+        render_markdown,
+        run_cadence_compare,
+        write_report,
+    )
+    from worker.backtest.config import repo_root
+
+    cfg = load_config(ns.config, dataset_override=ns.dataset)
+    today = date.fromisoformat(ns.today) if ns.today else date.today()
+    report = run_cadence_compare(
+        cfg,
+        copy_path=Path(ns.copy) if ns.copy else None,
+        today=today,
+        refresh_copy=ns.refresh_copy,
+        skip_extend=ns.skip_extend,
+        skip_ingest=ns.skip_ingest,
+        allow_degenerate_revisions=ns.allow_degenerate_revisions,
+    )
+    out_dir = Path(ns.out_dir) if ns.out_dir else repo_root(cfg.source) / "backtests" / "experiments"
+    json_path, md_path = write_report(report, out_dir)
+    print(render_markdown(report))
+    return {
+        "json": str(json_path),
+        "markdown": str(md_path),
+        "start": report["start"],
+        "end": report["end"],
+        "n_biweekly": report["biweekly"]["n_evaluations"],
+        "n_weekly": report["weekly"]["n_evaluations"],
+        "biweekly_buys": report["biweekly"]["buy_count"],
+        "weekly_buys": report["weekly"]["buy_count"],
+        "biweekly_alpha_pnl": (report["biweekly"]["metrics"].get("spy") or {}).get("alpha_pnl"),
+        "weekly_alpha_pnl": (report["weekly"]["metrics"].get("spy") or {}).get("alpha_pnl"),
+    }
+
+
 def cmd_walk_forward(ns) -> dict:
     from worker.backtest.walk_forward import (
         WalkForwardError,
@@ -383,6 +420,20 @@ def main(argv: list[str] | None = None) -> int:
     equity.add_argument("result")
     equity.add_argument("--out", required=True)
 
+    cadence = sub.add_parser(
+        "cadence-compare",
+        help="Replay 1st/3rd Fridays against every Friday on a copy of the dataset",
+    )
+    cadence.add_argument("--config", default="backtests/run118.toml")
+    cadence.add_argument("--dataset", default=None)
+    cadence.add_argument("--copy", default=None, help="Working sqlite. Defaults to datasets/dataset-cadence.sqlite")
+    cadence.add_argument("--out-dir", default=None, help="Defaults to backtests/experiments")
+    cadence.add_argument("--today", default=None)
+    cadence.add_argument("--refresh-copy", action="store_true", help="Recopy the pinned dataset over the working file")
+    cadence.add_argument("--skip-extend", action="store_true", help="Do not read live Postgres snapshots")
+    cadence.add_argument("--skip-ingest", action="store_true", help="Do not pull newer price bars")
+    cadence.add_argument("--allow-degenerate-revisions", action="store_true")
+
     wf = sub.add_parser(
         "walk-forward",
         help="Extend the dataset from live Postgres, score new Fridays, check engine drift",
@@ -415,6 +466,7 @@ def main(argv: list[str] | None = None) -> int:
         "run": cmd_run,
         "report": cmd_report,
         "compare": cmd_compare,
+        "cadence-compare": cmd_cadence_compare,
         "download": cmd_download,
         "equity-csv": cmd_equity_csv,
         "walk-forward": cmd_walk_forward,

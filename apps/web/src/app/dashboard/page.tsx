@@ -5,7 +5,6 @@ import { usePicks } from "@/lib/hooks/use-picks";
 import { buildPicksComparison, useChart } from "@/lib/hooks/use-chart";
 import { usePeriodReturns } from "@/lib/hooks/use-period-returns";
 import { coverageNote, periodCaption } from "@/lib/period-returns";
-import { LiveStatus } from "@/components/dashboard/live-status";
 import { StatTile } from "@/components/dashboard/stat-tile";
 import { InsightsCard } from "@/components/dashboard/insights-card";
 import { HoldingsPulse } from "@/components/dashboard/holdings-pulse";
@@ -24,7 +23,10 @@ import {
 } from "@/components/ui/data-state";
 import {
   computePortfolioReturnPct,
+  daysUntilCalendarDate,
+  describeDaysUntil,
   formatPctOrDash,
+  formatWeekdayDate,
   pnlClass,
   pnlTone,
 } from "@/lib/portfolio";
@@ -117,11 +119,25 @@ export default function DashboardPage() {
     subtitle = `Live portfolio · ${strategyMeta.evaluation_frequency} evaluation`;
   }
 
+  const nextPick = formatWeekdayDate(strategy?.next_evaluation_date);
+  const untilNextPick = describeDaysUntil(
+    daysUntilCalendarDate(strategy?.next_evaluation_date),
+  );
+
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="page-title">Dashboard</h1>
-        <p className="font-sans text-[13px] text-text-dim mt-1">{subtitle}</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+        <div>
+          <h1 className="page-title">Dashboard</h1>
+          <p className="font-sans text-[13px] text-text-dim mt-1">{subtitle}</p>
+        </div>
+        {!gate && pageState !== "error" && !strategyFailed && (
+          <NextPick
+            date={nextPick}
+            until={untilNextPick}
+            pending={strategyQuery.isPending && !nextPick}
+          />
+        )}
       </div>
 
       {pageState ? (
@@ -131,10 +147,6 @@ export default function DashboardPage() {
         />
       ) : (
         <>
-          {/* Provenance and cadence: live, since when, next evaluation. The
-              figures live in the tiles below and nowhere else. */}
-          <LiveStatus />
-
           {/* Four figures. Picks return is the equal-size record. S&P is the
               same dollars on the same dates, not the index's own move. */}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -263,6 +275,39 @@ export default function DashboardPage() {
   );
 }
 
+
+function NextPick({
+  date,
+  until,
+  pending,
+}: {
+  date: string | null;
+  until: string | null;
+  pending: boolean;
+}) {
+  if (!pending && !date) return null;
+
+  return (
+    <div className="sm:text-right">
+      <span className="field-label">Next pick</span>
+      <p className="mt-0.5 font-mono text-[16px] font-bold leading-tight tabular-nums">
+        {pending ? (
+          <span className="inline-block h-[18px] w-28 animate-pulse rounded bg-bg-tertiary align-middle" />
+        ) : (
+          <>
+            {date}
+            {until && (
+              <span className="ml-2 font-sans text-[12px] font-medium text-text-dim">
+                {until}
+              </span>
+            )}
+          </>
+        )}
+      </p>
+      <p className="mt-0.5 font-sans text-[12px] text-text-dim">Every other week</p>
+    </div>
+  );
+}
 
 function HoldingsCard({
   title,

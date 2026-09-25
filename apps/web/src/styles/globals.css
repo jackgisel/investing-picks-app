@@ -364,9 +364,6 @@
   .op-animate-rise-delay-1 {
     animation-delay: 0.12s;
   }
-  .op-live-glow {
-    animation: op-live-glow 3s ease-in-out infinite;
-  }
   .op-timeline-draw {
     animation: op-timeline-draw 1.15s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both;
   }
@@ -400,16 +397,6 @@
   }
 }
 
-@keyframes op-live-glow {
-  0%,
-  100% {
-    opacity: 0.6;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
 @keyframes op-timeline-draw {
   from {
     transform: scaleY(0);
@@ -427,10 +414,6 @@
     opacity: 1;
     transform: none;
     animation: none;
-  }
-  .op-live-glow {
-    animation: none;
-    opacity: 1;
   }
   /* Fewer and gentler, not zero: colour still transitions so a state change
      stays legible, but nothing moves. */

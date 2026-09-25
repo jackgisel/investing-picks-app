@@ -1,0 +1,251 @@
+{
+  "status": "research_short_window",
+  "note": "This is a description of the stored tape, not a promotion result. Production reports still withhold CAGR, Sharpe, and alpha until 24 evaluations. Weekly here means every Friday, still one add. It also runs trims and removals on the extra dates, so exits can differ.",
+  "start": "2026-08-07",
+  "end": "2026-09-18",
+  "pinned_end": "2026-09-04",
+  "window_note": "window extended from the pinned end 2026-09-04 to 2026-09-18 (1217 price bars that session)",
+  "extend_notes": [
+    "Working copy does not match the committed pin d61437921c87. It started from the current bucket object, then this run added off-cycle scores and SPY bars locally. backtests/run118.toml was not rewritten",
+    "live Postgres export failed; using snapshots already in the copy",
+    "price ingest skipped",
+    "SPY bars already in the copy (30)"
+  ],
+  "working_copy": "/Users/jackgisel/workspace/investing-picks-app/datasets/dataset-cadence.sqlite",
+  "pinned_dataset_sha256": "d61437921c87c4130d008c17dbaa5de7ec7bf211e66e4b46e99a90b3a2ed6205",
+  "position_size_usd": 1000.0,
+  "initial_cash": 50000.0,
+  "max_adds_per_evaluation": 1,
+  "fill_price": "same_close",
+  "slippage_bps": 0.0,
+  "prepare": {
+    "membership_dates": [],
+    "membership_rows": 0,
+    "scored_dates": [],
+    "n_scored": 0
+  },
+  "unscored_biweekly": [],
+  "unscored_weekly": [],
+  "biweekly": {
+    "cadence": "biweekly",
+    "n_evaluations": 4,
+    "evaluation_dates": [
+      "2026-08-07",
+      "2026-08-21",
+      "2026-09-04",
+      "2026-09-18"
+    ],
+    "buy_count": 4,
+    "exit_count": 0,
+    "trades_by_action": {
+      "buy": 4
+    },
+    "buys": [
+      {
+        "date": "2026-08-07",
+        "ticker": "FIX",
+        "notional": 1000.0,
+        "action": "buy"
+      },
+      {
+        "date": "2026-08-21",
+        "ticker": "GOOG",
+        "notional": 1000.0,
+        "action": "buy"
+      },
+      {
+        "date": "2026-09-04",
+        "ticker": "LLY",
+        "notional": 1000.0,
+        "action": "buy"
+      },
+      {
+        "date": "2026-09-18",
+        "ticker": "SNDK",
+        "notional": 1000.0,
+        "action": "buy"
+      }
+    ],
+    "exits": [],
+    "end_holdings": [
+      "FIX",
+      "GOOG",
+      "LLY",
+      "SNDK"
+    ],
+    "end_position_count": 4,
+    "warnings": [],
+    "metrics": {
+      "status": "research_short_window",
+      "note": "Short-window research result. Production return metrics stay blank until 24 evaluations. Annualized volatility multiplies the daily standard deviation by sqrt(252) and is an extrapolation, not a measured year.",
+      "min_evaluations_for_production": 24,
+      "stock_book": {
+        "n_return_days": 29,
+        "return_pct": -2.79,
+        "daily_stdev_pct": 2.27,
+        "annualized_vol_pct": 35.98,
+        "annualized_vol_is_extrapolation": true
+      },
+      "total_equity": {
+        "cash_dominated": true,
+        "note": "Starting cash is $50,000 and each pick is $1,000, so this volatility is mostly uninvested cash. It does not test the thesis that a larger stock book is less volatile.",
+        "return_pct": -0.03,
+        "daily_stdev_pct": 0.06,
+        "annualized_vol_pct": 1.0,
+        "ending_equity": 49985.41,
+        "ending_invested": 3985.41,
+        "ending_cash": 46000.0
+      },
+      "spy": {
+        "status": "ok",
+        "picks_pnl": -14.59,
+        "spy_pnl": -31.26,
+        "alpha_pnl": 16.67,
+        "net_contribution": 4000.0,
+        "spy_mark_date": "2026-09-18",
+        "missing_dates": []
+      }
+    }
+  },
+  "weekly": {
+    "cadence": "weekly",
+    "n_evaluations": 7,
+    "evaluation_dates": [
+      "2026-08-07",
+      "2026-08-14",
+      "2026-08-21",
+      "2026-08-28",
+      "2026-09-04",
+      "2026-09-11",
+      "2026-09-18"
+    ],
+    "buy_count": 7,
+    "exit_count": 0,
+    "trades_by_action": {
+      "buy": 7
+    },
+    "buys": [
+      {
+        "date": "2026-08-07",
+        "ticker": "FIX",
+        "notional": 1000.0,
+        "action": "buy"
+      },
+      {
+        "date": "2026-08-14",
+        "ticker": "LLY",
+        "notional": 1000.0,
+        "action": "buy"
+      },
+      {
+        "date": "2026-08-21",
+        "ticker": "GOOG",
+        "notional": 1000.0,
+        "action": "buy"
+      },
+      {
+        "date": "2026-08-28",
+        "ticker": "TPR",
+        "notional": 1000.0,
+        "action": "buy"
+      },
+      {
+        "date": "2026-09-04",
+        "ticker": "ROST",
+        "notional": 1000.0,
+        "action": "buy"
+      },
+      {
+        "date": "2026-09-11",
+        "ticker": "DELL",
+        "notional": 1000.0,
+        "action": "buy"
+      },
+      {
+        "date": "2026-09-18",
+        "ticker": "SNDK",
+        "notional": 1000.0,
+        "action": "buy"
+      }
+    ],
+    "exits": [],
+    "end_holdings": [
+      "DELL",
+      "FIX",
+      "GOOG",
+      "LLY",
+      "ROST",
+      "SNDK",
+      "TPR"
+    ],
+    "end_position_count": 7,
+    "warnings": [],
+    "metrics": {
+      "status": "research_short_window",
+      "note": "Short-window research result. Production return metrics stay blank until 24 evaluations. Annualized volatility multiplies the daily standard deviation by sqrt(252) and is an extrapolation, not a measured year.",
+      "min_evaluations_for_production": 24,
+      "stock_book": {
+        "n_return_days": 29,
+        "return_pct": -1.4,
+        "daily_stdev_pct": 1.46,
+        "annualized_vol_pct": 23.24,
+        "annualized_vol_is_extrapolation": true
+      },
+      "total_equity": {
+        "cash_dominated": true,
+        "note": "Starting cash is $50,000 and each pick is $1,000, so this volatility is mostly uninvested cash. It does not test the thesis that a larger stock book is less volatile.",
+        "return_pct": -0.28,
+        "daily_stdev_pct": 0.09,
+        "annualized_vol_pct": 1.38,
+        "ending_equity": 49859.31,
+        "ending_invested": 6859.31,
+        "ending_cash": 43000.0
+      },
+      "spy": {
+        "status": "ok",
+        "picks_pnl": -140.69,
+        "spy_pnl": -63.49,
+        "alpha_pnl": -77.2,
+        "net_contribution": 7000.0,
+        "spy_mark_date": "2026-09-18",
+        "missing_dates": []
+      }
+    }
+  },
+  "pick_diff": {
+    "only_weekly": [
+      "DELL",
+      "ROST",
+      "TPR"
+    ],
+    "only_biweekly": [],
+    "both": [
+      "FIX",
+      "GOOG",
+      "LLY",
+      "SNDK"
+    ],
+    "weekly_off_cycle": [
+      {
+        "ticker": "LLY",
+        "weekly_fill_date": "2026-08-14",
+        "biweekly_bought_later": true,
+        "biweekly_later_fill_date": "2026-09-04"
+      },
+      {
+        "ticker": "TPR",
+        "weekly_fill_date": "2026-08-28",
+        "biweekly_bought_later": false,
+        "biweekly_later_fill_date": null
+      },
+      {
+        "ticker": "DELL",
+        "weekly_fill_date": "2026-09-11",
+        "biweekly_bought_later": false,
+        "biweekly_later_fill_date": null
+      }
+    ]
+  },
+  "dataset_sha256": "ccf319b2e0987bfbcc377e3aef3219658c48d60a3a65a32a50de060a850b3dec",
+  "matches_committed_pin": false
+}

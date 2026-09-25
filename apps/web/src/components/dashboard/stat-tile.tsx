@@ -38,6 +38,7 @@ export function StatTile({
   tone = "cyan",
   valueTone = "neutral",
   loading = false,
+  help,
 }: {
   label: string;
   value: string;
@@ -47,6 +48,8 @@ export function StatTile({
   tone?: PastelTone;
   valueTone?: ValueTone;
   loading?: boolean;
+  /** An explainer control shown at the end of the label row. */
+  help?: React.ReactNode;
 }) {
   return (
     <div className="data-card">
@@ -60,6 +63,7 @@ export function StatTile({
           </span>
         )}
         <span className="field-label">{label}</span>
+        {help && <span className="ml-auto">{help}</span>}
       </div>
       {loading ? (
         <span className="block h-[26px] w-20 animate-pulse rounded bg-bg-tertiary" />

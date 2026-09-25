@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useChart, buildPicksComparison } from "@/lib/hooks/use-chart";
+import { PerformanceMethodology } from "@/components/ui/performance-methodology";
 import { DataState, resolveDataState } from "@/components/ui/data-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -90,8 +91,14 @@ export function LivePicksChart({ height = 280 }: { height?: number }) {
   return (
     <div className={shellClass}>
       <div className="flex flex-wrap items-center justify-between gap-3 px-6 sm:px-7 py-5 border-b border-border bg-bg-secondary/40">
-        <span className="font-sans text-[10px] font-bold tracking-[0.14em] uppercase text-text-dim">
-          Live picks vs. the same money in the index
+        <span className="flex items-center gap-1.5">
+          <span className="font-sans text-[10px] font-bold tracking-[0.14em] uppercase text-text-dim">
+            Live picks vs. the same money in the index
+          </span>
+          <PerformanceMethodology
+            inceptionDate={data?.summary?.inception_date ?? startDate}
+            latestDate={comparison.latestDate}
+          />
         </span>
         {lead !== null && (
           <span className="font-mono text-[11px] text-text-muted">

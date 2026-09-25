@@ -9,6 +9,7 @@ import {
 } from "@/lib/hooks/use-chart";
 import { DataState, resolveDataState } from "@/components/ui/data-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PerformanceMethodology } from "@/components/ui/performance-methodology";
 import {
   BenchmarkBasisNote,
   PicksBenchmarkChart,
@@ -29,16 +30,20 @@ import { pnlClass } from "@/lib/portfolio";
  */
 const FALLBACK_WINDOWS: readonly WindowOption[] = [
   { id: "inception", label: "Since inception", available: true },
+  { id: "ytd", label: "Year to date", available: false },
   { id: "1y", label: "1 year", available: false },
   { id: "6m", label: "6 months", available: false },
+  { id: "3m", label: "3 months", available: false },
   { id: "1m", label: "1 month", available: false },
   { id: "1w", label: "1 week", available: false },
 ];
 
 const WINDOW_ORDER: readonly ChartWindow[] = [
   "inception",
+  "ytd",
   "1y",
   "6m",
+  "3m",
   "1m",
   "1w",
 ];
@@ -46,8 +51,10 @@ const WINDOW_ORDER: readonly ChartWindow[] = [
 /** Short chip labels. The API's are written for a sentence, not a control. */
 const SHORT_LABEL: Record<ChartWindow, string> = {
   inception: "All",
+  ytd: "YTD",
   "1y": "1Y",
   "6m": "6M",
+  "3m": "3M",
   "1m": "1M",
   "1w": "1W",
 };
@@ -57,7 +64,9 @@ const WINDOW_BLURB: Record<ChartWindow, string> = {
   inception:
     "Cumulative return since the first pick — idle cash excluded, closed picks included.",
   "1y": "Return over the last year, with every pick held a year ago re-entered at its value then.",
+  ytd: "Return since January 1st, with every pick held at year-end re-entered at its closing value then.",
   "6m": "Return over the last six months, with every pick held six months ago re-entered at its value then.",
+  "3m": "Return over the last three months, with every pick held three months ago re-entered at its value then.",
   "1m": "Return over the last month, with every pick held a month ago re-entered at its value then.",
   "1w": "Return over the last week, with every pick held a week ago re-entered at its value then.",
 };
@@ -268,8 +277,14 @@ export function PerformanceChart({ compact = false }: { compact?: boolean }) {
         }`}
       >
         <div>
-          <span className="panel-label">
-            Return on capital deployed into picks
+          <span className="flex items-center gap-1.5">
+            <span className="panel-label">
+              Return on capital deployed into picks
+            </span>
+            <PerformanceMethodology
+              inceptionDate={chartData?.summary?.inception_date}
+              latestDate={latestDate}
+            />
           </span>
           {!compact && (
             <p className="font-sans text-[13px] text-text-muted mt-1 max-w-lg">

@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
   // an upstream URL, and the API ignores anything it does not recognise
   // anyway. Anything else is served as since-inception.
   const raw = request.nextUrl.searchParams.get("window");
-  const window = ["1w", "1m", "6m", "1y"].includes(raw ?? "") ? raw : null;
+  const window = ["1w", "1m", "3m", "6m", "ytd", "1y"].includes(raw ?? "") ? raw : null;
   const url = window
     ? `${PUBLIC_API_BASE}/performance?window=${window}`
     : `${PUBLIC_API_BASE}/performance`;

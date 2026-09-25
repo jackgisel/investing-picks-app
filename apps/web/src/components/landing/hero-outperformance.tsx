@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { buildPicksComparison, useChart } from "@/lib/hooks/use-chart";
 import { formatPct } from "@/lib/portfolio";
+import { PerformanceMethodology } from "@/components/ui/performance-methodology";
 
 /**
  * Live picks return since inception, with the same-money S&P beside it.
@@ -55,6 +56,12 @@ export function HeroOutperformance({ className = "" }: { className?: string }) {
           <span className="font-semibold text-text-muted">
             {formatPct(spyPct, 1)}
           </span>
+          <span className="ml-1 text-text-dim">· same money, same dates</span>
+          <PerformanceMethodology
+            className="ml-1.5 align-[-4px]"
+            inceptionDate={data?.summary?.inception_date ?? comparison.startDate}
+            latestDate={comparison.latestDate}
+          />
         </p>
       ) : null}
     </div>

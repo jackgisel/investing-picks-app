@@ -25,6 +25,7 @@ from app.services.benchmarks import (
     rebase_flows,
     deployment_schedule,
     shift_back,
+    window_open,
     window_start,
 )
 
@@ -220,3 +221,11 @@ def test_a_window_older_than_the_book_is_the_full_history(db, book):
     """
     assert window_start(db, "1y") is None
     assert picks_series(db, start=window_start(db, "1y")) == picks_series(db)
+
+
+class TestWindowOpen:
+    def test_quarter_window(self):
+        assert window_open(date(2026, 9, 24), "3m") == date(2026, 6, 24)
+
+    def test_year_to_date_opens_on_january_first(self):
+        assert window_open(date(2026, 9, 24), "ytd") == date(2026, 1, 1)

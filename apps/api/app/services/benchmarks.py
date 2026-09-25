@@ -111,13 +111,30 @@ def deployment_schedule(db: Session, portfolio_id: int = 1) -> list[CashFlow]:
 
 
 #: Selectable chart windows: id -> (label, months, days). Exactly one of
-#: months/days is non-zero. `None` is since-inception, which needs no arithmetic.
+#: months/days is non-zero, except year-to-date, whose start is a calendar date
+#: rather than a duration (see `window_open`). `None` is since-inception, which
+#: needs no arithmetic.
 WINDOWS: dict[str, tuple[str, int, int]] = {
     "1w": ("1 week", 0, 7),
     "1m": ("1 month", 1, 0),
+    "3m": ("3 months", 3, 0),
     "6m": ("6 months", 6, 0),
+    "ytd": ("Year to date", 0, 0),
     "1y": ("1 year", 12, 0),
 }
+
+
+def window_open(anchor: date, window: str) -> date:
+    """The first date `window` covers when the latest session is `anchor`.
+
+    Year-to-date opens on January 1st. `rebase_flows` prices a lot "on or
+    before" the start, so every line is re-entered at the prior year's final
+    close — the same base a published YTD figure uses.
+    """
+    if window == "ytd":
+        return date(anchor.year, 1, 1)
+    _, months, days = WINDOWS[window]
+    return shift_back(anchor, months, days)
 
 
 def shift_back(anchor: date, months: int, days: int) -> date:
@@ -180,8 +197,7 @@ def window_start(db: Session, window: str | None, portfolio_id: int = 1) -> date
     anchor = latest_session(db)
     if anchor is None:
         return None
-    _, months, days = WINDOWS[window]
-    start = shift_back(anchor, months, days)
+    start = window_open(anchor, window)
     flows = deployment_schedule(db, portfolio_id)
     if not flows or start <= min(f.when for f in flows):
         return None

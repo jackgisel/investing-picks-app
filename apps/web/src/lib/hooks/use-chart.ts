@@ -53,7 +53,14 @@ export interface BenchmarkData {
 }
 
 /** Chart range ids. `inception` is the full history and needs no window. */
-export type ChartWindow = "inception" | "1w" | "1m" | "6m" | "1y";
+export type ChartWindow =
+  | "inception"
+  | "1w"
+  | "1m"
+  | "3m"
+  | "6m"
+  | "ytd"
+  | "1y";
 
 export interface WindowOption {
   id: ChartWindow;

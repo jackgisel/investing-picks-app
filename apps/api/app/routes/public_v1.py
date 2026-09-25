@@ -27,7 +27,7 @@ from app.services.benchmarks import (
     benchmark_series,
     latest_session,
     picks_series,
-    shift_back,
+    window_open,
     window_start,
 )
 from app.services.period_returns import period_returns_payload
@@ -545,8 +545,8 @@ def _window_options(inception: date | None, latest: date | None) -> list[dict]:
     rendering five months of data under a "1 year" label.
     """
     out = [{"id": "inception", "label": "Since inception", "available": True}]
-    for window_id, (label, months, days) in WINDOWS.items():
-        start = shift_back(latest, months, days) if latest else None
+    for window_id, (label, _months, _days) in WINDOWS.items():
+        start = window_open(latest, window_id) if latest else None
         out.append(
             {
                 "id": window_id,
@@ -562,7 +562,7 @@ def get_performance(
     db: Session = Depends(get_db),
     window: str | None = Query(
         None,
-        description="Chart range: 1w, 1m, 6m, 1y. Omit for since-inception.",
+        description="Chart range: 1w, 1m, 3m, 6m, ytd, 1y. Omit for since-inception.",
     ),
 ):
     snaps = (

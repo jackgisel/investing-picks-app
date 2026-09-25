@@ -38,6 +38,7 @@ import {
   LineChart,
 } from "lucide-react";
 import Link from "next/link";
+import { PerformanceMethodology } from "@/components/ui/performance-methodology";
 
 /**
  * States where showing the dashboard chrome at all is a lie — the user is not
@@ -88,9 +89,9 @@ export default function DashboardPage() {
   // the same size, and closed picks stay in so a sold loser does not vanish.
   // Unknown stays an em dash — never coerced to 0.
   const picksReturnPct = computePortfolioReturnPct(strategy);
+  const spyComparison = buildPicksComparison(chartQuery.data);
   const spyReturnPct =
-    buildPicksComparison(chartQuery.data).benchmarks.find((b) => b.key === "SPY")
-      ?.latestPct ?? null;
+    spyComparison.benchmarks.find((b) => b.key === "SPY")?.latestPct ?? null;
   const month = periodQuery.data?.periods.find((p) => p.id === "month");
 
   // The two ends of the open book by unrealized P&L. Disjoint by construction,
@@ -167,6 +168,13 @@ export default function DashboardPage() {
               tone="cyan"
               valueTone={pnlTone(spyReturnPct)}
               loading={chartQuery.isPending}
+              help={
+                <PerformanceMethodology
+                  align="end"
+                  inceptionDate={chartQuery.data?.summary?.inception_date}
+                  latestDate={spyComparison.latestDate}
+                />
+              }
             />
             <StatTile
               label="THIS MONTH"

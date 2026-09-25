@@ -53,6 +53,9 @@ class ScoreSnapshot:
     revisions_grade: str = "F"
     sector: str | None = None
     prior_quant_rating: float | None = None  # for optional QR velocity
+    # Next scheduled report on or after the evaluation date. Read only by
+    # earnings_blackout_days; None means unknown and never blocks.
+    next_earnings_date: date | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {

@@ -15,6 +15,7 @@ from outpick_strategy import RUN118_PARAMS
 from app.db.models import (
     CompositeScore,
     ConsensusSnapshot,
+    EarningsHistory,
     Fundamentals,
     Portfolio,
     PortfolioSnapshot,
@@ -665,12 +666,17 @@ def refresh_universe(db: Session, fmp: FMPClient, limit: int = 800) -> int:
     return count
 
 
-def _forward_estimate(estimates: list[dict], as_of: date) -> dict | None:
+def _forward_estimate(
+    estimates: list[dict], as_of: date, nth: int = 0
+) -> dict | None:
     """The consensus row for the nearest fiscal period ending on/after `as_of`.
 
     FMP returns one row per fiscal year, past and future, unordered in practice.
     Revisions must always be measured against the *same* fiscal period, so we
     pin the period explicitly rather than trusting list position.
+
+    `nth=1` is the fiscal year after that (FY2). It has no fallback: when no
+    second upcoming period exists the answer is None, not FY1 again.
     """
     rows: list[tuple[date, dict]] = []
     for e in estimates or []:
@@ -685,7 +691,12 @@ def _forward_estimate(estimates: list[dict], as_of: date) -> dict | None:
     if not rows:
         return None
     upcoming = sorted([r for r in rows if r[0] >= as_of], key=lambda r: r[0])
-    period, row = upcoming[0] if upcoming else max(rows, key=lambda r: r[0])
+    if nth:
+        if len(upcoming) <= nth:
+            return None
+        period, row = upcoming[nth]
+    else:
+        period, row = upcoming[0] if upcoming else max(rows, key=lambda r: r[0])
     return {
         "estimatePeriod": period.isoformat(),
         # `/stable` dropped the `estimated` prefix the legacy API used; accept
@@ -700,6 +711,46 @@ def _forward_estimate(estimates: list[dict], as_of: date) -> dict | None:
             row, "revenueAvg", "estimatedRevenueAvg"
         ),
     }
+
+
+def _float_or_none(raw) -> float | None:
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return None
+    return value if value == value else None
+
+
+def upsert_earnings_history(db: Session, ticker: str, reports: list[dict]) -> int:
+    """Store FMP earnings rows, replacing a scheduled row once it reports.
+
+    The backtest ingest inserts and skips conflicts, which is right for a
+    one-off history pull. Live rows start as a schedule with null actuals, so
+    they have to be updated in place when the print lands.
+    """
+    rows: dict[date, dict] = {}
+    for report in reports or []:
+        raw = report.get("date")
+        try:
+            day = date.fromisoformat(str(raw)[:10]) if raw else None
+        except ValueError:
+            day = None
+        if day is not None:
+            rows[day] = {"ticker": ticker, "date": day, "data": dict(report)}
+    if not rows:
+        return 0
+    dialect = db.get_bind().dialect.name
+    if dialect == "postgresql":
+        from sqlalchemy.dialects.postgresql import insert as _insert
+    else:
+        from sqlalchemy.dialects.sqlite import insert as _insert
+    stmt = _insert(EarningsHistory.__table__).values(list(rows.values()))
+    db.execute(
+        stmt.on_conflict_do_update(
+            index_elements=["ticker", "date"], set_={"data": stmt.excluded.data}
+        )
+    )
+    return len(rows)
 
 
 def _latest_reported_earnings(reports: list[dict], as_of: date) -> dict:
@@ -987,12 +1038,48 @@ def compute_estimate_revisions(
     )
     if eps_rev is not None:
         out["epsRevisionPct"] = eps_rev
+        # The level the revision is measured from, so scoring can express it
+        # per dollar of price (`revisions_eps_scaling = "price"`).
+        out["epsEstimatePrior"] = prior.get("epsEstimateAvg")
     if rev_rev is not None:
         out["revenueRevisionPct"] = rev_rev
     if out:
         out["revisionBasisDate"] = prior_row.as_of.isoformat()
         out["revisionLookbackDays"] = (lookback_as_of - prior_row.as_of).days
     return out
+
+
+FY2_SUFFIX = "Fy2"
+_FY2_KEYS = (
+    "epsRevisionPct",
+    "revenueRevisionPct",
+    "epsEstimatePrior",
+    "epsEstimateAvg",
+    "estimatePeriod",
+)
+
+
+def compute_fy2_revisions(
+    db: Session,
+    ticker: str,
+    fy2: dict | None,
+    as_of: date,
+    *,
+    vintage_as_of: date | None = None,
+) -> dict:
+    """Next-fiscal-year revisions, keyed with the `Fy2` suffix.
+
+    Same pairing rules as FY1. The FY2 prior can only come from
+    `consensus_snapshots` (fundamentals rows store FY1 alone), so this stays
+    empty until the daily snapshot job has three weeks of history.
+    """
+    if not fy2:
+        return {}
+    rev = compute_estimate_revisions(db, ticker, fy2, as_of, vintage_as_of=vintage_as_of)
+    if not rev:
+        return {}
+    merged = {**fy2, **rev}
+    return {f"{k}{FY2_SUFFIX}": merged[k] for k in _FY2_KEYS if merged.get(k) is not None}
 
 
 def recompute_latest_revisions(db: Session, as_of: date | None = None) -> int:
@@ -1142,13 +1229,20 @@ def refresh_fundamentals(db: Session, fmp: FMPClient, max_tickers: int = 400) ->
     # position prices and a hole in the published equity curve, which is far
     # worse than losing one factor for a day. Trip a breaker instead.
     growth_supported = True
+    balance_supported = True
+    z_available = 0
+    # Lazy: backtest_derive imports this module.
+    from worker.services.backtest_derive import altman_z
+
     for s in stocks:
         metrics = fmp.key_metrics_ttm(s.ticker) or {}
         ratios = fmp.ratios_ttm(s.ticker) or {}
         data = {**metrics, **ratios}
+        income: list[dict] = []
         if growth_supported:
             try:
-                growth = compute_ttm_growth(fmp.income_statement_quarterly(s.ticker))
+                income = fmp.income_statement_quarterly(s.ticker)
+                growth = compute_ttm_growth(income)
             except FMPAccessError:
                 log.exception(
                     "income-statement is not available on this FMP plan; growth "
@@ -1160,19 +1254,52 @@ def refresh_fundamentals(db: Session, fmp: FMPClient, max_tickers: int = 400) ->
             if growth:
                 growth_available += 1
                 data.update(growth)
-        estimate = _forward_estimate(fmp.analyst_estimates(s.ticker), as_of)
+        # Altman Z with the backtest's own function, so the z_score_floor the
+        # tape has always applied also runs live. Before this, live payloads
+        # had no altmanZ and the floor silently passed everyone.
+        if balance_supported and income:
+            try:
+                balance = fmp.balance_sheet_quarterly(s.ticker, limit=2)
+            except FMPAccessError:
+                log.exception(
+                    "balance-sheet-statement is not available on this FMP plan; "
+                    "the Altman Z floor will not run live"
+                )
+                balance_supported = False
+                balance = []
+            z = altman_z(
+                market_cap=_float_or_none(metrics.get("marketCap")) or s.market_cap,
+                income=income,
+                balance=balance,
+            )
+            if z is not None:
+                z_available += 1
+                data["altmanZ"] = z
+        estimates = fmp.analyst_estimates(s.ticker)
+        estimate = _forward_estimate(estimates, as_of)
         if estimate:
             data.update(estimate)
             revision = compute_estimate_revisions(db, s.ticker, estimate, as_of)
             if revision:
                 revisions_available += 1
             data.update(revision)
+            data.update(
+                compute_fy2_revisions(
+                    db, s.ticker, _forward_estimate(estimates, as_of, nth=1), as_of
+                )
+            )
         # Earnings actuals are a subscriber-facing holding annotation, not a
         # scoring factor. Restrict this endpoint to held names so adding the
         # display does not make hundreds of extra calls per weekly refresh.
-        if earnings_supported and s.ticker in held:
+        # Every refreshed name, not only holdings: the rows feed the
+        # earnings-blackout and surprise research switches, which read
+        # `earnings_history` the same way live and in the backtest.
+        if earnings_supported:
             try:
-                data.update(_latest_reported_earnings(fmp.earnings(s.ticker), as_of))
+                reports = fmp.earnings(s.ticker)
+                upsert_earnings_history(db, s.ticker, reports)
+                if s.ticker in held:
+                    data.update(_latest_reported_earnings(reports, as_of))
             except FMPAccessError:
                 log.exception(
                     "earnings is not available on this FMP plan; latest "
@@ -1242,6 +1369,7 @@ def refresh_fundamentals(db: Session, fmp: FMPClient, max_tickers: int = 400) ->
         )
     else:
         log.info("TTM growth computed for %s/%s tickers", growth_available, n)
+    log.info("Altman Z computed for %s/%s tickers", z_available, n)
     return n
 
 

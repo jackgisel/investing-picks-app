@@ -20,15 +20,18 @@ from outpick_strategy import (
     StrategyParams,
     evaluate,
     evaluate_sells_only,
+    rank_candidates,
 )
 from outpick_strategy.params import BuyCriteria
 
 from app.db.models import (
     CompositeScore,
+    EarningsHistory,
     Evaluation,
     Portfolio,
     PortfolioSnapshot,
     Position,
+    PriceBar,
     SignalReason,
     SignalRow,
     Trade,
@@ -386,11 +389,91 @@ def load_scores_as_of(
 
     for ticker, snapshot in out.items():
         snapshot.prior_quant_rating = prior.get(ticker)
+
+    upcoming = next_earnings_dates(db, as_of or date.today())
+    for ticker, snapshot in out.items():
+        snapshot.next_earnings_date = upcoming.get(ticker)
     return out
 
 
-def ranked_candidates(scores: dict[str, ScoreSnapshot]) -> list[str]:
-    return sorted(scores.keys(), key=lambda t: scores[t].quant_rating, reverse=True)
+# How far ahead a scheduled report is looked up. Longer than any sensible
+# `earnings_blackout_days`; bounded so the query stays small.
+EARNINGS_LOOKAHEAD_DAYS = 45
+
+
+def next_earnings_dates(db: Session, as_of: date) -> dict[str, date]:
+    """Next report on or after `as_of`, per ticker, within the lookahead.
+
+    Read by `earnings_blackout_days`. A row dated in the future is a schedule;
+    FMP moves those around, so the backtest reads today's best guess of a
+    past schedule. That is a small look-ahead on the date, never on the result.
+    """
+    rows = (
+        db.query(EarningsHistory.ticker, func.min(EarningsHistory.date))
+        .filter(
+            EarningsHistory.date >= as_of,
+            EarningsHistory.date <= as_of + timedelta(days=EARNINGS_LOOKAHEAD_DAYS),
+        )
+        .group_by(EarningsHistory.ticker)
+        .all()
+    )
+    return {ticker: d for ticker, d in rows}
+
+
+def ranked_candidates(
+    scores: dict[str, ScoreSnapshot], params: StrategyParams | None = None
+) -> list[str]:
+    return rank_candidates(scores, params)
+
+
+def load_return_series(
+    db: Session, tickers: set[str], as_of: date, lookback_days: int
+) -> dict[str, dict[date, float]]:
+    """Daily close-to-close returns per ticker over the calendar lookback."""
+    if not tickers:
+        return {}
+    start = as_of - timedelta(days=lookback_days)
+    rows = (
+        db.query(PriceBar.ticker, PriceBar.date, PriceBar.close)
+        .filter(
+            PriceBar.ticker.in_(sorted(tickers)),
+            PriceBar.date >= start,
+            PriceBar.date <= as_of,
+        )
+        .order_by(PriceBar.ticker, PriceBar.date)
+        .all()
+    )
+    out: dict[str, dict[date, float]] = {}
+    prev: dict[str, float] = {}
+    for ticker, day, close in rows:
+        if not close or close <= 0:
+            continue
+        last = prev.get(ticker)
+        if last:
+            out.setdefault(ticker, {})[day] = close / last - 1.0
+        prev[ticker] = close
+    return out
+
+
+def return_series_for(
+    db: Session,
+    state: PortfolioState,
+    scores: dict[str, ScoreSnapshot],
+    params: StrategyParams,
+    as_of: date,
+) -> dict[str, dict[date, float]] | None:
+    """Inputs for `max_pair_correlation`, or None when the switch is off.
+
+    Holdings plus every name that clears the rating floor: a buy can only come
+    from that set, so nothing else needs a series.
+    """
+    if params.max_pair_correlation is None:
+        return None
+    floor = params.buy_criteria.min_quant_rating
+    tickers = set(state.positions) | {
+        t for t, s in scores.items() if s.quant_rating >= floor
+    }
+    return load_return_series(db, tickers, as_of, params.correlation_lookback_days)
 
 
 def persist_evaluation(
@@ -682,12 +765,19 @@ def run_evaluation(
     params = params_from_portfolio(portfolio)
     state = load_portfolio_state(db, portfolio)
     scores = load_latest_scores(db)
-    ranked = ranked_candidates(scores)
+    ranked = ranked_candidates(scores, params)
 
     if mode == "daily":
         signals = evaluate_sells_only(state, scores, params, as_of=date.today())
     else:
-        signals = evaluate(state, scores, ranked, params, as_of=date.today())
+        signals = evaluate(
+            state,
+            scores,
+            ranked,
+            params,
+            as_of=date.today(),
+            return_series=return_series_for(db, state, scores, params, date.today()),
+        )
 
     ev = persist_evaluation(
         db,

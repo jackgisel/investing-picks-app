@@ -17,7 +17,14 @@ from outpick_strategy.scoring import (
     quant_rating_from_composite,
 )
 
-from app.db.models import CompositeScore, Fundamentals, Position, PriceBar, Stock
+from app.db.models import (
+    CompositeScore,
+    EarningsHistory,
+    Fundamentals,
+    Position,
+    PriceBar,
+    Stock,
+)
 
 log = logging.getLogger(__name__)
 
@@ -44,20 +51,11 @@ FUNDAMENTALS_MAX_AGE_DAYS = 45
 MIN_SECTOR_POPULATION = 15
 
 # BUG-P3. `composite_from_factor_pcts` takes a `z_score` and rejects anything
-# below `params.z_score_floor` (1.8 in Run 118) as a bankruptcy-risk name — but
-# the parameter defaults to None and None means "skip the check", so a caller
-# that simply omits it disables the filter with no error anywhere. This caller
-# is the only production caller.
-#
-# We pass it EXPLICITLY as None because the input genuinely cannot be sourced
-# today, not because the check is unwanted: an Altman Z needs working capital,
-# retained earnings, EBIT, market cap, total liabilities, sales and total
-# assets, and `FMPClient` exposes no balance-sheet or financial-scores endpoint
-# at all. `Fundamentals.data` is `{**key_metrics_ttm, **ratios_ttm}` plus
-# derived growth/revisions, and no field in it carries a Z-score. Deriving one
-# from what IS there would be inventing a solvency number, which is worse than
-# not having one. `score_universe` warns every run so the gap stays visible
-# instead of reading as a filter that passes everything.
+# below `params.z_score_floor` (1.8 in Run 118) as a bankruptcy-risk name, and
+# None means "skip the check". Both paths now carry `altmanZ`: derived PIT rows
+# from filings, live rows from `refresh_fundamentals`, which calls the same
+# `backtest_derive.altman_z`. A name with no balance sheet still passes None,
+# and this constant is what that looks like at the call site.
 Z_SCORE_UNAVAILABLE = None
 
 # Each entry is (aliases, higher_is_better). Aliases are tried in order and
@@ -99,6 +97,24 @@ REVISION_KEYS = [
     (("epsRevisionPct",), True),
     (("revenueRevisionPct",), True),
 ]
+# Next-fiscal-year revisions, blended in by `revisions_fy2_blend`.
+REVISION_FY2_KEYS = [
+    (("epsRevisionPctFy2",), True),
+    (("revenueRevisionPctFy2",), True),
+]
+
+# A multiple with a non-positive denominator is not a price for earnings, book
+# or cash flow. FMP returns P/E -45 for a loss-maker and PEG -4 for a shrinking
+# one, and ranked "lower is better" those read as the cheapest names in the
+# sector. The backtest derive (`backtest_derive._valuation`) never emits them,
+# so live and the tape disagreed on 35% of live rows. Null them here, the one
+# place both paths pass through.
+NON_POSITIVE_IS_MISSING = {
+    alias for aliases, _ in VALUATION_KEYS for alias in aliases
+}
+
+# How recent a report must be for the surprise factor. One quarter plus slack.
+SURPRISE_MAX_AGE_DAYS = 100
 
 
 # How far before the 365-day mark an anchor bar may sit and still count as a
@@ -137,7 +153,8 @@ def load_price_history(
     """
     if not tickers:
         return {}
-    window_start = as_of - timedelta(days=365 + MOMENTUM_ANCHOR_TOLERANCE_DAYS + 40)
+    # +90: 40 days of slack plus room for a `momentum_skip_days` of up to 50.
+    window_start = as_of - timedelta(days=365 + MOMENTUM_ANCHOR_TOLERANCE_DAYS + 90)
     rows = (
         db.query(PriceBar.ticker, PriceBar.date, PriceBar.close)
         .filter(
@@ -155,9 +172,18 @@ def load_price_history(
 
 
 def _momentum_12m(
-    history: dict[str, list[tuple[date, float]]], ticker: str, as_of: date
+    history: dict[str, list[tuple[date, float]]],
+    ticker: str,
+    as_of: date,
+    *,
+    days: int = 365,
+    skip_days: int = 0,
 ) -> float | None:
     """12-month return, or None when we cannot actually measure 12 months.
+
+    `days` sets the window (182 for six months). `skip_days` ends it that many
+    calendar days before `as_of`: 12-1 momentum drops the latest month, where
+    short-term reversal lives. Both default to the Run 118 measurement.
 
     The old fallback used the OLDEST available bar whenever nothing sat at or
     before the 365-day mark, then returned it as a 12-month figure. A ticker
@@ -165,6 +191,10 @@ def _momentum_12m(
     against real annual ones and fed to `momentum_penalty`. Refuse instead.
     """
     bars = history.get(ticker) or []
+    if skip_days:
+        end = as_of - timedelta(days=skip_days)
+        bars = [b for b in bars if b[0] <= end]
+        as_of = end
     if len(bars) < 2:
         return None
     latest_date, latest = bars[0]
@@ -174,7 +204,7 @@ def _momentum_12m(
     # holding, exited, so this is the conservative direction on both sides.
     if (as_of - latest_date).days > MOMENTUM_LATEST_MAX_AGE_DAYS:
         return None
-    target = as_of - timedelta(days=365)
+    target = as_of - timedelta(days=days)
     earliest_ok = target - timedelta(days=MOMENTUM_ANCHOR_TOLERANCE_DAYS)
     past = None
     for bar_date, close in bars:
@@ -278,6 +308,94 @@ def _load_scoring_universe(
     return funds, by_sector
 
 
+def _revision_pcts(tickers, funds, history, params, col, avg_factor):
+    """Revisions factor percentiles under the revisions switches."""
+    keys = list(REVISION_KEYS)
+    if params.revisions_fy2_blend:
+        keys += REVISION_FY2_KEYS
+    cols = col(keys)
+
+    if params.revisions_eps_scaling == "price":
+        # (new - old) EPS estimate per dollar of share price. Percent change
+        # of a near-zero estimate is unbounded; this is not.
+        for suffix in ("", "Fy2"):
+            key = f"epsRevisionPct{suffix}"
+            if key not in cols:
+                continue
+            for i, t in enumerate(tickers):
+                data = funds.get(t, {})
+                prior = data.get(f"epsEstimatePrior{suffix}")
+                current = data.get(f"epsEstimateAvg{suffix}")
+                bars = history.get(t) or []
+                price = bars[0][1] if bars else None
+                try:
+                    cols[key][i] = (
+                        (float(current) - float(prior)) / price
+                        if prior is not None and current is not None and price
+                        else None
+                    )
+                except (TypeError, ValueError):
+                    cols[key][i] = None
+    elif params.revisions_eps_scaling != "pct":
+        raise ValueError(
+            f"unknown revisions_eps_scaling {params.revisions_eps_scaling!r}; "
+            "expected 'pct' or 'price'"
+        )
+
+    if params.revision_min_lookback_days:
+        for i, t in enumerate(tickers):
+            lookback = funds.get(t, {}).get("revisionLookbackDays")
+            try:
+                short = lookback is None or int(lookback) < params.revision_min_lookback_days
+            except (TypeError, ValueError):
+                short = True
+            if short:
+                for aliases, _ in REVISION_KEYS:
+                    cols[aliases[0]][i] = None
+    return avg_factor(cols, keys)
+
+
+def latest_reported_surprises(db: Session, as_of: date) -> dict[str, dict]:
+    """Most recent reported quarter per ticker, within SURPRISE_MAX_AGE_DAYS.
+
+    Report date is availability: a row dated after `as_of` is never read.
+    """
+    oldest = as_of - timedelta(days=SURPRISE_MAX_AGE_DAYS)
+    rows = (
+        db.query(EarningsHistory.ticker, EarningsHistory.date, EarningsHistory.data)
+        .filter(EarningsHistory.date <= as_of, EarningsHistory.date >= oldest)
+        .order_by(EarningsHistory.ticker, EarningsHistory.date.desc())
+        .all()
+    )
+    out: dict[str, dict] = {}
+    for ticker, day, data in rows:
+        if ticker in out:
+            continue
+        data = data or {}
+        if data.get("epsActual") is None or data.get("epsEstimated") is None:
+            continue
+        # A print dated today may not be out yet at the scoring hour.
+        if day >= as_of:
+            continue
+        out[ticker] = data
+    return out
+
+
+def _surprise(
+    row: dict | None, history: dict[str, list[tuple[date, float]]], ticker: str
+) -> float | None:
+    """(actual - estimated) EPS per dollar of share price. None if unmeasurable."""
+    if not row:
+        return None
+    bars = history.get(ticker) or []
+    if not bars or not bars[0][1] or bars[0][1] <= 0:
+        return None
+    try:
+        return (float(row["epsActual"]) - float(row["epsEstimated"])) / bars[0][1]
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
 def _rank_sector(
     sector: str,
     tickers: list[str],
@@ -285,6 +403,7 @@ def _rank_sector(
     history: dict[str, list[tuple[date, float]]],
     params: StrategyParams,
     as_of: date,
+    surprises: dict[str, dict] | None = None,
 ) -> tuple[list[ScoredTicker], dict[str, list[str]]]:
     """Percentile-rank `tickers` as one peer group.
 
@@ -292,6 +411,7 @@ def _rank_sector(
     scored subset and, for every name that failed the coverage floor, the
     factor names that were null.
     """
+    surprises = surprises or {}
 
     def col(keys) -> dict[str, list[float | None]]:
         out = {aliases[0]: [] for aliases, _ in keys}
@@ -307,10 +427,24 @@ def _rank_sector(
                         value = float(raw)
                     except (TypeError, ValueError):
                         value = None
+                    if (
+                        value is not None
+                        and alias in NON_POSITIVE_IS_MISSING
+                        and value <= 0
+                    ):
+                        value = None
                     if value is not None:
                         break
                 out[aliases[0]].append(value)
         return out
+
+    def num(t: str, key: str) -> float | None:
+        raw = funds.get(t, {}).get(key)
+        try:
+            value = float(raw) if raw is not None else None
+        except (TypeError, ValueError):
+            return None
+        return value if value is not None and value == value else None
 
     def avg_factor(cols, keys):
         pct_matrix = [
@@ -322,12 +456,52 @@ def _rank_sector(
             result.append(sum(vals) / len(vals) if vals else None)
         return result
 
-    val_pcts = avg_factor(col(VALUATION_KEYS), VALUATION_KEYS)
-    gro_pcts = avg_factor(col(GROWTH_KEYS), GROWTH_KEYS)
+    val_cols = col(VALUATION_KEYS)
+    if params.valuation_penalize_losses:
+        # No earnings is the worst possible P/E, not an unmeasured one.
+        for i, t in enumerate(tickers):
+            margin = num(t, "netProfitMarginTTM")
+            if margin is None or margin >= 0:
+                continue
+            for key in ("priceToEarningsRatioTTM", "priceToEarningsGrowthRatioTTM"):
+                if val_cols[key][i] is None:
+                    val_cols[key][i] = float("inf")
+    val_pcts = avg_factor(val_cols, VALUATION_KEYS)
+
+    growth_keys = GROWTH_KEYS
+    if params.growth_drop_net_income:
+        growth_keys = [k for k in GROWTH_KEYS if k[0][0] != "netIncomeGrowthTTM"]
+    gro_pcts = avg_factor(col(growth_keys), growth_keys)
     pro_pcts = avg_factor(col(PROFIT_KEYS), PROFIT_KEYS)
-    rev_pcts = avg_factor(col(REVISION_KEYS), REVISION_KEYS)
-    mom_raw = [_momentum_12m(history, t, as_of) for t in tickers]
+    rev_pcts = _revision_pcts(tickers, funds, history, params, col, avg_factor)
+
+    mom_raw = [
+        _momentum_12m(history, t, as_of, skip_days=params.momentum_skip_days)
+        for t in tickers
+    ]
     mom_pcts = factor_percentile_score(mom_raw, True)
+    if params.momentum_blend_6m:
+        mom6_pcts = factor_percentile_score(
+            [
+                _momentum_12m(
+                    history, t, as_of, days=182, skip_days=params.momentum_skip_days
+                )
+                for t in tickers
+            ],
+            True,
+        )
+        # Both windows required: a blend over whichever exists is a different
+        # measurement per ticker.
+        mom_pcts = [
+            (a + b) / 2.0 if a is not None and b is not None else None
+            for a, b in zip(mom_pcts, mom6_pcts)
+        ]
+
+    sur_pcts: list[float | None] = [None] * len(tickers)
+    if params.weight_surprise > 0:
+        sur_pcts = factor_percentile_score(
+            [_surprise(surprises.get(t), history, t) for t in tickers], True
+        )
 
     scored: list[ScoredTicker] = []
     missing_by_ticker: dict[str, list[str]] = {}
@@ -339,15 +513,15 @@ def _rank_sector(
             "momentum": mom_pcts[i],
             "revisions": rev_pcts[i],
         }
+        if params.weight_surprise > 0:
+            factor_pcts["surprise"] = sur_pcts[i]
         z_score = _z_score_from_data(funds.get(ticker, {}))
         composite, grades = composite_from_factor_pcts(
             factor_pcts,
             params,
             momentum_12m=mom_raw[i],
-            # Live payloads have no altmanZ, so this stays None and the
-            # filter does not run — same as Z_SCORE_UNAVAILABLE. Derived
-            # PIT rows carry altmanZ when filings exist, and the floor
-            # then actually rejects distressed names.
+            # Live and PIT rows both carry altmanZ when a balance sheet
+            # exists; without one the floor abstains.
             z_score=z_score if z_score is not None else Z_SCORE_UNAVAILABLE,
         )
         if composite is None:
@@ -401,6 +575,12 @@ def compute_scores(
     considered = 0
     thin_sectors: dict[str, int] = {}
 
+    surprises = (
+        latest_reported_surprises(db, as_of)
+        if params.weight_surprise > 0
+        else {}
+    )
+
     for sector, tickers in by_sector.items():
         if len(tickers) < MIN_SECTOR_POPULATION:
             # Counted, named, and not ranked. `considered` still moves so these
@@ -412,7 +592,7 @@ def compute_scores(
 
         history = load_price_history(db, tickers, as_of)
         ranked, missing_by_ticker = _rank_sector(
-            sector, tickers, funds, history, params, as_of
+            sector, tickers, funds, history, params, as_of, surprises
         )
         considered += len(tickers)
         scored.extend(ranked)
@@ -557,8 +737,11 @@ def _diagnose_ticker(
         )
     if stock.sector not in sector_drops:
         history = load_price_history(db, peers, as_of)
+        surprises = (
+            latest_reported_surprises(db, as_of) if params.weight_surprise > 0 else {}
+        )
         _ranked, missing_by_ticker = _rank_sector(
-            stock.sector, peers, funds, history, params, as_of
+            stock.sector, peers, funds, history, params, as_of, surprises
         )
         sector_drops[stock.sector] = missing_by_ticker
     missing_factors = sector_drops[stock.sector].get(ticker)

@@ -192,6 +192,12 @@ class FundamentalsFMP:
     def analyst_estimates(self, ticker):
         return [{"date": "2099-12-31", "epsAvg": 2.0, "revenueAvg": 200.0}]
 
+    def balance_sheet_quarterly(self, ticker, limit=12):
+        return []
+
+    def earnings(self, ticker):
+        return []
+
     def profile(self, ticker):
         return {"sector": "Technology", "industry": "Software", "marketCap": 5e9}
 

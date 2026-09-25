@@ -37,6 +37,96 @@ Until the holdout gate, promote with decision-diff plus two live shadow cycles
 Robustness: `python -m worker.backtest compare RESULT BASELINE --sweep` perturbs
 numeric thresholds ±10% (never `max_adds_per_evaluation` or `position_size_usd`).
 
+## Research switches and live parity (strategy run118 unchanged)
+
+**Not a strategy version.** `version_label` stays `run118` and
+`RUN118_PARAMS.version_hash()` stays `3dae13a76007`: a research switch at its
+neutral value (`RESEARCH_SWITCH_NEUTRAL` in `params.py`) is left out of the
+hash, and every default is neutral. Turning one on changes the hash, and
+promoting one is a version bump under the rule above.
+
+### Live parity fixes (live inputs change; the tape does not)
+
+| Fix | Why | Tape effect |
+|---|---|---|
+| Non-positive valuation multiples are missing, not cheap (`scoring.py` `NON_POSITIVE_IS_MISSING`) | FMP returns P/E −45 for a loss-maker and PEG < 0 for a shrinking one; ranked "lower is better" those were the cheapest names in the sector. 423 / 1,206 live rows in the Sep dataset carried one | None: `backtest_derive._valuation` never emits a non-positive multiple |
+| Live `altmanZ` (`refresh_fundamentals` calls `backtest_derive.altman_z`) | `z_score_floor = 1.8` ran on the tape and silently passed every name live | None: PIT rows already carried `altmanZ` |
+
+Both change what live `evaluate()` sees, in the direction of what the backtest
+has always measured. Run an ops dry-run after deploy and diff the buy-gate set
+against the previous Friday before the next live evaluation.
+
+Refresh cost: two more FMP calls per refreshed ticker (`balance-sheet-statement`
+limit 2, `earnings`), both endpoints already used on this plan.
+
+### Data added (additive keys; nothing removed)
+
+- `epsEstimatePrior` beside `epsRevisionPct`, and FY2 revisions
+  (`epsRevisionPctFy2`, `revenueRevisionPctFy2`, `epsEstimatePriorFy2`,
+  `epsEstimateAvgFy2`) live and in `derive_ticker`. FY2 pairs only from
+  `consensus_snapshots`, so it fills in three weeks after daily snapshots.
+  `DERIVE_VERSION` is unchanged: re-derive a copy to read the new keys on old
+  Fridays (`factor_ic --rederive`).
+- `earnings_history` is upserted for every refreshed name, not only holdings,
+  and a scheduled row is updated in place when its print lands.
+
+### Switches
+
+| Switch | Neutral | Measured by |
+|---|---|---|
+| `momentum_skip_days` (12-1 momentum) | 0 | `factor_ic` |
+| `momentum_blend_6m` | False | `factor_ic` |
+| `revisions_eps_scaling` (`"price"`) | `"pct"` | `factor_ic` |
+| `revision_min_lookback_days` | 0 | `factor_ic` |
+| `revisions_fy2_blend` | False | `factor_ic` (needs FY2 snapshots) |
+| `valuation_penalize_losses` | False | `factor_ic` |
+| `growth_drop_net_income` | False | `factor_ic` |
+| `weight_surprise` (SUE factor from `earnings_history`) | 0.0 | `factor_ic` |
+| `rank_smoothing` | False | `compare --sweep` |
+| `earnings_blackout_days` | 0 | `compare --sweep` |
+| `max_pair_correlation` / `correlation_lookback_days` | None / 90 | `compare --sweep` |
+| `sector_cap_basis` (`"held"`) | `"max_positions"` | `compare --sweep` |
+
+`momentum_penalty` (the round-2 handoff) is an existing field and is included
+in the `factor_ic` standard set at 0.
+
+### Measurement
+
+`python -m worker.backtest.factor_ic --dataset <copy> --standard` recomputes
+scores per variant and reports, per forward horizon, the mean cross-sectional
+rank IC of the composite and of each factor, the Q5−Q1 spread, the gate-pass
+basket's excess return, and the top pick's. `--base weight_revisions=0` scores
+Fridays before the consensus tape, so momentum, valuation, growth and
+profitability can be judged on the full price and filing history.
+
+`.github/workflows/factor-ic.yml` runs `--rederive --standard` on a copy of the
+pinned dataset every Saturday and uploads the report (a report, not a gate).
+
+### First read (2026-09-23)
+
+Re-derived working copy of `dataset-cadence.sqlite`, not the pin. Reports in
+`backtests/experiments/factor-ic-{live,hist,long}.md`. Mean 5-session rank IC:
+
+| Window | Fridays | Composite IC (t) | Note |
+|---|---|---|---|
+| Shipped model, Aug–Sep 2026 | 6 | −0.009 (−0.10) | Only window with revisions |
+| Revisions weighted out, Aug 2025 → | 30 | +0.011 (+0.35) | Growth needs 8 quarters of filings |
+| Revisions and growth out, Aug 2024 → | 53 | +0.010 (+0.47) | Momentum needs 12 months of bars |
+
+- The composite does not rank forward returns at any horizon or window.
+- Valuation (weight 0.05) is the only factor with a steady positive IC over
+  30 Fridays (t +2.4 / +2.8 / +3.7 at 5 / 10 / 20 sessions). Over 53 Fridays it
+  fades to t ≈ +1, so treat it as a lead, not a finding.
+- Growth (0.35) is flat. Profitability (0.15) is negative (t −2.3 at 20
+  sessions over 53 Fridays; overlapping windows overstate that t).
+- Momentum correlates +0.71 to +0.82 with the composite at 0.15 weight. Its IC
+  is small and positive.
+- No switch moves composite IC by more than ±0.01. None is ready to promote.
+  `revisions_eps_scaling = "price"` ran on 6 Fridays and changed no top pick.
+  `revisions_fy2_blend` is a no-op until daily snapshots hold FY2 pairs
+  (snapshots start 2026-09-11).
+- Book switches (`compare --sweep`, 3 evaluations): no top-pick change.
+
 ## run121 — tape v2 (strategy run118 unchanged)
 
 Dataset revisions self-pair fix (BUG-P8). **Not a strategy version.**

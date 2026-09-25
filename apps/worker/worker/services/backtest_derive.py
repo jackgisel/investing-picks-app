@@ -23,6 +23,7 @@ from app.db.models import (
 from worker.services.ingest import (
     _forward_estimate,
     compute_estimate_revisions,
+    compute_fy2_revisions,
     compute_ttm_growth,
     first_present,
 )
@@ -185,6 +186,17 @@ def current_estimate(
     return _segment_a_estimate(db, ticker, as_of)
 
 
+def current_fy2_estimate(
+    db: Session, ticker: str, as_of: date
+) -> tuple[dict | None, date | None]:
+    """Next-fiscal-year estimate and its vintage. Snapshots only; see FY1."""
+    snapshots = _latest_snapshots_as_of(db, ticker, as_of)
+    estimate = _forward_estimate(snapshots, as_of, nth=1)
+    if not estimate:
+        return None, None
+    return estimate, _vintage_for_estimate(snapshots, estimate)
+
+
 def _profitability(income: list[dict], balance: list[dict]) -> dict:
     ttm_rev = _ttm_sum(income, "revenue")
     ttm_gp = _ttm_sum(income, "grossProfit")
@@ -328,6 +340,10 @@ def derive_ticker(db: Session, ticker: str, as_of: date, universe_scope: str | N
             compute_estimate_revisions(
                 db, ticker, estimate, as_of, vintage_as_of=vintage_as_of
             )
+        )
+        fy2, fy2_vintage = current_fy2_estimate(db, ticker, as_of)
+        data.update(
+            compute_fy2_revisions(db, ticker, fy2, as_of, vintage_as_of=fy2_vintage)
         )
     return data
 

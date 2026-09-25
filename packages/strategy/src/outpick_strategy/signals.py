@@ -73,7 +73,13 @@ def _would_exceed_sector_cap(
     # Floor of one. `int(3 * 0.30)` is 0, and `count >= 0` is true for an empty
     # book, so a small `max_positions` used to forbid every classified buy
     # forever (BUG-S7). A cap can never be stricter than "one name per sector".
-    max_in_sector = max(1, int(params.max_positions * params.sector_concentration))
+    if params.sector_cap_basis == "held":
+        # Sized to the book after this buy. 30% of 50 slots is 15 names, which
+        # a book adding one name a fortnight does not reach for over a year.
+        basis = len(held) + 1
+    else:
+        basis = params.max_positions
+    max_in_sector = max(1, int(basis * params.sector_concentration))
     count = 0
     for t in held:
         s = scores.get(t)
@@ -83,6 +89,120 @@ def _would_exceed_sector_cap(
         if pos_sector == sector:
             count += 1
     return count >= max_in_sector
+
+
+def rank_candidates(
+    scores: dict[str, ScoreSnapshot], params: StrategyParams | None = None
+) -> list[str]:
+    """Tickers in buy-priority order.
+
+    Run 118 ranks on today's quant rating. With `rank_smoothing` the key is the
+    mean of today's rating and `prior_quant_rating` (the snapshot a week or
+    more back), so a name that spiked on one scoring run does not jump a name
+    that has held its rating. A name with no prior ranks on today's rating.
+
+    With the switch off this is exactly the Run 118 order, including its
+    stable-sort handling of ties.
+    """
+    params = params or StrategyParams()
+    if not params.rank_smoothing:
+        return sorted(scores.keys(), key=lambda t: scores[t].quant_rating, reverse=True)
+
+    def key(t: str) -> tuple[float, str]:
+        s = scores[t]
+        qr = s.quant_rating
+        if s.prior_quant_rating is not None:
+            qr = (qr + s.prior_quant_rating) / 2.0
+        return (-qr, t)
+
+    return sorted(scores.keys(), key=key)
+
+
+def _earnings_blackout(
+    score: ScoreSnapshot, params: StrategyParams, as_of: date
+) -> RuleCheck | None:
+    """A failed rule when `score` reports inside the blackout window."""
+    days = params.earnings_blackout_days
+    if not days or score.next_earnings_date is None:
+        return None
+    until = (score.next_earnings_date - as_of).days
+    if 0 <= until <= days:
+        return RuleCheck(
+            rule_id="earnings_blackout",
+            passed=False,
+            inputs={
+                "next_earnings_date": score.next_earnings_date.isoformat(),
+                "days_until": until,
+            },
+            threshold={"earnings_blackout_days": days},
+            message=f"Reports in {until}d; buys wait until after the print",
+        )
+    return None
+
+
+def _correlation(a: dict[date, float], b: dict[date, float]) -> float | None:
+    """Pearson correlation over the dates both series share; None if < 20."""
+    common = sorted(a.keys() & b.keys())
+    if len(common) < 20:
+        return None
+    xs = [a[d] for d in common]
+    ys = [b[d] for d in common]
+    n = len(common)
+    mx = sum(xs) / n
+    my = sum(ys) / n
+    cov = sum((x - mx) * (y - my) for x, y in zip(xs, ys))
+    vx = sum((x - mx) ** 2 for x in xs)
+    vy = sum((y - my) ** 2 for y in ys)
+    if vx <= 0 or vy <= 0:
+        return None
+    return cov / (vx * vy) ** 0.5
+
+
+def _correlation_block(
+    ticker: str,
+    held: set[str],
+    params: StrategyParams,
+    return_series: dict[str, dict[date, float]] | None,
+) -> RuleCheck | None:
+    """A failed rule when `ticker` moves too closely with a holding.
+
+    Abstains when the switch is off or a series is missing: no data is not
+    evidence of correlation, and failing closed here would stop every buy on a
+    price-history gap.
+    """
+    limit = params.max_pair_correlation
+    if limit is None:
+        return None
+    if return_series is None:
+        logger.error(
+            "max_pair_correlation=%s is set but no return series were supplied; "
+            "the correlation cap is not running",
+            limit,
+        )
+        return None
+    mine = return_series.get(ticker)
+    if not mine:
+        return None
+    worst: tuple[float, str] | None = None
+    for other in sorted(held):
+        theirs = return_series.get(other)
+        if not theirs:
+            continue
+        rho = _correlation(mine, theirs)
+        if rho is not None and (worst is None or rho > worst[0]):
+            worst = (rho, other)
+    if worst is None or worst[0] <= limit:
+        return None
+    return RuleCheck(
+        rule_id="max_pair_correlation",
+        passed=False,
+        inputs={"with": worst[1], "correlation": round(worst[0], 3)},
+        threshold={
+            "max": limit,
+            "lookback_days": params.correlation_lookback_days,
+        },
+        message=f"Moves with {worst[1]} (correlation {worst[0]:.2f})",
+    )
 
 
 def _weight_trim_signals(
@@ -451,6 +571,8 @@ def _buy_signals(
     params: StrategyParams,
     prior_signals: list[Signal],
     drawdown_halted: bool,
+    as_of: date,
+    return_series: dict[str, dict[date, float]] | None = None,
 ) -> list[Signal]:
     signals: list[Signal] = []
     max_buys = params.max_adds_per_evaluation
@@ -512,6 +634,8 @@ def _buy_signals(
 
         ok, criteria_checks = meets_buy_criteria(score, params)
         if not ok:
+            continue
+        if _earnings_blackout(score, params, as_of) is not None:
             continue
 
         if ticker in held:
@@ -600,6 +724,8 @@ def _buy_signals(
             ticker, score.sector, held, scores, portfolio.positions, params
         ):
             continue
+        if _correlation_block(ticker, held, params, return_series) is not None:
+            continue
 
         shortfall = max(0.0, target_notional + reserve - sim_cash)
         if shortfall > 0:
@@ -656,8 +782,13 @@ def evaluate(
     ranked_tickers: list[str],
     params: StrategyParams | None = None,
     as_of: date | None = None,
+    return_series: dict[str, dict[date, float]] | None = None,
 ) -> list[Signal]:
-    """Full biweekly evaluation: trims → removals → (optional) buys with recycling."""
+    """Full biweekly evaluation: trims → removals → (optional) buys with recycling.
+
+    `return_series` is daily returns by ticker and date, read only by the
+    `max_pair_correlation` switch. Callers build it when that switch is on.
+    """
     params = params or StrategyParams()
     as_of = as_of or portfolio.as_of or date.today()
 
@@ -678,7 +809,7 @@ def evaluate(
 
     halted, dd_rules = _drawdown_halted(portfolio, params)
     buys = _buy_signals(
-        portfolio, scores, ranked_tickers, params, signals, halted
+        portfolio, scores, ranked_tickers, params, signals, halted, as_of, return_series
     )
     if halted and not buys:
         # Record that buys were blocked.
@@ -913,6 +1044,8 @@ def _book_gate(
     sim_cash: float,
     target_notional: float,
     exiting: set[str],
+    as_of: date,
+    return_series: dict[str, dict[date, float]] | None = None,
 ) -> tuple[str | None, str]:
     """Book constraint that stops this name, or (None, '') if it would buy.
 
@@ -920,6 +1053,9 @@ def _book_gate(
     has already passed. Does not apply the one-add cap — the caller does that
     once it knows whether evaluate() already picked someone.
     """
+    blackout = _earnings_blackout(score, params, as_of)
+    if blackout is not None:
+        return "earnings_blackout", blackout.message
     if ticker in held:
         if not params.allow_double_buy:
             return "already_held", "Already held; conviction adds are off"
@@ -949,6 +1085,9 @@ def _book_gate(
     ):
         cap_pct = int(params.sector_concentration * 100)
         return "sector_cap", f"Would exceed the {cap_pct}% sector cap"
+    corr = _correlation_block(ticker, held, params, return_series)
+    if corr is not None:
+        return "max_pair_correlation", corr.message
     if _funding_blocked(
         ticker, portfolio, scores, params, sim_cash, target_notional, exiting, already_trimmed
     ):
@@ -970,6 +1109,7 @@ def explain_buy_queue(
     params: StrategyParams | None = None,
     as_of: date | None = None,
     near_miss_limit: int = NEAR_MISS_LIMIT,
+    return_series: dict[str, dict[date, float]] | None = None,
 ) -> BuyQueue:
     """Ranked Friday-buy queue with skip reasons. Does not change evaluate().
 
@@ -980,7 +1120,7 @@ def explain_buy_queue(
     params = params or StrategyParams()
     as_of = as_of or portfolio.as_of or date.today()
 
-    signals = evaluate(portfolio, scores, ranked_tickers, params, as_of)
+    signals = evaluate(portfolio, scores, ranked_tickers, params, as_of, return_series)
     chosen = next((s for s in signals if s.action in _BUY_ACTIONS), None)
     selected_ticker = chosen.ticker if chosen else None
     selected_action = chosen.action.value if chosen else None
@@ -1060,6 +1200,8 @@ def explain_buy_queue(
             sim_cash,
             target_notional,
             exiting,
+            as_of,
+            return_series,
         )
         if blocked_by is None and selected_ticker:
             blocked_by = "max_adds"

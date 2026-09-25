@@ -65,6 +65,7 @@ from app.services.portfolio import (
     _position_to_state,
     load_scores_as_of,
     ranked_candidates,
+    return_series_for,
 )
 
 # Same execution order as `apply_signals`: free cash before spending it.
@@ -684,9 +685,16 @@ def _run_one(
     scores = load_scores_as_of(db, as_of)
     if not scores:
         warnings.append(f"{as_of}: no composite scores on or before this date")
-    ranked = ranked_candidates(scores)
+    ranked = ranked_candidates(scores, params)
     state = book.to_state(as_of)
-    signals = evaluate(state, scores, ranked, params, as_of=as_of)
+    signals = evaluate(
+        state,
+        scores,
+        ranked,
+        params,
+        as_of=as_of,
+        return_series=return_series_for(db, state, scores, params, as_of),
+    )
 
     if fill.price == "next_close":
         fill_date = prices.next_trading_day_after(as_of)

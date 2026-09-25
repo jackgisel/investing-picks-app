@@ -7,6 +7,8 @@ import {
   SITE_URL,
   SITE_TAGLINE,
   SITE_SUBHEADLINE,
+  SOCIAL_LINKS,
+  X_HANDLE,
 } from "@/lib/constants";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
@@ -43,6 +45,16 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 const TITLE = `${SITE_NAME} — ${SITE_TAGLINE}`;
+
+// Ties the site to its social profiles for search engines (knowledge panel).
+const ORGANIZATION_JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: SITE_NAME,
+  url: SITE_URL,
+  logo: `${SITE_URL}/apple-icon`,
+  sameAs: Object.values(SOCIAL_LINKS),
+};
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -95,6 +107,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
+    site: X_HANDLE,
+    creator: X_HANDLE,
     title: TITLE,
     description: SITE_SUBHEADLINE,
     images: [
@@ -130,6 +144,10 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <GoogleAdsScript />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(ORGANIZATION_JSON_LD) }}
+        />
       </head>
       <body className="font-sans antialiased text-text bg-bg min-h-screen selection:bg-accent-yellow/50">
         <ThemeProvider>

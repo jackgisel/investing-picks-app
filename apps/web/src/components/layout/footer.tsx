@@ -1,5 +1,28 @@
 import Link from "next/link";
 import { OutpickWordmark } from "@/components/ui/outpick-logo";
+import { SOCIAL_LINKS } from "@/lib/constants";
+
+// Brand marks inline — lucide has no X logo, and its YouTube glyph is an outline.
+function YouTubeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden className="h-[18px] w-[18px] fill-current">
+      <path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.6 12 3.6 12 3.6s-7.5 0-9.4.5A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8ZM9.6 15.6V8.4l6.3 3.6-6.3 3.6Z" />
+    </svg>
+  );
+}
+
+function XIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden className="h-4 w-4 fill-current">
+      <path d="M18.9 1.2h3.7l-8 9.2L24 22.8h-7.4l-5.8-7.6-6.6 7.6H.5l8.6-9.8L0 1.2h7.6l5.2 6.9 6.1-6.9Zm-1.3 19.4h2L6.5 3.3H4.3l13.3 17.3Z" />
+    </svg>
+  );
+}
+
+const SOCIALS = [
+  { href: SOCIAL_LINKS.youtube, label: "Outpick on YouTube", Icon: YouTubeIcon },
+  { href: SOCIAL_LINKS.x, label: "Outpick on X", Icon: XIcon },
+];
 
 export function Footer() {
   return (
@@ -11,6 +34,22 @@ export function Footer() {
             <p className="mt-4 font-sans text-[13px] text-text-muted max-w-xs leading-relaxed">
               Intentional investing beyond the index.
             </p>
+            <ul className="mt-5 flex items-center gap-2.5">
+              {SOCIALS.map(({ href, label, Icon }) => (
+                <li key={href}>
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={label}
+                    title={label}
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-text-muted hover:text-text hover:border-border-strong transition-colors"
+                  >
+                    <Icon />
+                  </a>
+                </li>
+              ))}
+            </ul>
           </div>
 
           <div className="grid grid-cols-2 gap-10 sm:gap-16">

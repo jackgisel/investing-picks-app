@@ -1,13 +1,14 @@
 {
   "compare": {
-    "dataset_sha256": "d61437921c87c4130d008c17dbaa5de7ec7bf211e66e4b46e99a90b3a2ed6205",
+    "dataset_sha256": "af10f3929a0b30d091123c3f7e69c3ed4ead8ba3cd1dd065713de1bacdedd784",
     "diagnostics": {
       "end_holdings": [
         "FIX",
         "GOOG",
-        "LLY"
+        "LLY",
+        "SNDK"
       ],
-      "end_position_count": 3,
+      "end_position_count": 4,
       "forced_exits": [],
       "fridays": [
         {
@@ -313,33 +314,170 @@
             }
           ],
           "universe_scope": "top400_live"
+        },
+        {
+          "as_of": "2026-09-18",
+          "bought": "SNDK",
+          "forced_exits": [],
+          "gate_fail_counts": {
+            "min_growth_grade": 426,
+            "min_profitability_grade": 8,
+            "min_quant_rating": 732,
+            "min_revisions_grade": 568,
+            "min_valuation_grade": 56
+          },
+          "gate_pass": [
+            "SNDK",
+            "MU",
+            "INSW",
+            "MRVL",
+            "BE",
+            "DELL",
+            "TPR",
+            "GOOG",
+            "MNST",
+            "NVDA",
+            "SN",
+            "SCCO",
+            "AU",
+            "FIX",
+            "CIEN",
+            "ROKU",
+            "NUE",
+            "AIR",
+            "DINO",
+            "TER",
+            "OSCR",
+            "MPC",
+            "FIVE",
+            "LLY",
+            "PARR",
+            "VRT",
+            "CF",
+            "VLO",
+            "ALAB",
+            "ROST",
+            "MOG-A",
+            "KEYS",
+            "WWD",
+            "AMZN",
+            "PM",
+            "STLD",
+            "PBF",
+            "HWM",
+            "PSX",
+            "DG",
+            "TWLO",
+            "CTRE",
+            "ADI"
+          ],
+          "holdings_after": [
+            "FIX",
+            "GOOG",
+            "LLY",
+            "SNDK"
+          ],
+          "max_qr": 4.673,
+          "n_gate_pass": 43,
+          "n_qr_ge_4_0": 46,
+          "n_scored": 778,
+          "n_self_paired": 0,
+          "revision_lookback_days": {
+            "27": 386,
+            "34": 6,
+            "41": 5,
+            "48": 2,
+            "5": 1,
+            "53": 7,
+            "55": 1,
+            "6": 226,
+            "7": 564
+          },
+          "revisions_grade_counts": {
+            "A": 68,
+            "A+": 25,
+            "A-": 70,
+            "B": 28,
+            "B+": 47,
+            "B-": 195,
+            "C": 50,
+            "C+": 214,
+            "C-": 23,
+            "D": 17,
+            "D+": 22,
+            "D-": 14,
+            "F": 5
+          },
+          "revisions_grade_mode": "C+",
+          "revisions_grade_mode_share": 0.2751,
+          "rule_counts": {
+            "max_adds_per_evaluation": 1,
+            "min_growth_grade": 1,
+            "min_profitability_grade": 1,
+            "min_quant_rating": 1,
+            "min_revisions_grade": 1,
+            "min_valuation_grade": 1
+          },
+          "signals": [
+            {
+              "action": "buy",
+              "reason": "Top pick: Quant 4.7, Rev=A, Gro=A+, Val=B-",
+              "rules": [
+                "max_adds_per_evaluation",
+                "min_quant_rating",
+                "min_revisions_grade",
+                "min_growth_grade",
+                "min_profitability_grade",
+                "min_valuation_grade"
+              ],
+              "ticker": "SNDK"
+            }
+          ],
+          "top_pick": "SNDK",
+          "top_ranked": "SNDK",
+          "top_ranked_qr": 4.673,
+          "trades": [
+            {
+              "action": "buy",
+              "eval_date": "2026-09-18",
+              "fill_date": "2026-09-18",
+              "notional": 1000.0,
+              "price": 1791.82,
+              "reason": "Top pick: Quant 4.7, Rev=A, Gro=A+, Val=B-",
+              "shares": 0.558092,
+              "side": "buy",
+              "ticker": "SNDK"
+            }
+          ],
+          "universe_scope": "full"
         }
       ],
-      "mixed_scopes": false,
-      "n_evaluations": 3,
+      "mixed_scopes": true,
+      "n_evaluations": 4,
       "rule_counts": {
-        "max_adds_per_evaluation": 3,
-        "min_growth_grade": 3,
-        "min_profitability_grade": 3,
-        "min_quant_rating": 3,
-        "min_revisions_grade": 3,
-        "min_valuation_grade": 3
+        "max_adds_per_evaluation": 4,
+        "min_growth_grade": 4,
+        "min_profitability_grade": 4,
+        "min_quant_rating": 4,
+        "min_revisions_grade": 4,
+        "min_valuation_grade": 4
       },
       "trades_by_action": {
-        "buy": 3
+        "buy": 4
       },
       "universe_scopes": [
+        "full",
         "top400_live"
       ]
     },
-    "end": "2026-09-04",
+    "end": "2026-09-18",
     "fill": {
       "price": "same_close",
       "slippage_bps": 0.0
     },
     "metrics": {
       "min_evaluations": 24,
-      "n_evaluations": 3,
+      "n_evaluations": 4,
       "status": "insufficient_sample"
     },
     "params_version": "28bf660fdbab",
@@ -348,11 +486,12 @@
         "end_holdings": [
           "FIX",
           "GOOG",
-          "LLY"
+          "LLY",
+          "SNDK"
         ],
-        "n_evaluations": 3,
+        "n_evaluations": 4,
         "trades_by_action": {
-          "buy": 3
+          "buy": 4
         }
       },
       "fill": {
@@ -392,6 +531,17 @@
           "shares": 0.888862,
           "side": "buy",
           "ticker": "LLY"
+        },
+        {
+          "action": "buy",
+          "eval_date": "2026-09-18",
+          "fill_date": "2026-09-21",
+          "notional": 1000.0,
+          "price": 1768.40664,
+          "reason": "Top pick: Quant 4.7, Rev=A, Gro=A+, Val=B-",
+          "shares": 0.565481,
+          "side": "buy",
+          "ticker": "SNDK"
         }
       ]
     },
@@ -430,12 +580,23 @@
         "shares": 0.870049,
         "side": "buy",
         "ticker": "LLY"
+      },
+      {
+        "action": "buy",
+        "eval_date": "2026-09-18",
+        "fill_date": "2026-09-18",
+        "notional": 1000.0,
+        "price": 1791.82,
+        "reason": "Top pick: Quant 4.7, Rev=A, Gro=A+, Val=B-",
+        "shares": 0.558092,
+        "side": "buy",
+        "ticker": "SNDK"
       }
     ]
   },
   "config": {
     "dataset": "dataset-v1.sqlite",
-    "end": "2026-09-04",
+    "end": "2026-09-18",
     "initial_cash": 50000.0,
     "max_adds_per_evaluation": 1,
     "params_version_label": "run118",
@@ -444,14 +605,15 @@
     "start": "2026-08-07",
     "universe_scope": "all"
   },
-  "dataset_sha256": "d61437921c87c4130d008c17dbaa5de7ec7bf211e66e4b46e99a90b3a2ed6205",
+  "dataset_sha256": "af10f3929a0b30d091123c3f7e69c3ed4ead8ba3cd1dd065713de1bacdedd784",
   "diagnostics": {
     "end_holdings": [
       "FIX",
       "GOOG",
-      "LLY"
+      "LLY",
+      "SNDK"
     ],
-    "end_position_count": 3,
+    "end_position_count": 4,
     "forced_exits": [],
     "fridays": [
       {
@@ -757,26 +919,163 @@
           }
         ],
         "universe_scope": "top400_live"
+      },
+      {
+        "as_of": "2026-09-18",
+        "bought": "SNDK",
+        "forced_exits": [],
+        "gate_fail_counts": {
+          "min_growth_grade": 426,
+          "min_profitability_grade": 8,
+          "min_quant_rating": 732,
+          "min_revisions_grade": 568,
+          "min_valuation_grade": 56
+        },
+        "gate_pass": [
+          "SNDK",
+          "MU",
+          "INSW",
+          "MRVL",
+          "BE",
+          "DELL",
+          "TPR",
+          "GOOG",
+          "MNST",
+          "NVDA",
+          "SN",
+          "SCCO",
+          "AU",
+          "FIX",
+          "CIEN",
+          "ROKU",
+          "NUE",
+          "AIR",
+          "DINO",
+          "TER",
+          "OSCR",
+          "MPC",
+          "FIVE",
+          "LLY",
+          "PARR",
+          "VRT",
+          "CF",
+          "VLO",
+          "ALAB",
+          "ROST",
+          "MOG-A",
+          "KEYS",
+          "WWD",
+          "AMZN",
+          "PM",
+          "STLD",
+          "PBF",
+          "HWM",
+          "PSX",
+          "DG",
+          "TWLO",
+          "CTRE",
+          "ADI"
+        ],
+        "holdings_after": [
+          "FIX",
+          "GOOG",
+          "LLY",
+          "SNDK"
+        ],
+        "max_qr": 4.673,
+        "n_gate_pass": 43,
+        "n_qr_ge_4_0": 46,
+        "n_scored": 778,
+        "n_self_paired": 0,
+        "revision_lookback_days": {
+          "27": 386,
+          "34": 6,
+          "41": 5,
+          "48": 2,
+          "5": 1,
+          "53": 7,
+          "55": 1,
+          "6": 226,
+          "7": 564
+        },
+        "revisions_grade_counts": {
+          "A": 68,
+          "A+": 25,
+          "A-": 70,
+          "B": 28,
+          "B+": 47,
+          "B-": 195,
+          "C": 50,
+          "C+": 214,
+          "C-": 23,
+          "D": 17,
+          "D+": 22,
+          "D-": 14,
+          "F": 5
+        },
+        "revisions_grade_mode": "C+",
+        "revisions_grade_mode_share": 0.2751,
+        "rule_counts": {
+          "max_adds_per_evaluation": 1,
+          "min_growth_grade": 1,
+          "min_profitability_grade": 1,
+          "min_quant_rating": 1,
+          "min_revisions_grade": 1,
+          "min_valuation_grade": 1
+        },
+        "signals": [
+          {
+            "action": "buy",
+            "reason": "Top pick: Quant 4.7, Rev=A, Gro=A+, Val=B-",
+            "rules": [
+              "max_adds_per_evaluation",
+              "min_quant_rating",
+              "min_revisions_grade",
+              "min_growth_grade",
+              "min_profitability_grade",
+              "min_valuation_grade"
+            ],
+            "ticker": "SNDK"
+          }
+        ],
+        "top_pick": "SNDK",
+        "top_ranked": "SNDK",
+        "top_ranked_qr": 4.673,
+        "trades": [
+          {
+            "action": "buy",
+            "eval_date": "2026-09-18",
+            "fill_date": "2026-09-18",
+            "notional": 1000.0,
+            "price": 1791.82,
+            "reason": "Top pick: Quant 4.7, Rev=A, Gro=A+, Val=B-",
+            "shares": 0.558092,
+            "side": "buy",
+            "ticker": "SNDK"
+          }
+        ],
+        "universe_scope": "full"
       }
     ],
-    "mixed_scopes": false,
-    "n_evaluations": 3,
+    "mixed_scopes": true,
+    "n_evaluations": 4,
     "rule_counts": {
-      "max_adds_per_evaluation": 3,
-      "min_growth_grade": 3,
-      "min_profitability_grade": 3,
-      "min_quant_rating": 3,
-      "min_revisions_grade": 3,
-      "min_valuation_grade": 3
+      "max_adds_per_evaluation": 4,
+      "min_growth_grade": 4,
+      "min_profitability_grade": 4,
+      "min_quant_rating": 4,
+      "min_revisions_grade": 4,
+      "min_valuation_grade": 4
     },
     "trades_by_action": {
-      "buy": 3
+      "buy": 4
     },
     "universe_scopes": [
+      "full",
       "top400_live"
     ]
   },
-  "end": "2026-09-04",
+  "end": "2026-09-18",
   "equity_curve": [
     {
       "cash": 49000.0,
@@ -924,6 +1223,69 @@
       "equity": 49931.46,
       "invested": 2931.46,
       "position_count": 3
+    },
+    {
+      "cash": 47000.0,
+      "date": "2026-09-08",
+      "equity": 49932.02,
+      "invested": 2932.02,
+      "position_count": 3
+    },
+    {
+      "cash": 47000.0,
+      "date": "2026-09-09",
+      "equity": 49892.13,
+      "invested": 2892.13,
+      "position_count": 3
+    },
+    {
+      "cash": 47000.0,
+      "date": "2026-09-10",
+      "equity": 49882.61,
+      "invested": 2882.61,
+      "position_count": 3
+    },
+    {
+      "cash": 47000.0,
+      "date": "2026-09-11",
+      "equity": 49949.69,
+      "invested": 2949.69,
+      "position_count": 3
+    },
+    {
+      "cash": 47000.0,
+      "date": "2026-09-14",
+      "equity": 49936.0,
+      "invested": 2936.0,
+      "position_count": 3
+    },
+    {
+      "cash": 47000.0,
+      "date": "2026-09-15",
+      "equity": 49918.04,
+      "invested": 2918.04,
+      "position_count": 3
+    },
+    {
+      "cash": 47000.0,
+      "date": "2026-09-16",
+      "equity": 49919.7,
+      "invested": 2919.7,
+      "position_count": 3
+    },
+    {
+      "cash": 47000.0,
+      "date": "2026-09-17",
+      "equity": 49937.16,
+      "invested": 2937.16,
+      "position_count": 3
+    },
+    {
+      "cash": 46000.0,
+      "date": "2026-09-18",
+      "equity": 49985.41,
+      "invested": 3985.41,
+      "position_count": 4
     }
   ],
   "fill": {
@@ -931,52 +1293,58 @@
     "slippage_bps": 0.0
   },
   "final": {
-    "cash": 47000.0,
-    "equity": 49931.46,
-    "invested": 2931.46,
-    "position_count": 3,
+    "cash": 46000.0,
+    "equity": 49985.41,
+    "invested": 3985.41,
+    "position_count": 4,
     "positions": {
       "FIX": {
         "avg_cost": 1694.55,
-        "current_price": 1610.34,
+        "current_price": 1651.37,
         "is_house_money": false,
         "shares": 0.590127
       },
       "GOOG": {
         "avg_cost": 341.75,
-        "current_price": 335.31,
+        "current_price": 344.41,
         "is_house_money": false,
         "shares": 2.926116
       },
       "LLY": {
         "avg_cost": 1149.36,
-        "current_price": 1149.36,
+        "current_price": 1152.93,
         "is_house_money": false,
         "shares": 0.870049
+      },
+      "SNDK": {
+        "avg_cost": 1791.82,
+        "current_price": 1791.82,
+        "is_house_money": false,
+        "shares": 0.558092
       }
     }
   },
   "gates": {
     "decision_diff": {
       "min_evaluations": 0,
-      "n_evaluations": 3,
+      "n_evaluations": 4,
       "status": "ok"
     },
     "holdout": {
       "min_evaluations": 48,
-      "n_evaluations": 3,
+      "n_evaluations": 4,
       "status": "insufficient_sample"
     },
     "returns": {
       "min_evaluations": 24,
-      "n_evaluations": 3,
+      "n_evaluations": 4,
       "status": "insufficient_sample"
     }
   },
   "holdout": {
     "in_sample": null,
     "min_evaluations": 48,
-    "n_evaluations": 3,
+    "n_evaluations": 4,
     "out_of_sample": null,
     "status": "insufficient_sample"
   },
@@ -986,7 +1354,7 @@
   },
   "metrics": {
     "min_evaluations": 24,
-    "n_evaluations": 3,
+    "n_evaluations": 4,
     "status": "insufficient_sample"
   },
   "min_evaluations_for_holdout": 48,
@@ -998,9 +1366,10 @@
       "end_holdings": [
         "FIX",
         "GOOG",
-        "LLY"
+        "LLY",
+        "SNDK"
       ],
-      "end_position_count": 3,
+      "end_position_count": 4,
       "forced_exits": [],
       "fridays": [
         {
@@ -1306,22 +1675,159 @@
             }
           ],
           "universe_scope": "top400_live"
+        },
+        {
+          "as_of": "2026-09-18",
+          "bought": "SNDK",
+          "forced_exits": [],
+          "gate_fail_counts": {
+            "min_growth_grade": 426,
+            "min_profitability_grade": 8,
+            "min_quant_rating": 732,
+            "min_revisions_grade": 568,
+            "min_valuation_grade": 56
+          },
+          "gate_pass": [
+            "SNDK",
+            "MU",
+            "INSW",
+            "MRVL",
+            "BE",
+            "DELL",
+            "TPR",
+            "GOOG",
+            "MNST",
+            "NVDA",
+            "SN",
+            "SCCO",
+            "AU",
+            "FIX",
+            "CIEN",
+            "ROKU",
+            "NUE",
+            "AIR",
+            "DINO",
+            "TER",
+            "OSCR",
+            "MPC",
+            "FIVE",
+            "LLY",
+            "PARR",
+            "VRT",
+            "CF",
+            "VLO",
+            "ALAB",
+            "ROST",
+            "MOG-A",
+            "KEYS",
+            "WWD",
+            "AMZN",
+            "PM",
+            "STLD",
+            "PBF",
+            "HWM",
+            "PSX",
+            "DG",
+            "TWLO",
+            "CTRE",
+            "ADI"
+          ],
+          "holdings_after": [
+            "FIX",
+            "GOOG",
+            "LLY",
+            "SNDK"
+          ],
+          "max_qr": 4.673,
+          "n_gate_pass": 43,
+          "n_qr_ge_4_0": 46,
+          "n_scored": 778,
+          "n_self_paired": 0,
+          "revision_lookback_days": {
+            "27": 386,
+            "34": 6,
+            "41": 5,
+            "48": 2,
+            "5": 1,
+            "53": 7,
+            "55": 1,
+            "6": 226,
+            "7": 564
+          },
+          "revisions_grade_counts": {
+            "A": 68,
+            "A+": 25,
+            "A-": 70,
+            "B": 28,
+            "B+": 47,
+            "B-": 195,
+            "C": 50,
+            "C+": 214,
+            "C-": 23,
+            "D": 17,
+            "D+": 22,
+            "D-": 14,
+            "F": 5
+          },
+          "revisions_grade_mode": "C+",
+          "revisions_grade_mode_share": 0.2751,
+          "rule_counts": {
+            "max_adds_per_evaluation": 1,
+            "min_growth_grade": 1,
+            "min_profitability_grade": 1,
+            "min_quant_rating": 1,
+            "min_revisions_grade": 1,
+            "min_valuation_grade": 1
+          },
+          "signals": [
+            {
+              "action": "buy",
+              "reason": "Top pick: Quant 4.7, Rev=A, Gro=A+, Val=B-",
+              "rules": [
+                "max_adds_per_evaluation",
+                "min_quant_rating",
+                "min_revisions_grade",
+                "min_growth_grade",
+                "min_profitability_grade",
+                "min_valuation_grade"
+              ],
+              "ticker": "SNDK"
+            }
+          ],
+          "top_pick": "SNDK",
+          "top_ranked": "SNDK",
+          "top_ranked_qr": 4.673,
+          "trades": [
+            {
+              "action": "buy",
+              "eval_date": "2026-09-18",
+              "fill_date": "2026-09-21",
+              "notional": 1000.0,
+              "price": 1768.40664,
+              "reason": "Top pick: Quant 4.7, Rev=A, Gro=A+, Val=B-",
+              "shares": 0.565481,
+              "side": "buy",
+              "ticker": "SNDK"
+            }
+          ],
+          "universe_scope": "full"
         }
       ],
-      "mixed_scopes": false,
-      "n_evaluations": 3,
+      "mixed_scopes": true,
+      "n_evaluations": 4,
       "rule_counts": {
-        "max_adds_per_evaluation": 3,
-        "min_growth_grade": 3,
-        "min_profitability_grade": 3,
-        "min_quant_rating": 3,
-        "min_revisions_grade": 3,
-        "min_valuation_grade": 3
+        "max_adds_per_evaluation": 4,
+        "min_growth_grade": 4,
+        "min_profitability_grade": 4,
+        "min_quant_rating": 4,
+        "min_revisions_grade": 4,
+        "min_valuation_grade": 4
       },
       "trades_by_action": {
-        "buy": 3
+        "buy": 4
       },
       "universe_scopes": [
+        "full",
         "top400_live"
       ]
     },
@@ -1331,7 +1837,7 @@
     },
     "metrics": {
       "min_evaluations": 24,
-      "n_evaluations": 3,
+      "n_evaluations": 4,
       "status": "insufficient_sample"
     },
     "top_pick_fridays_differ": false,
@@ -1369,6 +1875,17 @@
         "shares": 0.888862,
         "side": "buy",
         "ticker": "LLY"
+      },
+      {
+        "action": "buy",
+        "eval_date": "2026-09-18",
+        "fill_date": "2026-09-21",
+        "notional": 1000.0,
+        "price": 1768.40664,
+        "reason": "Top pick: Quant 4.7, Rev=A, Gro=A+, Val=B-",
+        "shares": 0.565481,
+        "side": "buy",
+        "ticker": "SNDK"
       }
     ],
     "warnings": []
@@ -1408,6 +1925,17 @@
       "shares": 0.870049,
       "side": "buy",
       "ticker": "LLY"
+    },
+    {
+      "action": "buy",
+      "eval_date": "2026-09-18",
+      "fill_date": "2026-09-18",
+      "notional": 1000.0,
+      "price": 1791.82,
+      "reason": "Top pick: Quant 4.7, Rev=A, Gro=A+, Val=B-",
+      "shares": 0.558092,
+      "side": "buy",
+      "ticker": "SNDK"
     }
   ],
   "warnings": []

@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { FileText } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { usePicks } from "@/lib/hooks/use-picks";
 import {
   DataStateRow,
@@ -17,19 +16,19 @@ import {
 } from "@/components/dashboard/data-table";
 import { HScroll } from "@/components/ui/h-scroll";
 import { comparePnl, formatPctOrDash, pnlClass } from "@/lib/portfolio";
-import { insightForTicker } from "@/lib/insights";
-import { useInsights } from "@/lib/hooks/use-insights";
 import { CompanyLogo } from "@/components/ui/company-logo";
 
 type SortKey = "ticker" | "entry_date" | "exit_date" | "pnl_pct";
 
+// Result next to the name, as on the open list; the reason gets the width.
 const COLUMNS: readonly Column<SortKey>[] = [
-  { label: "TICKER", sortKey: "ticker" },
-  { label: "ENTRY DATE", sortKey: "entry_date" },
-  { label: "EXIT DATE", sortKey: "exit_date" },
-  { label: "HELD" },
+  { label: "POSITION", sortKey: "ticker" },
   { label: "RETURN", sortKey: "pnl_pct" },
-  { label: "EXIT REASON" },
+  { label: "HELD" },
+  { label: "ENTRY", sortKey: "entry_date" },
+  { label: "EXIT", sortKey: "exit_date" },
+  { label: "WHY IT CLOSED" },
+  { label: "" },
 ];
 
 function heldFor(entry: string | null, exit: string | null): string {
@@ -40,9 +39,12 @@ function heldFor(entry: string | null, exit: string | null): string {
   return `${Math.max(0, Math.floor((b - a) / 86400000))}d`;
 }
 
-export function PositionsClosed() {
+export function PositionsClosed({
+  onSelect,
+}: {
+  onSelect: (ticker: string) => void;
+}) {
   const query = usePicks("closed");
-  const insights = useInsights().data?.insights ?? [];
   const { data, isPending, isError, error } = query;
   const picks = data?.picks;
 
@@ -82,7 +84,7 @@ export function PositionsClosed() {
   });
 
   return (
-    <div className="pt-4">
+    <div>
       <div className="data-panel">
         <PanelHeader label="Closed picks" tone="mint">
           <span className="font-mono text-[10px] text-text-dim">
@@ -110,55 +112,55 @@ export function PositionsClosed() {
                   emptyMessage="Every pick opened so far is still open. Exits show up here with the reason the strategy gave for them."
                 />
               ) : (
-                sorted?.map((p, i) => {
-                  const slug =
-                    p.blog_slug ?? insightForTicker(insights, p.ticker)?.slug;
-                  return (
-                    <tr
-                      key={`${p.ticker}-${p.entry_date}-${i}`}
-                      className="group border-b border-border transition-colors duration-100 last:border-b-0 hover:bg-bg-tertiary/50"
+                sorted?.map((p, i) => (
+                  <tr
+                    key={`${p.ticker}-${p.entry_date}-${i}`}
+                    onClick={() => onSelect(p.ticker)}
+                    className="group cursor-pointer border-b border-border transition-colors duration-100 last:border-b-0 hover:bg-bg-tertiary/50"
+                  >
+                    <td className="sticky-col px-3 py-3 group-hover:bg-bg-tertiary sm:px-5">
+                      <span className="flex items-center gap-2.5">
+                        <CompanyLogo ticker={p.ticker} size="sm" />
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelect(p.ticker);
+                          }}
+                          className="font-mono text-[14px] font-semibold text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+                        >
+                          {p.ticker}
+                        </button>
+                      </span>
+                    </td>
+                    <td
+                      className={`whitespace-nowrap px-3 py-3 font-mono text-[14px] font-semibold tabular-nums sm:px-5 ${pnlClass(
+                        p.pnl_pct,
+                      )}`}
                     >
-                      <td className="sticky-col px-3 py-3.5 group-hover:bg-bg-tertiary sm:px-5">
-                        <span className="flex items-center gap-2.5">
-                          <CompanyLogo ticker={p.ticker} size="sm" />
-                          {slug ? (
-                            <Link
-                              href={`/dashboard/insights/${slug}`}
-                              title="Read the research note"
-                              className="inline-flex items-center gap-1.5 font-mono text-[14px] font-semibold text-text underline underline-offset-4 hover:opacity-70"
-                            >
-                              {p.ticker}
-                              <FileText size={11} className="text-accent-lilac" />
-                            </Link>
-                          ) : (
-                            <span className="font-mono text-[14px] font-semibold">
-                              {p.ticker}
-                            </span>
-                          )}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3.5 font-mono text-[12px] text-text-muted sm:px-5">
-                        {p.entry_date}
-                      </td>
-                      <td className="px-3 py-3.5 font-mono text-[12px] text-text-muted sm:px-5">
-                        {p.exit_date ?? "—"}
-                      </td>
-                      <td className="px-3 py-3.5 font-mono text-[12px] tabular-nums text-text-muted sm:px-5">
-                        {heldFor(p.entry_date, p.exit_date)}
-                      </td>
-                      <td
-                        className={`px-3 py-3.5 font-mono text-[13px] font-semibold tabular-nums sm:px-5 ${pnlClass(
-                          p.pnl_pct,
-                        )}`}
-                      >
-                        {formatPctOrDash(p.pnl_pct)}
-                      </td>
-                      <td className="max-w-[260px] truncate px-3 py-3.5 font-sans text-[11px] text-text-dim sm:px-5">
-                        {p.exit_reason || "—"}
-                      </td>
-                    </tr>
-                  );
-                })
+                      {formatPctOrDash(p.pnl_pct, 1)}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-3 font-mono text-[12px] tabular-nums text-text-muted sm:px-5">
+                      {heldFor(p.entry_date, p.exit_date)}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-3 font-mono text-[12px] text-text-muted sm:px-5">
+                      {p.entry_date}
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-3 font-mono text-[12px] text-text-muted sm:px-5">
+                      {p.exit_date ?? "—"}
+                    </td>
+                    <td className="min-w-[240px] px-3 py-3 font-sans text-[12px] leading-snug text-text-muted sm:px-5">
+                      {p.exit_reason || "—"}
+                    </td>
+                    <td className="px-2 py-3 text-text-dim">
+                      <ChevronRight
+                        size={14}
+                        className="transition-transform group-hover:translate-x-0.5"
+                        aria-hidden
+                      />
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>

@@ -30,6 +30,8 @@ export interface Holding {
   /** Original stake already recovered via a Winners Circle partial sell. */
   is_house_money?: boolean;
   sector?: string | null;
+  /** Company name from the `stocks` table; null until its profile is ingested. */
+  name?: string | null;
   fundamentals?: {
     as_of: string;
     growth_basis_period: string | null;

@@ -1,9 +1,12 @@
 /**
  * Read-only X campaign drafts for the admin Communication page.
  *
- * Copy is the tweet blocks from the campaign review. Planning notes, hooks,
- * and the strategy write-up stay out of this module. Nothing here is scheduled
- * or sent, and nothing in the UI posts it.
+ * Copy is the tweet blocks. Planning notes stay out of this module. Nothing
+ * here is scheduled or sent, and nothing in the UI posts it.
+ *
+ * Lists are names in a supply chain, not book entries. The two operating
+ * figures (Modine data-center sales, the Powell order) are company-reported.
+ * They are not an Outpick return.
  */
 
 export type CampaignDraft = {
@@ -17,152 +20,180 @@ export type CampaignDraft = {
 export const CAMPAIGN_SINGLES: readonly CampaignDraft[] = [
   {
     id: "single-01",
-    label: "01 · AI invoices",
+    label: "01 · Cooling invoice",
     posts: [
-      `The AI trade shows up in our screen as invoices.
+      `$MOD's data-center SALES rose 90% in the latest quarter.
 
-Chips. Power gear. Copper cable. Whoever rents the building.
+On that invoice:
+1. $MOD — cooling for the hall
+2. $POWL — switchgear outside it
+3. $FIX — the crew that installs it
+4. $ENS — batteries when the feed drops
 
-Each one gets scored against its own sector. A hot theme does not get a free pass.
-
-Monday note is free. Link in the bio.`,
+Supply chain, not a book entry. Monday note, link in bio.`,
     ],
   },
   {
     id: "single-02",
-    label: "02 · Semiconductor box",
+    label: "02 · Ion implant",
     posts: [
-      `Most semiconductor posts name the company on the box.
+      `$ACLS sells the ion implanters. The chip logo is downstream.
 
-We look for the business that sells into that box and still clears its own sector on growth and revisions.
+What a fab buys before the logo:
+1. $ACLS — ion implant
+2. $UCTT — subsystems on the tool
+3. $ICHR — chemical delivery
+4. $FORM — probe cards
+5. $ENTG — filters and process chemicals
 
-If none do, that empty result is the post.
-
-Not a pick. Monday note, link in the bio.`,
+Not picks. Monday note, link in bio.`,
     ],
   },
   {
     id: "single-03",
-    label: "03 · Data-center roof",
+    label: "03 · Outside the hall",
     posts: [
-      `A data center is a power contract with a roof.
+      `$POWL took a data-center order above $400 million. The gear sits OUTSIDE the hall.
 
-The names everyone already owns are the roof. We go looking for the power equipment, the drives, the cooling, and grade them like any other business.
+Same side of the fence:
+1. $POWL — switchgear and power rooms
+2. $STRL — site work
+3. $FIX — mechanical install
+4. $MOD — cooling, once the power is in
 
-YouTube walks through a sector pass. Link in the bio.`,
+YouTube walks a sector pass. Link in bio.`,
     ],
   },
   {
     id: "single-04",
-    label: "04 · Energy peers",
+    label: "04 · Site work",
     posts: [
-      `The energy question is which utility, equipment maker, or fuel supplier still looks like a good business scored against other energy names.
+      `$STRL does the site work. The photograph is the building that comes after.
 
-A hot sector can be full of ordinary companies.
+Before the ribbon:
+1. $STRL — site and electrical infrastructure
+2. $FIX — installation
+3. $POWL — power rooms
+4. $MOD — cooling
 
-Monday note, link in the bio.`,
+Names in the chain. Monday note, link in bio.`,
     ],
   },
   {
     id: "single-05",
-    label: "05 · Municipals",
+    label: "05 · Nuclear hardware",
     posts: [
-      `Municipal bonds are not in this screen. We score US-listed operating companies.
+      `$BWXT machines the nuclear components. The utility takes the power.
 
-What we can research is who sells water, waste, or infrastructure into a city budget, and whether that business is any good.
+Before a watt hits the hall:
+1. $BWXT — reactor hardware
+2. $LEU — enrichment
+3. $BE — fuel cells on the site
+4. $ENS — backup batteries
 
-Monday note, link in the bio.`,
+A hot sector can still hand back an empty pass. Monday note, link in bio.`,
     ],
   },
   {
     id: "single-06",
-    label: "06 · Bronze, then copper",
+    label: "06 · The hydrant",
     posts: [
-      `Bronze is mostly copper, plus tin. There is no bronze sector to screen.
+      `$MWA sells the hydrant. A muni bond is a loan.
 
-Copper is miners, fabricators, and industrial users, scored against other materials names.
+What a city budget actually buys:
+1. $MWA — valves and hydrants
+2. $BMI — water meters
+3. $CNM — the distributor
+4. $WLDN — engineering the city contracts out
 
-A bronze stock has no universe.
-
-Monday note, link in the bio.`,
+We do not grade the bond. Monday note, link in bio.`,
     ],
   },
   {
     id: "single-07",
-    label: "07 · The blank result",
+    label: "07 · Copper tube",
     posts: [
-      `A sector can own the timeline and still hand us zero names.
+      `$MLI makes the copper tube. $FCX is the mine on the poster.
 
-The businesses inside the craze did not clear the same bar we use everywhere else.
+One step off the headline:
+1. $MLI — tube and fittings
+2. $BDC — copper cable
+3. $HBM — copper in the ground
 
-We post the blank before we invent a ticker.
-
-Monday note, link in the bio.`,
+Bronze is copper plus tin. It has no sector. Monday note, link in bio.`,
     ],
   },
   {
     id: "single-08",
-    label: "08 · Smaller supplier",
+    label: "08 · Burn-in",
     posts: [
-      `The mega-cap is the advertisement.
+      `$AEHR stress-tests the wafer. The designer does not ship that machine.
 
-The research is the smaller US-listed supplier with margins, revisions, and a balance sheet that can survive a bad year.
+After the print:
+1. $AEHR — burn-in
+2. $FORM — probe cards
+3. $KLIC — assembly equipment
+4. $UCTT — subsystems on the process tool
 
-Same five factors. No exemption for a popular theme.
-
-Monday note, link in the bio.`,
+An empty pass is a result. Monday note, link in bio.`,
     ],
   },
   {
     id: "single-09",
-    label: "09 · Flat fee",
+    label: "09 · Gas delivery",
     posts: [
-      `Outpick is a research membership. Flat annual fee, not a cut of what you have invested.
+      `$UCTT sells the gas delivery. A process tool does not run without it.
 
-The book is virtual. We do not place trades for you.
+On the back of the tool:
+1. $UCTT — gas delivery
+2. $ICHR — chemical delivery
+3. $ACLS — ion implant
+4. $KLIC — assembly equipment
 
-One written name on a fixed cadence, reasoning included when it goes against us.
-
-Details in the bio.`,
+Not book entries. Monday note, link in bio.`,
     ],
   },
   {
     id: "single-10",
-    label: "10 · No old backtest",
+    label: "10 · Onsite power",
     posts: [
-      `We are not going to quote an old backtest at you.
+      `$BE sells fuel cells that make power on the site.
 
-No price target. No buy-this-morning. No promise about next year.
+1. $BE — onsite generation
+2. $POWL — switchgear for that power
+3. $ENS — batteries behind it
+4. $BWXT — components, when the plant is nuclear
 
-If a post needs a number, it has to come from the screen that day.
-
-Monday note, link in the bio.`,
+Virtual book. We place no trade. Monday note, link in bio.`,
     ],
   },
   {
     id: "single-11",
-    label: "11 · Five factors",
+    label: "11 · The warehouse",
     posts: [
-      `Five factors: valuation, growth, profitability, momentum, estimate revisions.
+      `$CNM stocks the water pipe. The city buys from a warehouse.
 
-Each one is graded inside the company's own sector. A cheap miner and a cheap software firm are different claims.
+1. $CNM — distribution
+2. $MWA — hydrants and valves
+3. $BMI — meters
+4. $WLDN — the outside engineer
 
-The weights stay in-house.
-
-Monday note, link in the bio.`,
+Operating companies, not a bond fund. Monday note, link in bio.`,
     ],
   },
   {
     id: "single-12",
-    label: "12 · Note or YouTube",
+    label: "12 · Enrichment",
     posts: [
-      `The Monday note is the short version. Which sectors are clearing, and whether that is businesses improving or prices falling.
+      `$LEU enriches the uranium. The power poster skips this step.
 
-The long version, a full sector pass, is on YouTube.
+Fuel, then the plant:
+1. $LEU — enrichment
+2. $BWXT — the heavy components
+3. $BE — fuel cells where the grid is late
+4. $ENS — batteries on site
 
-Both are free. The written picks are the membership.
-
-Links in the bio.`,
+No price target. Monday note, link in bio.`,
     ],
   },
 ];
@@ -170,163 +201,141 @@ Links in the bio.`,
 export const CAMPAIGN_THREADS: readonly CampaignDraft[] = [
   {
     id: "thread-a",
-    label: "Thread A · Semiconductors under the mega-caps",
+    label: "Thread A · Semiconductors under the logo",
     posts: [
-      `The semiconductor post everyone writes names the company on the box.
+      `$ACLS sells ion implanters to the fab. The logo is downstream.
 
-We start one step upstream, and one step down.`,
-      `Upstream is equipment, materials, and the chemicals a fab actually consumes.
+1. $ACLS — implant
+2. $UCTT — gas delivery
+3. $ICHR — chemical delivery
+4. $FORM — probe cards
+5. $KLIC — assembly equipment`,
+      `$UCTT sells gas delivery for the process tool.
 
-Downstream is whoever packages, tests, or designs around the chip and still has to earn a living when the logo company sneezes.`,
-      `We do not score "semiconductors" as a mood.
+Take the tool apart and this is one of the subsystems with its own P&L.`,
+      `$ICHR sells chemical delivery into that same tool.
 
-Each US-listed name is scored against its own sector: valuation, growth, profitability, momentum, estimate revisions.`,
-      `A mega-cap can be a fine business and still be the wrong subject.
+Someone builds the plumbing. The tool company puts its name on the front.`,
+      `$FORM sells the probe card that touches the wafer at test.
 
-Everyone already has that memo. The useful question is whether a smaller supplier clears the same bar.`,
-      `Smaller is not a compliment by itself.
+No contact, no shipment. This is a separate company from the designer.`,
+      `$KLIC sells the equipment that assembles the chip after the wafer is cut.
 
-We still want margins that survive a bad year, and a balance sheet that does not have to raise money at the worst moment.`,
-      `The name, when the sector pass returns one, has to answer four things.
+Packaging is a factory with margins. It is not a footnote.`,
+      `Naming a supplier is not a book entry.
 
-What it sells. Who pays. Which factor is doing the work. What would make the read wrong.
+An empty sector pass is a result, and it gets posted.
 
-No ticker until that pass exists.`,
-      `If the pass comes back empty, the thread stops.
-
-A crowded sector with no qualifying business is a finding. Inventing a ticker is how a research account becomes a tip account.`,
-      `Not a recommendation. A high score can still fail a later gate, or never enter the book.
-
-Monday note, free, no picks:
-https://outpick.xyz/market-note`,
+Monday note, free. Link in bio.`,
     ],
   },
   {
     id: "thread-b",
-    label: "Thread B · Copper, and what to do with bronze",
+    label: "Thread B · Data centers, follow the invoice",
     posts: [
-      `Bronze is an alloy of copper and tin. It does not have its own stock universe.
+      `$POWL took a data-center order above $400 million. OUTSIDE the hall.
 
-There is no bronze sector on a US screen.`,
-      `Tin is the other half, and the public equity set around tin is thin.
+1. $POWL — switchgear and power rooms
+2. $MOD — cooling
+3. $FIX — installation
+4. $STRL — site work
+5. $ENS — backup batteries`,
+      `$MOD broke data-center cooling out as its own segment.
 
-A screen that needs a real peer group cannot invent one out of a handful of names and a vibe.`,
-      `Copper is the universe we can actually grade.
+The hall is no longer a line inside a general HVAC story.`,
+      `$FIX installs the mechanicals. The landlord owns the roof.
 
-Miners. Smelters and fabricators. Wire, cable, and the industrial users who buy the metal because a product needs it.`,
-      `Those are different businesses. A miner and a cable company do not get the same excuse because both touch copper.
+Rent is one business. Hanging the cooling and the electrical is another.`,
+      `$STRL does the site work before there is a building to photograph.
 
-Each is scored against its own sector, on the same five factors as a software firm.`,
-      `The AI and grid buildout is why copper is on the timeline. It is also why the sector will fill up with ordinary companies wearing a good story.
+Dirt and electrical infrastructure come first.`,
+      `$ENS sells the batteries that cover a dropped feed.
 
-Attention is not a factor.`,
-      `The name worth writing, when materials clears, is a smaller operator.
+Onsite power is a stack of vendors. Batteries are one line of it.`,
+      `A data-center landlord can be a real business and still be the wrong place to start.
 
-Durable margins. Revisions that are actually moving. Not the copper name already in every deck.
+The smaller invoice is the research. It still has to be a good business when the theme cools.`,
+      `The long version of a sector pass is on YouTube. No price target in it.
 
-No ticker in this thread until that pass is in.`,
-      `If nothing clears, we say so.
-
-Copper can be the theme and the screen can still pass. That sentence is more useful than a forced pick.`,
-      `Research, not a trade alert.
-
-The Monday note is where the sector read goes:
-https://outpick.xyz/market-note`,
+Link in bio.`,
     ],
   },
   {
     id: "thread-c",
-    label: "Thread C · Data centers, follow the invoice",
+    label: "Thread C · Power, before the watt",
     posts: [
-      `A data center is a power contract with a roof on it.
+      `$BWXT machines nuclear components. The utility is the customer.
 
-The photograph is the building. The business is whoever gets paid to make the building usable.`,
-      `Follow the invoice, not the ribbon cutting.
+1. $BWXT — reactor hardware
+2. $LEU — enrichment
+3. $BE — onsite fuel cells
+4. $ENS — backup batteries`,
+      `$BWXT builds nuclear hardware for the Navy and for commercial plants.
 
-Power equipment. Cooling. Electrical gear. Storage that is cheap per terabyte. The contractor who has to deliver the hall on a date.`,
-      `The landlord REIT is the name the timeline already owns.
+The data-center power post rarely names the company that machines the parts.`,
+      `$LEU sells enrichment. Most power posts skip the fuel.
 
-It can be a real business. It is a poor place to start if the job is a smaller company the screen has not already turned into a headline.`,
-      `We score US-listed names against their own sector.
+The plant does not run on a slogan.`,
+      `$BE sells fuel cells that make electricity on the site.
 
-A cooling company is not graded against a chip designer. A drive maker is not graded against a utility. Same five factors, different peer group.`,
-      `The failure mode in this theme is treating every vendor as a call option on AI capex.
+That is a product. It can still be an ordinary business in a hot sector.`,
+      `A hot power sector fills up with ordinary companies wearing a good story.
 
-Capex can be real and the vendor can still be a bad business: thin margins, a balance sheet that breaks, estimates going the wrong way.`,
-      `The post, when the pass is fresh, is one smaller name.
+Attention is not a factor. Valuation, growth, profitability, momentum, and estimate revisions are.`,
+      `Outpick is a research membership. Flat annual fee. The book is virtual.
 
-What it sells into the hall. Who signs the check. Which factor cleared. What would falsify it.
+We do not place a trade, and we are not a broker.
 
-Until that pass exists, the thread stops at the setup.`,
-      `An empty slot is allowed.
-
-Data centers can be the whole conversation for a month and still produce no name we would write up. That result gets posted too.`,
-      `Longer walk-through of a sector pass is on YouTube. No ticker, no price target.
-
-https://www.youtube.com/@outpickxyz`,
+Monday note, link in bio.`,
     ],
   },
   {
     id: "thread-d",
-    label: "Thread D · Municipals are bonds. The screen is the vendor.",
+    label: "Thread D · City vendors, not the bond",
     posts: [
-      `Municipal bonds are a credit product. This membership is an equity screen.
+      `$MWA sells hydrants and valves to water systems. A muni bond is a loan.
 
-We do not grade a city's bond the way we grade a business.`,
-      `What we can do is look at operating companies that sell into a municipal budget.
+1. $MWA — valves and hydrants
+2. $BMI — meters
+3. $CNM — distribution
+4. $WLDN — engineering cities contract out`,
+      `$BMI sells the water meter. The city pays for the measurement, month after month.`,
+      `$CNM stocks pipe, valves, and meters for municipalities and contractors.
 
-Water. Waste. The engineer or contractor a city actually pays. Public-finance software, if it is a business with financials and a peer group.`,
-      `A closed-end fund full of muni bonds is a portfolio of loans.
+The purchase order goes to a distributor. It does not go to a bond desk.`,
+      `A closed-end fund full of muni bonds has a ticker and no factory.
 
-Our factors are built for operating companies: growth, profitability, revisions, valuation, momentum. A bond fund does not become a business because it has a ticker.`,
-      `City budgets are slow, political, and real.
+Revenue, margins, revisions: those factors need an operating company. The fund stays off the screen.`,
+      `$WLDN sells engineering and energy work to cities and utilities.
 
-That can suit a company with contracted revenue. It can also hide a business that only works while the budget grows. The screen does not skip that question because infrastructure is in fashion.`,
-      `Same rule as everywhere else.
+A slow budget can fit a contractor. It can also prop up a business that only works while the budget grows.`,
+      `Not a bond recommendation. Not a broker.
 
-Score the company against its own sector. Prefer the smaller name if it actually clears. If the peer group is too thin to rank, we do not force a grade.`,
-      `When a water, waste, or city-infrastructure name clears, the post is specific.
-
-What it sells to the city. Who pays. What would make the read wrong.
-
-No famous utility gets dropped in to fill the gap.`,
-      `Not advice, and not a bond recommendation either.
-
-Monday note:
-https://outpick.xyz/market-note`,
+Monday note, link in bio.`,
     ],
   },
   {
     id: "thread-e",
-    label: "Thread E · How a sector pass becomes a post",
+    label: "Thread E · Copper, one step off the poster",
     posts: [
-      `Every post in this campaign starts as a sector pass, or it does not get written.
+      `$MLI makes the copper tube. $FCX is the mine on the poster.
 
-The timeline does not get to pick the topic. The rotation does. Then the screen gets a veto.`,
-      `The pass is the same one behind the Monday note.
+1. $MLI — tube and fittings
+2. $BDC — copper cable
+3. $HBM — a copper miner`,
+      `$BDC sells copper cable and the connectors on the end of it.
 
-Which sectors are clearing. Whether that looks like businesses improving, or just prices falling. We do not invent breadth we did not measure.`,
-      `Inside the sector we are not hunting the mega-cap.
+The metal is the input. The product is the business.`,
+      `$HBM mines copper. A miner and a tube mill do not share a peer group for touching the same metal.`,
+      `Bronze is copper plus tin.
 
-We are looking for a smaller US-listed business in the supply chain: something that sells a real product to a real customer and can be graded against peers.`,
-      `Five factors, said in public on purpose.
+There is no bronze sector to rank, and tin is too thin a public set to invent one.`,
+      `Copper is on the timeline because the build uses it.
 
-Valuation. Growth. Profitability. Momentum. Estimate revisions. Each one measured inside the sector, so a cheap miner and a cheap software company stay different claims.`,
-      `The weights and the gates stay off this account.
+Ordinary companies will wear that story. The story is not a factor.`,
+      `No name in this thread is a book entry. No price target sits under it.
 
-You can understand the method without being handed the model. The membership is the written work, not a recipe.`,
-      `A name that scores well is still not a pick.
-
-It can fail a later rule, run into a sector limit, or simply never enter the book. If we name one, we say that in the same post.`,
-      `Most days the honest post is the setup, plus a blank where the ticker would go.
-
-Swap in the scored name only after the pass. If the pass is empty, publish the empty.`,
-      `This is how AI, chips, data centers, power, city vendors, and copper all get the same treatment.
-
-The theme gets the attention. The business still has to clear.`,
-      `The long version of a sector pass is on YouTube. No ticker in it, no price target.
-
-https://www.youtube.com/@outpickxyz`,
+Monday note, link in bio.`,
     ],
   },
 ];

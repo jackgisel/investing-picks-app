@@ -47,6 +47,11 @@ describe("heroPrimaryCta", () => {
     expect(heroPrimaryCta("active").checkoutGoal).toBeUndefined();
   });
 
+  it("sends an admin without a subscription to the dashboard", () => {
+    expect(heroPrimaryCta("inactive", true)).toEqual(DASHBOARD);
+    expect(heroPrimaryCta(null, true)).toEqual(DASHBOARD);
+  });
+
   it("uses the same dashboard href as the header control", () => {
     expect(HERO_DASHBOARD_HREF).toBe("/dashboard");
   });

@@ -20,13 +20,15 @@ export type HeroPrimaryCta = {
 
 /**
  * Landing hero primary button. Paid membership (active / trialing / past_due)
- * replaces the membership CTA. Logged-out and unpaid signed-in visitors keep
- * the subscribe path. Login alone is not enough.
+ * replaces the membership CTA, and so does admin access, which grants the
+ * product without a Stripe subscription. Logged-out and unpaid signed-in
+ * visitors keep the subscribe path. Login alone is not enough.
  */
 export function heroPrimaryCta(
   status: SubscriptionStatus | null | undefined,
+  entitled = false,
 ): HeroPrimaryCta {
-  if (status && isSubscriptionEntitled(status)) {
+  if (entitled || (status && isSubscriptionEntitled(status))) {
     return {
       href: HERO_DASHBOARD_HREF,
       label: HERO_DASHBOARD_LABEL,

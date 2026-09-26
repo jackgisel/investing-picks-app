@@ -3,7 +3,12 @@
 import { usePicks } from "@/lib/hooks/use-picks";
 import { useStrategy } from "@/lib/hooks/use-strategy";
 import { PerformanceChart } from "@/components/dashboard/performance-chart";
-import { PeriodPerformance } from "@/components/dashboard/period-performance";
+import {
+  MonthlyReturns,
+  PickScorecard,
+  RecentPeriods,
+  TrackRecordStats,
+} from "@/components/dashboard/track-record";
 import { resolvePageAccessState } from "@/components/dashboard/access-state";
 import { DataStateCard, resolveDataState } from "@/components/ui/data-state";
 
@@ -15,9 +20,12 @@ import { DataStateCard, resolveDataState } from "@/components/ui/data-state";
  * — too much for a page whose job is a glance. The home keeps the glance; the
  * detail lives here.
  *
- * Reading top to bottom: the long view (the curve against the indexes, over a
- * range you choose), then the short view (today, this week, this month), then
- * the same short view broken out per position.
+ * Reading top to bottom, the way a fund factsheet does: the curve against
+ * the indexes, then the key statistics beside the short-term numbers, then
+ * month by month, then every pick against the S&P over its own holding
+ * period. The per-position today/week/month table that used to close the
+ * page repeated Positions; the scorecard replaces it with the comparison a
+ * picking record is actually judged on.
  */
 export default function PerformancePage() {
   // The chart is public data, but the per-position table below it is not, so
@@ -39,7 +47,7 @@ export default function PerformancePage() {
     gateFrom(strategyQuery),
   );
 
-  let subtitle = "The picks against the indexes, and how they are doing now";
+  let subtitle = "The picks against the market — cumulative, month by month, and pick by pick";
   if (pageState === "subscription") subtitle = "Subscription required";
   else if (pageState === "unauthenticated") subtitle = "Sign in to continue";
   else if (pageState === "loading") subtitle = "Checking access...";
@@ -60,7 +68,14 @@ export default function PerformancePage() {
       ) : (
         <>
           <PerformanceChart />
-          <PeriodPerformance />
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <TrackRecordStats />
+            </div>
+            <RecentPeriods />
+          </div>
+          <MonthlyReturns />
+          <PickScorecard />
         </>
       )}
     </div>

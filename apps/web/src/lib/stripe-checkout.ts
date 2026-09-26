@@ -50,7 +50,6 @@ export function buildCheckoutParams(args: {
   // cannot claim a second discounted first year later. Complimentary is a
   // separate grant and must not burn that one-time offer.
   const consumesFoundersOffer = args.offer === "founders" || args.offer === "production_test";
-  const complimentary = args.offer === "complimentary";
   const metadata = {
     outpick_user_id: args.userId,
     founders_offer: consumesFoundersOffer ? "true" : "false",
@@ -65,11 +64,6 @@ export function buildCheckoutParams(args: {
     ...(args.couponId
       ? { discounts: [{ coupon: args.couponId }] }
       : {}),
-    // 100% off forever still creates a subscription. Without this, Checkout
-    // demands a card for a $0 invoice.
-    ...(complimentary
-      ? { payment_method_collection: "if_required" as const }
-      : {}),
     // Never send `automatic_tax: { enabled: false }`. Accounts with Stripe
     // Managed Payments (the Dashboard default) reject that combination, which
     // is what blocked /subscribe after sign-up. Omitting the field lets the
@@ -81,7 +75,7 @@ export function buildCheckoutParams(args: {
           customer_update: { address: "auto" as const, name: "auto" as const },
         }
       : {}),
-    billing_address_collection: complimentary ? "auto" : "required",
+    billing_address_collection: "required",
     // DataFast cookies must not appear here. They change between retries while
     // the idempotency key stays `outpick-checkout-v2-${user}-${offer}` for 24
     // hours, which is what 502'd Start membership after the first session
@@ -90,6 +84,32 @@ export function buildCheckoutParams(args: {
     subscription_data: { metadata },
     success_url: checkoutSuccessUrl(args.appUrl),
     cancel_url: new URL("/subscribe?checkout=canceled", args.appUrl).toString(),
+  };
+}
+
+/**
+ * A complimentary membership skips Checkout entirely. The 100% forever coupon
+ * makes every invoice $0, and Stripe marks a $0 invoice paid without a payment
+ * method, so the Subscription is `active` on create with no card and no page
+ * for the invitee to click through. Tax is omitted: there is nothing to tax,
+ * and automatic tax would demand an address the invitee never gave.
+ */
+export function buildComplimentarySubscriptionParams(args: {
+  userId: string;
+  customerId: string;
+  annualPriceId: string;
+  couponId: string;
+}): Stripe.SubscriptionCreateParams {
+  const metadata = {
+    outpick_user_id: args.userId,
+    founders_offer: "false",
+    offer_type: "complimentary" satisfies CheckoutOffer,
+  };
+  return {
+    customer: args.customerId,
+    items: [{ price: args.annualPriceId, quantity: 1 }],
+    discounts: [{ coupon: args.couponId }],
+    metadata,
   };
 }
 

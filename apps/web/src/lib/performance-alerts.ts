@@ -215,7 +215,7 @@ export async function runPerformanceAlerts(): Promise<PerformanceAlertResult> {
             key,
             "drawdown",
             `The portfolio is ${drawdown.toFixed(1)}% off its high`,
-            `The book has fallen ${drawdown.toFixed(1)}% from its high-water mark, crossing the ${band}% mark. Drawdowns are part of the strategy — the published backtest has a maximum drawdown of 27.38% — and we are not changing the process in response to this one.`,
+            `The book has fallen ${drawdown.toFixed(1)}% from its high-water mark, crossing the ${band}% mark. Drawdowns are part of the strategy. The published backtest had a maximum drawdown of 27.38%, and we are not changing the process in response to this one.`,
             [
               {
                 label: "Off the high",

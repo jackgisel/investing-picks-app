@@ -101,7 +101,7 @@ export function InsightsCard({ holdings }: { holdings?: readonly Holding[] }) {
       {onHoldings && owned.length < (holdings?.length ?? 0) && (
         <p className="border-t border-border px-5 py-3 font-sans text-[11px] text-text-dim">
           <FileText size={11} className="mr-1.5 inline align-[-1px]" />
-          Not every position has a published note — research goes out with the
+          Not every position has a published note. Research goes out with the
           pick, and the live book was seeded with names that predate it.
         </p>
       )}

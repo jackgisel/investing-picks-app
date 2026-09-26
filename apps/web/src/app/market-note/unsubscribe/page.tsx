@@ -3,7 +3,7 @@ import { PillButton } from "@/components/ui/pill-button";
 import { UnsubscribeConfirm } from "./unsubscribe-confirm";
 
 export const metadata: Metadata = {
-  title: "Unsubscribe — Outpick Market Note",
+  title: "Unsubscribe | Outpick Market Note",
   robots: { index: false, follow: false },
 };
 

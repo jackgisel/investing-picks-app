@@ -193,7 +193,7 @@ export function MeasureDiagram() {
         </ul>
 
         <p className="mt-auto pt-3 font-sans text-[10px] leading-relaxed text-text-dim">
-          Published every time a position closes — including the ones that lost
+          Published every time a position closes, including the ones that lost
         </p>
       </div>
     </div>

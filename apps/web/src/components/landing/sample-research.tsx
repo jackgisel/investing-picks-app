@@ -45,8 +45,8 @@ export async function SampleResearch() {
                 position we opened, one for a position we closed" while showing
                 a single card is a small lie the reader can see. */}
             {hasBoth
-              ? "Not an excerpt and not a teaser — two complete notes from the live book. One for a position we opened, one for a position we closed."
-              : "Not an excerpt and not a teaser — a complete note from the live book, exactly as members receive it."}
+              ? "Two complete notes from the live book, unedited. One for a position we opened, one for a position we closed."
+              : "A complete note from the live book, exactly as members receive it."}
           </p>
         </div>
 
@@ -61,8 +61,8 @@ export async function SampleResearch() {
 }
 
 const BLURB: Record<string, string> = {
-  pick: "Why the position was opened — the business, the case, the figures behind it, and what would have to be true for us to be wrong.",
-  exit: "Why the position was closed — what changed, the specific rule that closed it, and what the round trip returned.",
+  pick: "Why we opened the position: the business, the case, the figures behind it, and what would have to be true for us to be wrong.",
+  exit: "Why we closed the position: what changed, the rule that closed it, and what the round trip returned.",
 };
 
 function SampleCard({ sample }: { sample: InsightMeta }) {

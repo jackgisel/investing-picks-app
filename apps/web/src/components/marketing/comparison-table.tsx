@@ -26,7 +26,7 @@ const COMPARISON: {
   },
   {
     dimension: "Why you own it",
-    index: "No reason — it's in the index",
+    index: "No reason. It's in the index",
     newsletter: "Because the pick was sent",
     outpick: "A written thesis you can check",
   },
@@ -151,8 +151,7 @@ export function ComparisonTable() {
         </table>
       </div>
       <p className="font-sans text-[12px] text-text-dim mt-5 leading-relaxed max-w-[70ch]">
-        Index funds are a good default and we are not arguing otherwise — most
-        people should own them. This is about the part of a portfolio where you
+        Index funds are a good default, and most people should own them. This is about the part of a portfolio where you
         want a reason behind every position.
       </p>
     </div>

@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/what-we-are-not" },
   title: "What we are not",
   description:
-    "Outpick is an equity research firm. We do not time the market, call entry and exit prices, or send trade signals. Here is exactly what that means.",
+    "Outpick is an independent equity research publication. We do not time the market, call entry and exit prices, or send trade signals. Here is exactly what that means.",
 };
 
 /**
@@ -39,7 +39,7 @@ const NOT: {
   {
     label: "Not signals",
     title: "We do not run an alert service",
-    body: "Nothing here is designed to be traded the minute it appears. The book is re-evaluated on a fixed, published cadence — the 1st and 3rd Friday of each month — and there is no urgency premium for acting first.",
+    body: "Nothing here is designed to be traded the minute it appears. The book is re-evaluated on the 1st and 3rd Friday of each month, and nobody gets a better result for acting first.",
     instead:
       "You can read the research, disagree with it, and act on your own schedule. That is the intended use.",
   },
@@ -61,9 +61,9 @@ export default function WhatWeAreNotPage() {
           Most of what people expect from a stock site, we don&apos;t do.
         </h1>
         <p className="section-sub">
-          Outpick is a research firm. We find value-based investments in
+          Outpick is a research publication. We find value-based investments in
           US-listed businesses, write up what we find, and publish the results
-          in the open — the wins and the losses. Four things we are regularly
+          in the open, wins and losses both. Here are four things we are often
           assumed to be, and are not.
         </p>
       </div>
@@ -92,8 +92,8 @@ export default function WhatWeAreNotPage() {
           What we actually do
         </h2>
         <p className="font-sans text-[15px] text-text-muted leading-relaxed">
-          We score US-listed companies on five fundamental factors — valuation,
-          growth, profitability, momentum and estimate revisions — each measured
+          We score US-listed companies on five fundamental factors (valuation,
+          growth, profitability, momentum and estimate revisions), each measured
           against the company&apos;s own sector rather than the whole market. The
           model was tested on data it had never seen before we put a dollar
           behind it. The resulting book is public: every open position, every

@@ -29,7 +29,7 @@ function SubscribeCta({
       className={className}
       data-fast-goal={DATAFAST_CHECKOUT_GOAL}
     >
-      Subscribe — ${price} / year
+      Subscribe · ${price} / year
     </PillButton>
   );
 }
@@ -104,10 +104,10 @@ export function PricingPageView() {
                 <span className="text-text-muted"> / year</span>
               </h1>
               <p className="mt-4 max-w-[46ch] font-sans text-[15px] leading-relaxed text-text-muted sm:text-[16px]">
-                Outpick is a value-based research firm, not a signal service.
+                Outpick publishes value-based stock research, not trading signals.
                 One plan, billed once a year: a researched pick every two weeks,
                 the live example portfolio, and the scoreboard vs the S&amp;P 500.
-                This page is the whole offer — what it costs, who it is for, and
+                This page is the whole offer: what it costs, who it is for, and
                 what to check before you pay.
               </p>
               <p className="mt-3 max-w-[46ch] font-sans text-[15px] leading-relaxed text-text-muted sm:text-[16px]">
@@ -161,7 +161,7 @@ export function PricingPageView() {
               <p className="section-sub">
                 The useful test is not “do I like stocks.” It is whether you
                 want a written case for a business, rules that close it, and a
-                book you can audit — and whether you will actually use that.
+                book you can audit, and whether you will actually use them.
               </p>
               <ul className="space-y-3.5">
                 {PRICING_FOR.map((item) => (
@@ -223,9 +223,9 @@ export function PricingPageView() {
             <p className="section-sub">
               We do not put a return figure on this page as a reason to
               subscribe. The live example portfolio and the walk-forward model
-              behind it are published in full — every open position, every
-              closed one, winners and losers. Simulated results are labeled as
-              such and are never blended with the live numbers.
+              behind it are published in full. That means every open position
+              and every closed one, winners and losers. Simulated results are
+              labeled as such and are never blended with the live numbers.
             </p>
             <p className="section-sub mb-0">
               If the process stops working, it will show up there before it

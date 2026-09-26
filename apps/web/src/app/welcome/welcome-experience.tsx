@@ -38,7 +38,7 @@ const steps = [
   {
     number: "03",
     title: "Let the cadence work",
-    copy: "We evaluate on schedule and publish new high-conviction picks roughly every two weeks. Choose which updates reach your inbox.",
+    copy: "We rescore on a fixed schedule and publish a new pick about every two weeks. Choose which updates reach your inbox.",
     href: "/dashboard/settings",
     label: "Set preferences",
     icon: Mail,
@@ -119,7 +119,7 @@ export function WelcomeExperience({
           <p className="mx-auto mt-5 max-w-lg font-sans text-[15px] sm:text-[16px] leading-relaxed text-text-muted">
             {state === "waiting"
               ? "Your payment is complete. We’re waiting for Stripe’s signed confirmation before unlocking the research dashboard."
-              : "Your payment is not lost. Refresh this page in a moment; if it still does not activate, contact us and we’ll trace the Stripe event."}
+              : "Your payment went through. Refresh this page in a moment. If it still does not activate, email us and we’ll track it down."}
           </p>
           {state === "delayed" ? (
             <div className="mt-8 flex flex-wrap justify-center gap-3">
@@ -157,8 +157,8 @@ export function WelcomeExperience({
             {firstName ? `${firstName}, you’re in.` : "You’re in."}
           </h1>
           <p className="mt-7 max-w-2xl font-sans text-[17px] sm:text-[19px] leading-relaxed text-text-muted">
-            Outpick is built to be read like a research desk, not watched like a
-            trading feed. Here is the quickest way to find your footing.
+            Outpick is meant to be read, not watched like a trading feed. Start
+            here.
           </p>
         </div>
 

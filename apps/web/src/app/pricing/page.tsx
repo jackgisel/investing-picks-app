@@ -15,8 +15,8 @@ function pricingCopy(founders: boolean) {
     ? `${PRICING.foundersLabel} for value-based stock research`
     : `${PRICING.label} for value-based stock research`;
   const description = founders
-    ? `Outpick membership is ${PRICING.foundersLabel} through ${FOUNDERS_DEAL_ENDS_LABEL}, then ${PRICING.label}. One researched pick every two weeks, a live example portfolio, and the scoreboard vs the S&P 500. For investors who outgrew index funds — not a signal service.`
-    : `Outpick membership is ${PRICING.label}, a flat fee. One researched pick every two weeks, a live example portfolio, and the scoreboard vs the S&P 500. For investors who outgrew index funds — not a signal service.`;
+    ? `Outpick membership is ${PRICING.foundersLabel} through ${FOUNDERS_DEAL_ENDS_LABEL}, then ${PRICING.label}. One researched pick every two weeks, a live example portfolio, and the scoreboard vs the S&P 500. For investors who outgrew index funds. Not a signal service.`
+    : `Outpick membership is ${PRICING.label}, a flat fee. One researched pick every two weeks, a live example portfolio, and the scoreboard vs the S&P 500. For investors who outgrew index funds. Not a signal service.`;
   return { title, description };
 }
 
@@ -38,13 +38,13 @@ export async function generateMetadata(): Promise<Metadata> {
       canonical: "/pricing",
     },
     openGraph: {
-      title: `${title} — ${SITE_NAME}`,
+      title: `${title} | ${SITE_NAME}`,
       description,
       url: `${SITE_URL}/pricing`,
     },
     twitter: {
       card: "summary_large_image",
-      title: `${title} — ${SITE_NAME}`,
+      title: `${title} | ${SITE_NAME}`,
       description,
     },
   };

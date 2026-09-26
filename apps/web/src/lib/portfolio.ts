@@ -454,7 +454,7 @@ export function describeLiveCagr(cagr: LiveCagr): string | null {
     case "ok":
       return null;
     case "window_too_short":
-      return `Needs ${cagr.minWindowDays} days live before annualizing — day ${cagr.daysLive} of ${cagr.minWindowDays}.`;
+      return `Needs ${cagr.minWindowDays} days live before annualizing. This is day ${cagr.daysLive} of ${cagr.minWindowDays}.`;
     case "insufficient_history":
       return `Verified daily history covers ${cagr.daysRecorded} of ${cagr.daysLive} days live. We publish this once the record is complete.`;
     case "not_meaningful":

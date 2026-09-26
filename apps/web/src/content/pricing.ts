@@ -15,7 +15,7 @@ export const PRICING_DELIVERABLES = [
   {
     n: "01",
     title: "A researched pick every two weeks",
-    body: "One high-conviction name with the full thesis: evidence, risks, and the rules that close it. We rescore roughly 3,600 US-listed stocks on a published cadence — the 1st and 3rd Friday of each month — then write the case and review it before it publishes. Universe scan, fundamentals, estimate revisions, sector context. Not a firehose of alerts.",
+    body: "One high-conviction name with the full thesis: evidence, risks, and the rules that close it. We rescore roughly 3,600 US-listed stocks on the 1st and 3rd Friday of each month, then write the case and review it before it publishes. You get one name per cycle, not a stream of alerts.",
   },
   {
     n: "02",
@@ -25,7 +25,7 @@ export const PRICING_DELIVERABLES = [
   {
     n: "03",
     title: "The scoreboard vs the S&P 500",
-    body: `Wins and losses both shown against the index. The live book is the going-forward record. The ${BACKTEST.yearsCovered}-year walk-forward model behind the process is published separately and labeled as simulated — it is not blended with live results.`,
+    body: `Wins and losses both shown against the index. The live book is the going-forward record. The ${BACKTEST.yearsCovered}-year walk-forward model behind the process is published separately and labeled as simulated. We never blend it with live results.`,
   },
   {
     n: "04",
@@ -37,7 +37,7 @@ export const PRICING_DELIVERABLES = [
 export const PRICING_FOR = [
   "Investors who already own index funds and want a researched sleeve with a written reason behind each name.",
   "People who will read a thesis, sit with a position for years, and can live with a public record that includes losses.",
-  "Anyone who wants the method, the live book, and the scoreboard in one place — not another screener, and not a stream of tips.",
+  "Anyone who wants the method, the live book, and the scoreboard in one place. This is not another screener or a stream of tips.",
 ] as const;
 
 export const PRICING_NOT_FOR = [
@@ -53,7 +53,7 @@ export const PRICING_NOT_FOR = [
 export const PRICING_FAQ: PricingFaqItem[] = [
   {
     q: "Is Outpick worth it versus free tools or a Seeking Alpha-class subscription?",
-    a: `Free screeners and $300-class research platforms are good at coverage: many tickers, many notes, more data than most people will read. Outpick is the opposite shape. You get one researched name every two weeks, a live example portfolio you can audit, and a written exit when a thesis breaks. The fee is a flat ${PRICING.foundersLabel} for the first year through ${FOUNDERS_DEAL_ENDS_LABEL}, then ${PRICING.label} — not a percent of assets, and not a cheaper tier with the real product gated. Whether that is worth it depends on the size of the portfolio and whether you want a process you can check. Coverage is not the product.`,
+    a: `Free screeners and $300-class research platforms are good at coverage: many tickers, many notes, more data than most people will read. Outpick is the opposite shape. You get one researched name every two weeks, a live example portfolio you can audit, and a written exit when a thesis breaks. The fee is a flat ${PRICING.foundersLabel} for the first year through ${FOUNDERS_DEAL_ENDS_LABEL}, then ${PRICING.label}. It is not a percent of assets, and there is no cheaper tier with the real product gated behind it. Whether that is worth it depends on the size of the portfolio and whether you want a process you can check. Coverage is not the product.`,
   },
   {
     q: "Is this a signal service?",
@@ -69,7 +69,7 @@ export const PRICING_FAQ: PricingFaqItem[] = [
   },
   {
     q: "Do you guarantee returns? How should I read the track record?",
-    a: "No. All investing carries risk, including loss of principal. Past performance does not indicate future results. We publish the live example portfolio in full — winners and losers — and we publish the walk-forward model behind the process, labeled as simulated and never blended with live numbers. Judge the record on the track record page rather than a figure on a sales page.",
+    a: "No. All investing carries risk, including loss of principal. Past performance does not indicate future results. We publish the live example portfolio in full, winners and losers, and we publish the walk-forward model behind the process, labeled as simulated and never blended with live numbers. Judge the record on the track record page rather than a figure on a sales page.",
   },
   {
     q: "Who should not subscribe?",

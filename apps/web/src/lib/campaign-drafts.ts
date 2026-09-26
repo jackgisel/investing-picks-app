@@ -25,10 +25,10 @@ export const CAMPAIGN_SINGLES: readonly CampaignDraft[] = [
       `$MOD's data-center SALES rose 90% in the latest quarter.
 
 On that invoice:
-1. $MOD — cooling for the hall
-2. $POWL — switchgear outside it
-3. $FIX — the crew that installs it
-4. $ENS — batteries when the feed drops
+1. $MOD: cooling for the hall
+2. $POWL: switchgear outside it
+3. $FIX: the crew that installs it
+4. $ENS: batteries when the feed drops
 
 Supply chain, not a book entry. Monday note, link in bio.`,
     ],
@@ -40,11 +40,11 @@ Supply chain, not a book entry. Monday note, link in bio.`,
       `$ACLS sells the ion implanters. The chip logo is downstream.
 
 What a fab buys before the logo:
-1. $ACLS — ion implant
-2. $UCTT — subsystems on the tool
-3. $ICHR — chemical delivery
-4. $FORM — probe cards
-5. $ENTG — filters and process chemicals
+1. $ACLS: ion implant
+2. $UCTT: subsystems on the tool
+3. $ICHR: chemical delivery
+4. $FORM: probe cards
+5. $ENTG: filters and process chemicals
 
 Not picks. Monday note, link in bio.`,
     ],
@@ -56,10 +56,10 @@ Not picks. Monday note, link in bio.`,
       `$POWL took a data-center order above $400 million. The gear sits OUTSIDE the hall.
 
 Same side of the fence:
-1. $POWL — switchgear and power rooms
-2. $STRL — site work
-3. $FIX — mechanical install
-4. $MOD — cooling, once the power is in
+1. $POWL: switchgear and power rooms
+2. $STRL: site work
+3. $FIX: mechanical install
+4. $MOD: cooling, once the power is in
 
 YouTube walks a sector pass. Link in bio.`,
     ],
@@ -71,10 +71,10 @@ YouTube walks a sector pass. Link in bio.`,
       `$STRL does the site work. The photograph is the building that comes after.
 
 Before the ribbon:
-1. $STRL — site and electrical infrastructure
-2. $FIX — installation
-3. $POWL — power rooms
-4. $MOD — cooling
+1. $STRL: site and electrical infrastructure
+2. $FIX: installation
+3. $POWL: power rooms
+4. $MOD: cooling
 
 Names in the chain. Monday note, link in bio.`,
     ],
@@ -86,10 +86,10 @@ Names in the chain. Monday note, link in bio.`,
       `$BWXT machines the nuclear components. The utility takes the power.
 
 Before a watt hits the hall:
-1. $BWXT — reactor hardware
-2. $LEU — enrichment
-3. $BE — fuel cells on the site
-4. $ENS — backup batteries
+1. $BWXT: reactor hardware
+2. $LEU: enrichment
+3. $BE: fuel cells on the site
+4. $ENS: backup batteries
 
 A hot sector can still hand back an empty pass. Monday note, link in bio.`,
     ],
@@ -101,10 +101,10 @@ A hot sector can still hand back an empty pass. Monday note, link in bio.`,
       `$MWA sells the hydrant. A muni bond is a loan.
 
 What a city budget actually buys:
-1. $MWA — valves and hydrants
-2. $BMI — water meters
-3. $CNM — the distributor
-4. $WLDN — engineering the city contracts out
+1. $MWA: valves and hydrants
+2. $BMI: water meters
+3. $CNM: the distributor
+4. $WLDN: engineering the city contracts out
 
 We do not grade the bond. Monday note, link in bio.`,
     ],
@@ -116,9 +116,9 @@ We do not grade the bond. Monday note, link in bio.`,
       `$MLI makes the copper tube. $FCX is the mine on the poster.
 
 One step off the headline:
-1. $MLI — tube and fittings
-2. $BDC — copper cable
-3. $HBM — copper in the ground
+1. $MLI: tube and fittings
+2. $BDC: copper cable
+3. $HBM: copper in the ground
 
 Bronze is copper plus tin. It has no sector. Monday note, link in bio.`,
     ],
@@ -130,10 +130,10 @@ Bronze is copper plus tin. It has no sector. Monday note, link in bio.`,
       `$AEHR stress-tests the wafer. The designer does not ship that machine.
 
 After the print:
-1. $AEHR — burn-in
-2. $FORM — probe cards
-3. $KLIC — assembly equipment
-4. $UCTT — subsystems on the process tool
+1. $AEHR: burn-in
+2. $FORM: probe cards
+3. $KLIC: assembly equipment
+4. $UCTT: subsystems on the process tool
 
 An empty pass is a result. Monday note, link in bio.`,
     ],
@@ -145,10 +145,10 @@ An empty pass is a result. Monday note, link in bio.`,
       `$UCTT sells the gas delivery. A process tool does not run without it.
 
 On the back of the tool:
-1. $UCTT — gas delivery
-2. $ICHR — chemical delivery
-3. $ACLS — ion implant
-4. $KLIC — assembly equipment
+1. $UCTT: gas delivery
+2. $ICHR: chemical delivery
+3. $ACLS: ion implant
+4. $KLIC: assembly equipment
 
 Not book entries. Monday note, link in bio.`,
     ],
@@ -159,10 +159,10 @@ Not book entries. Monday note, link in bio.`,
     posts: [
       `$BE sells fuel cells that make power on the site.
 
-1. $BE — onsite generation
-2. $POWL — switchgear for that power
-3. $ENS — batteries behind it
-4. $BWXT — components, when the plant is nuclear
+1. $BE: onsite generation
+2. $POWL: switchgear for that power
+3. $ENS: batteries behind it
+4. $BWXT: components, when the plant is nuclear
 
 Virtual book. We place no trade. Monday note, link in bio.`,
     ],
@@ -173,10 +173,10 @@ Virtual book. We place no trade. Monday note, link in bio.`,
     posts: [
       `$CNM stocks the water pipe. The city buys from a warehouse.
 
-1. $CNM — distribution
-2. $MWA — hydrants and valves
-3. $BMI — meters
-4. $WLDN — the outside engineer
+1. $CNM: distribution
+2. $MWA: hydrants and valves
+3. $BMI: meters
+4. $WLDN: the outside engineer
 
 Operating companies, not a bond fund. Monday note, link in bio.`,
     ],
@@ -188,10 +188,10 @@ Operating companies, not a bond fund. Monday note, link in bio.`,
       `$LEU enriches the uranium. The power poster skips this step.
 
 Fuel, then the plant:
-1. $LEU — enrichment
-2. $BWXT — the heavy components
-3. $BE — fuel cells where the grid is late
-4. $ENS — batteries on site
+1. $LEU: enrichment
+2. $BWXT: the heavy components
+3. $BE: fuel cells where the grid is late
+4. $ENS: batteries on site
 
 No price target. Monday note, link in bio.`,
     ],
@@ -205,11 +205,11 @@ export const CAMPAIGN_THREADS: readonly CampaignDraft[] = [
     posts: [
       `$ACLS sells ion implanters to the fab. The logo is downstream.
 
-1. $ACLS — implant
-2. $UCTT — gas delivery
-3. $ICHR — chemical delivery
-4. $FORM — probe cards
-5. $KLIC — assembly equipment`,
+1. $ACLS: implant
+2. $UCTT: gas delivery
+3. $ICHR: chemical delivery
+4. $FORM: probe cards
+5. $KLIC: assembly equipment`,
       `$UCTT sells gas delivery for the process tool.
 
 Take the tool apart and this is one of the subsystems with its own P&L.`,
@@ -235,11 +235,11 @@ Monday note, free. Link in bio.`,
     posts: [
       `$POWL took a data-center order above $400 million. OUTSIDE the hall.
 
-1. $POWL — switchgear and power rooms
-2. $MOD — cooling
-3. $FIX — installation
-4. $STRL — site work
-5. $ENS — backup batteries`,
+1. $POWL: switchgear and power rooms
+2. $MOD: cooling
+3. $FIX: installation
+4. $STRL: site work
+5. $ENS: backup batteries`,
       `$MOD broke data-center cooling out as its own segment.
 
 The hall is no longer a line inside a general HVAC story.`,
@@ -266,10 +266,10 @@ Link in bio.`,
     posts: [
       `$BWXT machines nuclear components. The utility is the customer.
 
-1. $BWXT — reactor hardware
-2. $LEU — enrichment
-3. $BE — onsite fuel cells
-4. $ENS — backup batteries`,
+1. $BWXT: reactor hardware
+2. $LEU: enrichment
+3. $BE: onsite fuel cells
+4. $ENS: backup batteries`,
       `$BWXT builds nuclear hardware for the Navy and for commercial plants.
 
 The data-center power post rarely names the company that machines the parts.`,
@@ -295,10 +295,10 @@ Monday note, link in bio.`,
     posts: [
       `$MWA sells hydrants and valves to water systems. A muni bond is a loan.
 
-1. $MWA — valves and hydrants
-2. $BMI — meters
-3. $CNM — distribution
-4. $WLDN — engineering cities contract out`,
+1. $MWA: valves and hydrants
+2. $BMI: meters
+3. $CNM: distribution
+4. $WLDN: engineering cities contract out`,
       `$BMI sells the water meter. The city pays for the measurement, month after month.`,
       `$CNM stocks pipe, valves, and meters for municipalities and contractors.
 
@@ -320,9 +320,9 @@ Monday note, link in bio.`,
     posts: [
       `$MLI makes the copper tube. $FCX is the mine on the poster.
 
-1. $MLI — tube and fittings
-2. $BDC — copper cable
-3. $HBM — a copper miner`,
+1. $MLI: tube and fittings
+2. $BDC: copper cable
+3. $HBM: a copper miner`,
       `$BDC sells copper cable and the connectors on the end of it.
 
 The metal is the input. The product is the business.`,

@@ -330,7 +330,7 @@ function MonthCell({
       className={`px-1.5 py-2 text-center font-mono text-[11px] tabular-nums ${shaded ? heat(value) : ""} ${
         bold ? "font-semibold text-text" : pnlClass(value)
       }`}
-      title={m.partial ? `${formatMonth(m.month)} — partial month` : formatMonth(m.month)}
+      title={m.partial ? `${formatMonth(m.month)}, partial month` : formatMonth(m.month)}
     >
       {text}
       {m.partial && <sup className="ml-px text-[8px] text-text-dim">*</sup>}

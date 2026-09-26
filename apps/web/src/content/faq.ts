@@ -19,15 +19,15 @@ export const FAQ_GROUPS: FaqGroup[] = [
     items: [
       {
         q: "Who is Outpick?",
-        a: "Outpick is an independent equity research publication. We score US-listed businesses on fundamentals, write the thesis, and publish a live example portfolio with performance in the open — for investors who want to move beyond index funds with intention, transparency, and a value-based approach grounded in business fundamentals.",
+        a: "Outpick is an independent equity research publication. We score US-listed businesses on fundamentals, write the thesis, and publish a live example portfolio with its performance in the open. It is for investors who already own index funds and want to own a few businesses on purpose.",
       },
       {
         q: "Who runs Outpick?",
-        a: "Outpick is an independent equity research firm. We publish under the firm's name rather than a founder's, because we'd rather be judged on the record than on a biography — the model, the picks, the live portfolio, and every closed trade are on this site for exactly that reason. We are not a registered adviser, broker-dealer, or bank, and membership fees are our only revenue: no advertising, no sponsored content, no affiliate links.",
+        a: "Outpick is an independent equity research publication. We publish under the Outpick name rather than a founder's, because we'd rather be judged on the record than on a biography. The model, the picks, the live portfolio and every closed trade are on this site for that reason. We are not a registered adviser, broker-dealer, or bank, and membership fees are our only revenue: no advertising, no sponsored content, no affiliate links.",
       },
       {
-        q: "Why should I trust research from a firm that doesn't name its analysts?",
-        a: "Every two weeks we rescore roughly 3,600 US-listed stocks, write up the one name the framework agrees on, and review it before it publishes. We publish under the firm's name instead of an analyst's because the record is checkable and a biography isn't. The methodology, the validation windows, and every live entry and exit are on this site. If the process stops working, you'll see it here before you hear it from us.",
+        q: "Why should I trust research that doesn't name its analysts?",
+        a: "Every two weeks we rescore roughly 3,600 US-listed stocks, write up the one name the framework agrees on, and review it before it publishes. We publish under the Outpick name instead of an analyst's because the record is checkable and a biography isn't. The methodology, the validation windows, and every live entry and exit are on this site. If the process stops working, you'll see it here before you hear it from us.",
       },
       {
         q: "Is this financial advice?",
@@ -48,15 +48,15 @@ export const FAQ_GROUPS: FaqGroup[] = [
       },
       {
         q: "How long do you hold a position?",
-        a: "Years, not quarters, and we do not publish a target holding period because that would be a promise about the future rather than a description of the process. A position is held while the reasons for owning it hold. Positions close when a guardrail is hit or the case for owning the business stops being true — and when that happens we publish a note explaining it.",
+        a: "Years, not quarters, and we do not publish a target holding period because that would be a promise about the future rather than a description of the process. A position is held while the reasons for owning it hold. Positions close when a guardrail is hit or the case for owning the business stops being true. When that happens we publish a note explaining it.",
       },
       {
         q: "What kind of stocks do you pick?",
-        a: "Businesses with strong fundamentals, clear competitive advantages, and long-term growth potential — often small-cap and mid-cap names the major indices overlook. Not meme stocks, not day trades.",
+        a: "Profitable businesses that are hard to compete with and still growing. Many are small-cap and mid-cap names that make up a sliver of the major indices. No meme stocks and no day trades.",
       },
       {
         q: "Do you tell members when you sell?",
-        a: "Yes, and this is not optional or occasional. Every closed position gets an exit note that states what we owned, why we bought it, what changed, the rule that closed it, and what the round trip returned. The losses get the same treatment as the winners — a record that only publishes exits that worked is a marketing asset, not a record.",
+        a: "Yes, and this is not optional or occasional. Every closed position gets an exit note that states what we owned, why we bought it, what changed, the rule that closed it, and what the round trip returned. The losses get the same treatment as the winners. A record that only publishes the exits that worked is a marketing asset.",
       },
     ],
   },
@@ -65,7 +65,7 @@ export const FAQ_GROUPS: FaqGroup[] = [
     items: [
       {
         q: "How is performance calculated?",
-        a: "The live example portfolio marks each pick at the closing price on its entry and exit dates — real positions, with illustrative sizing so the return reflects price movement rather than dollar size. Returns are always published as percentages, never as book values. Where we show results from testing the method before it went live, those are labeled as simulated and are never blended with the live numbers.",
+        a: "The live example portfolio marks each pick at the closing price on its entry and exit dates. The positions are real and the sizing is illustrative, so the return reflects price movement rather than dollar size. Returns are always published as percentages, never as book values. Where we show results from testing the method before it went live, those are labeled as simulated and are never blended with the live numbers.",
       },
       {
         q: "Do you guarantee returns?",
@@ -78,7 +78,7 @@ export const FAQ_GROUPS: FaqGroup[] = [
     items: [
       {
         q: "What is the Market Note?",
-        a: "A free email every Monday: what the model is scoring across roughly 3,600 US-listed stocks, which sectors are moving, and how we read the current cycle. It's market commentary, not our picks — published picks and the live portfolio are members-only. One click unsubscribes, and we never share your address.",
+        a: "A free email every Monday: what the model is scoring across roughly 3,600 US-listed stocks, which sectors are moving, and how we read the current cycle. It's market commentary. Our picks and the live portfolio are for members. One click unsubscribes, and we never share your address.",
       },
       {
         q: "What is the founders deal?",

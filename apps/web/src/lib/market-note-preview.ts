@@ -89,7 +89,7 @@ export function composeMarketNoteBodyMd(args: {
   if (stocks.length > 0) {
     const lines = stocks.map((stock) => {
       const name = stock.name ? `, ${stock.name}` : "";
-      const note = stock.note ? ` — ${stock.note}` : "";
+      const note = stock.note ? `: ${stock.note}` : "";
       return `- **${stock.ticker}**${name}${note}`;
     });
     sections.push(`## Looking at\n\n${lines.join("\n")}`);
@@ -110,7 +110,7 @@ export function composeMarketNoteBodyMd(args: {
     const lines = dates.map((d) => {
       const when = d.date.trim() || "TBD";
       const label = d.label.trim() || "On the calendar";
-      return `- **${when}** — ${label}`;
+      return `- **${when}**: ${label}`;
     });
     sections.push(`## Dates ahead\n\n${lines.join("\n")}`);
   }

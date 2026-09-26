@@ -14,7 +14,7 @@ const NOT = [
   "Time the market or call where the index goes next",
   "Publish entry and exit points on a price basis",
   "Send trade alerts you are meant to act on immediately",
-  "Give personal advice — we are not a broker or adviser",
+  "Give personal advice. We are not a broker or adviser",
 ];
 
 export function WhatWeAreNot() {
@@ -30,13 +30,13 @@ export function WhatWeAreNot() {
               What we are not
             </p>
             <h2 className="section-title">
-              We are a research firm, not a signal service.
+              We publish research, not signals.
             </h2>
             <p className="section-sub mb-0">
               Outpick researches US-listed businesses worth owning for years
               and publishes that research openly. We do not cover trading. That
-              rules out most of what people expect from a stock site — worth
-              knowing before you join rather than after.
+              rules out most of what people expect from a stock site. Better
+              to know that before you join than after.
             </p>
           </div>
 

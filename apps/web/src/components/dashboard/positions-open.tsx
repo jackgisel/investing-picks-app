@@ -218,7 +218,7 @@ export function PositionsOpen({
                 {h.is_house_money && (
                   <span
                     className="badge badge-buy !px-2 !text-[9px]"
-                    title="The original stake has already been recovered via a Winners Circle partial sell — this position is running on profit."
+                    title="A Winners Circle partial sell already recovered the original stake. This position is running on profit."
                   >
                     House
                   </span>

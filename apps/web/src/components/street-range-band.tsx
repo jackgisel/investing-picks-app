@@ -86,7 +86,7 @@ export function StreetRangeInline({ range }: { range: StreetRange }) {
         {formatStreetPrice(range.mean)}
       </span>
       <span className="mt-1 block font-mono text-[9px] text-text-dim">
-        {formatStreetPrice(range.low)}–{formatStreetPrice(range.high)}
+        {formatStreetPrice(range.low)} to {formatStreetPrice(range.high)}
         {range.upsideToMeanPct !== null
           ? ` · ${formatStreetPct(range.upsideToMeanPct)} vs mark`
           : ""}

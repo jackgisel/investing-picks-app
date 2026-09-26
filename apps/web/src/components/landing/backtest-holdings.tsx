@@ -22,7 +22,7 @@ export function BacktestHoldings() {
             Final holdings snapshot
           </span>
           <span className="font-sans text-[13px] text-text-muted">
-            {FINAL_HOLDINGS.length} positions · {BACKTEST.startDate} –{" "}
+            {FINAL_HOLDINGS.length} positions · {BACKTEST.startDate} to{" "}
             {BACKTEST.endDate}
           </span>
         </div>
@@ -132,7 +132,7 @@ export function BacktestHoldings() {
         <div className="border-t border-border px-6 sm:px-7 py-5 bg-bg-secondary/20">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <p className="font-sans text-[10px] font-bold tracking-[0.12em] uppercase text-text-dim">
-              Winners circle — picks that doubled
+              Winners circle: picks that doubled
             </p>
             <span className="font-mono text-[13px] text-accent-green font-bold">
               {BACKTEST.winnersCircle} total · {BACKTEST.wins}W /{" "}

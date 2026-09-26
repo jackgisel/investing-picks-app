@@ -5,6 +5,7 @@ import { PUBLIC_API_BASE } from "@/lib/api-config";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
 import {
   CONTENT_DATE_AND_VISUAL_RULES,
+  HOUSE_WRITING_RULES,
   formatQuantRating,
   QUANT_RATING_MAX,
   QUANT_RATING_MIN,
@@ -42,15 +43,15 @@ The payload has a "missing" array naming the facts that are NOT available. Treat
 
 ## The note
 Five sections, in this order, each introduced by an H2:
-1. The week — how the book and the picks did, honestly, including versus the S&P 500 when that figure is present.
-2. What moved — buys, conviction adds, and sells this week, or a plain statement that there were none. The strategy evaluates on a fixed cadence and holds through the weeks in between; most weeks look like that, and saying so is not a failure. An \`Added to\` move is not a new name.
-3. Holdings — the open book. Call out names that moved, grades that matter, and anything that has gone wrong. Do not list every position as a table.
-4. What we are watching — the next evaluation, concentration, weak grades, anything that has to be true for the book to keep working.
-5. Closing — one or two paragraphs. What this week actually said.
+1. The week: how the book and the picks did, honestly, including versus the S&P 500 when that figure is present.
+2. What moved: buys, conviction adds, and sells this week, or a plain statement that there were none. The strategy evaluates on a fixed cadence and holds through the weeks in between; most weeks look like that, and saying so is not a failure. An \`Added to\` move is not a new name.
+3. Holdings: the open book. Call out names that moved, grades that matter, and anything that has gone wrong. Do not list every position as a table.
+4. What we are watching: the next evaluation, concentration, weak grades, anything that has to be true for the book to keep working.
+5. Closing: one or two paragraphs. What this week actually said.
 
 ## Hard rules
 - **Never a portfolio dollar figure.** No position size, no share count, no entry or exit price, no portfolio value, no dollar P&L. Express our side in percentages only. Company financials in dollars (revenue, free cash flow, market cap) are fine if they appear in the payload; the ban is on OUR book, not on the businesses.
-- Never state or imply an Outpick price target. If the payload includes analyst price-target consensus (Street low/mean/high), you may cite it as third-party context — never as our target.
+- Never state or imply an Outpick price target. If the payload includes analyst price-target consensus (Street low/mean/high), you may cite it as third-party context, never as our target.
 - Never use urgency, hype, or second-person exhortation ("you should buy", "don't miss"). The reader is deciding for themselves.
 - Every number you cite must appear in the payload. If you want a figure you were not given, write around it or say it is not available.
 - Where a holding is down or a grade is weak, say so. A review that only argues one side is worse than useless.
@@ -60,13 +61,15 @@ ${quantRatingPromptRules(SITE_URL)}
 
 ${CONTENT_DATE_AND_VISUAL_RULES}
 
+${HOUSE_WRITING_RULES}
+
 ## Voice
 Plain, specific, unhurried. Short paragraphs. Prefer the concrete noun to the abstract one. Write for a reader who is intelligent about business but not a professional analyst, and who is paying for judgement rather than a data dump. This is a review of a week, not a victory lap and not an apology.
 
 ## Output
 - \`bodyMd\` is GitHub-flavoured markdown containing ONLY the five sections: \`## Heading\` plus paragraphs, bullet lists, **bold**, links, and at most one short markdown table (largest movers when it helps). No front matter, no title (that is its own field), no closing disclaimer (the site adds one).
 - \`lede\` is a single opening sentence or two, rendered above the body in larger type. It is not part of \`bodyMd\`.
-- \`tldr\` is exactly five short bullets — the Highlights box at the top of the note.
+- \`tldr\` is exactly five short bullets: the Highlights box at the top of the note.
 - \`keyTakeaway\` is one or two sentences closing the note.
 - \`title\` follows the house pattern: "Weekly review: <a specific claim about this week>". No ticker-as-title.
 - \`description\` is one sentence, roughly 155 characters, used as the deck and the meta description.

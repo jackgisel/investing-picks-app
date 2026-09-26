@@ -139,7 +139,7 @@ export function DataState({
     <Shell icon={AlertCircle} title="Could not load this" pad={pad} tone="red">
       <Body>
         {isServer
-          ? "The data service returned an error. This is on our side — try again in a moment."
+          ? "The data service returned an error. The problem is on our side. Try again in a moment."
           : "Something went wrong fetching this data."}
         {apiError.status > 0 && (
           <span className="font-mono text-text-dim"> ({apiError.status})</span>

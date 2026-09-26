@@ -29,9 +29,9 @@ export function MarketNoteSample() {
 
       <H2>What the model is seeing</H2>
       <P>
-        We rescore roughly 3,600 US-listed companies on five factors —
-        valuation, growth, profitability, momentum and estimate revisions — each
-        measured against the company&apos;s own sector rather than the market as
+        We rescore roughly 3,600 US-listed companies on five factors:
+        valuation, growth, profitability, momentum and estimate revisions. Each
+        is measured against the company&apos;s own sector rather than the market as
         a whole. This week the number of names clearing our composite threshold
         rose meaningfully, which happens for one of two reasons: the businesses
         got better, or the prices got worse.
@@ -52,8 +52,8 @@ export function MarketNoteSample() {
         </LI>
         <LI>
           <Strong>Healthcare equipment.</Strong> Second largest. Estimate
-          revisions here are the thing to watch — a cheap name with falling
-          estimates is not cheap, it is early.
+          revisions here are the thing to watch. A cheap name with falling
+          estimates is not cheap yet. It is early.
         </LI>
         <LI>
           <Strong>Software.</Strong> Still scoring poorly on valuation despite a

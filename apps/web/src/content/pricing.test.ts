@@ -70,7 +70,7 @@ describe("pricing page wiring", () => {
   it("preserves Stripe checkout and Datafast checkout_started", () => {
     expect(page).toContain('href="/subscribe"');
     expect(page).toContain("DATAFAST_CHECKOUT_GOAL");
-    expect(page).toContain("Subscribe — $");
+    expect(page).toContain("Subscribe · $");
     expect(DATAFAST_CHECKOUT_GOAL).toBe("checkout_started");
   });
 

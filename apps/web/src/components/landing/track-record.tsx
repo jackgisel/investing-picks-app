@@ -69,12 +69,12 @@ export function TrackRecord({
           <p className="section-label">Track record</p>
           <h2 className="section-title">Winners compound. We show both.</h2>
           <p className="section-sub mb-0">
-            Our edge isn&apos;t one headline return — it&apos;s finding stocks
-            that double and letting them run. The model was built and
+            We look for stocks that can double, and we let them run when they
+            do. The model was built and
             walk-forward tested on {BACKTEST.yearsCovered} years of trailing
             market data. We actively trade a live example portfolio to
-            demonstrate the process. That is not a recommendation to copy us —
-            we expect you to do your own research and build your own portfolio.
+            demonstrate the process. It is not a recommendation to copy us. Do
+            your own research and build your own portfolio.
           </p>
         </div>
 
@@ -112,7 +112,7 @@ export function TrackRecord({
               {BACKTEST.validationOutpickedSp}
             </p>
             <p className="font-sans text-[11px] text-text-dim mt-2 leading-snug">
-              Outpicked S&amp;P · {BACKTEST.validationStart} – {BACKTEST.validationEnd}
+              Outpicked S&amp;P · {BACKTEST.validationStart} to {BACKTEST.validationEnd}
             </p>
           </div>
         </div>
@@ -161,12 +161,12 @@ export function TrackRecord({
                   ) : (
                     <p className="max-w-[36ch] font-sans text-[15px] leading-snug text-text-muted">
                       Live return isn&apos;t available right now. We only
-                      publish this from the live book — never a placeholder
-                      number.
+                      publish this from the live book, and we won&apos;t show a
+                      placeholder number.
                     </p>
                   )}
                   <p className="font-sans text-[10px] text-text-dim mt-2 leading-snug">
-                    On capital deployed into picks — cash held back to fund
+                    On capital deployed into picks. Cash held back to fund
                     future buys isn&apos;t counted.
                   </p>
                   {cagr.value !== null && cagr.daysLive >= PUBLIC_CAGR_MIN_DAYS && (
@@ -214,8 +214,8 @@ export function TrackRecord({
                 </dl>
 
                 <p className="font-sans text-[11px] text-text-dim mt-6 leading-relaxed border-t border-border pt-5">
-                  Our portfolio, published for transparency — not what you
-                  should buy. Trades are logged manually with real fill
+                  This is our portfolio, published so you can check it. It is
+                  not a list of what you should buy. Trades are logged manually with real fill
                   prices and dates, not auto-synced from a brokerage feed.
                   Position sizes are illustrative, so every return here comes
                   from price movement, not dollar size.
@@ -237,7 +237,7 @@ export function TrackRecord({
 
             <div className="px-6 sm:px-7 py-6 sm:py-7">
               <p className="font-mono text-[11px] text-text-dim mb-6">
-                {BACKTEST.startDate} — {BACKTEST.endDate} · {BACKTEST.wins}W/
+                {BACKTEST.startDate} to {BACKTEST.endDate} · {BACKTEST.wins}W/
                 {BACKTEST.losses}L of {BACKTEST.closedPicks} closed picks ·{" "}
                 {BACKTEST.trades} trades
               </p>
@@ -312,10 +312,10 @@ export function TrackRecord({
             <p>
               <strong className="text-text">Backtrained on {BACKTEST.yearsCovered} years of history.</strong>{" "}
               We built the model on trailing market data, then validated it
-              walk-forward — training on one period, testing on unseen data (
-              {BACKTEST.validationStart} – {BACKTEST.validationEnd}) before
-              going live. This is simulated performance, not a track record —
-              see the badge above.
+              walk-forward. We trained it on one period and tested it on data it
+              had never seen ({BACKTEST.validationStart} to{" "}
+              {BACKTEST.validationEnd}) before going live. This is simulated
+              performance, not a track record. See the badge above.
             </p>
             <p>
               <strong className="text-text">Winners run, losers get cut.</strong>{" "}
@@ -323,16 +323,16 @@ export function TrackRecord({
               but we don&apos;t cap upside on names that pay back their cost
               basis. In the backtrained model {BACKTEST.winnersCircle}{" "}
               positions doubled, and we sold out of them across{" "}
-              {WINNERS_CIRCLE_EXITS} separate exits — trimming as they ran
+              {WINNERS_CIRCLE_EXITS} separate exits, trimming as they ran
               rather than closing all at once.
             </p>
             <p>
               <strong className="text-text">Live example portfolio, not instruction.</strong>{" "}
               We place real trades on our own capital, marked at each day&apos;s
-              closing price, and publish every entry and exit. We&apos;re not
-              chasing the perfect entry or exit — our research is about
-              finding valuable businesses and cost-basis averaging into them
-              over a long horizon. Position sizes shown are illustrative, so
+              closing price, and publish every entry and exit. We don&apos;t
+              chase the perfect entry or exit. The research is about finding
+              valuable businesses and averaging into them over a long
+              horizon. Position sizes shown are illustrative, so
               nothing here implies a fixed account size.
             </p>
           </div>
@@ -371,7 +371,7 @@ export function TrackRecord({
             <p className="font-sans text-[11px] text-text-dim mt-4 leading-relaxed max-w-[560px]">
               Concentrated by design, not diversified: four of these five
               doubles came from a single macro theme (Argentine equities,
-              2023–2025). A repeat requires a comparable dislocation, not a
+              2023 to 2025). A repeat requires a comparable dislocation, not a
               repeatable process across unrelated names.
             </p>
           </div>

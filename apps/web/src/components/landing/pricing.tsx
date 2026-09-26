@@ -17,8 +17,8 @@ export function Pricing() {
               One plan. Everything included.
             </h2>
             <p className="section-sub mb-0">
-              Research every two weeks, the live book, and the scoreboard vs the
-              S&amp;P — no tiers, no upsells.
+              Research every two weeks, the live book, and the scoreboard against
+              the S&amp;P. There is one tier and nothing to upsell.
             </p>
           </div>
           <div className="flex flex-col items-start gap-3 sm:items-end">

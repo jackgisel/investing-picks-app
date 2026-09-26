@@ -113,7 +113,7 @@ export default function LoginPage() {
           <p className="mt-4 font-sans text-[15px] leading-relaxed text-text-muted">
             We sent a sign-in link to{" "}
             <span className="font-semibold text-text">{linkSentTo}</span>.
-            Click it and you&apos;re in — nothing to remember, nothing to type.
+            Click it and you&apos;re in. There is no password to remember.
           </p>
           <div className="soft-card mt-8 text-left bg-bg/80 backdrop-blur-sm">
             <p className="field-label mb-2">WHAT HAPPENS NEXT</p>
@@ -132,7 +132,7 @@ export default function LoginPage() {
               {resending
                 ? "Sending…"
                 : resent
-                  ? "Sent — check your inbox"
+                  ? "Sent. Check your inbox"
                   : "Resend the link"}
             </button>
             <p className="font-sans text-[12px] text-text-dim">
@@ -222,7 +222,7 @@ export default function LoginPage() {
           </button>
 
           <p className="text-center font-sans text-[11px] text-text-dim leading-relaxed">
-            No password — we&apos;ll email you a one-click sign-in link. By
+            No password. We&apos;ll email you a one-click sign-in link. By
             continuing, you agree to our{" "}
             <Link href="/terms" className="underline underline-offset-2">
               Terms

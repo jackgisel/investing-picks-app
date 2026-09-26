@@ -59,3 +59,17 @@ export const CONTENT_DATE_AND_VISUAL_RULES = `## Dates
 - Prefer a compact GitHub-flavoured markdown table when it clarifies a comparison the prose would bury: the five factor grades for a pick, or the week's largest movers by return. One short table beats a wall of numbers.
 - Do not invent chart images, data URIs, or external image URLs. Tables and prose only.
 - Still no code fences except a plain markdown table. No mermaid, no HTML.`;
+
+/**
+ * Block injected into every drafting STYLE_GUIDE. Everything these prompts
+ * produce is public, and the dash and the stock AI phrasings are the first
+ * things a reader uses to decide a machine wrote it.
+ */
+export const HOUSE_WRITING_RULES = `## House writing rules
+- Never use an em dash (—), an en dash (–), or a double hyphen (--) as punctuation. Use a period, a comma, or a colon before a list. For a range write "to" (June to August, 3 to 5). Ticker lists read "AAPL: what it does", never "AAPL — what it does".
+- Do not use these words: delve, crucial, pivotal, robust, seamless, landscape, tapestry, testament, underscore, showcase, leverage (as a verb), navigate (figuratively), unlock, elevate, foster, game-changer, deep dive, in today's market.
+- Do not write the "not X, but Y" or "X isn't Y, it's Z" construction. State the point.
+- Do not force ideas into groups of three. Use the number of items there actually are.
+- Say "is" and "has", not "serves as", "stands as" or "boasts".
+- No opening throat-clearing and no closing summary that restates the note.
+- Use American spelling.`;

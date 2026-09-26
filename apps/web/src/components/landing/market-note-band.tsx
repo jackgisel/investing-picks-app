@@ -44,8 +44,8 @@ export function MarketNoteBand() {
               Every Monday, what the model is seeing.
             </h2>
             <p className="mt-3 font-sans text-[15px] leading-relaxed text-text-muted">
-              One short read to start the week — roughly four minutes, written
-              the same way we write research.
+              One short read to start the week. It takes about four minutes,
+              and we write it the same way we write research.
             </p>
 
             {/* The band used to be a headline and an input, which read as a
@@ -71,8 +71,8 @@ export function MarketNoteBand() {
           <div className="w-full">
             <MarketNoteSignup source="landing-hero" variant="inline" />
             <p className="mt-3 font-sans text-[13px] leading-relaxed text-text-dim">
-              No picks — those are the membership. One click unsubscribes, and
-              we never share your address.{" "}
+              No picks. Those are for members. One click unsubscribes, and we
+              never share your address.{" "}
               <Link
                 href="/market-note"
                 className="font-semibold text-text underline underline-offset-4 hover:opacity-70"

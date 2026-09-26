@@ -14,7 +14,7 @@ const BELIEFS: { num: string; title: string; body: string }[] = [
   {
     num: "01",
     title: "We buy businesses, not tickers",
-    body: "Durable economics first — margins that survive a bad year, cash flow that funds itself, and a competitive position that is hard to copy. A ticker is a claim on a business; if we cannot explain the business, we do not own the claim.",
+    body: "Durable economics come first. We want margins that survive a bad year, cash flow that funds the business, and a competitive position that is hard to copy. A ticker is a claim on a business; if we cannot explain the business, we do not own the claim.",
   },
   {
     num: "02",
@@ -44,10 +44,10 @@ export function Philosophy() {
               Value investing, with the work shown.
             </h2>
             <p className="section-sub">
-              None of this is original and we would be suspicious of a firm
+              None of this is original and we would be suspicious of anyone
               claiming otherwise. It is value investing as Graham set it out and
-              Buffett spent sixty years refining in public — a good business,
-              bought for less than it is worth, held long enough to matter.
+              Buffett spent sixty years refining in public. Buy a good business
+              for less than it is worth and hold it long enough to matter.
             </p>
             <p className="section-sub">
               What is new is the tooling, not the philosophy. We can hold 3,600

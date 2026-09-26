@@ -7,8 +7,8 @@ export function Disclaimer() {
             Important disclaimer
           </h4>
           <p className="font-sans text-[13px] text-text-dim leading-relaxed">
-            Outpick is an independent educational publication — not a registered
-            investment adviser, broker-dealer, or financial institution. All
+            Outpick is an independent educational publication. We are not a
+            registered investment adviser, broker-dealer, or financial institution. All
             content is for informational and educational purposes only and does
             not constitute investment advice, a recommendation, or an offer to
             buy or sell any securities. The Publisher holds positions in

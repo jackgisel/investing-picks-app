@@ -82,7 +82,7 @@ function sentimentFromSectors(sectors: EditorialBrief["sectors"]): string {
   const falling = sectors.filter((s) => (s.high_rating_change ?? 0) < 0);
   const excitement =
     rising.length > 0
-      ? `Breadth is building in ${rising.map((s) => s.sector).join(", ")} — more names are clearing the screen than a week ago.`
+      ? `Breadth is building in ${rising.map((s) => s.sector).join(", ")}, with more names clearing the screen than a week ago.`
       : "No sector is adding names above the rating threshold this week, so the excitement is not a broadening screen.";
   const fear =
     falling.length > 0

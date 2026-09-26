@@ -31,6 +31,7 @@ from app.services.benchmarks import (
     window_start,
 )
 from app.services.period_returns import period_returns_payload
+from app.services.track_record import monthly_returns, pick_scorecard
 from app.services.portfolio import (
     exit_basis,
     params_from_portfolio,
@@ -705,6 +706,21 @@ def get_period_returns(db: Session = Depends(get_db)):
     ones that stay public.
     """
     return period_returns_payload(db, portfolio_id=1)
+
+
+@router.get("/track-record")
+def get_track_record(db: Session = Depends(get_db)):
+    """Monthly picks-vs-S&P returns, and every pick against the S&P over its
+    own holding period.
+
+    Carries tickers, so the web layer gates it the way it gates /picks.
+    """
+    picks = get_picks(status="all", db=db)["picks"]
+    return {
+        "as_of": (latest_session(db) or date.today()).isoformat(),
+        "months": monthly_returns(db, portfolio_id=1),
+        "picks": pick_scorecard(db, picks),
+    }
 
 
 @router.get("/chart")

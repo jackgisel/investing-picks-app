@@ -656,18 +656,18 @@ export function renderMembershipInviteEmail(args: {
     ${heading("A complimentary Outpick membership is waiting")}
     ${paragraph(greeting, 14)}
     ${paragraph(
-      `You've been given a complimentary ${escapeHtml(SITE_NAME)} membership. Sign in with this email address and you're in: the picks, the research notes and the full book. No card, no checkout.`,
+      `You've been given complimentary access to ${escapeHtml(SITE_NAME)}. Sign in with this email address, continue through checkout, and membership will be $0. No card needed.`,
       22,
     )}
     ${card(`
       ${fieldLabel("Use this address")}
       <p class="dm-text" style="margin:0;font-family:${FONT_SANS};font-size:14px;color:${TEXT};">
-        The membership is tied to the inbox this mail reached. Sign in with it and the membership switches on by itself.
+        The complimentary rate is tied to the inbox this mail reached. Sign in with it so checkout can apply the grant.
       </p>`)}
     ${pillButton(args.inviteUrl, "Accept the invitation")}
     ${fallbackLink(args.inviteUrl)}
     <p class="dm-dim" style="margin:0;font-family:${FONT_SANS};font-size:12px;color:${TEXT_DIM};line-height:1.6;">
-      Didn't expect this? You can ignore the email. Nothing is ever billed for this membership.
+      Didn't expect this? You can ignore the email. Nothing is billed unless you sign in and complete checkout.
     </p>
   `;
 

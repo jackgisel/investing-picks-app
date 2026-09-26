@@ -403,7 +403,7 @@ export function OutroSlide() {
           Every pick. Every loss. Published.
         </p>
         <h2 className="font-sans text-[82px] font-extrabold tracking-tight leading-[1.02] uppercase mb-9 max-w-[1150px]">
-          A research firm with
+          Stock research with
           <br />a public track record.
         </h2>
         <p className="font-sans text-[24px] text-text-muted max-w-[760px] leading-relaxed mb-12">

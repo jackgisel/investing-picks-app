@@ -195,7 +195,7 @@ export function PickFunnel() {
     },
     {
       label: "Investable filter",
-      note: "Size and share price floors — no micro-caps, no penny stocks",
+      note: "Size and share price floors. No micro-caps, no penny stocks",
       width: 74,
       tone: "cyan" as PastelTone,
     },
@@ -293,7 +293,7 @@ export function PositionLifecycle({
     {
       tone: "peach" as PastelTone,
       title: `Cost basis recovered at +${pct(winnerThresholdPct)}`,
-      body: "When a pick has run far enough, we sell exactly the original stake and let the rest ride. From then on the position is playing with profit — and it is no longer capped.",
+      body: "When a pick has run far enough, we sell exactly the original stake and let the rest ride. From then on the position is playing with profit, and its upside is no longer capped.",
     },
     {
       tone: "coral" as PastelTone,

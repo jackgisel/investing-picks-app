@@ -52,7 +52,7 @@ export default function FeatureRequestsPage() {
           What would you like to see?
         </h2>
         <p className="font-sans text-[13px] text-text-muted mb-5 leading-relaxed max-w-[560px]">
-          One idea per request — separate ones are easier to plan, ship, and
+          One idea per request. Separate ones are easier to plan, ship and
           tell you about. A title on its own is fine.
         </p>
         <div className="data-card">
@@ -89,7 +89,7 @@ function RequestForm() {
     onSuccess: () => {
       setTitle("");
       setBody("");
-      setStatus({ kind: "success", message: "Sent — thank you." });
+      setStatus({ kind: "success", message: "Sent. Thank you." });
       qc.invalidateQueries({ queryKey: ["feature-requests"] });
     },
     onError: (e: Error) => setStatus({ kind: "error", message: e.message }),

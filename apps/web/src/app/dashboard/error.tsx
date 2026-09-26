@@ -29,7 +29,7 @@ export default function DashboardError({
       <div className="data-card flex flex-col items-start gap-3 py-8">
         <p className="panel-label">Render error</p>
         <p className="max-w-[520px] font-sans text-[14px] leading-relaxed text-text-muted">
-          This page failed to render. Your data is unaffected — the rest of the
+          This page failed to render. Your data is unaffected. The rest of the
           dashboard still works, and reloading usually clears it.
         </p>
         {error.digest && (

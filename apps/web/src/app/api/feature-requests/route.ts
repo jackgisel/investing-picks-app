@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
   if (recent >= DAILY_LIMIT) {
     return NextResponse.json(
       {
-        error: `That's ${DAILY_LIMIT} requests today — the limit. Please send the rest tomorrow.`,
+        error: `That's ${DAILY_LIMIT} requests today, which is the daily limit. Please send the rest tomorrow.`,
       },
       { status: 429, headers: NO_STORE_HEADERS },
     );

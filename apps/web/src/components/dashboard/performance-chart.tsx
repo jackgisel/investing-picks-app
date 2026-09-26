@@ -62,7 +62,7 @@ const SHORT_LABEL: Record<ChartWindow, string> = {
 /** What the headline number measures, per range. */
 const WINDOW_BLURB: Record<ChartWindow, string> = {
   inception:
-    "Cumulative return since the first pick — idle cash excluded, closed picks included.",
+    "Cumulative return since the first pick. Idle cash excluded, closed picks included.",
   "1y": "Return over the last year, with every pick held a year ago re-entered at its value then.",
   ytd: "Return since January 1st, with every pick held at year-end re-entered at its closing value then.",
   "6m": "Return over the last six months, with every pick held six months ago re-entered at its value then.",
@@ -113,7 +113,7 @@ function RangePicker({
             title={
               option.available
                 ? option.label
-                : `${option.label} — the book is not that old yet`
+                : `${option.label}: the book is not that old yet`
             }
             onClick={() => onChange(option.id)}
             className={`rounded-pill px-3 py-1 font-sans text-[10px] font-bold uppercase tracking-[0.1em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 focus-visible:ring-offset-bg ${
@@ -260,7 +260,7 @@ export function PerformanceChart({ compact = false }: { compact?: boolean }) {
 
         {benchmarks.length === 0 && !compact && (
           <p className="font-sans text-[11px] text-text-dim leading-relaxed mt-5">
-            Benchmark comparisons are unavailable right now — index price
+            Benchmark comparisons are unavailable right now. Index price
             history did not load, and we would rather show nothing than a flat
             line.
           </p>

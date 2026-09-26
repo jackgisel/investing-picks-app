@@ -139,7 +139,7 @@ export function LivePicksChart({ height = 280 }: { height?: number }) {
             <BenchmarkBasisNote startDate={startDate} />
           ) : (
             <p className="font-sans text-[11px] text-text-dim leading-relaxed">
-              Index comparisons are unavailable right now — we show nothing
+              Index comparisons are unavailable right now. We show nothing
               rather than a placeholder line.
             </p>
           )}

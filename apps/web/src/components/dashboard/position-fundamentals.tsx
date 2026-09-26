@@ -208,8 +208,8 @@ export function PositionFundamentals({ holding }: { holding: Holding }) {
         compares the latest trailing four quarters with the prior four.
         Forward consensus is the current analyst average for the labeled
         fiscal year; revision is its change from the prior snapshot. Street
-        range is analyst price-target consensus versus the latest mark — not
-        an Outpick target.
+        range is analyst price-target consensus versus the latest mark. It is
+        not an Outpick target.
       </p>
     </div>
   );

@@ -50,7 +50,7 @@ export default function TermsPage() {
 
         <section>
           <h2 className="font-sans text-lg font-semibold text-text mb-3">
-            3. Not Investment Advice — No Fiduciary Relationship
+            3. Not Investment Advice; No Fiduciary Relationship
           </h2>
           <p className="mb-3">
             <strong className="text-text">
@@ -85,8 +85,8 @@ export default function TermsPage() {
           </p>
           <p>
             By using the Service, you acknowledge that you understand the risks
-            of investing — including the possible loss of your entire investment
-            — and that you accept full and exclusive responsibility for your own
+            of investing, including the possible loss of your entire investment,
+            and that you accept full and exclusive responsibility for your own
             financial decisions and outcomes.
           </p>
         </section>
@@ -98,7 +98,7 @@ export default function TermsPage() {
           <p className="mb-3">
             Any research, commentary, portfolio data, or stock picks published
             through the Service describe what the Publisher owns, is considering,
-            or has owned — not what you should do. You agree not to treat any
+            or has owned. It does not describe what you should do. You agree not to treat any
             content as a directive, instruction, or personalized recommendation.
           </p>
           <p>
@@ -191,8 +191,8 @@ export default function TermsPage() {
             9. Intellectual Property
           </h2>
           <p>
-            All content provided through the Service — including research notes,
-            analysis, portfolio data, and website design — is the intellectual
+            All content provided through the Service, including research notes,
+            analysis, portfolio data, and website design, is the intellectual
             property of the Publisher and is protected by copyright and other
             intellectual property laws. You may not reproduce, distribute,
             modify, or publicly display any content from the Service without our
@@ -225,8 +225,8 @@ export default function TermsPage() {
               To the maximum extent permitted by applicable law, the Publisher,
               its operators, and contributors shall not be liable for any direct,
               indirect, incidental, special, consequential, exemplary, or
-              punitive damages — including loss of profits, loss of data, loss of
-              investment, trading losses, or any other financial losses — arising
+              punitive damages, including loss of profits, loss of data, loss of
+              investment, trading losses, or any other financial losses, arising
               from or related to your use of, reliance on, or inability to use
               the Service, whether or not we have been advised of the possibility
               of such damages.

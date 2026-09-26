@@ -130,7 +130,7 @@ export async function sendNewPickEmail(args: {
     banner: args.banner,
     weekKey: isoWeekKey(),
   });
-  const text = `New ${SITE_NAME} pick — ${args.ticker}\n\n${args.articleTitle}\n\n${args.articleDescription}\n\nRead the full research: ${articleUrl}\n\nYou're receiving this because you opted in to new pick alerts. Manage your preferences: ${SITE_URL}/dashboard/settings`;
+  const text = `New ${SITE_NAME} pick: ${args.ticker}\n\n${args.articleTitle}\n\n${args.articleDescription}\n\nRead the full research: ${articleUrl}\n\nYou're receiving this because you opted in to new pick alerts. Manage your preferences: ${SITE_URL}/dashboard/settings`;
 
   // This is a BULK send — notify-pick fans it out to every opted-in member — so
   // it carries the same List-Unsubscribe pair as the market note. It shipped
@@ -140,7 +140,7 @@ export async function sendNewPickEmail(args: {
 
   return send({
     to: args.to,
-    subject: `New pick: ${args.ticker} — ${args.articleTitle}`,
+    subject: `New pick: ${args.ticker} · ${args.articleTitle}`,
     html,
     text,
     headers: {
@@ -183,7 +183,7 @@ export async function sendAddNoteEmail(args: {
 
   return send({
     to: args.to,
-    subject: `Added to ${args.ticker} — ${args.articleTitle}`,
+    subject: `Added to ${args.ticker} · ${args.articleTitle}`,
     html,
     text,
     headers: {
@@ -224,7 +224,7 @@ export async function sendExitNoteEmail(args: {
   const closing = args.returnLabel
     ? `${args.ticker} closed at ${args.returnLabel}.`
     : `${args.ticker} is closed.`;
-  const text = `Position closed — ${args.ticker}\n\n${closing}\n\n${args.articleTitle}\n\n${args.articleDescription}\n\nRead the exit note: ${articleUrl}\n\nYou're receiving this because you opted in to pick alerts. Manage your preferences: ${SITE_URL}/dashboard/settings`;
+  const text = `Position closed: ${args.ticker}\n\n${closing}\n\n${args.articleTitle}\n\n${args.articleDescription}\n\nRead the exit note: ${articleUrl}\n\nYou're receiving this because you opted in to pick alerts. Manage your preferences: ${SITE_URL}/dashboard/settings`;
 
   // Same bulk-send obligations as the pick announcement: it fans out to the
   // whole opted-in list, so it carries the same List-Unsubscribe pair.
@@ -232,7 +232,7 @@ export async function sendExitNoteEmail(args: {
 
   return send({
     to: args.to,
-    subject: `Position closed: ${args.ticker} — ${args.articleTitle}`,
+    subject: `Position closed: ${args.ticker} · ${args.articleTitle}`,
     html,
     text,
     headers: {
@@ -256,7 +256,7 @@ export async function sendDeleteAccountEmail(args: {
     siteUrl: SITE_URL,
     banner: args.banner,
   });
-  const text = `Confirm account deletion\n\nWe received a request to delete your ${SITE_NAME} account. To confirm, click the link below within the next hour:\n\n${args.confirmUrl}\n\nIf you didn't request this, you can ignore this email — your account is safe.`;
+  const text = `Confirm account deletion\n\nWe received a request to delete your ${SITE_NAME} account. To confirm, click the link below within the next hour:\n\n${args.confirmUrl}\n\nIf you didn't request this, you can ignore this email. Your account is unchanged.`;
 
   return send({
     to: args.to,
@@ -284,7 +284,7 @@ export async function sendVerifyEmail(args: {
 
   return send({
     to: args.to,
-    subject: `Welcome to ${SITE_NAME} — verify your email`,
+    subject: `Welcome to ${SITE_NAME}. Verify your email`,
     html,
     text,
   });
@@ -302,7 +302,7 @@ export async function sendMagicLinkEmail(args: {
     siteUrl: SITE_URL,
     banner: args.banner,
   });
-  const text = `Sign in to ${SITE_NAME}\n\nClick the link below to sign in — no password needed. It works once and expires shortly:\n\n${args.signInUrl}\n\nIf you didn't request this, you can ignore this email.`;
+  const text = `Sign in to ${SITE_NAME}\n\nClick the link below to sign in. No password needed. It works once and expires shortly:\n\n${args.signInUrl}\n\nIf you didn't request this, you can ignore this email.`;
 
   return send({
     to: args.to,
@@ -326,11 +326,11 @@ export async function sendMembershipInviteEmail(args: {
     siteUrl: SITE_URL,
     banner: args.banner,
   });
-  const text = `You're invited to ${SITE_NAME}.\n\nYou've been given complimentary membership. Sign in with this email, continue through checkout, and it will be $0 — no card needed.\n\n${args.inviteUrl}\n\nIf you didn't expect this, you can ignore the email.`;
+  const text = `You're invited to ${SITE_NAME}.\n\nYou've been given a complimentary membership. Sign in with this email address and you're in. No card, no checkout.\n\n${args.inviteUrl}\n\nIf you didn't expect this, you can ignore the email.`;
 
   return send({
     to: args.to,
-    subject: `You're invited to ${SITE_NAME} — complimentary membership`,
+    subject: `You're invited to ${SITE_NAME}: complimentary membership`,
     html,
     text,
   });
@@ -403,7 +403,7 @@ export async function sendMarketNoteIssueEmail(args: {
     weekKey: args.weekKey,
     banner: args.banner,
   });
-  const text = `${args.subject}\n\n${args.lede ? args.lede + "\n\n" : ""}${args.bodyMd}\n\nThis note is market commentary, not investment advice, and never our picks — those are members-only.\n\nUnsubscribe any time: ${unsubscribeUrl}`;
+  const text = `${args.subject}\n\n${args.lede ? args.lede + "\n\n" : ""}${args.bodyMd}\n\nThis note is market commentary, not investment advice, and never our picks. Those are for members.\n\nUnsubscribe any time: ${unsubscribeUrl}`;
 
   return send({
     to: args.to,

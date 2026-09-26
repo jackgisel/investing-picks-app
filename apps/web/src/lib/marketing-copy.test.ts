@@ -36,3 +36,64 @@ describe("user-facing copy does not lead with AI drafting", () => {
     }
   });
 });
+
+/**
+ * Marketing pages and the components they render. Dashes read as machine
+ * writing to the people this copy is trying to convert, so the house rule is
+ * none at all. A lone "—" as an empty-value placeholder is not prose and is
+ * allowed; comments are not copy and are stripped before checking.
+ */
+const MARKETING = [
+  "src/app/layout.tsx",
+  "src/app/opengraph-image.tsx",
+  "src/app/faq/page.tsx",
+  "src/app/login/page.tsx",
+  "src/app/market-note/page.tsx",
+  "src/app/market-note/unsubscribe/page.tsx",
+  "src/app/market-note/unsubscribe/unsubscribe-confirm.tsx",
+  "src/app/pricing/page.tsx",
+  "src/app/privacy/page.tsx",
+  "src/app/research/[slug]/page.tsx",
+  "src/app/strategy/page.tsx",
+  "src/app/terms/page.tsx",
+  "src/app/track-record/page.tsx",
+  "src/app/welcome/welcome-experience.tsx",
+  "src/app/what-we-are-not/page.tsx",
+  "src/components/landing/backtest-holdings.tsx",
+  "src/components/landing/disclaimer.tsx",
+  "src/components/landing/hero.tsx",
+  "src/components/landing/how-it-works-diagrams.tsx",
+  "src/components/landing/live-picks.tsx",
+  "src/components/landing/market-note-band.tsx",
+  "src/components/landing/philosophy.tsx",
+  "src/components/landing/pricing.tsx",
+  "src/components/landing/sample-research.tsx",
+  "src/components/landing/track-record.tsx",
+  "src/components/landing/what-how.tsx",
+  "src/components/landing/what-we-are-not.tsx",
+  "src/components/layout/cookie-banner.tsx",
+  "src/components/layout/footer.tsx",
+  "src/components/marketing/comparison-table.tsx",
+  "src/components/marketing/market-note-signup.tsx",
+  "src/components/pricing/pricing-page.tsx",
+  "src/content/faq.ts",
+  "src/content/market-note-sample.tsx",
+  "src/content/pricing.ts",
+  "src/lib/constants.ts",
+] as const;
+
+function stripComments(src: string): string {
+  return src
+    .replace(/\{\/\*[\s\S]*?\*\/\}/g, "")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:\\])\/\/.*$/gm, "$1");
+}
+
+describe("marketing copy uses no dashes", () => {
+  it.each(MARKETING)("%s", (rel) => {
+    const copy = stripComments(readFileSync(join(webRoot, rel), "utf8"))
+      .replaceAll('"—"', "")
+      .replaceAll(">—<", "");
+    expect(copy, `${rel} contains a dash`).not.toMatch(/—|–| -- /);
+  });
+});

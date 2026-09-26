@@ -47,7 +47,7 @@ export default function PerformancePage() {
     gateFrom(strategyQuery),
   );
 
-  let subtitle = "The picks against the market — cumulative, month by month, and pick by pick";
+  let subtitle = "The picks against the market: cumulative, month by month, and pick by pick";
   if (pageState === "subscription") subtitle = "Subscription required";
   else if (pageState === "unauthenticated") subtitle = "Sign in to continue";
   else if (pageState === "loading") subtitle = "Checking access...";

@@ -9,6 +9,7 @@ import {
 import { isSameOriginBrowserPost } from "./billing-security";
 import {
   buildCheckoutParams,
+  buildComplimentarySubscriptionParams,
   checkoutDatafastUpdate,
   checkoutSuccessUrl,
   findReusableCheckoutSession,
@@ -201,31 +202,21 @@ describe("Checkout parameters and browser origin", () => {
     expect(params.customer_update).toEqual({ address: "auto", name: "auto" });
   });
 
-  it("builds a $0 complimentary checkout that does not demand a card", () => {
-    const params = buildCheckoutParams({
-      appUrl,
+  it("builds a $0 complimentary Subscription with no Checkout and no tax", () => {
+    const params = buildComplimentarySubscriptionParams({
       userId: "user_1",
       customerId: "cus_1",
       annualPriceId: "price_annual",
       couponId: "outpick_complimentary",
-      offer: "complimentary",
-      automaticTax: false,
     });
-    expect(params).toMatchObject({
+    expect(params).toEqual({
+      customer: "cus_1",
+      items: [{ price: "price_annual", quantity: 1 }],
       discounts: [{ coupon: "outpick_complimentary" }],
-      payment_method_collection: "if_required",
-      billing_address_collection: "auto",
       metadata: {
         outpick_user_id: "user_1",
         founders_offer: "false",
         offer_type: "complimentary",
-      },
-      subscription_data: {
-        metadata: {
-          outpick_user_id: "user_1",
-          founders_offer: "false",
-          offer_type: "complimentary",
-        },
       },
     });
   });

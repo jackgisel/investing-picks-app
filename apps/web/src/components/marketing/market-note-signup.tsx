@@ -52,7 +52,7 @@ export function MarketNoteSignup({
       setStatus("done");
       setMessage(
         body.status === "already"
-          ? "You're already on the list — the next note lands Monday."
+          ? "You're already on the list. The next note lands Monday."
           : "You're in. Check your inbox for a confirmation."
       );
       setEmail("");
@@ -160,8 +160,8 @@ export function MarketNoteSignup({
       </h3>
       <p className="font-sans text-[14px] text-text-muted leading-relaxed mb-6 max-w-[46ch]">
         What the model is seeing across ~3,600 US-listed stocks, which sectors
-        are scoring, and what we make of it. Market commentary — the picks stay
-        behind the membership.
+        are scoring, and what we make of it. It&apos;s market commentary. The
+        picks are for members.
       </p>
       {form}
     </div>

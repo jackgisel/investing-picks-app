@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   // as its canonical URL.
   alternates: { canonical: "/track-record" },
   title: "Track record",
-  description: `Live example portfolio and ${BACKTEST.yearsCovered}-year walk-forward backtrained model — wins, losses, and performance vs the S&P 500, published in full.`,
+  description: `Live example portfolio and ${BACKTEST.yearsCovered}-year walk-forward backtrained model. Wins, losses and performance against the S&P 500, published in full.`,
 };
 
 export const revalidate = 300;
@@ -36,7 +36,7 @@ export default async function TrackRecordPage() {
             Below is the full record: the live example portfolio since
             inception, and the {BACKTEST.yearsCovered}-year walk-forward
             backtrained model that was tested before we charged anyone. Simulated
-            results are labeled as such — they are not a realized track record.
+            results are labeled as simulated. They are not a realized track record.
           </p>
           <div className="flex flex-wrap gap-3">
             <PillButton href="/subscribe" arrow data-fast-goal={DATAFAST_CHECKOUT_GOAL}>

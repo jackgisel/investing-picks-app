@@ -34,7 +34,7 @@ export async function generateMetadata({
   const access = await getAccess();
   if (!access.entitled) {
     return {
-      title: "Insights — Members only",
+      title: "Insights | Members only",
       robots: { index: false, follow: false },
     };
   }
@@ -117,7 +117,7 @@ export default async function InsightDetailPage({
       {insight.status !== "approved" && (
         <div className="mt-6 rounded-soft border border-accent-coral/40 bg-accent-coral/5 px-4 py-3">
           <p className="font-sans text-[11px] font-bold uppercase tracking-[0.12em] text-accent-coral">
-            {insight.status} — not published
+            {insight.status}, not published
           </p>
           <p className="mt-1 text-xs text-text-muted">
             Only admins can see this. Subscribers see nothing here until it is

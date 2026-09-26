@@ -50,8 +50,8 @@ function MembersOnly() {
         </span>
         <p className="panel-label panel-label-lilac">Members only</p>
         <p className="max-w-[440px] font-sans text-[14px] leading-relaxed text-text-muted">
-          Research notes on every position — thesis, financials, and cycle
-          context — are part of membership. Your account is signed in but does
+          Research notes on every position, with the thesis, financials and
+          cycle context, are part of membership. Your account is signed in but does
           not have an active subscription.
         </p>
         <div className="mt-1 flex flex-wrap items-center justify-center gap-4">

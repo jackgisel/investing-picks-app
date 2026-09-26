@@ -239,7 +239,7 @@ function ProfileForm({
           {email}
         </div>
         <p className="font-sans text-[11px] text-text-dim mt-1.5">
-          Email changes are not supported yet —{" "}
+          Email changes are not supported yet.{" "}
           <a
             href="mailto:hello@outpick.xyz"
             className="text-text font-semibold underline underline-offset-2 hover:opacity-70"
@@ -769,8 +769,8 @@ function DeleteAccountPanel() {
       <div className="rounded-lg bg-accent-red-soft/30 border border-accent-red/30 px-4 py-3">
         <p className="font-sans text-[13px] text-text leading-relaxed">
           <strong>This will permanently delete your account.</strong> Your
-          Stripe subscription is canceled automatically as part of deletion —
-          you won&apos;t be billed again.
+          Stripe subscription is canceled automatically as part of deletion,
+          so you won&apos;t be billed again.
         </p>
       </div>
 

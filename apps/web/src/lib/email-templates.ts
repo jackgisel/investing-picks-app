@@ -228,7 +228,7 @@ export function renderMarketNoteIssueEmail(args: {
     ${pillButton(`${args.siteUrl}/pricing`, "See what members get")}
     <p class="dm-dim" style="margin:0;font-family:${FONT_SANS};font-size:13px;color:${TEXT_DIM};line-height:1.6;">
       This note is market commentary, not investment advice, and never our
-      picks — those are members-only.
+      picks. Those are for members.
     </p>
   `;
 
@@ -453,7 +453,7 @@ export function renderNewPickEmail(args: {
   `;
 
   return shell({
-    preview: `${args.ticker} — ${args.articleTitle}`,
+    preview: `${args.ticker} · ${args.articleTitle}`,
     bodyHtml: body,
     siteUrl: args.siteUrl,
     banner: args.banner,
@@ -531,7 +531,7 @@ export function renderAddNoteEmail(args: {
   `;
 
   return shell({
-    preview: `Added to ${args.ticker} — ${args.articleTitle}`,
+    preview: `Added to ${args.ticker} · ${args.articleTitle}`,
     bodyHtml: body,
     siteUrl: args.siteUrl,
     banner: args.banner,
@@ -565,7 +565,7 @@ export function renderDeleteAccountEmail(args: {
     ${pillButton(args.confirmUrl, "Confirm deletion")}
     ${fallbackLink(args.confirmUrl)}
     <p class="dm-dim" style="margin:0;font-family:${FONT_SANS};font-size:12px;color:${TEXT_DIM};line-height:1.6;">
-      Didn't request this? You can safely ignore this email — your account is unchanged.
+      Didn't request this? You can ignore this email. Your account is unchanged.
     </p>
   `;
 
@@ -605,7 +605,7 @@ export function renderVerifyEmail(args: {
   `;
 
   return shell({
-    preview: `Welcome to ${SITE_NAME} — verify your email to continue.`,
+    preview: `Welcome to ${SITE_NAME}. Verify your email to continue.`,
     bodyHtml: body,
     siteUrl: args.siteUrl,
     banner: args.banner,
@@ -623,18 +623,18 @@ export function renderMagicLinkEmail(args: {
     ${eyebrow("Sign in to Outpick", "mint")}
     ${heading("One click and you’re in")}
     ${paragraph(
-      `Click below to sign in. No password to remember — this link works once and expires shortly, so request a new one if it's gone stale.`,
+      `Click below to sign in. There is no password. The link works once and expires shortly, so request a new one if it has gone stale.`,
       26
     )}
     ${pillButton(args.signInUrl, "Sign in to Outpick")}
     ${fallbackLink(args.signInUrl)}
     <p class="dm-dim" style="margin:0;font-family:${FONT_SANS};font-size:12px;color:${TEXT_DIM};line-height:1.6;">
-      Didn't request this? You can safely ignore this email — no account changes happen until the link is clicked.
+      Didn't request this? You can ignore this email. Nothing changes until the link is clicked.
     </p>
   `;
 
   return shell({
-    preview: `Sign in to ${SITE_NAME} — click the link, no password needed.`,
+    preview: `Sign in to ${SITE_NAME}. Click the link, no password needed.`,
     bodyHtml: body,
     siteUrl: args.siteUrl,
     banner: args.banner,
@@ -656,23 +656,23 @@ export function renderMembershipInviteEmail(args: {
     ${heading("A complimentary Outpick membership is waiting")}
     ${paragraph(greeting, 14)}
     ${paragraph(
-      `You've been given complimentary access to ${escapeHtml(SITE_NAME)}. Sign in with this email address, continue through checkout, and membership will be $0 — no card needed.`,
+      `You've been given a complimentary ${escapeHtml(SITE_NAME)} membership. Sign in with this email address and you're in: the picks, the research notes and the full book. No card, no checkout.`,
       22,
     )}
     ${card(`
       ${fieldLabel("Use this address")}
       <p class="dm-text" style="margin:0;font-family:${FONT_SANS};font-size:14px;color:${TEXT};">
-        The complimentary rate is tied to the inbox this mail reached. Sign in with it so checkout can apply the grant.
+        The membership is tied to the inbox this mail reached. Sign in with it and the membership switches on by itself.
       </p>`)}
     ${pillButton(args.inviteUrl, "Accept the invitation")}
     ${fallbackLink(args.inviteUrl)}
     <p class="dm-dim" style="margin:0;font-family:${FONT_SANS};font-size:12px;color:${TEXT_DIM};line-height:1.6;">
-      Didn't expect this? You can ignore the email — nothing is billed unless you sign in and complete checkout.
+      Didn't expect this? You can ignore the email. Nothing is ever billed for this membership.
     </p>
   `;
 
   return shell({
-    preview: `You're invited to ${SITE_NAME} — complimentary membership, no card needed.`,
+    preview: `You're invited to ${SITE_NAME}. Complimentary membership, no card needed.`,
     bodyHtml: body,
     siteUrl: args.siteUrl,
     banner: args.banner,
@@ -697,22 +697,22 @@ export function renderMembershipWelcomeEmail(args: {
     ${heading("You’re in. Here’s where to start.")}
     ${paragraph(greeting, 14)}
     ${paragraph(
-      `Your ${escapeHtml(SITE_NAME)} membership is active. We built the product to work like a transparent research desk, not a stream of trading alerts.`,
+      `Your ${escapeHtml(SITE_NAME)} membership is active. Everything we publish is research you can read and check. We don't send trading alerts.`,
       24
     )}
 
     ${card(`
-      ${fieldLabel("01 — Live book")}
+      ${fieldLabel("01 · Live book")}
       <p class="dm-muted" style="margin:0 0 16px 0;font-family:${FONT_SANS};font-size:14px;color:${TEXT_MUTED};line-height:1.6;">
         See every open position, the decision ledger, and performance against the S&amp;P 500.
       </p>
-      ${fieldLabel("02 — Research")}
+      ${fieldLabel("02 · Research")}
       <p class="dm-muted" style="margin:0 0 16px 0;font-family:${FONT_SANS};font-size:14px;color:${TEXT_MUTED};line-height:1.6;">
         Read the thesis, evidence, risks, and rules behind each published pick.
       </p>
-      ${fieldLabel("03 — Cadence")}
+      ${fieldLabel("03 · Cadence")}
       <p class="dm-muted" style="margin:0;font-family:${FONT_SANS};font-size:14px;color:${TEXT_MUTED};line-height:1.6;">
-        New high-conviction picks arrive roughly every two weeks. You control which updates reach your inbox.
+        A new pick arrives about every two weeks. You control which updates reach your inbox.
       </p>`) }
 
     ${pillButton(args.welcomeUrl, "See how Outpick works")}
@@ -723,7 +723,7 @@ export function renderMembershipWelcomeEmail(args: {
   `;
 
   return shell({
-    preview: `Your ${SITE_NAME} membership is active — start with the live book and research.`,
+    preview: `Your ${SITE_NAME} membership is active. Start with the live book and the research.`,
     bodyHtml: body,
     siteUrl: args.siteUrl,
     banner: args.banner,
@@ -742,7 +742,7 @@ export function renderMarketNoteWelcomeEmail(args: {
     ${eyebrow("You're on the list", "cyan")}
     ${heading("The Market Note lands every Monday")}
     ${paragraph(
-      `Every Monday we send one short read: what the model is seeing across ~3,600 US-listed stocks, which sectors are scoring, and what we make of it. No hype, no urgency, no forwarding your address to anyone.`,
+      `Every Monday we send one short read: what the model is seeing across ~3,600 US-listed stocks, which sectors are scoring, and what we make of it. We never share your address.`,
       22
     )}
 
@@ -755,18 +755,18 @@ export function renderMarketNoteWelcomeEmail(args: {
       </p>`)}
 
     ${paragraph(
-      `While you wait for the first one, our track record — backtest, live book, wins and losses — is published in full on the site.`,
+      `While you wait for the first one, the full track record is on the site. That includes the backtest and the live book, wins and losses.`,
       26
     )}
     ${pillButton(`${args.siteUrl}/track-record`, "See the track record")}
 
     <p class="dm-dim" style="margin:0;font-family:${FONT_SANS};font-size:12px;color:${TEXT_DIM};line-height:1.6;">
-      Didn't sign up? <a href="${args.unsubscribeUrl}" class="dm-text" style="color:${TEXT};text-decoration:underline;">Remove yourself here</a> — one click, no questions.
+      Didn't sign up? <a href="${args.unsubscribeUrl}" class="dm-text" style="color:${TEXT};text-decoration:underline;">Remove yourself here</a>. It takes one click.
     </p>
   `;
 
   return shell({
-    preview: `Welcome to the ${SITE_NAME} Market Note — one short read every week.`,
+    preview: `Welcome to the ${SITE_NAME} Market Note. One short read every Monday.`,
     bodyHtml: body,
     siteUrl: args.siteUrl,
     unsubscribe: { url: args.unsubscribeUrl, label: "Unsubscribe" },

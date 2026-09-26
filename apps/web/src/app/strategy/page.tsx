@@ -29,7 +29,7 @@ const PILLARS: { num: string; short: string; title: string; body: string }[] = [
     num: "01",
     short: "Businesses",
     title: "We buy businesses, not tickers",
-    body: "Every position starts with durable economics — margins that survive a bad year, cash flow that funds the business without the capital markets, a balance sheet that does not force a decision at the worst possible moment, and a competitive position that is hard to copy. A ticker is a claim on a business. If we cannot explain the business, we do not own the claim.",
+    body: "Every position starts with durable economics: margins that survive a bad year, cash flow that funds the business without the capital markets, a balance sheet that does not force a decision at the worst possible moment, and a competitive position that is hard to copy. A ticker is a claim on a business. If we cannot explain the business, we do not own the claim.",
   },
   {
     num: "02",
@@ -41,7 +41,7 @@ const PILLARS: { num: string; short: string; title: string; body: string }[] = [
     num: "03",
     short: "Evidence",
     title: "Fundamentals, with the evidence attached",
-    body: "We score roughly 3,600 US-listed companies on five fundamental factors — valuation, growth, profitability, momentum and estimate revisions — each measured against the company's own sector rather than the whole market. A cheap software company and a cheap miner are not the same claim, and scoring them on one scale would say they were.",
+    body: "We score roughly 3,600 US-listed companies on five fundamental factors (valuation, growth, profitability, momentum and estimate revisions), each measured against the company's own sector rather than the whole market. A cheap software company and a cheap miner are not the same claim, and scoring them on one scale would say they were.",
   },
   {
     num: "04",
@@ -61,9 +61,9 @@ export default function StrategyPage() {
             Value investing, researched in the open.
           </h1>
           <p className="section-sub mb-0">
-            {SITE_NAME} is a research firm. We look for good businesses trading
+            {SITE_NAME} is a research publication. We look for good businesses trading
             for less than they are worth, we underwrite them over years, and we
-            publish the reasoning — including the positions that went against
+            publish the reasoning, including for the positions that went against
             us.
           </p>
         </div>
@@ -105,7 +105,7 @@ export default function StrategyPage() {
                   "Price-based entry and exit points",
                   "Trade alerts you act on immediately",
                   "Options, leverage, and short-term setups",
-                  "Personal advice — we are not a broker or adviser",
+                  "Personal advice. We are not a broker or adviser",
                 ].map((item) => (
                   <li
                     key={item}
@@ -140,7 +140,7 @@ export default function StrategyPage() {
             </h2>
             <p className="section-sub">
               None of the thinking here is original, and we would be suspicious
-              of a firm that claimed otherwise. The framework is value
+              of anyone who claimed otherwise. The framework is value
               investing as Benjamin Graham set it out and Warren Buffett spent
               sixty years refining in public: buy a business you understand, pay
               less than it is worth, insist on a margin of safety, and let time
@@ -225,8 +225,8 @@ export default function StrategyPage() {
               would have to be true for us to be wrong.
             </p>
             <p className="section-sub">
-              Positions close when a rule says so — a guardrail is breached, or
-              the case for owning the business stops holding. When that happens
+              Positions close when a rule says so. Either a guardrail is
+              breached or the case for owning the business stops holding. When that happens
               we publish an exit note covering what we owned, what changed, the
               specific rule that closed it, and what the round trip returned.
               The losing ones get the same treatment as the winners, which is

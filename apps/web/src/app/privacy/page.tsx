@@ -15,7 +15,7 @@ export default function PrivacyPage() {
         Privacy Policy
       </h1>
       <p className="font-sans text-[13px] text-text-dim mb-12">
-        Last updated: April 2026
+        Last updated: September 2026
       </p>
 
       <div className="space-y-10 font-sans text-[14px] text-text-muted leading-relaxed">
@@ -79,7 +79,7 @@ export default function PrivacyPage() {
             data:
           </p>
           <p className="mb-2">
-            <strong className="text-text">Stripe</strong> — Payment processing,
+            <strong className="text-text">Stripe</strong>: payment processing,
             hosted billing pages, invoices, and tax calculation. We share your
             account identifier, email, name, billing address, subscription, and
             transaction details with Stripe as needed to provide billing. See{" "}
@@ -94,12 +94,11 @@ export default function PrivacyPage() {
             .
           </p>
           <p className="mb-2">
-            <strong className="text-text">Convex</strong> — Backend
-            infrastructure. Your account data is stored securely on
-            Convex&apos;s servers.
+            <strong className="text-text">Railway</strong>: hosting and
+            database. Your account data is stored on Railway&apos;s servers.
           </p>
           <p className="mb-2">
-            <strong className="text-text">DataFast</strong> — Privacy-respecting
+            <strong className="text-text">DataFast</strong>: privacy-respecting
             web analytics and revenue attribution. After you accept analytics
             cookies, first-party visitor and session identifiers are set so we
             can attribute Stripe checkout to the source that brought you here.
@@ -115,7 +114,7 @@ export default function PrivacyPage() {
             .
           </p>
           <p className="mb-2">
-            <strong className="text-text">Google Ads</strong> — Conversion
+            <strong className="text-text">Google Ads</strong>: conversion
             measurement. We load the Google tag site-wide and send a conversion
             event after a successful Stripe Checkout, including the paid amount
             and a unique transaction identifier. See{" "}
@@ -130,7 +129,7 @@ export default function PrivacyPage() {
             .
           </p>
           <p>
-            <strong className="text-text">Email provider</strong> — We use a
+            <strong className="text-text">Email provider</strong>: we use a
             transactional email service to deliver alerts and notifications. Your
             email address is shared with this provider solely for the purpose of
             delivering communications you have opted into.

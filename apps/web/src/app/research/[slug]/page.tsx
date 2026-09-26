@@ -127,7 +127,7 @@ export default async function PublicResearchPage({
             </p>
             <p className="mt-1.5 font-sans text-[14px] leading-relaxed text-text-muted">
               {isExit
-                ? "A real note from the live book, published in full. We write one of these every time a position closes — including the ones that lost money."
+                ? "A real note from the live book, published in full. We write one of these every time a position closes, including the ones that lost money."
                 : "A real note from the live book, published in full. Members get one of these every two weeks, plus an exit note when the position closes."}
             </p>
           </div>

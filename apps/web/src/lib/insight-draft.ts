@@ -6,6 +6,7 @@ import { opsHeaders } from "@/lib/admin";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
 import {
   CONTENT_DATE_AND_VISUAL_RULES,
+  HOUSE_WRITING_RULES,
   formatQuantRating,
   QUANT_RATING_MAX,
   QUANT_RATING_MIN,
@@ -37,24 +38,26 @@ The payload has a "missing" array naming the facts that are NOT available for th
 
 ## The note
 Six sections, in this order, each introduced by an H2:
-1. Business overview — what the company actually does and how it earns money.
-2. Our buy thesis — why this name, grounded in the grades and rule checks you were given.
-3. Growth and profitability — the TTM figures that support or complicate the thesis.
-4. Valuation and momentum context — multiples and price behaviour, honestly framed.
-5. Potential risks — real ones, specific to this business. Not boilerplate.
-6. Concluding summary — what has to go right.
+1. Business overview: what the company actually does and how it earns money.
+2. Our buy thesis: why this name, grounded in the grades and rule checks you were given.
+3. Growth and profitability: the TTM figures that support or complicate the thesis.
+4. Valuation and momentum context: multiples and price behaviour, honestly framed.
+5. Potential risks: real ones, specific to this business. Not boilerplate.
+6. Concluding summary: what has to go right.
 
 ## Hard rules
-- **Never a portfolio dollar figure.** No position size, no share count, no entry or exit price, no portfolio value, no dollar P&L. Express our side in percentages only — returns are what matter and absolute capital is the reader's own decision. This is how every published surface works and a draft is not where it changes. Company financials in dollars (revenue, free cash flow, market cap) are fine and expected; the ban is on OUR position, not on the business.
-- Never state or imply an Outpick price target. If the payload includes analyst price-target consensus (Street low/mean/high), you may cite it as third-party context — never as our target.
+- **Never a portfolio dollar figure.** No position size, no share count, no entry or exit price, no portfolio value, no dollar P&L. Express our side in percentages only. Returns are what matter and absolute capital is the reader's own decision. This is how every published surface works and a draft is not where it changes. Company financials in dollars (revenue, free cash flow, market cap) are fine and expected; the ban is on OUR position, not on the business.
+- Never state or imply an Outpick price target. If the payload includes analyst price-target consensus (Street low/mean/high), you may cite it as third-party context, never as our target.
 - Never use urgency, hype, or second-person exhortation ("you should buy", "don't miss"). The reader is deciding for themselves.
 - Every number you cite must appear in the payload. If you want a figure you were not given, write around it or say it is not available.
-- Where a factor grade is weak, say so plainly and explain why the position was still opened. A note that only argues one side is worse than useless — it is the thing that gets a publication in trouble.
+- Where a factor grade is weak, say so plainly and explain why the position was still opened. A note that only argues one side is worse than useless. It is the thing that gets a publication in trouble.
 - No headings beyond H2. No images. No code fences.
 
 ${quantRatingPromptRules(SITE_URL)}
 
 ${CONTENT_DATE_AND_VISUAL_RULES}
+
+${HOUSE_WRITING_RULES}
 
 ## Voice
 Plain, specific, unhurried. Short paragraphs. Prefer the concrete noun to the abstract one. Write for a reader who is intelligent about business but not a professional analyst, and who is paying for judgement rather than a data dump.
@@ -62,7 +65,7 @@ Plain, specific, unhurried. Short paragraphs. Prefer the concrete noun to the ab
 ## Output
 - \`bodyMd\` is GitHub-flavoured markdown containing ONLY the six sections: \`## Heading\` plus paragraphs, bullet lists, **bold**, links, and at most one short markdown table (factor grades when present). No front matter, no title (that is its own field), no closing disclaimer (the site adds one).
 - \`lede\` is a single opening sentence or two, rendered above the body in larger type. It is not part of \`bodyMd\`.
-- \`tldr\` is exactly five short bullets — the Highlights box at the top of the note.
+- \`tldr\` is exactly five short bullets: the Highlights box at the top of the note.
 - \`keyTakeaway\` is one or two sentences closing the note.
 - \`title\` follows the house pattern: "Stock buy: <a specific claim about the company>". No ticker in the title.
 - \`description\` is one sentence, roughly 155 characters, used as the deck and the meta description.

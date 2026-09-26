@@ -11,7 +11,7 @@ export const SITE_TAGLINE = "Intentional investing beyond the index.";
 export const SITE_SUBHEADLINE =
   "Value-based stock research for investors who outgrew index funds.";
 export const SITE_DESCRIPTION =
-  "Outpick is a stock research team for investors who outgrew index funds. Value-based research into businesses worth owning for years — one name every two weeks, a live book you can audit, and a written note every time a position closes.";
+  "Outpick is an independent stock research publication for investors who outgrew index funds. We research businesses worth owning for years and publish one name every two weeks, with a live book you can audit and a written note every time a position closes.";
 
 export const PRICING = {
   annual: 1000,
@@ -79,9 +79,9 @@ export const BACKTEST = {
 // two independently hand-written lists that drifted apart. Describe the
 // research process, not the drafting stack.
 export const MEMBERSHIP_BENEFITS = [
-  "A new high-conviction pick every two weeks — fundamentals, revisions, a written thesis, and review before it publishes",
+  "A new pick every two weeks, with the fundamentals, estimate revisions and a written thesis, reviewed before it publishes",
   "Live example portfolio with full position tracking",
-  "Complete investment theses — evidence and risks, not just a call",
+  "The full thesis for every pick, with the evidence and the risks",
   "Performance tracked against the S&P 500, wins and losses both shown",
   "Email alerts on new picks",
   `${BACKTEST.yearsCovered}-year backtrained model + live example portfolio`,

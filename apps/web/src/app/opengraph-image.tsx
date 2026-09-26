@@ -9,7 +9,7 @@ import {
 } from "@/lib/constants";
 
 export const runtime = "nodejs";
-export const alt = `${SITE_NAME} — ${SITE_TAGLINE}`;
+export const alt = `${SITE_NAME} | ${SITE_TAGLINE}`;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 

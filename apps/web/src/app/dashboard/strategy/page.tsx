@@ -61,7 +61,7 @@ const FACTORS: {
   {
     name: "Momentum",
     question:
-      "Has the market already begun to agree? Measured over a full year rather than weeks — we are looking for a durable re-rating, not a bounce, and names that have run too far too fast are penalised rather than rewarded.",
+      "Has the market already begun to agree? We measure it over a full year rather than weeks because we want a durable re-rating. Names that have run too far too fast are penalized rather than rewarded.",
     measures: ["12-month return", "Drawdown from peak"],
     emphasis: "supporting",
   },
@@ -144,7 +144,7 @@ export default function StrategyPage() {
             </div>
             <div className="data-card">
               <p className="font-mono text-[12px] text-text-dim mb-5">
-                {BACKTEST.startDate} — {BACKTEST.endDate} ·{" "}
+                {BACKTEST.startDate} to {BACKTEST.endDate} ·{" "}
                 {BACKTEST.yearsCovered} years · walk-forward validated
               </p>
               <div className="grid grid-cols-2 gap-x-8 gap-y-5 sm:grid-cols-4">
@@ -187,7 +187,7 @@ export default function StrategyPage() {
                 <div>
                   <p className="field-label">OUT-OF-SAMPLE WINDOW</p>
                   <p className="mt-1.5 font-mono text-[13px] font-semibold text-text">
-                    {BACKTEST.validationStart} – {BACKTEST.validationEnd}
+                    {BACKTEST.validationStart} to {BACKTEST.validationEnd}
                   </p>
                 </div>
                 <div>
@@ -201,18 +201,18 @@ export default function StrategyPage() {
                   <p className="mt-1.5 font-mono text-[13px] font-semibold text-text">
                     {BACKTEST.winnersCircle}{" "}
                     <span className="text-text-dim font-sans font-normal">
-                      ({WINNERS_CIRCLE_EXITS} exits — trimmed, not sold at once)
+                      ({WINNERS_CIRCLE_EXITS} exits, trimmed rather than sold at once)
                     </span>
                   </p>
                 </div>
               </div>
               <p className="mt-5 font-sans text-[12px] leading-relaxed text-text-dim border-t border-border pt-4">
                 Point-in-time fundamentals with a 90-day filing lag. Trained on{" "}
-                {BACKTEST.startDate} – {BACKTEST.validationStart}, tested only
-                on the unseen {BACKTEST.validationStart} –{" "}
+                {BACKTEST.startDate} to {BACKTEST.validationStart}, tested only
+                on the unseen {BACKTEST.validationStart} to{" "}
                 {BACKTEST.validationEnd} window before any capital followed
-                it. Simulated performance — not a realized track record, and
-                not indicative of future results.
+                it. This is simulated performance. It is not a realized track
+                record and does not indicate future results.
               </p>
             </div>
           </section>
@@ -229,9 +229,9 @@ export default function StrategyPage() {
               <div id="quant-rating" className="data-card flex flex-col justify-center bg-transparent scroll-mt-24">
                 <p className="font-sans text-[13px] leading-relaxed text-text-muted">
                   The five are combined into a single{" "}
-                  <span className="font-semibold text-text">1–5 rating</span>{" "}
+                  <span className="font-semibold text-text">1 to 5 rating</span>{" "}
                   per company, refreshed every cycle. How they are weighted
-                  against each other is the part we keep — but the emphasis
+                  against each other is the part we keep private, but the emphasis
                   tiers above are honest about which ones move the number most.
                 </p>
                 <p className="mt-3 font-sans text-[12px] leading-relaxed text-text-dim">
@@ -321,7 +321,7 @@ export default function StrategyPage() {
                 </p>
                 <p className="mt-2 font-sans text-[12px] leading-relaxed text-text-dim">
                   Exactly one, {cadence}. If nothing clears the gates, nothing
-                  is bought — we do not manufacture a pick to fill the slot.
+                  is bought. We do not manufacture a pick to fill the slot.
                 </p>
               </div>
             </div>
@@ -365,7 +365,7 @@ export default function StrategyPage() {
                 The rules above are fixed in advance and applied the same way
                 every cycle. To prove that, we publish a fingerprint of the
                 exact settings the strategy is running. If we ever change how
-                picks are chosen, this changes with it — so you can hold us to
+                picks are chosen, this changes with it. You can hold us to
                 the method you subscribed to rather than take our word for it.
               </p>
               <div className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-4 border-t border-border pt-4">

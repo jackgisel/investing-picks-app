@@ -52,7 +52,7 @@ export default function MarketNotePage() {
             <p className="section-sub">
               What our model is seeing across roughly 3,600 US-listed stocks,
               which sectors are scoring, and how we read the current cycle.
-              Market commentary — the picks stay behind the membership.
+              It&apos;s market commentary. The picks are for members.
             </p>
             <p className="font-sans text-[13px] leading-relaxed text-text-dim">
               One click unsubscribes. We never share your address, and{" "}
@@ -90,7 +90,7 @@ export default function MarketNotePage() {
               </p>
               <p className="mt-1.5 font-sans text-[14px] leading-relaxed text-text-muted">
                 A representative issue, written to show the format. The figures
-                and sectors in it are illustrative — it is not a live market
+                and sectors in it are illustrative. It is not a live market
                 call.
               </p>
             </div>

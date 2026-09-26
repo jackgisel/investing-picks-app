@@ -50,11 +50,11 @@ describe("composeMarketNoteBodyMd", () => {
       dates: [{ date: "2026-09-18", label: "WDC earnings" }],
     });
     expect(md).toContain("## Looking at");
-    expect(md).toContain("**WDC**, Western Digital — Screening well.");
+    expect(md).toContain("**WDC**, Western Digital: Screening well.");
     expect(md).toContain("## Where sectors are moving");
     expect(md).toContain("## Fears and excitements");
     expect(md).toContain("## Dates ahead");
-    expect(md).toContain("**2026-09-18** — WDC earnings");
+    expect(md).toContain("**2026-09-18**: WDC earnings");
   });
 
   it("returns null when every section is empty", () => {

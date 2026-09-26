@@ -44,7 +44,7 @@ const ibmPlexMono = IBM_Plex_Mono({
   display: "swap",
 });
 
-const TITLE = `${SITE_NAME} — ${SITE_TAGLINE}`;
+const TITLE = `${SITE_NAME} | ${SITE_TAGLINE}`;
 
 // Ties the site to its social profiles for search engines (knowledge panel).
 const ORGANIZATION_JSON_LD = {

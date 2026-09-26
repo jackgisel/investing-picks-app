@@ -29,7 +29,7 @@ export function UnsubscribeConfirm({ token }: { token: string }) {
           You&apos;re unsubscribed.
         </p>
         <p className="font-sans text-[14px] text-text-muted leading-relaxed mb-6">
-          You won&apos;t get the market note again. No hard feelings — the track
+          You won&apos;t get the market note again. No hard feelings. The track
           record stays public whether or not you&apos;re on the list.
         </p>
         <PillButton href="/" variant="outline" arrow>

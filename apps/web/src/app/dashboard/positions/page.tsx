@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useStrategy } from "@/lib/hooks/use-strategy";
 import { usePicks } from "@/lib/hooks/use-picks";
@@ -8,38 +9,54 @@ import { Tabs, TabPanel, type TabDef } from "@/components/dashboard/tabs";
 import { PositionsOpen } from "@/components/dashboard/positions-open";
 import { PositionsClosed } from "@/components/dashboard/positions-closed";
 import { PositionsActivity } from "@/components/dashboard/positions-activity";
-import { PositionsFundamentals } from "@/components/dashboard/positions-fundamentals";
+import { PositionsSummary } from "@/components/dashboard/positions-summary";
+import { PositionDrawer } from "@/components/dashboard/position-drawer";
+import {
+  parsePositionsView,
+  type PositionsView,
+} from "@/components/dashboard/positions-model";
 import { resolvePageAccessState } from "@/components/dashboard/access-state";
 
-const POSITION_TABS = ["open", "fundamentals", "closed", "activity"] as const;
-type TabId = (typeof POSITION_TABS)[number];
-
-function parsePositionsTab(raw: string | null): TabId {
-  return POSITION_TABS.includes(raw as TabId) ? (raw as TabId) : "open";
-}
-
 /**
- * One surface for the book.
+ * One surface for the book: a summary, one list (open or closed), the runs
+ * that produced it, and a drawer per name.
  *
- * Portfolio, Pick history and Trades were three nav items over one object:
- * Portfolio listed today's holdings, Pick history listed the same rows again
- * under "active" plus the closed ones, and Trades was the event log that
- * produced both. Three pages forced the reader to learn our data model to
- * answer "what do we own and what happened to it".
+ * This was four tabs — open, fundamentals, closed, activity — each holding a
+ * slice of the same positions, so learning how one name was doing meant
+ * finding its row in three tables. Fundamentals now condense into the row
+ * and expand in the drawer; the trade log sits under the list, grouped by
+ * evaluation, and filtered per name inside the drawer.
+ *
+ * `?view=closed` and `?ticker=XYZ` are in the URL so a position can be
+ * linked to. Pre-rebuild `?tab=` links still resolve.
  */
 export default function PositionsPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const tab = parsePositionsTab(searchParams.get("tab"));
+  const legacyTab = searchParams.get("tab");
+  const view = parsePositionsView(searchParams.get("view") ?? legacyTab);
+  const selected = searchParams.get("ticker");
 
-  function setTab(next: TabId) {
+  function update(
+    patch: Record<string, string | null>,
+    mode: "push" | "replace" = "replace",
+  ) {
     const params = new URLSearchParams(searchParams.toString());
-    if (next === "open") params.delete("tab");
-    else params.set("tab", next);
+    params.delete("tab");
+    for (const [k, v] of Object.entries(patch)) {
+      if (v === null) params.delete(k);
+      else params.set(k, v);
+    }
     const qs = params.toString();
-    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    router[mode](qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }
+
+  const setView = (next: PositionsView) =>
+    update({ view: next === "open" ? null : next });
+  // Push, so the browser's back button closes the drawer.
+  const openTicker = (ticker: string) => update({ ticker }, "push");
+  const closeTicker = () => update({ ticker: null });
 
   const strategyQuery = useStrategy();
   const closedQuery = usePicks("closed");
@@ -67,19 +84,25 @@ export default function PositionsPage() {
   const closedGate = gateFrom(closedQuery);
   const pageState = resolvePageAccessState(closedGate, strategyGate);
 
-  let subtitle =
-    "Holdings, company fundamentals, closed positions, and every trade";
+  let subtitle = "Every position, what the company is reporting, and why we traded it";
   if (pageState === "subscription") subtitle = "Subscription required";
   else if (pageState === "unauthenticated") subtitle = "Sign in to continue";
   else if (pageState === "loading") subtitle = "Checking access...";
   else if (pageState === "error") subtitle = "Live data unavailable";
 
-  const tabs: readonly TabDef<TabId>[] = [
+  const tabs: readonly TabDef<PositionsView>[] = [
     { id: "open", label: "Open", badge: openCount?.toString() },
-    { id: "fundamentals", label: "Fundamentals" },
     { id: "closed", label: "Closed", badge: closedCount?.toString() },
-    { id: "activity", label: "Activity" },
   ];
+
+  // Old "Activity" links now mean the evaluations block under the list.
+  useEffect(() => {
+    if (legacyTab === "activity" && !pageState) {
+      document
+        .getElementById("recent-evaluations")
+        ?.scrollIntoView({ block: "start" });
+    }
+  }, [legacyTab, pageState]);
 
   return (
     <div className="space-y-5">
@@ -96,34 +119,36 @@ export default function PositionsPage() {
           error={closedQuery.error ?? strategyQuery.error}
         />
       ) : (
-        <div>
-          <Tabs
-            tabs={tabs}
-            value={tab}
-            onChange={setTab}
-            label="Position views"
-          />
-          {tab === "open" && (
-            <TabPanel id="open">
-              <PositionsOpen />
+        <>
+          <PositionsSummary />
+          <div>
+            <Tabs
+              tabs={tabs}
+              value={view}
+              onChange={setView}
+              label="Position views"
+            />
+            <TabPanel id={view}>
+              <div className="pt-4">
+                {view === "open" ? (
+                  <PositionsOpen onSelect={openTicker} />
+                ) : (
+                  <PositionsClosed onSelect={openTicker} />
+                )}
+              </div>
             </TabPanel>
+          </div>
+          <div id="recent-evaluations" className="scroll-mt-20">
+            <PositionsActivity onSelect={openTicker} />
+          </div>
+          {selected && (
+            <PositionDrawer
+              key={selected}
+              ticker={selected}
+              onClose={closeTicker}
+            />
           )}
-          {tab === "closed" && (
-            <TabPanel id="closed">
-              <PositionsClosed />
-            </TabPanel>
-          )}
-          {tab === "fundamentals" && (
-            <TabPanel id="fundamentals">
-              <PositionsFundamentals />
-            </TabPanel>
-          )}
-          {tab === "activity" && (
-            <TabPanel id="activity">
-              <PositionsActivity />
-            </TabPanel>
-          )}
-        </div>
+        </>
       )}
     </div>
   );

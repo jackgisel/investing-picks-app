@@ -95,10 +95,10 @@ export function HoldingsPulse({ holdings }: { holdings: readonly Holding[] }) {
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
         <span className="panel-label panel-label-mint">Holdings pulse</span>
         <Link
-          href="/dashboard/positions?tab=fundamentals"
+          href="/dashboard/positions"
           className="flex shrink-0 items-center gap-1 font-sans text-[10px] font-bold tracking-[0.08em] text-text underline underline-offset-2 hover:opacity-70"
         >
-          FUNDAMENTALS <ArrowUpRight size={10} strokeWidth={2.5} />
+          POSITIONS <ArrowUpRight size={10} strokeWidth={2.5} />
         </Link>
       </div>
 

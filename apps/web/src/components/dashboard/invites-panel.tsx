@@ -11,6 +11,13 @@ type MembershipInvite = {
   createdAt: string;
   sentAt: string | null;
   invitedBy: string | null;
+  status: "invited" | "signed_up" | "active";
+};
+
+const STATUS: Record<MembershipInvite["status"], { label: string; badge: string }> = {
+  invited: { label: "Invited", badge: "badge-hold" },
+  signed_up: { label: "Signed up", badge: "badge-hold" },
+  active: { label: "Member", badge: "badge-buy" },
 };
 
 const inputClass =
@@ -69,9 +76,9 @@ export function InvitesPanel() {
       <header>
         <p className="panel-label mb-2">Invites</p>
         <p className="text-text-muted mt-2 text-sm max-w-xl">
-          Complimentary membership for a specific address. Checkout applies a
-          100% coupon when they sign in with that email — no card, no promo
-          code to leak.
+          Free membership for testers and family. They get a welcome email, and
+          the membership switches on by itself the first time they sign in with
+          that address. No card, no checkout, no promo code to leak.
         </p>
       </header>
 
@@ -146,10 +153,15 @@ export function InvitesPanel() {
           <ul className="space-y-2">
             {invites.map((invite) => (
               <li key={invite.email} className="data-card">
-                <p className="font-sans text-sm text-text">
-                  {invite.name ? `${invite.name} · ` : ""}
-                  {invite.email}
-                </p>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-sans text-sm text-text min-w-0 truncate">
+                    {invite.name ? `${invite.name} · ` : ""}
+                    {invite.email}
+                  </p>
+                  <span className={`badge ${STATUS[invite.status].badge} shrink-0`}>
+                    {STATUS[invite.status].label}
+                  </span>
+                </div>
                 <p className="mt-1 font-sans text-[12px] text-text-dim">
                   {invite.sentAt
                     ? `Sent ${new Date(invite.sentAt).toLocaleString("en-US")}`

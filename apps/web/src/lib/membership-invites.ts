@@ -1,4 +1,5 @@
 import Stripe from "stripe";
+import { isSubscriptionEntitled, normalizeStripeStatus } from "@/lib/billing";
 import { pool } from "@/lib/db";
 import { sendMembershipInviteEmail } from "@/lib/email";
 import {
@@ -18,6 +19,13 @@ export type MembershipInvite = {
   createdAt: string;
   sentAt: string | null;
   invitedBy: string | null;
+};
+
+/** Where an invitee is in the funnel, for the admin list. */
+export type MembershipInviteStatus = "invited" | "signed_up" | "active";
+
+export type MembershipInviteWithStatus = MembershipInvite & {
+  status: MembershipInviteStatus;
 };
 
 type Row = {
@@ -44,11 +52,34 @@ const COLUMNS = `email, name, note, created_at, sent_at, invited_by`;
 
 export { BOOTSTRAP_MEMBERSHIP_INVITES, membershipInviteUrl, normalizeInviteEmail } from "@/lib/membership-invite-format";
 
-export async function listMembershipInvites(): Promise<MembershipInvite[]> {
-  const { rows } = await pool.query<Row>(
-    `SELECT ${COLUMNS} FROM membership_invite ORDER BY created_at DESC`,
+export async function listMembershipInvites(): Promise<
+  MembershipInviteWithStatus[]
+> {
+  // "user".email is stored as typed; invites are normalized. LOWER() on the
+  // account side is what makes a mixed-case sign-up still match.
+  const { rows } = await pool.query<
+    Row & { has_account: boolean; subscription_status: string | null }
+  >(
+    `SELECT invite.email, invite.name, invite.note, invite.created_at,
+            invite.sent_at, invite.invited_by,
+            account.id IS NOT NULL AS has_account,
+            subscription.status AS subscription_status
+       FROM membership_invite AS invite
+       LEFT JOIN "user" AS account ON LOWER(account.email) = invite.email
+       LEFT JOIN user_subscription AS subscription
+              ON subscription.user_id = account.id
+      ORDER BY invite.created_at DESC`,
   );
-  return rows.map(toInvite);
+  return rows.map((row) => ({
+    ...toInvite(row),
+    status:
+      row.subscription_status &&
+      isSubscriptionEntitled(normalizeStripeStatus(row.subscription_status))
+        ? "active"
+        : row.has_account
+          ? "signed_up"
+          : "invited",
+  }));
 }
 
 export async function hasMembershipInvite(userEmail: string): Promise<boolean> {

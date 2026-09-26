@@ -21,9 +21,9 @@ describe("normalizeInviteEmail", () => {
 });
 
 describe("membershipInviteUrl", () => {
-  it("prefills login and sends the invitee to checkout", () => {
+  it("prefills login and lands the invitee on the member welcome", () => {
     expect(membershipInviteUrl("senecafuller@gmail.com")).toBe(
-      "https://outpick.xyz/login?next=%2Fsubscribe&email=senecafuller%40gmail.com",
+      "https://outpick.xyz/login?next=%2Fwelcome&email=senecafuller%40gmail.com",
     );
   });
 });

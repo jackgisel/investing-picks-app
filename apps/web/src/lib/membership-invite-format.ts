@@ -26,7 +26,9 @@ export function normalizeInviteEmail(raw: string): string | null {
 
 export function membershipInviteUrl(email: string): string {
   const url = new URL("/login", SITE_URL);
-  url.searchParams.set("next", "/subscribe");
+  // Sign-in grants the membership (lib/complimentary-grant.ts), so the
+  // invitee lands on the member welcome rather than a billing page.
+  url.searchParams.set("next", "/welcome");
   url.searchParams.set("email", email);
   return url.toString();
 }

@@ -1,5 +1,5 @@
 /**
- * Admin Communication surface: one page, five tabs.
+ * Admin Communication surface: one page, one tab per queue.
  *
  * The old standalone ops URLs still exist as redirects so bookmarks, ops
  * emails, and magic-link `?next=` values land on the right tab instead of 404.
@@ -10,6 +10,7 @@ export const COMMUNICATION_TABS = [
   { id: "friday-portfolio-review", label: "Friday Portfolio Review" },
   { id: "sunday-market-preview", label: "Sunday Market Preview" },
   { id: "x-threads", label: "X Threads" },
+  { id: "campaign-drafts", label: "Campaign drafts" },
   { id: "product-updates", label: "Product Updates" },
   { id: "invites", label: "Invites" },
 ] as const;

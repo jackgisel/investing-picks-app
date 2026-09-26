@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
+import { CampaignDraftsPanel } from "@/components/dashboard/campaign-drafts-panel";
 import { FridayPortfolioReviewPanel } from "@/components/dashboard/friday-portfolio-review-panel";
 import { FridayStockPickPanel } from "@/components/dashboard/friday-stock-pick-panel";
 import { InvitesPanel } from "@/components/dashboard/invites-panel";
@@ -33,7 +34,8 @@ export function CommunicationPage() {
         <h1 className="page-title">Communication</h1>
         <p className="mt-1 max-w-[640px] font-sans text-[13px] leading-relaxed text-text-dim">
           Friday pick and portfolio review, Sunday market preview, X threads,
-          and product updates — one queue. Complimentary invites live here too.
+          campaign drafts, and product updates. Complimentary invites live here
+          too.
         </p>
       </div>
 
@@ -69,6 +71,13 @@ export function CommunicationPage() {
           <div className="pt-5">
             <TabPanel id="x-threads">
               <XThreadsPanel />
+            </TabPanel>
+          </div>
+        )}
+        {tab === "campaign-drafts" && (
+          <div className="pt-5">
+            <TabPanel id="campaign-drafts">
+              <CampaignDraftsPanel />
             </TabPanel>
           </div>
         )}

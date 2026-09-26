@@ -60,4 +60,11 @@ describe("legacyCommunicationRedirect", () => {
     expect(COMMUNICATION_TABS.map((tab) => tab.id)).toContain("invites");
     expect(Object.values(LEGACY_COMMUNICATION_REDIRECTS)).not.toContain("invites");
   });
+
+  it("includes a Campaign drafts tab that has no legacy URL", () => {
+    expect(COMMUNICATION_TABS.map((tab) => tab.id)).toContain("campaign-drafts");
+    expect(Object.values(LEGACY_COMMUNICATION_REDIRECTS)).not.toContain(
+      "campaign-drafts",
+    );
+  });
 });

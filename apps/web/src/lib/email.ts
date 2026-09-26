@@ -326,7 +326,7 @@ export async function sendMembershipInviteEmail(args: {
     siteUrl: SITE_URL,
     banner: args.banner,
   });
-  const text = `You're invited to ${SITE_NAME}.\n\nYou've been given a complimentary membership. Sign in with this email address and you're in. No card, no checkout.\n\n${args.inviteUrl}\n\nIf you didn't expect this, you can ignore the email.`;
+  const text = `You're invited to ${SITE_NAME}.\n\nYou've been given complimentary membership. Sign in with this email, continue through checkout, and it will be $0. No card needed.\n\n${args.inviteUrl}\n\nIf you didn't expect this, you can ignore the email.`;
 
   return send({
     to: args.to,

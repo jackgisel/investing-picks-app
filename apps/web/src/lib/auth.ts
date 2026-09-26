@@ -4,7 +4,6 @@ import { getMigrations } from "better-auth/db/migration";
 import { pool } from "@/lib/db";
 import { runAppMigrations } from "@/lib/app-migrations";
 import { sendDeleteAccountEmail, sendMagicLinkEmail } from "@/lib/email";
-import { grantComplimentaryMembership } from "@/lib/complimentary-grant";
 import { flushPendingMembershipInvites } from "@/lib/membership-invites";
 import { cancelStripeSubscriptionForDeletedUser } from "@/lib/subscription";
 
@@ -60,42 +59,6 @@ const authConfig = {
       // exists (see cancelStripeSubscriptionForDeletedUser).
       beforeDelete: async (user) => {
         await cancelStripeSubscriptionForDeletedUser(user.id);
-      },
-    },
-  },
-
-  databaseHooks: {
-    session: {
-      create: {
-        // An admin invite becomes a live membership at sign-in, before the
-        // magic-link redirect lands, so the invitee's first page is already
-        // the member experience. Awaited for that reason, but never allowed
-        // to fail sign-in: /subscribe retries the same grant idempotently.
-        after: async (session) => {
-          try {
-            const { rows } = await pool.query<{
-              email: string;
-              name: string | null;
-              emailVerified: boolean;
-            }>(
-              `SELECT email, name, "emailVerified" FROM "user" WHERE id = $1`,
-              [session.userId],
-            );
-            const user = rows[0];
-            if (!user) return;
-            const result = await grantComplimentaryMembership({
-              id: session.userId,
-              email: user.email,
-              name: user.name,
-              emailVerified: user.emailVerified === true,
-            });
-            if (result === "granted") {
-              console.log(`[membership-invite] granted ${user.email}`);
-            }
-          } catch (e) {
-            console.error("Complimentary membership grant failed:", e);
-          }
-        },
       },
     },
   },

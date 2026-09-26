@@ -143,6 +143,28 @@ def test_missing_revisions_on_a_held_name_is_named(db, portfolio):
     assert "revisions" in rows[0].reason
 
 
+def test_failed_z_floor_on_a_held_name_is_named(db, portfolio):
+    """A Z below the floor is a filter result, not a missing factor."""
+    make_position(db, portfolio, "WDC", shares=10, avg_cost=10.0, current_price=12.0)
+    _stock(db, "WDC")
+    db.add(
+        Fundamentals(
+            ticker="WDC",
+            as_of=TODAY,
+            data=_full_fundamentals(altmanZ=0.42),
+        )
+    )
+    _momentum_bars(db, "WDC", 150.0)
+    _pad_sector(db)
+    db.commit()
+
+    score_universe(db)
+    rows = diagnose_unscored_holdings(db)
+
+    assert [r.ticker for r in rows] == ["WDC"]
+    assert rows[0].reason == "Altman Z 0.42 is below the 1.80 bankruptcy floor"
+
+
 def test_record_unrated_holdings_writes_an_error_job_run(db, portfolio):
     make_position(db, portfolio, "WDC", shares=10, avg_cost=10.0, current_price=12.0)
     db.add(_score_row("AAA"))

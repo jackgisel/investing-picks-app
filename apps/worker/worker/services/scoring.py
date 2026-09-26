@@ -745,6 +745,15 @@ def _diagnose_ticker(
         )
         sector_drops[stock.sector] = missing_by_ticker
     missing_factors = sector_drops[stock.sector].get(ticker)
+    if missing_factors == ["z_score"]:
+        # `_rank_sector` files a failed Altman Z floor under the factor list,
+        # but nothing is missing: the balance sheet scored as bankruptcy risk.
+        z = _z_score_from_data(funds.get(ticker, {}))
+        shown = f"{z:.2f}" if z is not None else "unknown"
+        return (
+            f"Altman Z {shown} is below the {params.z_score_floor:.2f} "
+            "bankruptcy floor"
+        )
     if missing_factors:
         return _missing_factor_reason(missing_factors)
     return "unscoreable for an unclassified reason"

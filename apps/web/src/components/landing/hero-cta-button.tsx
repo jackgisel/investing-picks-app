@@ -14,10 +14,12 @@ import { heroPrimaryCta } from "./hero-cta";
 export function HeroCtaButton() {
   const { data: session } = useSession();
   const [status, setStatus] = useState<SubscriptionStatus | null>(null);
+  const [entitled, setEntitled] = useState(false);
 
   useEffect(() => {
     if (!session) {
       setStatus(null);
+      setEntitled(false);
       return;
     }
 
@@ -32,8 +34,10 @@ export function HeroCtaButton() {
         if (!res.ok) return;
         const data = (await res.json()) as {
           subscription?: { status?: SubscriptionStatus };
+          access?: "subscription" | "admin" | null;
         };
         setStatus(data.subscription?.status ?? null);
+        setEntitled(data.access === "subscription" || data.access === "admin");
       } catch {
         if (controller.signal.aborted) return;
         // Fail closed: keep the membership CTA.
@@ -44,7 +48,7 @@ export function HeroCtaButton() {
     return () => controller.abort();
   }, [session]);
 
-  const cta = heroPrimaryCta(session ? status : null);
+  const cta = heroPrimaryCta(session ? status : null, session ? entitled : false);
 
   return (
     <PillButton href={cta.href} arrow data-fast-goal={cta.checkoutGoal}>

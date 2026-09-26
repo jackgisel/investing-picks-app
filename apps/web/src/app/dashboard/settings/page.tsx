@@ -416,6 +416,7 @@ function Toggle({
 
 function SubscriptionPanel() {
   const [sub, setSub] = useState<Subscription | null>(null);
+  const [access, setAccess] = useState<"subscription" | "admin" | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [billingLoading, setBillingLoading] = useState(false);
   const [billingError, setBillingError] = useState<string | null>(null);
@@ -432,8 +433,18 @@ function SubscriptionPanel() {
         for (let attempt = 0; attempt < attempts && !cancelled; attempt++) {
           const res = await fetch("/api/me/subscription", { cache: "no-store" });
           if (!res.ok) throw new Error("fetch failed");
-          const data = (await res.json()) as { subscription: Subscription };
-          if (!cancelled) setSub(data.subscription);
+          const data = (await res.json()) as {
+            subscription: Subscription;
+            access?: "subscription" | "admin" | null;
+          };
+          if (!cancelled) {
+            setSub(data.subscription);
+            setAccess(
+              data.access === "subscription" || data.access === "admin"
+                ? data.access
+                : null,
+            );
+          }
           if (
             data.subscription.status === "active" ||
             data.subscription.status === "trialing" ||
@@ -478,6 +489,9 @@ function SubscriptionPanel() {
   const canceledAt = sub?.canceledAt ? formatDate(sub.canceledAt) : null;
   const isActive =
     status === "active" || status === "trialing" || status === "past_due";
+  // Admin access grants the product without a Stripe subscription. The plan
+  // card was still selling a membership to that account.
+  const adminAccess = access === "admin" && !isActive;
   const foundersActive = isFoundersDealActive();
 
   return (
@@ -491,24 +505,28 @@ function SubscriptionPanel() {
             Outpick Membership
           </p>
           <p className="font-sans text-[12px] text-text-muted mt-0.5">
-            Billed annually via Stripe · plus applicable taxes · cancel any time
-            {foundersActive && !isActive && (
+            {adminAccess
+              ? "Access on this account does not go through Stripe."
+              : "Billed annually via Stripe · plus applicable taxes · cancel any time"}
+            {foundersActive && !isActive && !adminAccess && (
               <> · Founders offer applied at checkout if eligible</>
             )}
           </p>
         </div>
-        <div className="text-right">
-          <p className="font-mono text-[20px] font-bold text-accent-green">
-            {foundersActive && !isActive
-              ? `From ${PRICING.foundersLabel}`
-              : PRICING.label}
-          </p>
-          {foundersActive && !isActive && (
-            <p className="font-sans text-[11px] text-text-dim mt-0.5">
-              First year if eligible · then {PRICING.label}
+        {!adminAccess && (
+          <div className="text-right">
+            <p className="font-mono text-[20px] font-bold text-accent-green">
+              {foundersActive && !isActive
+                ? `From ${PRICING.foundersLabel}`
+                : PRICING.label}
             </p>
-          )}
-        </div>
+            {foundersActive && !isActive && (
+              <p className="font-sans text-[11px] text-text-dim mt-0.5">
+                First year if eligible · then {PRICING.label}
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Status row */}
@@ -519,6 +537,10 @@ function SubscriptionPanel() {
           </p>
           {!loaded ? (
             <Skeleton className="h-5 w-24" />
+          ) : adminAccess ? (
+            <span className="badge bg-accent-green-soft text-accent-green">
+              ADMIN
+            </span>
           ) : (
             <StatusBadge status={status} />
           )}
@@ -575,35 +597,39 @@ function SubscriptionPanel() {
 
       <div className="pt-5 border-t border-border space-y-3">
         <p className="font-sans text-[13px] text-text-muted leading-relaxed">
-          {isActive
-            ? "Update your payment method, download invoices, or cancel at the end of the current period in Stripe."
-            : "Start an annual membership in secure Stripe Checkout."}
+          {adminAccess
+            ? "This account has membership access as an admin. There is no paid subscription to manage."
+            : isActive
+              ? "Update your payment method, download invoices, or cancel at the end of the current period in Stripe."
+              : "Start an annual membership in secure Stripe Checkout."}
         </p>
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={() =>
-              void openBilling(
-                isActive ? "/api/billing/portal" : "/api/billing/checkout",
-              )
-            }
-            disabled={billingLoading}
-            data-fast-goal={isActive ? undefined : DATAFAST_CHECKOUT_GOAL}
-            className="btn-primary inline-flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <CreditCard size={12} />
-            {billingLoading
-              ? "Opening…"
-              : isActive
-                ? "Manage billing"
-                : "Start membership"}
-          </button>
-          {billingError && (
-            <span className="font-sans text-[12px] text-accent-red">
-              {billingError}
-            </span>
-          )}
-        </div>
+        {!adminAccess && (
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() =>
+                void openBilling(
+                  isActive ? "/api/billing/portal" : "/api/billing/checkout",
+                )
+              }
+              disabled={billingLoading}
+              data-fast-goal={isActive ? undefined : DATAFAST_CHECKOUT_GOAL}
+              className="btn-primary inline-flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <CreditCard size={12} />
+              {billingLoading
+                ? "Opening…"
+                : isActive
+                  ? "Manage billing"
+                  : "Start membership"}
+            </button>
+            {billingError && (
+              <span className="font-sans text-[12px] text-accent-red">
+                {billingError}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -14,10 +14,10 @@ import {
 
 const article: Article = {
   meta: {
-    slug: "what-good-stock-research-actually-looks-like",
+    slug: "what-good-stock-research-looks-like",
     title: "What Good Stock Research Actually Looks Like",
     description:
-      "A stock can look cheap and still be a poor investment. Good research is a testable thesis: business, price, cycle, downside, and a written audit trail.",
+      "Stock research should reduce uncertainty, not create false conviction. Learn how to assess businesses, price, risk, and thesis-breaking evidence first.",
     keyword: "good stock research",
     keywords: [
       "stock research process",
@@ -32,7 +32,7 @@ const article: Article = {
     tags: ["research", "process", "long-term investing"],
     readingTime: 9,
     author: "Outpick Research",
-    cover: "/art/covers/what-good-stock-research-actually-looks-like.png",
+    cover: "/art/covers/what-good-stock-research-looks-like.png",
   },
   Content: () => (
     <Prose>
@@ -264,7 +264,7 @@ const article: Article = {
           },
           {
             q: "How do you write an investment thesis?",
-            a: "State the gap between market expectations and a more carefully supported view of future cash generation — what the market may be missing, why it may be missing it, and what evidence would show the interpretation is wrong. Identifying a good company is not enough. If the case depends on several generous assumptions occurring at once, the margin for error is thin regardless of how compelling the narrative sounds.",
+            a: "State the gap between market expectations and a more carefully supported view of future cash generation: what the market may be missing, why it may be missing it, and what evidence would show the interpretation is wrong. Identifying a good company is not enough. If the case depends on several generous assumptions occurring at once, the margin for error is thin regardless of how compelling the narrative sounds.",
           },
           {
             q: "When is a thesis invalidated versus a temporary price drop?",

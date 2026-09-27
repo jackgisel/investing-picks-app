@@ -65,6 +65,7 @@ import japanTreasuryAiEnergy from "@/content/blog/japan-treasury-intervention-an
 import whenToSellAStock from "@/content/blog/when-to-sell-a-stock-thesis-broken";
 import sp500ConcentrationRisk from "@/content/blog/sp-500-concentration-risk-what-index-investors-miss";
 import howToReadAStockResearchThesis from "@/content/blog/how-to-read-a-stock-research-thesis";
+import whatGoodStockResearchLooksLike from "@/content/blog/what-good-stock-research-actually-looks-like";
 
 export const articles: Article[] = [
   howToOutperformSp500,
@@ -86,6 +87,7 @@ export const articles: Article[] = [
   whenToSellAStock,
   sp500ConcentrationRisk,
   howToReadAStockResearchThesis,
+  whatGoodStockResearchLooksLike,
 ].sort((a, b) => b.meta.publishedAt.localeCompare(a.meta.publishedAt));
 
 export function getArticleBySlug(slug: string): Article | undefined {

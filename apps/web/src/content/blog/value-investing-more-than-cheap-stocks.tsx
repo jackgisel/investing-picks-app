@@ -273,7 +273,7 @@ const article: Article = {
           },
           {
             q: "Why do cheap stocks stay cheap?",
-            a: "Markets are not careless by default. A discount can reflect temporary fear, a disliked sector, or a transitory earnings decline — or permanent impairment such as eroding market share, a maturing product category, or value shifting from shareholders to lenders. A value thesis should state what is misunderstood, what evidence would show the market is too pessimistic, and what would prove the analyst wrong.",
+            a: "Markets are not careless by default. A discount can reflect temporary fear, a disliked sector, or a transitory earnings decline. It can also reflect permanent impairment such as eroding market share, a maturing product category, or value shifting from shareholders to lenders. A value thesis should state what is misunderstood, what evidence would show the market is too pessimistic, and what would prove the analyst wrong.",
           },
           {
             q: "Do you need a catalyst before buying an undervalued stock?",

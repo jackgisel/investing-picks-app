@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { CircleHelp } from "lucide-react";
-import { formatChartDate } from "@/components/ui/picks-benchmark-chart";
+import { formatChartDate } from "@/components/ui/chart-date";
 
 /**
  * How the picks return and its S&P 500 comparison are calculated.

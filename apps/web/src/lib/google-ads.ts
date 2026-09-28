@@ -143,6 +143,49 @@ export function googleAdsConversionStorageKey(transactionId: string): string {
   return `${GOOGLE_ADS_CONVERSION_STORAGE_PREFIX}${transactionId}`;
 }
 
+/** Backstop so the tag still loads if the main thread stays busy past first paint. */
+export const GOOGLE_ADS_IDLE_TIMEOUT_MS = 3_000;
+/** How often the purchase snippet rechecks for gtag after an idle load. */
+export const GOOGLE_ADS_CONVERSION_WAIT_MS = 250;
+/**
+ * 20s of retries. Longer than the idle backstop, so a conversion that starts
+ * during HTML parse still fires once the idle callback defines gtag.
+ */
+export const GOOGLE_ADS_CONVERSION_WAIT_ATTEMPTS = 80;
+
+export function googleAdsTagSrc(id: string): string {
+  return `https://www.googletagmanager.com/gtag/js?id=${id}`;
+}
+
+/** Official gtag stub. Defines window.gtag before gtag.js downloads. */
+export function googleAdsBootstrapSource(id: string): string {
+  return `window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', '${id}');`;
+}
+
+export function googleAdsConversionSnippet(event: GoogleAdsConversionEvent): string {
+  const json = JSON.stringify(googleAdsConversionParams(event)).replace(
+    /</g,
+    "\\u003c",
+  );
+  return `(function(){
+var params = ${json};
+var attempts = 0;
+function send(){
+  if (typeof window.gtag === "function") {
+    window.gtag('event', 'conversion', params);
+    return;
+  }
+  attempts += 1;
+  if (attempts > ${GOOGLE_ADS_CONVERSION_WAIT_ATTEMPTS}) return;
+  window.setTimeout(send, ${GOOGLE_ADS_CONVERSION_WAIT_MS});
+}
+send();
+})();`;
+}
+
 declare global {
   interface Window {
     dataLayer?: unknown[];

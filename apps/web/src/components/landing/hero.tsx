@@ -13,10 +13,31 @@ import { PriceLine } from "./price-line";
  * plate it would never show. <source media> picks exactly one. That costs us
  * the optimizer, so both plates are pre-encoded to WebP (2.0MB/2.3MB PNG ->
  * 115KB/165KB) with the PNGs kept only as the <img> fallback.
+ *
+ * Each preload is gated on the same 1024px breakpoint as <source media>, so
+ * a phone fetches hero-moon-soft.webp and a wide window fetches
+ * hero-moon.webp. The hero img is left to decode with the document so the
+ * already-downloaded WebP can paint as the LCP element.
  */
 export function Hero() {
   return (
     <section className="relative">
+      <link
+        rel="preload"
+        as="image"
+        href="/hero-moon-soft.webp"
+        type="image/webp"
+        media="(max-width: 1023px)"
+        fetchPriority="high"
+      />
+      <link
+        rel="preload"
+        as="image"
+        href="/hero-moon.webp"
+        type="image/webp"
+        media="(min-width: 1024px)"
+        fetchPriority="high"
+      />
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 -bottom-40 sm:-bottom-48 lg:-bottom-56"
@@ -32,7 +53,6 @@ export function Hero() {
             src="/hero-moon-soft.png"
             alt=""
             fetchPriority="high"
-            decoding="async"
             className="absolute inset-0 h-full w-full object-cover object-[80%_38%] sm:object-[75%_34%] lg:object-[78%_32%]"
           />
         </picture>

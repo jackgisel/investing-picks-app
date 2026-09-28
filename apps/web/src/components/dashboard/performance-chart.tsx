@@ -9,13 +9,13 @@ import {
 } from "@/lib/hooks/use-chart";
 import { DataState, resolveDataState } from "@/components/ui/data-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatChartDate } from "@/components/ui/chart-date";
 import { PerformanceMethodology } from "@/components/ui/performance-methodology";
 import {
   BenchmarkBasisNote,
   PicksBenchmarkChart,
   PicksBenchmarkLegend,
   formatChartPct,
-  formatChartDate,
 } from "@/components/ui/picks-benchmark-chart";
 import { TrendingUp } from "lucide-react";
 import { pnlClass } from "@/lib/portfolio";

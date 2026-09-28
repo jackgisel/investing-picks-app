@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { DATAFAST_CHECKOUT_GOAL } from "@/lib/datafast";
 import {
@@ -54,5 +57,24 @@ describe("heroPrimaryCta", () => {
 
   it("uses the same dashboard href as the header control", () => {
     expect(HERO_DASHBOARD_HREF).toBe("/dashboard");
+  });
+});
+
+describe("hero image preload", () => {
+  const hero = readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), "hero.tsx"),
+    "utf8",
+  );
+
+  it("preloads only the WebP for the current breakpoint", () => {
+    expect(hero).toContain('href="/hero-moon-soft.webp"');
+    expect(hero).toContain('media="(max-width: 1023px)"');
+    expect(hero).toContain('href="/hero-moon.webp"');
+    expect(hero).toContain('media="(min-width: 1024px)"');
+    expect(hero).toContain('src="/hero-moon-soft.png"');
+    const img = hero.slice(hero.indexOf("<img"), hero.indexOf("/>", hero.indexOf("<img")));
+    expect(img).not.toContain("decoding=");
+    expect(hero).not.toContain('href="/hero-moon.png"');
+    expect(hero).not.toContain('src="/hero-moon.png"');
   });
 });

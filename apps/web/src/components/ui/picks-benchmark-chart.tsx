@@ -12,6 +12,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import { useTheme } from "@/components/providers/theme-provider";
+import { formatChartAxisDate, formatChartDate } from "@/components/ui/chart-date";
 import type { BenchmarkMeta, PicksComparison } from "@/lib/hooks/use-chart";
 import { pnlClass } from "@/lib/portfolio";
 
@@ -140,29 +141,6 @@ function formatPctValue(value: number, digits = 2): string {
   return `${sign}${value.toFixed(digits)}%`;
 }
 
-/** "2026-04-10" → "Apr 10". Parsed as UTC so the label never slips a day. */
-function formatShortDate(iso: string): string {
-  const d = new Date(`${iso}T00:00:00Z`);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    timeZone: "UTC",
-  });
-}
-
-/** "2026-04-10" → "Apr 10, 2026". */
-function formatLongDate(iso: string): string {
-  const d = new Date(`${iso}T00:00:00Z`);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-}
-
 /** A legend/tooltip swatch that carries the line's actual dash pattern. */
 function LineSwatch({
   color,
@@ -252,7 +230,7 @@ function ChartTooltip({
   return (
     <div className="rounded-soft border border-border bg-bg px-3.5 py-3 shadow-[0_8px_24px_rgba(0,0,0,0.08)]">
       <p className="font-mono text-[10px] text-text-dim mb-2">
-        {typeof props.label === "string" ? formatLongDate(props.label) : ""}
+        {typeof props.label === "string" ? formatChartDate(props.label) : ""}
       </p>
       <div className="space-y-1.5">
         {rows.map((row) => (
@@ -381,7 +359,7 @@ export function PicksBenchmarkChart({
     <div
       role="img"
       aria-label={`Cumulative return since ${
-        startDate ? formatLongDate(startDate) : "inception"
+        startDate ? formatChartDate(startDate) : "inception"
       }. ${summary}.`}
     >
       <ResponsiveContainer width="100%" height={height}>
@@ -407,7 +385,7 @@ export function PicksBenchmarkChart({
               fill: chrome.tick,
               fontFamily: "var(--font-mono), IBM Plex Mono, monospace",
             }}
-            tickFormatter={(d: string) => formatShortDate(d)}
+            tickFormatter={(d: string) => formatChartAxisDate(d)}
             stroke={chrome.grid}
             minTickGap={compact ? 40 : 28}
             interval="preserveStartEnd"
@@ -495,9 +473,9 @@ export function BenchmarkBasisNote({
       Like-for-like: each benchmark invests the{" "}
       <span className="text-text-muted">same capital on the same dates</span> as
       the picks, so both sides hold the market for exactly the same time.
-      {startDate ? ` Every line starts at 0% on ${formatLongDate(startDate)}.` : ""}
+      {startDate ? ` Every line starts at 0% on ${formatChartDate(startDate)}.` : ""}
     </p>
   );
 }
 
-export { formatPctValue as formatChartPct, formatLongDate as formatChartDate };
+export { formatPctValue as formatChartPct };

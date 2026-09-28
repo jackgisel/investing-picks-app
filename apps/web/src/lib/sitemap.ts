@@ -5,12 +5,23 @@ import { SITE_URL } from "@/lib/constants";
  * sitemap even when robots.txt already disallows them — Google should not be
  * invited to discover a 401.
  */
+export const PUBLIC_TOOL_PATHS = [
+  "/tools",
+  "/tools/concentrated-portfolio-calculator",
+  "/tools/profit-margin-calculator",
+  "/tools/free-cash-flow-worksheet",
+  "/tools/downside-risk-worksheet",
+  "/tools/intrinsic-value-calculator",
+  "/tools/competitive-advantage-worksheet",
+] as const;
+
 export const PUBLIC_STATIC_PATHS = [
   "/",
   "/blog",
   "/pricing",
   "/track-record",
   "/strategy",
+  ...PUBLIC_TOOL_PATHS,
   "/faq",
   "/market-note",
   "/what-we-are-not",
@@ -61,6 +72,31 @@ const STATIC_META: Record<
   "/pricing": { changeFrequency: "monthly", priority: 0.9 },
   "/track-record": { changeFrequency: "daily", priority: 0.9 },
   "/strategy": { changeFrequency: "monthly", priority: 0.8 },
+  "/tools": { changeFrequency: "monthly", priority: 0.75 },
+  "/tools/concentrated-portfolio-calculator": {
+    changeFrequency: "monthly",
+    priority: 0.7,
+  },
+  "/tools/profit-margin-calculator": {
+    changeFrequency: "monthly",
+    priority: 0.7,
+  },
+  "/tools/free-cash-flow-worksheet": {
+    changeFrequency: "monthly",
+    priority: 0.7,
+  },
+  "/tools/downside-risk-worksheet": {
+    changeFrequency: "monthly",
+    priority: 0.7,
+  },
+  "/tools/intrinsic-value-calculator": {
+    changeFrequency: "monthly",
+    priority: 0.7,
+  },
+  "/tools/competitive-advantage-worksheet": {
+    changeFrequency: "monthly",
+    priority: 0.7,
+  },
   "/faq": { changeFrequency: "monthly", priority: 0.7 },
   "/market-note": { changeFrequency: "weekly", priority: 0.7 },
   "/what-we-are-not": { changeFrequency: "monthly", priority: 0.6 },

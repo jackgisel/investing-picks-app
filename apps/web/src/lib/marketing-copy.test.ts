@@ -73,6 +73,8 @@ const MARKETING = [
   "src/components/landing/what-we-are-not.tsx",
   "src/components/layout/cookie-banner.tsx",
   "src/components/layout/footer.tsx",
+  "src/app/tools/page.tsx",
+  "src/lib/tools/registry.ts",
   "src/components/marketing/comparison-table.tsx",
   "src/components/marketing/market-note-signup.tsx",
   "src/components/pricing/pricing-page.tsx",

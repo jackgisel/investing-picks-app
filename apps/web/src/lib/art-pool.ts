@@ -51,6 +51,7 @@ export const SPARE_CLAIMED: Readonly<Record<string, string>> = {
   "spare-02": "sp-500-concentration-risk-what-index-investors-miss",
   "spare-03": "how-to-read-a-stock-research-thesis",
   "spare-04": "what-good-stock-research-looks-like",
+  "spare-05": "value-investing-more-than-cheap-stocks",
 };
 
 function poolPiece(id: string, label: string): ArtPiece {

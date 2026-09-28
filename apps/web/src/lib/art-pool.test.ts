@@ -55,14 +55,14 @@ describe("art pool", () => {
   it("exposes spare covers for future blog posts", () => {
     const next = nextSpareCover();
     expect(next).not.toBeNull();
-    expect(next?.id).toBe("spare-05");
-    expect(next?.src).toBe("/art/pool/spare-05.png");
+    expect(next?.id).toBe("spare-06");
+    expect(next?.src).toBe("/art/pool/spare-06.png");
   });
 
   it("reports remaining weeks from today", () => {
     const status = poolStatus(new Date("2026-08-22T12:00:00Z"));
     expect(status.weeksReady).toBe(13);
     expect(status.weeksRemaining).toBeGreaterThanOrEqual(13);
-    expect(status.sparesFree).toBe(2);
+    expect(status.sparesFree).toBe(1);
   });
 });

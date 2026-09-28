@@ -9,6 +9,7 @@ import {
   GOOGLE_ADS_CONVERSION_WAIT_MS,
   GOOGLE_ADS_FALLBACK_VALUE,
   GOOGLE_ADS_IDLE_TIMEOUT_MS,
+  scheduleGoogleAdsTagLoad,
   conversionValueFromAmountTotal,
   googleAdsBootstrapSource,
   googleAdsConversionFromSession,
@@ -251,7 +252,14 @@ describe("Google Ads tag loads after idle", () => {
     ).toBeGreaterThan(GOOGLE_ADS_IDLE_TIMEOUT_MS);
   });
 
-  it("loads the tag from the body after idle, not from a blocking head script", () => {
+  it("schedules the tag after LCP with load and timeout fallbacks", () => {
+    const loads: string[] = [];
+    const cleanup = scheduleGoogleAdsTagLoad(() => loads.push("load"));
+    expect(loads).toEqual([]);
+    cleanup();
+  });
+
+  it("loads the tag from the body after LCP, not from a blocking head script", () => {
     const layout = readFileSync(join(webRoot, "src/app/layout.tsx"), "utf8");
     const script = readFileSync(
       join(webRoot, "src/components/layout/google-ads-script.tsx"),
@@ -273,7 +281,7 @@ describe("Google Ads tag loads after idle", () => {
     expect(head).not.toContain("<GoogleAdsScript />");
     expect(head).not.toContain("googletagmanager.com/gtag/js");
     expect(layout.slice(layout.indexOf("<body"))).toContain("<GoogleAdsScript />");
-    expect(script).toContain("requestIdleCallback");
+    expect(script).toContain("scheduleGoogleAdsTagLoad");
     expect(script).toContain("googleAdsTagSrc");
     expect(script).toContain("googleAdsBootstrapSource");
     expect(script).toContain("googleAdsMeasurementId");

@@ -27,6 +27,10 @@ describe("buildSitemapEntries", () => {
     expect(urls).toContain("https://outpick.xyz/pricing");
     expect(urls).toContain("https://outpick.xyz/track-record");
     expect(urls).toContain("https://outpick.xyz/strategy");
+    expect(urls).toContain("https://outpick.xyz/tools");
+    expect(urls).toContain(
+      "https://outpick.xyz/tools/concentrated-portfolio-calculator",
+    );
     expect(urls).toContain("https://outpick.xyz/faq");
     expect(urls).toContain("https://outpick.xyz/market-note");
     expect(urls).toContain("https://outpick.xyz/what-we-are-not");
@@ -84,6 +88,13 @@ describe("buildSitemapEntries", () => {
       "/pricing",
       "/track-record",
       "/strategy",
+      "/tools",
+      "/tools/concentrated-portfolio-calculator",
+      "/tools/profit-margin-calculator",
+      "/tools/free-cash-flow-worksheet",
+      "/tools/downside-risk-worksheet",
+      "/tools/intrinsic-value-calculator",
+      "/tools/competitive-advantage-worksheet",
       "/faq",
       "/market-note",
       "/what-we-are-not",

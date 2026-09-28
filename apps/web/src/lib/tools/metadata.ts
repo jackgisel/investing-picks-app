@@ -1,0 +1,83 @@
+import type { Metadata } from "next";
+import { SITE_NAME, SITE_URL } from "@/lib/constants";
+import type { ToolDefinition } from "@/lib/tools/registry";
+
+export function toolCanonicalPath(path: string): string {
+  return path.startsWith("http") ? path : `${SITE_URL}${path}`;
+}
+
+export function toolShareImageUrl(path: string): string {
+  return `${toolCanonicalPath(path)}/opengraph-image`;
+}
+
+export function buildToolMetadata(
+  tool: ToolDefinition,
+  searchParams?: { ticker?: string | string[] },
+): Metadata {
+  const tickerParam = searchParams?.ticker;
+  const hasTickerQuery =
+    typeof tickerParam === "string"
+      ? tickerParam.trim().length > 0
+      : Array.isArray(tickerParam) && tickerParam.some((t) => t.trim());
+
+  const canonical = tool.path;
+  const image = toolShareImageUrl(tool.path);
+
+  return {
+    title: tool.metaTitle,
+    description: tool.metaDescription,
+    alternates: { canonical },
+    robots: hasTickerQuery
+      ? { index: false, follow: true }
+      : { index: true, follow: true },
+    openGraph: {
+      title: tool.metaTitle,
+      description: tool.metaDescription,
+      url: toolCanonicalPath(tool.path),
+      siteName: SITE_NAME,
+      type: "website",
+      images: [
+        {
+          url: image,
+          width: 1200,
+          height: 630,
+          alt: tool.metaTitle,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: tool.metaTitle,
+      description: tool.metaDescription,
+      images: [image],
+    },
+  };
+}
+
+export function buildToolsIndexMetadata(): Metadata {
+  const path = "/tools";
+  const title = "Free investing worksheets and calculators";
+  const description =
+    "Six free public tools from Outpick: portfolio weights, profit margins, cash flow, downside risk, intrinsic value, and competitive advantage. Arithmetic only, no login on the math.";
+  const image = toolShareImageUrl(path);
+
+  return {
+    title,
+    description,
+    alternates: { canonical: path },
+    openGraph: {
+      title,
+      description,
+      url: toolCanonicalPath(path),
+      siteName: SITE_NAME,
+      type: "website",
+      images: [{ url: image, width: 1200, height: 630, alt: title }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [image],
+    },
+  };
+}

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   isSafeCallbackPath,
+  newUserCallbackPath,
   resolveCallbackPath,
   welcomeLoginNext,
 } from "./login-redirect";
@@ -12,6 +13,11 @@ describe("isSafeCallbackPath", () => {
     expect(isSafeCallbackPath("/dashboard")).toBe(true);
     expect(isSafeCallbackPath("/dashboard/insights")).toBe(true);
     expect(isSafeCallbackPath("/dashboard/insights/crs")).toBe(true);
+  });
+
+  it("allows the signup marker on /subscribe", () => {
+    expect(isSafeCallbackPath("/subscribe?signup=1")).toBe(true);
+    expect(isSafeCallbackPath("/subscribe?signup=0")).toBe(false);
   });
 
   it("keeps a successful Checkout return on /welcome", () => {
@@ -60,6 +66,15 @@ describe("resolveCallbackPath", () => {
         "/welcome?checkout=success&session_id=cs_test_abc123",
       ),
     ).toBe("/welcome?checkout=success&session_id=cs_test_abc123");
+  });
+});
+
+describe("newUserCallbackPath", () => {
+  it("appends signup=1 for BetterAuth new-user redirects", () => {
+    expect(newUserCallbackPath("/subscribe")).toBe("/subscribe?signup=1");
+    expect(newUserCallbackPath("/dashboard/insights")).toBe(
+      "/dashboard/insights?signup=1",
+    );
   });
 });
 

@@ -144,6 +144,12 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        <script
+          id="datafast-queue"
+          dangerouslySetInnerHTML={{
+            __html: `window.datafast=window.datafast||function(){window.datafast.q=window.datafast.q||[];window.datafast.q.push(arguments);};`,
+          }}
+        />
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <script
           type="application/ld+json"

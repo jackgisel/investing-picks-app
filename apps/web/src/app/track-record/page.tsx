@@ -3,7 +3,6 @@ import Link from "next/link";
 import { TrackRecord } from "@/components/landing/track-record";
 import { PillButton } from "@/components/ui/pill-button";
 import { BACKTEST } from "@/lib/constants";
-import { DATAFAST_CHECKOUT_GOAL } from "@/lib/datafast";
 import { getPublicStrategy } from "@/lib/public-strategy";
 
 export const metadata: Metadata = {
@@ -39,7 +38,7 @@ export default async function TrackRecordPage() {
             results are labeled as simulated. They are not a realized track record.
           </p>
           <div className="flex flex-wrap gap-3">
-            <PillButton href="/subscribe" arrow data-fast-goal={DATAFAST_CHECKOUT_GOAL}>
+            <PillButton href="/subscribe" arrow>
               Start your membership
             </PillButton>
             <Link href="/#what-how" className="btn-outline">

@@ -5,7 +5,6 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { getAccess } from "@/lib/api-gate";
-import { DATAFAST_CHECKOUT_GOAL } from "@/lib/datafast";
 import { resolveCallbackPath } from "@/lib/login-redirect";
 
 export const dynamic = "force-dynamic";
@@ -58,7 +57,6 @@ function MembersOnly() {
           <Link
             href="/subscribe"
             className="btn-primary !px-6 !py-3 !text-xs"
-            data-fast-goal={DATAFAST_CHECKOUT_GOAL}
           >
             Start membership
           </Link>

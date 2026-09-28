@@ -2,6 +2,7 @@
 
 import { useId, useState } from "react";
 import { cn } from "@/lib/utils";
+import { trackMarketNoteSubscribeSuccess } from "@/lib/datafast-goals";
 
 type Status = "idle" | "working" | "done" | "error";
 
@@ -50,6 +51,7 @@ export function MarketNoteSignup({
       }
 
       setStatus("done");
+      trackMarketNoteSubscribeSuccess(source);
       setMessage(
         body.status === "already"
           ? "You're already on the list. The next note lands Monday."

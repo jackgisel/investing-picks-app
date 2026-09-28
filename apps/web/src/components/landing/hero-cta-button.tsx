@@ -51,7 +51,7 @@ export function HeroCtaButton() {
   const cta = heroPrimaryCta(session ? status : null, session ? entitled : false);
 
   return (
-    <PillButton href={cta.href} arrow data-fast-goal={cta.checkoutGoal}>
+    <PillButton href={cta.href} arrow>
       {cta.label}
     </PillButton>
   );

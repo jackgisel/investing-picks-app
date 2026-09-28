@@ -10,7 +10,10 @@ import {
   PRICING_NOT_FOR,
   pricingFaqJsonLd,
 } from "./pricing";
-import { DATAFAST_CHECKOUT_GOAL } from "@/lib/datafast";
+import {
+  DATAFAST_CHECKOUT_GOAL,
+  DATAFAST_VIEW_PRICING_GOAL,
+} from "@/lib/datafast";
 import { PRICING } from "@/lib/constants";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -67,11 +70,13 @@ describe("pricing page wiring", () => {
   );
   const route = readFileSync(join(webRoot, "src/app/pricing/page.tsx"), "utf8");
 
-  it("preserves Stripe checkout and Datafast checkout_started", () => {
+  it("preserves subscribe CTAs and DataFast pricing view goal", () => {
     expect(page).toContain('href="/subscribe"');
-    expect(page).toContain("DATAFAST_CHECKOUT_GOAL");
+    expect(page).toContain("DATAFAST_VIEW_PRICING_GOAL");
+    expect(page).toContain("DatafastPageGoal");
     expect(page).toContain("Subscribe · $");
-    expect(DATAFAST_CHECKOUT_GOAL).toBe("checkout_started");
+    expect(DATAFAST_CHECKOUT_GOAL).toBe("checkout_initiated");
+    expect(DATAFAST_VIEW_PRICING_GOAL).toBe("view_pricing");
   });
 
   it("points proof and fit copy at existing trust pages", () => {

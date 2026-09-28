@@ -2,21 +2,20 @@
 
 import { useEffect } from "react";
 import {
-  GOOGLE_ADS_IDLE_TIMEOUT_MS,
   googleAdsBootstrapSource,
   googleAdsMeasurementId,
   googleAdsTagSrc,
+  scheduleGoogleAdsTagLoad,
 } from "@/lib/google-ads";
 
 const BOOTSTRAP_ID = "google-ads-gtag";
 
 /**
- * Loads the Google Ads tag after the browser is idle.
+ * Loads the Google Ads tag after LCP when the browser can report it.
  *
- * The stub and gtag.js used to be real script tags in <head>. gtag.js is
- * ~164KB and was blocking the main thread while the hero image waited to
- * paint. requestIdleCallback keeps that work off the first paint. The
- * purchase conversion polls for window.gtag, which this stub defines.
+ * gtag.js is ~164KB of main-thread work. Deferring until after the hero
+ * image paints keeps it off the homepage LCP path. The purchase conversion
+ * polls for window.gtag, which the bootstrap stub defines.
  */
 export function GoogleAdsScript() {
   const id = googleAdsMeasurementId();
@@ -37,20 +36,14 @@ export function GoogleAdsScript() {
       document.head.appendChild(external);
     };
 
-    if (typeof window.requestIdleCallback === "function") {
-      const idle = window.requestIdleCallback(load, {
-        timeout: GOOGLE_ADS_IDLE_TIMEOUT_MS,
-      });
-      return () => {
-        cancelled = true;
-        window.cancelIdleCallback(idle);
-      };
-    }
+    const cleanup = scheduleGoogleAdsTagLoad(() => {
+      if (cancelled) return;
+      load();
+    });
 
-    const timer = window.setTimeout(load, 1);
     return () => {
       cancelled = true;
-      window.clearTimeout(timer);
+      cleanup();
     };
   }, [id]);
 

@@ -30,9 +30,10 @@ const THEME_INIT_SCRIPT = `(function(){try{var s=localStorage.getItem("outpick-t
 // guaranteed a flash of unstyled text on the hero headline. next/font
 // downloads at build time, serves from this origin, and matches fallback
 // metrics to cut layout shift while the real face loads.
+// Variable cuts five separate woff2 preloads down to one Outfit file. IBM Plex
+// Mono is not in the hero LCP region, so skip preloading it on the landing path.
 const outfit = Outfit({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
   variable: "--font-sans",
   display: "swap",
 });
@@ -42,6 +43,7 @@ const ibmPlexMono = IBM_Plex_Mono({
   weight: ["400", "500", "600", "700"],
   variable: "--font-mono",
   display: "swap",
+  preload: false,
 });
 
 const TITLE = `${SITE_NAME} | ${SITE_TAGLINE}`;

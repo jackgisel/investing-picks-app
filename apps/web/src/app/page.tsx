@@ -1,3 +1,4 @@
+import { preload } from "react-dom";
 import { Hero } from "@/components/landing/hero";
 import { MarketNoteBand } from "@/components/landing/market-note-band";
 import { LivePicks } from "@/components/landing/live-picks";
@@ -7,6 +8,10 @@ import { Philosophy } from "@/components/landing/philosophy";
 import { WhatWeAreNot } from "@/components/landing/what-we-are-not";
 import { Pricing } from "@/components/landing/pricing";
 import { Disclaimer } from "@/components/landing/disclaimer";
+
+// Hoist the mobile hero plate ahead of the rest of the document so it can race
+// fewer font and script bytes on the landing LCP path.
+preload("/hero-moon-soft.webp", { as: "image", fetchPriority: "high" });
 
 // SampleResearch reads the nominated public samples. Hourly is far more often
 // than that nomination changes, and it keeps the homepage static for everyone

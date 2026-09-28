@@ -143,8 +143,59 @@ export function googleAdsConversionStorageKey(transactionId: string): string {
   return `${GOOGLE_ADS_CONVERSION_STORAGE_PREFIX}${transactionId}`;
 }
 
-/** Backstop so the tag still loads if the main thread stays busy past first paint. */
+/** Backstop so the tag still loads if LCP never fires (hidden tab, etc.). */
 export const GOOGLE_ADS_IDLE_TIMEOUT_MS = 3_000;
+
+export type GoogleAdsTagLoadCleanup = () => void;
+
+/**
+ * Loads gtag after LCP when possible so gtag.js does not compete with the hero
+ * image for the main thread. Falls back to window load, then a timeout.
+ */
+export function scheduleGoogleAdsTagLoad(
+  load: () => void,
+  options?: { backstopTimeoutMs?: number },
+): GoogleAdsTagLoadCleanup {
+  const timeoutMs = options?.backstopTimeoutMs ?? GOOGLE_ADS_IDLE_TIMEOUT_MS;
+  let cancelled = false;
+  let loaded = false;
+
+  const run = () => {
+    if (cancelled || loaded) return;
+    loaded = true;
+    load();
+  };
+
+  let observer: PerformanceObserver | undefined;
+  if (typeof PerformanceObserver !== "undefined") {
+    try {
+      observer = new PerformanceObserver(() => {
+        observer?.disconnect();
+        run();
+      });
+      observer.observe({ type: "largest-contentful-paint", buffered: true });
+    } catch {
+      observer = undefined;
+    }
+  }
+
+  const onLoad = () => run();
+  if (typeof window !== "undefined") {
+    window.addEventListener("load", onLoad, { once: true });
+  }
+
+  const timer =
+    typeof window !== "undefined" ? window.setTimeout(run, timeoutMs) : undefined;
+
+  return () => {
+    cancelled = true;
+    observer?.disconnect();
+    if (typeof window !== "undefined") {
+      window.removeEventListener("load", onLoad);
+      if (timer !== undefined) window.clearTimeout(timer);
+    }
+  };
+}
 /** How often the purchase snippet rechecks for gtag after an idle load. */
 export const GOOGLE_ADS_CONVERSION_WAIT_MS = 250;
 /**

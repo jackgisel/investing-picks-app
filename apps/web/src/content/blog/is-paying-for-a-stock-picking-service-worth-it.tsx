@@ -290,6 +290,15 @@ const article: Article = {
         that eats a meaningful chunk of the portfolio — absolutely not. The
         math makes the decision, not the sales page.
       </P>
+      <P>
+        That arithmetic answers a fee. It does not answer whether you wanted a
+        research membership, a newsletter, or a tips app. The product decision
+        is in{" "}
+        <A href="/blog/is-a-stock-research-membership-worth-it">
+          is a stock research membership worth it
+        </A>
+        .
+      </P>
 
       <FAQList
         items={[

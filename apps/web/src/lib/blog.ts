@@ -72,6 +72,7 @@ import longTermInvestingWrittenThesis from "@/content/blog/long-term-investing-w
 import individualStockResearchThatStillHoldsUp from "@/content/blog/individual-stock-research-that-still-holds-up";
 import earningsRevisionInvesting from "@/content/blog/earnings-revision-investing";
 import marketCycleAnalysisStockInvestors from "@/content/blog/market-cycle-analysis-stock-investors";
+import stockResearchMembershipWorthIt from "@/content/blog/is-a-stock-research-membership-worth-it";
 
 export const articles: Article[] = [
   howToOutperformSp500,
@@ -100,6 +101,7 @@ export const articles: Article[] = [
   individualStockResearchThatStillHoldsUp,
   earningsRevisionInvesting,
   marketCycleAnalysisStockInvestors,
+  stockResearchMembershipWorthIt,
 ].sort((a, b) => b.meta.publishedAt.localeCompare(a.meta.publishedAt));
 
 export function getArticleBySlug(slug: string): Article | undefined {

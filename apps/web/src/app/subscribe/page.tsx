@@ -4,6 +4,7 @@ import { ensureMigrations } from "@/lib/auth";
 import { isSubscriptionEntitled } from "@/lib/billing";
 import { getServerUser } from "@/lib/server-session";
 import { getSubscription } from "@/lib/subscription";
+import { DatafastSignupGoal } from "@/components/analytics/datafast-signup-goal";
 import { SubscribeRedirect } from "./subscribe-redirect";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +14,11 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function SubscribePage() {
+export default async function SubscribePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ signup?: string }>;
+}) {
   await ensureMigrations();
   const user = await getServerUser();
   if (!user) redirect("/login?next=/subscribe");
@@ -23,6 +28,13 @@ export default async function SubscribePage() {
     redirect("/dashboard/settings");
   }
 
-  return <SubscribeRedirect />;
+  const query = await searchParams;
+
+  return (
+    <>
+      <DatafastSignupGoal enabled={query.signup === "1"} />
+      <SubscribeRedirect />
+    </>
+  );
 }
 

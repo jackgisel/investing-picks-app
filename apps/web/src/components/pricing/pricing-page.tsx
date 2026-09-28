@@ -12,7 +12,8 @@ import {
 import { isFoundersDealActive } from "@/lib/portfolio";
 import { PillButton } from "@/components/ui/pill-button";
 import { LOGIN_ART } from "@/lib/art";
-import { DATAFAST_CHECKOUT_GOAL } from "@/lib/datafast";
+import { DatafastPageGoal } from "@/components/analytics/datafast-page-goal";
+import { DATAFAST_VIEW_PRICING_GOAL } from "@/lib/datafast";
 
 function SubscribeCta({
   founders,
@@ -23,12 +24,7 @@ function SubscribeCta({
 }) {
   const price = founders ? PRICING.foundersAnnual : PRICING.annual;
   return (
-    <PillButton
-      href="/subscribe"
-      arrow
-      className={className}
-      data-fast-goal={DATAFAST_CHECKOUT_GOAL}
-    >
+    <PillButton href="/subscribe" arrow className={className}>
       Subscribe · ${price} / year
     </PillButton>
   );
@@ -80,6 +76,7 @@ export function PricingPageView() {
 
   return (
     <div>
+      <DatafastPageGoal goal={DATAFAST_VIEW_PRICING_GOAL} />
       <div className="relative min-h-[calc(100dvh-var(--nav-h))] overflow-hidden">
         <div aria-hidden className="pointer-events-none absolute inset-0">
           <Image

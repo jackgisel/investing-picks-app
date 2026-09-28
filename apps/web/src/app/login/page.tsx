@@ -6,7 +6,10 @@ import { signIn } from "@/lib/auth-client";
 import { OutpickWordmark } from "@/components/ui/outpick-logo";
 import Link from "next/link";
 import { MailCheck } from "lucide-react";
-import { resolveCallbackPath } from "@/lib/login-redirect";
+import {
+  newUserCallbackPath,
+  resolveCallbackPath,
+} from "@/lib/login-redirect";
 import { LOGIN_ART } from "@/lib/art";
 
 /** Where the magic link should land after it verifies. */
@@ -59,10 +62,12 @@ export default function LoginPage() {
    * new one; `name` is only used the first time an address is seen.
    */
   async function requestLink(address: string, displayName: string) {
+    const callbackURL = resolveCallbackURL();
     const result = await signIn.magicLink({
       email: address,
       name: displayName || undefined,
-      callbackURL: resolveCallbackURL(),
+      callbackURL,
+      newUserCallbackURL: newUserCallbackPath(callbackURL),
     });
     if (result.error) {
       throw new Error(result.error.message || "Could not send the link");

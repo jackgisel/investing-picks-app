@@ -1,4 +1,3 @@
-import { DATAFAST_CHECKOUT_GOAL } from "@/lib/datafast";
 import {
   isSubscriptionEntitled,
   type SubscriptionStatus,
@@ -14,8 +13,6 @@ export const HERO_MEMBERSHIP_LABEL = "Start your membership";
 export type HeroPrimaryCta = {
   href: string;
   label: string;
-  /** Checkout conversion goal — omitted on the dashboard destination. */
-  checkoutGoal?: string;
 };
 
 /**
@@ -37,6 +34,5 @@ export function heroPrimaryCta(
   return {
     href: HERO_MEMBERSHIP_HREF,
     label: HERO_MEMBERSHIP_LABEL,
-    checkoutGoal: DATAFAST_CHECKOUT_GOAL,
   };
 }

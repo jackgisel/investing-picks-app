@@ -2,7 +2,6 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { DATAFAST_CHECKOUT_GOAL } from "@/lib/datafast";
 import {
   HERO_DASHBOARD_HREF,
   HERO_DASHBOARD_LABEL,
@@ -14,7 +13,6 @@ import {
 const MEMBERSHIP = {
   href: HERO_MEMBERSHIP_HREF,
   label: HERO_MEMBERSHIP_LABEL,
-  checkoutGoal: DATAFAST_CHECKOUT_GOAL,
 };
 
 const DASHBOARD = {
@@ -45,10 +43,6 @@ describe("heroPrimaryCta", () => {
       expect(heroPrimaryCta(status)).toEqual(DASHBOARD);
     },
   );
-
-  it("does not attach the checkout goal to the dashboard CTA", () => {
-    expect(heroPrimaryCta("active").checkoutGoal).toBeUndefined();
-  });
 
   it("sends an admin without a subscription to the dashboard", () => {
     expect(heroPrimaryCta("inactive", true)).toEqual(DASHBOARD);

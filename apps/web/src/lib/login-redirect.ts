@@ -15,17 +15,30 @@ export function isSafeCallbackPath(path: string): boolean {
   const search = path.includes("?")
     ? path.slice(path.indexOf("?") + 1).split("#")[0]
     : "";
-  if (pathname === "/subscribe") return search.length === 0;
+  if (pathname === "/subscribe") return isSafeSignupOnlySearch(search);
   if (pathname === "/welcome") return isSafeWelcomeSearch(search);
   return pathname === "/dashboard" || pathname.startsWith("/dashboard/");
+}
+
+function isSafeSignupOnlySearch(search: string): boolean {
+  if (!search) return true;
+  const params = new URLSearchParams(search);
+  for (const key of params.keys()) {
+    if (key !== "signup") return false;
+  }
+  return params.get("signup") === "1";
 }
 
 function isSafeWelcomeSearch(search: string): boolean {
   if (!search) return true;
   const params = new URLSearchParams(search);
   for (const key of params.keys()) {
-    if (key !== "checkout" && key !== "session_id") return false;
+    if (key !== "checkout" && key !== "session_id" && key !== "signup") {
+      return false;
+    }
   }
+  const signup = params.get("signup");
+  if (signup !== null && signup !== "1") return false;
   const checkout = params.get("checkout");
   if (checkout !== null && checkout !== "success") return false;
   const sessionId = params.get("session_id");
@@ -47,4 +60,11 @@ export function welcomeLoginNext(query: {
 export function resolveCallbackPath(requested: string | null): string {
   if (requested && isSafeCallbackPath(requested)) return requested;
   return "/subscribe";
+}
+
+/** Magic-link redirect for a first-time account (BetterAuth `newUserCallbackURL`). */
+export function newUserCallbackPath(callback: string): string {
+  const url = new URL(callback, "https://outpick.xyz");
+  url.searchParams.set("signup", "1");
+  return `${url.pathname}${url.search}`;
 }

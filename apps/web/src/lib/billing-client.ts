@@ -1,3 +1,5 @@
+import { DATAFAST_CHECKOUT_GOAL, trackDatafastGoal } from "@/lib/datafast";
+
 export type BillingPath = "/api/billing/checkout" | "/api/billing/portal";
 
 type BillingSessionBody = {
@@ -46,9 +48,13 @@ export async function requestBillingUrl(
     body: "{}",
     signal: options?.signal,
   });
-  return billingUrlFromResponse(
+  const url = billingUrlFromResponse(
     response.status,
     await response.text(),
     fallbackError,
   );
+  if (path === "/api/billing/checkout") {
+    trackDatafastGoal(DATAFAST_CHECKOUT_GOAL);
+  }
+  return url;
 }

@@ -67,6 +67,7 @@ import sp500ConcentrationRisk from "@/content/blog/sp-500-concentration-risk-wha
 import howToReadAStockResearchThesis from "@/content/blog/how-to-read-a-stock-research-thesis";
 import whatGoodStockResearchLooksLike from "@/content/blog/what-good-stock-research-looks-like";
 import valueInvestingMoreThanCheapStocks from "@/content/blog/value-investing-more-than-cheap-stocks";
+import anthropicIpoValuation from "@/content/blog/anthropic-ipo-valuation-outpick-screen";
 
 export const articles: Article[] = [
   howToOutperformSp500,
@@ -90,6 +91,7 @@ export const articles: Article[] = [
   howToReadAStockResearchThesis,
   whatGoodStockResearchLooksLike,
   valueInvestingMoreThanCheapStocks,
+  anthropicIpoValuation,
 ].sort((a, b) => b.meta.publishedAt.localeCompare(a.meta.publishedAt));
 
 export function getArticleBySlug(slug: string): Article | undefined {

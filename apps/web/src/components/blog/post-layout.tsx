@@ -22,6 +22,7 @@ function formatDate(iso: string): string {
 const CATEGORY_TONES: Record<string, PastelTone> = {
   Strategy: "yellow",
   Education: "lilac",
+  Research: "peach",
   Markets: "cyan",
   Portfolio: "mint",
 };

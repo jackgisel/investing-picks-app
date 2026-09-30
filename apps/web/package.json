@@ -9,7 +9,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "check": "vitest run && node scripts/test-constants.mjs && node scripts/test-api-error.mjs",
+    "check": "vitest run && node scripts/test-constants.mjs && node scripts/test-api-error.mjs && node scripts/optimize-art.mjs --check",
+    "art": "node scripts/optimize-art.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },

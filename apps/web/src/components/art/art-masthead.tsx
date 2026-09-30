@@ -1,5 +1,6 @@
 import type { ArtPiece } from "@/lib/art";
 import { ArtImage } from "@/components/art/art-image";
+import { NearViewport } from "@/components/ui/near-viewport";
 
 /**
  * Full-bleed dithered landscape for blog / editorial headers.
@@ -64,6 +65,10 @@ export function ArtMasthead({
  *
  * `sizes` defaults to the blog grid (one column, then two, then three). The
  * featured card spans the container and passes its own.
+ *
+ * The strip is decoration, so it is not in the server HTML at all until the
+ * card is within a viewport of the fold (NearViewport). The box keeps its
+ * height meanwhile, so nothing shifts when the print lands.
  */
 export function ArtThumb({
   art,
@@ -79,7 +84,9 @@ export function ArtThumb({
       aria-hidden
       className={`relative overflow-hidden rounded-t-[inherit] ${className}`}
     >
-      <ArtImage art={art} sizes={sizes} className="object-center" />
+      <NearViewport className="absolute inset-0">
+        <ArtImage art={art} sizes={sizes} className="object-center" />
+      </NearViewport>
       <div className="absolute inset-0 bg-bg/10 dark:bg-bg/25" />
     </div>
   );

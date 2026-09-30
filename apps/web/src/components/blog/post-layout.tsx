@@ -41,7 +41,7 @@ export function PostLayout({
   return (
     <article>
       <header className="relative border-b border-border overflow-hidden">
-        <ArtMasthead art={art} size="md" className="-mb-10 sm:-mb-14" />
+        <ArtMasthead art={art} size="md" priority className="-mb-10 sm:-mb-14" />
         <div className="relative container-op pt-4 pb-16">
           <Link
             href="/blog"

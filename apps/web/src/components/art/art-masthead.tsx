@@ -1,5 +1,5 @@
-import Image from "next/image";
 import type { ArtPiece } from "@/lib/art";
+import { ArtImage } from "@/components/art/art-image";
 
 /**
  * Full-bleed dithered landscape for blog / editorial headers.
@@ -13,6 +13,12 @@ export function ArtMasthead({
   /** Taller on featured/index; shorter on article headers. */
   size = "md",
   fade = true,
+  /**
+   * The masthead is the largest thing above the fold wherever it appears, so
+   * callers that render it at the top of a page should mark it as the LCP
+   * image. Defaults on for the tall index variant.
+   */
+  priority = size === "lg",
 }: {
   art: ArtPiece;
   className?: string;
@@ -22,6 +28,7 @@ export function ArtMasthead({
    * surfaces (research notes) want the crop, not the scrim.
    */
   fade?: boolean;
+  priority?: boolean;
 }) {
   const height =
     size === "lg"
@@ -35,13 +42,11 @@ export function ArtMasthead({
       aria-hidden
       className={`relative overflow-hidden ${height} ${className}`}
     >
-      <Image
-        src={art.src}
-        alt=""
-        fill
+      <ArtImage
+        art={art}
         sizes="100vw"
-        className="object-cover object-center"
-        priority={size === "lg"}
+        className="object-center"
+        priority={priority}
       />
       {fade ? (
         <>
@@ -56,26 +61,25 @@ export function ArtMasthead({
 
 /**
  * Compact art strip for article cards — same dither language, no full bleed.
+ *
+ * `sizes` defaults to the blog grid (one column, then two, then three). The
+ * featured card spans the container and passes its own.
  */
 export function ArtThumb({
   art,
   className = "",
+  sizes = "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw",
 }: {
   art: ArtPiece;
   className?: string;
+  sizes?: string;
 }) {
   return (
     <div
       aria-hidden
       className={`relative overflow-hidden rounded-t-[inherit] ${className}`}
     >
-      <Image
-        src={art.src}
-        alt=""
-        fill
-        sizes="(max-width: 640px) 100vw, 33vw"
-        className="object-cover object-center"
-      />
+      <ArtImage art={art} sizes={sizes} className="object-center" />
       <div className="absolute inset-0 bg-bg/10 dark:bg-bg/25" />
     </div>
   );

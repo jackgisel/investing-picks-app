@@ -12,7 +12,7 @@
  */
 
 import type { ArtPiece } from "@/lib/art";
-import { ART, artForKey } from "@/lib/art";
+import { ART, ART_COVER_WIDTH, artForKey } from "@/lib/art";
 import { isoWeekKey } from "@/lib/email-dispatch";
 
 /** ISO weeks with a dedicated landscape ready (Aug 24 – Nov 22, 2026). */
@@ -61,6 +61,7 @@ function poolPiece(id: string, label: string): ArtPiece {
     src: `/art/pool/${id}.png`,
     label,
     ink: ART[0].ink,
+    width: ART_COVER_WIDTH,
   };
 }
 

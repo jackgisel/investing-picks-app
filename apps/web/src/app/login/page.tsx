@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import Image from "next/image";
 import { signIn } from "@/lib/auth-client";
+import { ArtImage } from "@/components/art/art-image";
 import { OutpickWordmark } from "@/components/ui/outpick-logo";
 import Link from "next/link";
 import { MailCheck } from "lucide-react";
@@ -24,13 +24,11 @@ function LoginShell({ children }: { children: ReactNode }) {
   return (
     <div className="relative min-h-[calc(100dvh-var(--nav-h))] overflow-hidden">
       <div aria-hidden className="pointer-events-none absolute inset-0">
-        <Image
-          src={LOGIN_ART.src}
-          alt=""
-          fill
+        <ArtImage
+          art={LOGIN_ART}
           priority
           sizes="100vw"
-          className="object-cover object-[50%_40%]"
+          className="object-[50%_40%]"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-bg/85 via-bg/75 to-bg/90 dark:from-bg/90 dark:via-bg/80 dark:to-bg/95" />
         <div className="absolute inset-0 bg-gradient-to-r from-bg/40 via-transparent to-bg/40" />

@@ -43,7 +43,11 @@ export function ArticleCard({
         href={`/blog/${meta.slug}`}
         className="block overflow-hidden soft-card !p-0 hover:bg-bg-tertiary transition-colors group"
       >
-        <ArtThumb art={art} className="h-[160px] sm:h-[200px]" />
+        <ArtThumb
+          art={art}
+          className="h-[160px] sm:h-[200px]"
+          sizes="(max-width: 1120px) 100vw, 1120px"
+        />
         <div className="p-6 sm:p-8">
           <div className="flex flex-wrap items-center gap-3 mb-5">
             <CategoryTag tone={toneFor(meta.category)}>{meta.category}</CategoryTag>

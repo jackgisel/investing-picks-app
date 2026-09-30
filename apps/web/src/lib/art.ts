@@ -11,6 +11,12 @@
  * under /public/art/covers/ (claim from /art/pool/spare-*.png via
  * `nextSpareCover()`). Weekly review and pick emails use /art/pool/{ISO-week}.png
  * when that week was pre-generated — see `lib/art-pool.ts`.
+ *
+ * Every print is served as a palette PNG straight from /public, never through
+ * `next/image`: a lossy encoder turns a 100KB two-tone dither into a 900KB
+ * WebP. Each source has `-480w` / `-750w` / `-960w` siblings for the srcset;
+ * `scripts/optimize-art.mjs` writes them and `pnpm check` verifies they exist,
+ * so run it after adding a cover.
  */
 
 export type ArtPiece = {
@@ -21,7 +27,15 @@ export type ArtPiece = {
   label: string;
   /** Ink colour baked into the dither (for matching UI accents) */
   ink: string;
+  /** Intrinsic width of `src`, for the srcset's full-size candidate. */
+  width: number;
 };
+
+/** Widths of the pre-rendered siblings next to every source PNG. */
+export const ART_VARIANT_WIDTHS = [480, 750, 960] as const;
+
+/** Covers and pool pieces are generated at this width. */
+export const ART_COVER_WIDTH = 1200;
 
 export const ART: readonly ArtPiece[] = [
   {
@@ -29,26 +43,44 @@ export const ART: readonly ArtPiece[] = [
     src: "/art/rio.png",
     label: "Dithered view of Rio de Janeiro",
     ink: "#1B4D3E",
+    width: 2048,
   },
   {
     id: "fuji",
     src: "/art/fuji.png",
     label: "Dithered view of Mount Fuji and a pagoda",
     ink: "#2F5A8C",
+    width: 2048,
   },
   {
     id: "citadel",
     src: "/art/citadel.png",
     label: "Dithered mountain city with a classical temple",
     ink: "#1E3A8A",
+    width: 2048,
   },
   {
     id: "harbor",
     src: "/art/harbor.png",
     label: "Dithered coastal harbor town",
     ink: "#0F5C5C",
+    width: 2048,
   },
 ] as const;
+
+/**
+ * `srcset` for a piece: the resized siblings plus the source at its own width.
+ * `/art/x.png` → `/art/x-480w.png 480w, …, /art/x.png 1200w`.
+ */
+export function artSrcSet(piece: ArtPiece): string {
+  const base = piece.src.replace(/\.png$/, "");
+  return [
+    ...ART_VARIANT_WIDTHS.filter((w) => w < piece.width).map(
+      (w) => `${base}-${w}w.png ${w}w`,
+    ),
+    `${piece.src} ${piece.width}w`,
+  ].join(", ");
+}
 
 /** Fixed piece for the login surface — calm, not a blog-cover collision. */
 export const LOGIN_ART: ArtPiece = ART[1]; // fuji
@@ -78,6 +110,7 @@ export function artForArticle(meta: {
       src: meta.cover,
       label: `Cover for ${meta.slug}`,
       ink: ART[0].ink,
+      width: ART_COVER_WIDTH,
     };
   }
   return artForKey(meta.slug);

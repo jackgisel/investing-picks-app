@@ -7,6 +7,7 @@ from pathlib import Path
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.db.migrations import ensure_dataset_schema
 from app.db.models import (  # noqa: F401 — register metadata
     ConsensusSnapshot,
     Delisting,
@@ -19,7 +20,13 @@ from app.db.session import Base
 
 
 def open_dataset(path: str | Path) -> Session:
-    """Create-or-open `path` and return a session. Idempotent."""
+    """Create-or-open `path` and return a session. Idempotent.
+
+    Callers that check the dataset pin must hash the file before this returns.
+    `create_all` plus `ensure_dataset_schema` add `z_floor_rejections` and
+    `composite_scores.carried_forward` on a published sqlite that predates
+    them, and those bytes are not a new dataset.
+    """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     engine = create_engine(f"sqlite:///{path}", future=True)
@@ -33,6 +40,7 @@ def open_dataset(path: str | Path) -> Session:
                 "ON fundamentals (ticker, as_of)"
             )
         )
+    ensure_dataset_schema(engine)
     return sessionmaker(bind=engine, autoflush=False, autocommit=False)()
 
 

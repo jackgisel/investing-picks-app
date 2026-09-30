@@ -251,6 +251,23 @@ def _ensure_z_floor_rejections(engine: Engine) -> None:
             log.debug("Could not create z_floor_rejections; assuming it exists")
 
 
+def ensure_dataset_schema(engine: Engine) -> None:
+    """Add the score-carry schema the pinned backtest sqlite does not have.
+
+    `create_all` creates missing tables and never ALTERs `composite_scores`.
+    Replay selects `carried_forward` and reads `z_floor_rejections`. Applying
+    these statements changes the file bytes; that is not a new dataset, so
+    callers check the published hash before they open the file.
+    """
+    _add_column(
+        engine,
+        "composite_scores",
+        "carried_forward",
+        "BOOLEAN NOT NULL DEFAULT FALSE",
+    )
+    _ensure_z_floor_rejections(engine)
+
+
 def ensure_schema(engine: Engine) -> None:
     """Bring an existing database up to the current model definitions."""
     # Job-failure alerting. Without this column the worker's alert sweep has no
@@ -258,13 +275,7 @@ def ensure_schema(engine: Engine) -> None:
     # same failure every time it ran.
     _add_column(engine, "job_runs", "alerted_at", "TIMESTAMP WITH TIME ZONE")
     _add_column(engine, "portfolios", "kind", "VARCHAR(16) DEFAULT 'live'")
-    _add_column(
-        engine,
-        "composite_scores",
-        "carried_forward",
-        "BOOLEAN NOT NULL DEFAULT FALSE",
-    )
+    ensure_dataset_schema(engine)
     _ensure_portfolio_contributions(engine)
     _ensure_stock_news(engine)
     _ensure_consensus_snapshots(engine)
-    _ensure_z_floor_rejections(engine)

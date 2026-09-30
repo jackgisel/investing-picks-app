@@ -55,6 +55,7 @@ export function InsightHeader({ insight }: { insight: Insight }) {
         art={art}
         size="md"
         fade={false}
+        priority
         className="mb-8 rounded-xl border border-border"
       />
       <div className="mb-4 flex flex-wrap items-center gap-3">

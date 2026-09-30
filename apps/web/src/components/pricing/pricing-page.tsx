@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { PRICING } from "@/lib/constants";
 import {
@@ -11,6 +10,7 @@ import {
 } from "@/content/pricing";
 import { isFoundersDealActive } from "@/lib/portfolio";
 import { PillButton } from "@/components/ui/pill-button";
+import { ArtImage } from "@/components/art/art-image";
 import { LOGIN_ART } from "@/lib/art";
 import { DatafastPageGoal } from "@/components/analytics/datafast-page-goal";
 import { DATAFAST_VIEW_PRICING_GOAL } from "@/lib/datafast";
@@ -79,13 +79,11 @@ export function PricingPageView() {
       <DatafastPageGoal goal={DATAFAST_VIEW_PRICING_GOAL} />
       <div className="relative min-h-[calc(100dvh-var(--nav-h))] overflow-hidden">
         <div aria-hidden className="pointer-events-none absolute inset-0">
-          <Image
-            src={LOGIN_ART.src}
-            alt=""
-            fill
+          <ArtImage
+            art={LOGIN_ART}
             priority
             sizes="100vw"
-            className="object-cover object-[70%_35%] opacity-[0.35] dark:opacity-[0.25]"
+            className="object-[70%_35%] opacity-[0.35] dark:opacity-[0.25]"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-bg via-bg/92 to-bg/70 dark:from-bg dark:via-bg/90 dark:to-bg/75" />
           <div className="absolute inset-0 bg-gradient-to-t from-bg via-transparent to-bg/50" />

@@ -1,11 +1,14 @@
 import { A } from "@/components/blog/prose";
+import { YouTubeFacade } from "@/components/blog/youtube-facade";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
 
 const WATCH_BASE = "https://www.youtube.com/watch?v=";
 const EMBED_BASE = "https://www.youtube-nocookie.com/embed/";
 
 /**
- * Accessible 16:9 YouTube iframe. Privacy-enhanced host, no extra scripts.
+ * Accessible 16:9 YouTube player. Privacy-enhanced host, and the iframe itself
+ * is only created on the first click (see YouTubeFacade) so the article does
+ * not pay for the player script up front.
  * Optional VideoObject JSON-LD so the featured talk is eligible for video rich results.
  */
 export function YouTubeEmbed({
@@ -43,15 +46,7 @@ export function YouTubeEmbed({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <div className="relative aspect-video w-full overflow-hidden border border-border bg-bg-secondary">
-        <iframe
-          className="absolute inset-0 h-full w-full"
-          src={embedUrl}
-          title={title}
-          loading="lazy"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          allowFullScreen
-          referrerPolicy="strict-origin-when-cross-origin"
-        />
+        <YouTubeFacade videoId={videoId} title={title} embedUrl={embedUrl} />
       </div>
       <figcaption className="mt-3 font-sans text-[13px] text-text-dim leading-relaxed">
         Outpick on YouTube.{" "}

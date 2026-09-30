@@ -61,15 +61,21 @@ def persist_scores(
     as_of: date,
     *,
     z_floor_rejected: set[str] | None = None,
+    held: set[str] | None = None,
 ) -> dict:
-    """Upsert scores for `as_of` and carry forward held Z-floor failures.
+    """Upsert scores for `as_of` and carry forward Z-floor failures in `held`.
 
-    Same writer as live `score_universe`. Pass the set `compute_scores`
-    collected so a held name the floor blanked keeps its previous composite
-    here too. Omitting the set writes only `scored`.
+    Same writer as live `score_universe`. `held=None` is the live positions
+    table. The dataset sqlite's positions table is empty, so `score_dataset`
+    passes `held=set()` and only records which names the floor blanked.
+    Replay then copies the previous rating for the book it is simulating.
     """
     stats = write_composite_scores(
-        db, scored, as_of, z_floor_rejected=z_floor_rejected
+        db,
+        scored,
+        as_of,
+        z_floor_rejected=z_floor_rejected,
+        held=held,
     )
     db.commit()
     return {
@@ -197,8 +203,16 @@ def score_dataset(
         mode, share = assert_revisions_not_degenerate(
             grades, as_of=friday, allow=allow_degenerate_revisions
         )
+        # The simulated book does not exist yet — replay builds it from these
+        # scores. Record the floor refusals and do not consult `positions`,
+        # which is empty in the dataset sqlite. Replay copies the previous
+        # rating for names that book actually holds.
         persisted = persist_scores(
-            db, scored, friday, z_floor_rejected=z_floor_rejected
+            db,
+            scored,
+            friday,
+            z_floor_rejected=z_floor_rejected,
+            held=set(),
         )
         tape = revisions_tape_stats(db, friday)
         persisted.update(

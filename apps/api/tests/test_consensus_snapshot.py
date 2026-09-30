@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 import pytest
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
 
 from app.db.models import ConsensusSnapshot, Fundamentals, JobRun, Position, Stock
@@ -269,6 +269,31 @@ def test_bulk_insert_skips_existing_vintages(db):
     rows[0]["eps_avg"] = 9.0
     assert bulk_insert_consensus_snapshots(db, rows) == 1
     assert db.query(ConsensusSnapshot).one().eps_avg == 2.0
+
+
+def test_migrations_ensure_schema_marks_carried_scores(tmp_path):
+    from app.db.migrations import ensure_schema
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'legacy.db'}")
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE composite_scores (
+                    id INTEGER PRIMARY KEY,
+                    ticker VARCHAR(16),
+                    as_of DATE,
+                    quant_rating FLOAT
+                )
+                """
+            )
+        )
+    ensure_schema(engine)
+    cols = {c["name"] for c in inspect(engine).get_columns("composite_scores")}
+    assert "carried_forward" in cols
+    assert inspect(engine).has_table("z_floor_rejections")
+    ensure_schema(engine)
+    engine.dispose()
 
 
 def test_migrations_ensure_schema_creates_consensus_snapshots(tmp_path):

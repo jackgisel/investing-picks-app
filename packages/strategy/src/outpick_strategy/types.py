@@ -56,6 +56,9 @@ class ScoreSnapshot:
     # Next scheduled report on or after the evaluation date. Read only by
     # earnings_blackout_days; None means unknown and never blocks.
     next_earnings_date: date | None = None
+    # Previous composite copied forward after the Altman Z floor refused a new
+    # one. Sell rules still read the rating. Buy ranking leaves these out.
+    carried_forward: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {

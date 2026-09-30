@@ -65,7 +65,9 @@ Not a strategy version. `version_label` stays `run118`. `composite_from_factor_p
 
 When that refusal is the only reason an **open holding** has no score, and a previous `CompositeScore` exists, both writers (`score_universe` and backtest `persist_scores`, via `write_composite_scores`) copy that row onto the new `as_of`. A holding with no previous row stays unrated. A name that is not held is not copied, so it cannot be bought. Missing factors, a thin sector, and missing fundamentals are not carried forward.
 
-Sell rules read the copied row, so they evaluate that last rating. Sell thresholds are unchanged. A conviction add reads the same row if the last rating still clears the buy gate.
+Sell rules read the copied row, so they evaluate that last rating. Sell thresholds are unchanged. The row is marked `carried_forward`. Buy ranking and the DCA buy list skip it, so the last rating cannot fund a buy or a conviction add.
+
+`score_dataset` does not treat the dataset's empty `positions` table as the book. It records the floor refusals. Replay copies the previous rating for names in the book it is simulating, through the same writer.
 
 ### Data added (additive keys; nothing removed)
 

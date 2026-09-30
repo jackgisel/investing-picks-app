@@ -4,7 +4,10 @@ This is the harness every strategy change is measured against before it
 reaches the live book. It walks the evaluation Fridays in a date range, loads
 the composite scores that existed on each one (`load_scores_as_of`), runs the
 pure `evaluate()` exactly as `run_evaluation` does, and fills the resulting
-signals in memory against `price_bars`. Nothing here writes to the database.
+signals in memory against `price_bars`. The one write is a carried composite:
+a holding the Altman Z floor blanked keeps its previous rating, marked
+`carried_forward`, so sell rules see the same row live scoring would have
+stored. It does not insert trades or touch the book.
 
 Delisted holdings are force-exited at the last close on or before
 `delistings.date` (booked on the next evaluation, or at `end` if none remains).
@@ -681,6 +684,15 @@ def _run_one(
     forced = _force_exit_delisted(
         book, prices, delistings, as_of=as_of, eval_date=as_of, skipped=skipped
     )
+
+    # The dataset was scored with an empty positions table, so a holding the
+    # Z floor blanked has no row yet. Copy its previous rating now, using this
+    # book's names, and mark the row carried_forward. Sell rules read it.
+    # Buy ranking skips it. Live scoring already did this for `positions`.
+    from worker.services.scoring import persist_carried_holdings
+
+    if persist_carried_holdings(db, as_of, set(book.positions)):
+        db.commit()
 
     scores = load_scores_as_of(db, as_of)
     if not scores:

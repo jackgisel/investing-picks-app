@@ -206,6 +206,51 @@ def _columns(conn, table: str) -> list[dict]:
     return inspector.get_columns(table)
 
 
+def _ensure_z_floor_rejections(engine: Engine) -> None:
+    """Names the Altman Z floor blanked, so replay can carry for its own book.
+
+    The worker never runs `create_all`. Without this table a dataset scored
+    by the worker has no record of which tickers failed the floor, and replay
+    cannot tell a bankruptcy refusal from a missing factor.
+    """
+    from sqlalchemy import inspect
+
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        if inspector.has_table("z_floor_rejections"):
+            return
+        sqlite = engine.dialect.name == "sqlite"
+        pk = "INTEGER PRIMARY KEY" if sqlite else "SERIAL PRIMARY KEY"
+        try:
+            conn.execute(
+                text(
+                    f"""
+                    CREATE TABLE z_floor_rejections (
+                        id {pk},
+                        as_of DATE NOT NULL,
+                        ticker VARCHAR(16) NOT NULL,
+                        UNIQUE (as_of, ticker)
+                    )
+                    """
+                )
+            )
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_z_floor_rejections_as_of "
+                    "ON z_floor_rejections (as_of)"
+                )
+            )
+            conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS ix_z_floor_rejections_ticker "
+                    "ON z_floor_rejections (ticker)"
+                )
+            )
+            log.info("Created z_floor_rejections")
+        except Exception:
+            log.debug("Could not create z_floor_rejections; assuming it exists")
+
+
 def ensure_schema(engine: Engine) -> None:
     """Bring an existing database up to the current model definitions."""
     # Job-failure alerting. Without this column the worker's alert sweep has no
@@ -213,6 +258,13 @@ def ensure_schema(engine: Engine) -> None:
     # same failure every time it ran.
     _add_column(engine, "job_runs", "alerted_at", "TIMESTAMP WITH TIME ZONE")
     _add_column(engine, "portfolios", "kind", "VARCHAR(16) DEFAULT 'live'")
+    _add_column(
+        engine,
+        "composite_scores",
+        "carried_forward",
+        "BOOLEAN NOT NULL DEFAULT FALSE",
+    )
     _ensure_portfolio_contributions(engine)
     _ensure_stock_news(engine)
     _ensure_consensus_snapshots(engine)
+    _ensure_z_floor_rejections(engine)

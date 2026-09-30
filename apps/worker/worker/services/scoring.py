@@ -24,6 +24,7 @@ from app.db.models import (
     Position,
     PriceBar,
     Stock,
+    ZFloorRejection,
 )
 
 log = logging.getLogger(__name__)
@@ -835,6 +836,29 @@ def _copy_composite_score(row: CompositeScore, prior: CompositeScore) -> None:
     row.momentum_grade = prior.momentum_grade
     row.revisions_grade = prior.revisions_grade
     row.sector = prior.sector
+    row.carried_forward = True
+
+
+def replace_z_floor_rejections(db: Session, as_of: date, tickers: set[str]) -> None:
+    """Remember every name the floor blanked on `as_of`, held or not.
+
+    Replay has no live `positions` rows. It reads this set and copies a
+    previous rating only for names in the book it is simulating.
+    """
+    db.query(ZFloorRejection).filter(ZFloorRejection.as_of == as_of).delete(
+        synchronize_session=False
+    )
+    for ticker in sorted(tickers):
+        db.add(ZFloorRejection(as_of=as_of, ticker=ticker))
+
+
+def _rejected_tickers(db: Session, as_of: date) -> set[str]:
+    return {
+        row[0]
+        for row in db.query(ZFloorRejection.ticker)
+        .filter(ZFloorRejection.as_of == as_of)
+        .all()
+    }
 
 
 def write_composite_scores(
@@ -843,16 +867,23 @@ def write_composite_scores(
     as_of: date,
     *,
     z_floor_rejected: set[str] | None = None,
+    held: set[str] | None = None,
 ) -> dict:
     """Upsert `scored` for `as_of`, then carry forward held Z-floor failures.
 
     `composite_from_factor_pcts` returns None below `z_score_floor` and this
     function does not invent a replacement. When the refusal is the floor
-    alone, the ticker is an open holding, and an earlier CompositeScore
-    exists, that row is copied onto `as_of` so the dashboard, ops, and sell
-    rules still see the last real rating. A holding with no earlier row stays
-    unrated. A name that is not held is not copied, so it cannot be bought.
-    Other unrated reasons never appear in `z_floor_rejected`.
+    alone, the ticker is in `held`, and an earlier CompositeScore exists,
+    that row is copied onto `as_of` and marked `carried_forward`. The
+    dashboard and sell rules still see the last rating. Buy ranking does not.
+    A holding with no earlier row stays unrated. A name that is not held is
+    not copied, so it cannot be bought. Other unrated reasons never appear
+    in `z_floor_rejected`.
+
+    `held=None` is the live book (`positions` for portfolio 1). Pass a set —
+    including an empty one — to use another book. The backtest sqlite has no
+    positions; `score_dataset` passes an empty set and records the rejections,
+    and replay copies scores for the book it is simulating.
 
     Does not commit. Live `score_universe` and backtest `persist_scores` both
     call this so the two writers cannot drift.
@@ -881,13 +912,17 @@ def write_composite_scores(
         row.momentum_grade = s.grades.get("momentum", "F")
         row.revisions_grade = s.grades.get("revisions", "F")
         row.sector = s.sector
+        row.carried_forward = False
         written += 1
 
-    held = set(_held_tickers(db))
+    if z_floor_rejected is not None:
+        replace_z_floor_rejections(db, as_of, z_floor_rejected)
+
+    held_names = set(_held_tickers(db)) if held is None else set(held)
     carry = sorted(
         ticker
         for ticker in (z_floor_rejected or ())
-        if ticker in held and ticker not in scored_tickers
+        if ticker in held_names and ticker not in scored_tickers
     )
     priors = _prior_composite_scores(db, carry, as_of)
     carried_tickers: list[str] = []
@@ -918,6 +953,41 @@ def write_composite_scores(
         "carried": len(carried_tickers),
         "carried_tickers": carried_tickers,
     }
+
+
+def persist_carried_holdings(db: Session, as_of: date, held: set[str]) -> list[str]:
+    """Copy the previous rating for `held` names the floor blanked on `as_of`.
+
+    Does not delete the day's other scores. A fresh score already stored for
+    the ticker is left alone. Used by replay, whose book is not the live
+    `positions` table the dataset was scored against.
+    """
+    if not held:
+        return []
+    carry = sorted(held & _rejected_tickers(db, as_of))
+    if not carry:
+        return []
+    existing = {
+        row.ticker: row
+        for row in db.query(CompositeScore)
+        .filter(CompositeScore.as_of == as_of, CompositeScore.ticker.in_(carry))
+        .all()
+    }
+    priors = _prior_composite_scores(db, carry, as_of)
+    carried: list[str] = []
+    for ticker in carry:
+        row = existing.get(ticker)
+        if row is not None and not row.carried_forward:
+            continue
+        prior = priors.get(ticker)
+        if prior is None:
+            continue
+        if row is None:
+            row = CompositeScore(ticker=ticker, as_of=as_of)
+            db.add(row)
+        _copy_composite_score(row, prior)
+        carried.append(ticker)
+    return carried
 
 
 def score_universe(db: Session, params: StrategyParams | None = None) -> int:
@@ -964,7 +1034,8 @@ def score_universe(db: Session, params: StrategyParams | None = None) -> int:
         log.info(
             "Open holdings below the %.2f Altman Z floor kept their previous "
             "composite on %s (no new composite computed): %s. Sell rules "
-            "evaluate that last rating.",
+            "evaluate that last rating. It is marked carried_forward and "
+            "cannot fund a buy or an add.",
             params.z_score_floor,
             as_of.isoformat(),
             stats["carried_tickers"],

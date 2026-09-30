@@ -61,12 +61,12 @@ describe("art pool", () => {
 
   it("keeps the twelve new prints unclaimed", () => {
     const expected: Record<string, { label: string; ink: string }> = {
-      "spare-07": { label: "Lighthouse", ink: "#2F5A8C" },
-      "spare-08": { label: "Mesa", ink: "#2F5A8C" },
-      "spare-09": { label: "Harbor boats", ink: "#2F5A8C" },
-      "spare-10": { label: "Alpine lake", ink: "#2F5A8C" },
-      "spare-11": { label: "Hill town", ink: "#2F5A8C" },
-      "spare-12": { label: "Terraces", ink: "#2F5A8C" },
+      "spare-07": { label: "Lighthouse", ink: "#1E3A8A" },
+      "spare-08": { label: "Mesa", ink: "#0F5C5C" },
+      "spare-09": { label: "Harbor boats", ink: "#1B4D3E" },
+      "spare-10": { label: "Alpine lake", ink: "#9B2331" },
+      "spare-11": { label: "Hill town", ink: "#6B4423" },
+      "spare-12": { label: "Terraces", ink: "#3E6B58" },
       "spare-13": { label: "Cypress coast", ink: "#146C32" },
       "spare-14": { label: "Wheat hills", ink: "#A67C2D" },
       "spare-15": { label: "Slot canyon", ink: "#C23B32" },
@@ -76,6 +76,7 @@ describe("art pool", () => {
     };
     const fresh = SPARE_POOL.filter((s) => s.id in expected);
     expect(fresh).toHaveLength(12);
+    expect(new Set(fresh.map((s) => s.ink)).size).toBe(12);
     for (const spare of fresh) {
       expect(SPARE_CLAIMED[spare.id]).toBeUndefined();
       expect(spare.label).toBe(expected[spare.id].label);

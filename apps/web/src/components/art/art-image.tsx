@@ -1,4 +1,3 @@
-import { preload } from "react-dom";
 import type { ArtPiece } from "@/lib/art";
 import { artSrcSet } from "@/lib/art";
 
@@ -12,9 +11,14 @@ import { artSrcSet } from "@/lib/art";
  * `-<width>w` siblings, see scripts/optimize-art.mjs) are 3–20× smaller and
  * pixel-exact, and skipping the optimiser also lets the CDN cache them.
  *
- * `priority` marks the image as the page's LCP candidate: eager, high fetch
- * priority, and a hoisted preload so it is requested from the `<head>` rather
- * than when the parser reaches it. Everything else lazy-loads.
+ * `priority` marks the image as the page's LCP candidate: eager with a high
+ * fetch priority. React 19's server renderer hoists a matching
+ * `<link rel="preload" as="image" imagesrcset imagesizes>` into the `<head>`
+ * for any non-lazy `<img>` it renders in the shell, so the request starts
+ * before the parser reaches the element. Do not add `ReactDOM.preload()` for
+ * this: Flight ships that hint with the RSC payload, so a prefetched
+ * `<Link href="/blog">` in the navbar made every other page download the blog
+ * masthead. Everything else lazy-loads.
  */
 export function ArtImage({
   art,
@@ -28,19 +32,10 @@ export function ArtImage({
   className?: string;
   priority?: boolean;
 }) {
-  const srcSet = artSrcSet(art);
-  if (priority) {
-    preload(art.src, {
-      as: "image",
-      imageSrcSet: srcSet,
-      imageSizes: sizes,
-      fetchPriority: "high",
-    });
-  }
   return (
     <img
       src={art.src}
-      srcSet={srcSet}
+      srcSet={artSrcSet(art)}
       sizes={sizes}
       alt=""
       decoding="async"

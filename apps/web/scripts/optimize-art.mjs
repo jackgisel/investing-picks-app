@@ -22,11 +22,18 @@
  *     re-dithered to four tones. Downscaling a dither produces intermediate
  *     colours; re-quantising restores the risograph texture at a fraction of
  *     the bytes (a 1200w cover is ~320KB lossless, its 750w variant ~68KB).
+ *     A variant is only kept if it is smaller than the source: the two-tone
+ *     2048px landscapes are ~42KB, and a four-tone 750w of one is 53KB, so
+ *     shipping it would cost more bytes for fewer pixels;
+ *   - `src/lib/art-variants.json`, the widths that exist for each source.
+ *     `artSrcSet()` builds the srcset from it, so a candidate can never point
+ *     at a file that was dropped.
  *
  * Variants are committed rather than built on deploy so the runtime never
- * depends on the encoder. `--check` confirms every source has every variant
- * and each variant has the width its name claims; it reads PNG headers only
- * and needs no dependencies, so it runs in CI as part of `pnpm check`.
+ * depends on the encoder. `--check` confirms the manifest matches the files
+ * on disk, that every variant has the width its name claims and is smaller
+ * than its source; it reads PNG headers only and needs no dependencies, so it
+ * runs in CI as part of `pnpm check`.
  */
 import { createRequire } from "node:module";
 import fs from "node:fs";
@@ -39,6 +46,7 @@ const VARIANT_RE = /-(\d+)w\.png$/;
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ART_DIR = path.join(here, "..", "public", "art");
+const MANIFEST = path.join(here, "..", "src", "lib", "art-variants.json");
 
 function walkPngs(dir) {
   const out = [];
@@ -71,21 +79,51 @@ function sources() {
   return walkPngs(ART_DIR).filter((f) => !VARIANT_RE.test(f));
 }
 
+/** Manifest key: the path the browser requests, e.g. `/art/covers/x.png`. */
+function publicPath(file) {
+  return `/art/${path.relative(ART_DIR, file).split(path.sep).join("/")}`;
+}
+
+function variantsOnDisk(src) {
+  return VARIANT_WIDTHS.filter((w) => fs.existsSync(variantPath(src, w)));
+}
+
+function readManifest() {
+  if (!fs.existsSync(MANIFEST)) return null;
+  return JSON.parse(fs.readFileSync(MANIFEST, "utf8"));
+}
+
 export function check() {
   const problems = [];
+  const rerun = "— run: node scripts/optimize-art.mjs";
+  const manifest = readManifest();
+  if (!manifest) return [`${path.relative(here, MANIFEST)} is missing ${rerun}`];
+  const seen = new Set();
   for (const src of sources()) {
-    const { width } = pngSize(src);
-    for (const w of VARIANT_WIDTHS) {
-      if (w >= width) continue;
+    const key = publicPath(src);
+    seen.add(key);
+    const srcBytes = fs.statSync(src).size;
+    const onDisk = variantsOnDisk(src);
+    const listed = manifest[key];
+    if (!Array.isArray(listed)) {
+      problems.push(`${key} is not in the manifest ${rerun}`);
+    } else if (listed.join() !== onDisk.join()) {
+      problems.push(
+        `${key}: manifest lists [${listed}] but [${onDisk}] exist ${rerun}`,
+      );
+    }
+    for (const w of onDisk) {
       const variant = variantPath(src, w);
       const rel = path.relative(ART_DIR, variant);
-      if (!fs.existsSync(variant)) {
-        problems.push(`missing ${rel} — run: node scripts/optimize-art.mjs`);
-        continue;
-      }
       const got = pngSize(variant).width;
       if (got !== w) problems.push(`${rel} is ${got}px wide, expected ${w}`);
+      if (fs.statSync(variant).size >= srcBytes) {
+        problems.push(`${rel} is not smaller than its source ${rerun}`);
+      }
     }
+  }
+  for (const key of Object.keys(manifest)) {
+    if (!seen.has(key)) problems.push(`${key} is in the manifest but not on disk ${rerun}`);
   }
   const orphans = walkPngs(ART_DIR).filter((f) => {
     const m = VARIANT_RE.exec(f);
@@ -164,6 +202,7 @@ const kb = (n) => `${Math.round(n / 1024)}KB`;
 
 async function generate() {
   const sharp = await loadSharp();
+  const manifest = {};
   let before = 0;
   let after = 0;
   for (const src of sources()) {
@@ -172,24 +211,37 @@ async function generate() {
     before += buf.length;
     const lossless = await encodeLossless(sharp, buf);
     let line = `${rel}: ${kb(buf.length)}`;
+    let srcBytes = buf.length;
     if (lossless && lossless.length < buf.length) {
       writeIfChanged(src, lossless);
-      after += lossless.length;
+      srcBytes = lossless.length;
       line += ` → ${kb(lossless.length)} lossless`;
     } else {
-      after += buf.length;
       line += lossless ? " (already minimal)" : " (kept: not palette-safe)";
     }
+    after += srcBytes;
     const { width } = await sharp(buf).metadata();
+    const kept = [];
     const sizes = [];
     for (const w of VARIANT_WIDTHS) {
-      if (w >= width) continue;
-      const out = await encodeVariant(sharp, buf, w);
-      writeIfChanged(variantPath(src, w), out);
-      sizes.push(`${w}w=${kb(out.length)}`);
+      const file = variantPath(src, w);
+      const out = w < width ? await encodeVariant(sharp, buf, w) : null;
+      if (out && out.length < srcBytes) {
+        writeIfChanged(file, out);
+        kept.push(w);
+        sizes.push(`${w}w=${kb(out.length)}`);
+      } else {
+        fs.rmSync(file, { force: true });
+        if (out) sizes.push(`${w}w dropped (${kb(out.length)} ≥ source)`);
+      }
     }
+    manifest[publicPath(src)] = kept;
     console.log(`${line}; variants ${sizes.join(" ")}`);
   }
+  const lines = Object.entries(manifest).map(
+    ([key, widths]) => `  ${JSON.stringify(key)}: [${widths.join(", ")}]`,
+  );
+  writeIfChanged(MANIFEST, Buffer.from(`{\n${lines.join(",\n")}\n}\n`));
   console.log(`\nsources: ${kb(before)} → ${kb(after)}`);
   const problems = check();
   if (problems.length) {

@@ -14,10 +14,12 @@
  *
  * Every print is served as a palette PNG straight from /public, never through
  * `next/image`: a lossy encoder turns a 100KB two-tone dither into a 900KB
- * WebP. Each source has `-480w` / `-750w` / `-960w` siblings for the srcset;
- * `scripts/optimize-art.mjs` writes them and `pnpm check` verifies they exist,
- * so run it after adding a cover.
+ * WebP. Sources get `-480w` / `-750w` / `-960w` siblings for the srcset where
+ * those are actually smaller than the source; `scripts/optimize-art.mjs`
+ * writes them plus the `art-variants.json` manifest, and `pnpm check` verifies
+ * the two agree, so run it after adding a cover.
  */
+import artVariants from "./art-variants.json";
 
 export type ArtPiece = {
   id: string;
@@ -31,8 +33,8 @@ export type ArtPiece = {
   width: number;
 };
 
-/** Widths of the pre-rendered siblings next to every source PNG. */
-export const ART_VARIANT_WIDTHS = [480, 750, 960] as const;
+/** Pre-rendered sibling widths per source, written by scripts/optimize-art.mjs. */
+const ART_VARIANTS: Record<string, readonly number[]> = artVariants;
 
 /** Covers and pool pieces are generated at this width. */
 export const ART_COVER_WIDTH = 1200;
@@ -69,15 +71,14 @@ export const ART: readonly ArtPiece[] = [
 ] as const;
 
 /**
- * `srcset` for a piece: the resized siblings plus the source at its own width.
- * `/art/x.png` → `/art/x-480w.png 480w, …, /art/x.png 1200w`.
+ * `srcset` for a piece: its resized siblings plus the source at its own width.
+ * `/art/x.png` → `/art/x-480w.png 480w, …, /art/x.png 1200w`. A piece with
+ * no manifest entry (a cover the script has not seen yet) gets the source only.
  */
 export function artSrcSet(piece: ArtPiece): string {
   const base = piece.src.replace(/\.png$/, "");
   return [
-    ...ART_VARIANT_WIDTHS.filter((w) => w < piece.width).map(
-      (w) => `${base}-${w}w.png ${w}w`,
-    ),
+    ...(ART_VARIANTS[piece.src] ?? []).map((w) => `${base}-${w}w.png ${w}w`),
     `${piece.src} ${piece.width}w`,
   ].join(", ");
 }

@@ -12,7 +12,7 @@
  */
 
 import type { ArtPiece } from "@/lib/art";
-import { ART, ART_COVER_WIDTH, artForKey } from "@/lib/art";
+import { ART, ART_COVER_WIDTH, ART_SPARE_WIDTH, artForKey } from "@/lib/art";
 import { isoWeekKey } from "@/lib/email-dispatch";
 
 /** ISO weeks with a dedicated landscape ready (Aug 24 – Nov 22, 2026). */
@@ -32,14 +32,39 @@ export const WEEKLY_POOL: readonly string[] = [
   "2026-W47",
 ] as const;
 
-/** Unassigned covers for future blog posts. Mark claimed in SPARE_CLAIMED. */
-export const SPARE_POOL: readonly string[] = [
-  "spare-01",
-  "spare-02",
-  "spare-03",
-  "spare-04",
-  "spare-05",
-  "spare-06",
+function sparePiece(id: string, label: string, ink: string, width = ART_COVER_WIDTH): ArtPiece {
+  return {
+    id,
+    src: `/art/pool/${id}.png`,
+    label,
+    ink,
+    width,
+  };
+}
+
+/**
+ * Unassigned covers for future blog posts. Mark claimed in SPARE_CLAIMED.
+ * Each slot carries a short scene label and the ink used on cream paper.
+ */
+export const SPARE_POOL: readonly ArtPiece[] = [
+  sparePiece("spare-01", "Night observatory", "#2F5A8C"),
+  sparePiece("spare-02", "Canal windmills", "#0D5C26"),
+  sparePiece("spare-03", "Forest trestle", "#0C54C7"),
+  sparePiece("spare-04", "Palm house", "#084216"),
+  sparePiece("spare-05", "Coastal amphitheatre", "#196BAD"),
+  sparePiece("spare-06", "Mountain hot springs", "#0B546C"),
+  sparePiece("spare-07", "Lighthouse", "#1E3A8A", ART_SPARE_WIDTH),
+  sparePiece("spare-08", "Mesa", "#0F5C5C", ART_SPARE_WIDTH),
+  sparePiece("spare-09", "Harbor boats", "#1B4D3E", ART_SPARE_WIDTH),
+  sparePiece("spare-10", "Alpine lake", "#9B2331", ART_SPARE_WIDTH),
+  sparePiece("spare-11", "Hill town", "#6B4423", ART_SPARE_WIDTH),
+  sparePiece("spare-12", "Terraces", "#3E6B58", ART_SPARE_WIDTH),
+  sparePiece("spare-13", "Cypress coast", "#146C32", ART_SPARE_WIDTH),
+  sparePiece("spare-14", "Wheat hills", "#A67C2D", ART_SPARE_WIDTH),
+  sparePiece("spare-15", "Slot canyon", "#C23B32", ART_SPARE_WIDTH),
+  sparePiece("spare-16", "Lavender hills", "#5C3D8A", ART_SPARE_WIDTH),
+  sparePiece("spare-17", "Glacier", "#1A6E82", ART_SPARE_WIDTH),
+  sparePiece("spare-18", "Adobe pueblo", "#C46A32", ART_SPARE_WIDTH),
 ] as const;
 
 /**
@@ -110,9 +135,9 @@ export function weekKeyFromInsightSlug(slug: string): string | null {
 
 /** Next unclaimed spare for a new blog post, or null if the pool is empty. */
 export function nextSpareCover(): { id: string; src: string } | null {
-  for (const id of SPARE_POOL) {
-    if (!SPARE_CLAIMED[id]) {
-      return { id, src: `/art/pool/${id}.png` };
+  for (const spare of SPARE_POOL) {
+    if (!SPARE_CLAIMED[spare.id]) {
+      return { id: spare.id, src: spare.src };
     }
   }
   return null;
@@ -126,7 +151,7 @@ export function poolStatus(now: Date = new Date()): {
 } {
   const current = isoWeekKey(now);
   const weeksRemaining = WEEKLY_POOL.filter((w) => w >= current).length;
-  const sparesFree = SPARE_POOL.filter((id) => !SPARE_CLAIMED[id]).length;
+  const sparesFree = SPARE_POOL.filter((spare) => !SPARE_CLAIMED[spare.id]).length;
   return {
     weeksReady: WEEKLY_POOL.length,
     weeksRemaining,

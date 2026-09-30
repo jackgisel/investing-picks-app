@@ -36,8 +36,11 @@ export type ArtPiece = {
 /** Pre-rendered sibling widths per source, written by scripts/optimize-art.mjs. */
 const ART_VARIANTS: Record<string, readonly number[]> = artVariants;
 
-/** Covers and pool pieces are generated at this width. */
+/** Covers and weekly pool pieces are generated at this width. */
 export const ART_COVER_WIDTH = 1200;
+
+/** Spare-07+ prints were delivered at this width (16:9, not cropped). */
+export const ART_SPARE_WIDTH = 1280;
 
 export const ART: readonly ArtPiece[] = [
   {

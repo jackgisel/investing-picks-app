@@ -343,19 +343,33 @@ def walk_forward(
             scored = score_dataset(dataset_db, member_start, complete)
 
     new_end = complete
+    # old_hash is taken after open_dataset, so it already includes the
+    # carried_forward column and z_floor_rejections. A schema-only byte
+    # change is not a new dataset and must not rewrite the published pin.
+    content_changed = False
     if dataset_path is not None:
-        extra = {
-            "walk_forward_as_of": today.isoformat(),
-            "derive_version": DERIVE_VERSION,
-        }
-        if manifest_path is not None:
-            written = write_manifest(dataset_path, manifest_path, extra=extra)
-            new_hash = written["sha256"]
+        file_hash = sha256_file(dataset_path)
+        content_changed = old_hash is not None and file_hash != old_hash
+        if content_changed:
+            extra = {
+                "walk_forward_as_of": today.isoformat(),
+                "derive_version": DERIVE_VERSION,
+            }
+            if manifest_path is not None:
+                written = write_manifest(dataset_path, manifest_path, extra=extra)
+                new_hash = written["sha256"]
+            else:
+                new_hash = file_hash
+                written = {"sha256": new_hash}
+            if new_end != cfg.end or new_hash != cfg.dataset_sha256:
+                update_config_pin(cfg.source, end=new_end, dataset_sha256=new_hash)
         else:
-            new_hash = sha256_file(dataset_path)
-            written = {"sha256": new_hash}
-        if new_end != cfg.end or new_hash != cfg.dataset_sha256:
-            update_config_pin(cfg.source, end=new_end, dataset_sha256=new_hash)
+            written = {"sha256": cfg.dataset_sha256}
+            new_hash = cfg.dataset_sha256
+            if new_end != cfg.end:
+                update_config_pin(
+                    cfg.source, end=new_end, dataset_sha256=cfg.dataset_sha256
+                )
     else:
         new_hash = old_hash
         written = {"sha256": new_hash}
@@ -380,16 +394,17 @@ def walk_forward(
             dataset_db,
             cfg,
             sensitivity=True,
-            skip_hash=dataset_path is None,
+            skip_hash=not content_changed,
         )
         write_result(payload, write_baseline_path)
 
     uploaded = None
-    changed = (new_hash != old_hash) or (new_end != end_before)
+    changed = content_changed or (new_end != end_before)
     if upload:
         if dataset_path is None:
             raise WalkForwardError("upload requested but dataset_path is missing")
-        uploaded = upload_dataset(dataset_path)
+        if content_changed:
+            uploaded = upload_dataset(dataset_path)
 
     result = {
         "skipped": False,

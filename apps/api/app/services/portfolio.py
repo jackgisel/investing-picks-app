@@ -383,6 +383,7 @@ def load_scores_as_of(
                 momentum_grade=r.momentum_grade,
                 revisions_grade=r.revisions_grade,
                 sector=r.sector,
+                carried_forward=bool(r.carried_forward),
             )
         elif prior_date is not None and r.as_of == prior_date:
             prior[r.ticker] = r.quant_rating
@@ -423,7 +424,14 @@ def next_earnings_dates(db: Session, as_of: date) -> dict[str, date]:
 def ranked_candidates(
     scores: dict[str, ScoreSnapshot], params: StrategyParams | None = None
 ) -> list[str]:
-    return rank_candidates(scores, params)
+    """Buy-priority order, without ratings copied forward after the Z floor.
+
+    A carried composite is the last real rating for a holding the floor
+    blanked. Sell rules read it off the scores dict. It must not fund a new
+    buy or a conviction add (`allow_double_buy`).
+    """
+    fresh = {t: s for t, s in scores.items() if not s.carried_forward}
+    return rank_candidates(fresh, params)
 
 
 def load_return_series(

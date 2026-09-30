@@ -24,6 +24,7 @@ from app.db.models import (
     Position,
     PriceBar,
     Stock,
+    ZFloorRejection,
 )
 
 log = logging.getLogger(__name__)
@@ -553,6 +554,8 @@ def compute_scores(
     params: StrategyParams,
     as_of: date,
     universe: list[str] | None = None,
+    *,
+    z_floor_rejected: set[str] | None = None,
 ) -> tuple[list[ScoredTicker], dict[str, int], int]:
     """Score the universe in memory. Writes nothing.
 
@@ -563,6 +566,11 @@ def compute_scores(
     `universe` is optional membership for date `as_of`. Omit it for live
     scoring (today's Stock filters). The backtest passes the Friday's
     eligible set so today's market cap cannot leak in.
+
+    `z_floor_rejected`, when passed, collects tickers whose composite was
+    refused solely because Altman Z is below `z_score_floor`. Persist callers
+    use that set to copy an open holding's previous rating forward. Missing
+    factors and thin sectors are not included: those stay unrated.
 
     Returns (scored, missing_factor_counts, considered).
     """
@@ -596,9 +604,13 @@ def compute_scores(
         )
         considered += len(tickers)
         scored.extend(ranked)
-        for names in missing_by_ticker.values():
+        for ticker, names in missing_by_ticker.items():
             for name in names:
                 missing_factor[name] += 1
+            # Solely the bankruptcy floor. A missing factor that happens to
+            # sit next to a low Z stays a coverage failure and is not carried.
+            if z_floor_rejected is not None and names == ["z_score"]:
+                z_floor_rejected.add(ticker)
 
     if thin_sectors:
         log.warning(
@@ -780,23 +792,102 @@ def preview_scores(
     return snapshots, missing, considered
 
 
-def score_universe(db: Session, params: StrategyParams | None = None) -> int:
-    from worker.services.ingest import recompute_latest_revisions
+def _prior_composite_scores(
+    db: Session, tickers: list[str], as_of: date
+) -> dict[str, CompositeScore]:
+    """Latest stored rating strictly before `as_of`, per ticker.
 
-    params = params or RUN118_PARAMS
-    as_of = date.today()
-    patched = recompute_latest_revisions(db, as_of)
-    if patched:
-        log.info("Recomputed revisions on %d latest snapshots", patched)
+    Same-day rows are not "previous": a re-run that can no longer stand behind
+    today's number must not treat that number as the last real rating.
+    """
+    if not tickers:
+        return {}
+    prev = (
+        db.query(
+            CompositeScore.ticker.label("ticker"),
+            func.max(CompositeScore.as_of).label("prev_as_of"),
+        )
+        .filter(
+            CompositeScore.ticker.in_(tickers),
+            CompositeScore.as_of < as_of,
+        )
+        .group_by(CompositeScore.ticker)
+        .subquery()
+    )
+    rows = (
+        db.query(CompositeScore)
+        .join(
+            prev,
+            (CompositeScore.ticker == prev.c.ticker)
+            & (CompositeScore.as_of == prev.c.prev_as_of),
+        )
+        .all()
+    )
+    return {row.ticker: row for row in rows}
 
-    scored, missing_factor, considered = compute_scores(db, params, as_of)
-    if not considered:
-        log.warning("No stocks to score")
-        return 0
 
-    # (ticker, as_of) is unique, so a re-run on the same day must update in
-    # place. Blind inserts would either violate the constraint or, before it
-    # existed, create a duplicate "prior" row for the same day.
+def _copy_composite_score(row: CompositeScore, prior: CompositeScore) -> None:
+    """Copy a stored rating onto `row`. Does not compute a new composite."""
+    row.quant_rating = prior.quant_rating
+    row.composite = prior.composite
+    row.valuation_grade = prior.valuation_grade
+    row.growth_grade = prior.growth_grade
+    row.profitability_grade = prior.profitability_grade
+    row.momentum_grade = prior.momentum_grade
+    row.revisions_grade = prior.revisions_grade
+    row.sector = prior.sector
+    row.carried_forward = True
+
+
+def replace_z_floor_rejections(db: Session, as_of: date, tickers: set[str]) -> None:
+    """Remember every name the floor blanked on `as_of`, held or not.
+
+    Replay has no live `positions` rows. It reads this set and copies a
+    previous rating only for names in the book it is simulating.
+    """
+    db.query(ZFloorRejection).filter(ZFloorRejection.as_of == as_of).delete(
+        synchronize_session=False
+    )
+    for ticker in sorted(tickers):
+        db.add(ZFloorRejection(as_of=as_of, ticker=ticker))
+
+
+def _rejected_tickers(db: Session, as_of: date) -> set[str]:
+    return {
+        row[0]
+        for row in db.query(ZFloorRejection.ticker)
+        .filter(ZFloorRejection.as_of == as_of)
+        .all()
+    }
+
+
+def write_composite_scores(
+    db: Session,
+    scored: list[ScoredTicker],
+    as_of: date,
+    *,
+    z_floor_rejected: set[str] | None = None,
+    held: set[str] | None = None,
+) -> dict:
+    """Upsert `scored` for `as_of`, then carry forward held Z-floor failures.
+
+    `composite_from_factor_pcts` returns None below `z_score_floor` and this
+    function does not invent a replacement. When the refusal is the floor
+    alone, the ticker is in `held`, and an earlier CompositeScore exists,
+    that row is copied onto `as_of` and marked `carried_forward`. The
+    dashboard and sell rules still see the last rating. Buy ranking does not.
+    A holding with no earlier row stays unrated. A name that is not held is
+    not copied, so it cannot be bought. Other unrated reasons never appear
+    in `z_floor_rejected`.
+
+    `held=None` is the live book (`positions` for portfolio 1). Pass a set —
+    including an empty one — to use another book. The backtest sqlite has no
+    positions; `score_dataset` passes an empty set and records the rejections,
+    and replay copies scores for the book it is simulating.
+
+    Does not commit. Live `score_universe` and backtest `persist_scores` both
+    call this so the two writers cannot drift.
+    """
     existing_today = {
         row.ticker: row
         for row in db.query(CompositeScore).filter(CompositeScore.as_of == as_of).all()
@@ -804,8 +895,9 @@ def score_universe(db: Session, params: StrategyParams | None = None) -> int:
 
     written = 0
     with_revisions = 0
-    dropped = 0
+    scored_tickers: set[str] = set()
     for s in scored:
+        scored_tickers.add(s.ticker)
         if s.factor_pcts.get("revisions") is not None:
             with_revisions += 1
         row = existing_today.pop(s.ticker, None)
@@ -820,25 +912,134 @@ def score_universe(db: Session, params: StrategyParams | None = None) -> int:
         row.momentum_grade = s.grades.get("momentum", "F")
         row.revisions_grade = s.grades.get("revisions", "F")
         row.sector = s.sector
+        row.carried_forward = False
         written += 1
 
-    # Anything still in existing_today was scored by an earlier run today and is
-    # unscoreable now. Leaving it makes `load_latest_scores` serve a stale rating
-    # as current — the strategy would trade on a number this run just decided it
-    # cannot stand behind.
+    if z_floor_rejected is not None:
+        replace_z_floor_rejections(db, as_of, z_floor_rejected)
+
+    held_names = set(_held_tickers(db)) if held is None else set(held)
+    carry = sorted(
+        ticker
+        for ticker in (z_floor_rejected or ())
+        if ticker in held_names and ticker not in scored_tickers
+    )
+    priors = _prior_composite_scores(db, carry, as_of)
+    carried_tickers: list[str] = []
+    for ticker in carry:
+        prior = priors.get(ticker)
+        if prior is None:
+            continue
+        row = existing_today.pop(ticker, None)
+        if row is None:
+            row = CompositeScore(ticker=ticker, as_of=as_of)
+            db.add(row)
+        _copy_composite_score(row, prior)
+        carried_tickers.append(ticker)
+        written += 1
+
+    # Anything still here was scored by an earlier run today and is unscoreable
+    # now, including a Z-floor holding with no earlier rating to copy. Leaving
+    # it makes `load_latest_scores` serve a number this run cannot stand behind.
+    dropped = 0
     for stale in existing_today.values():
         db.delete(stale)
         dropped += 1
 
+    return {
+        "written": written,
+        "dropped": dropped,
+        "with_revisions": with_revisions,
+        "carried": len(carried_tickers),
+        "carried_tickers": carried_tickers,
+    }
+
+
+def persist_carried_holdings(db: Session, as_of: date, held: set[str]) -> list[str]:
+    """Copy the previous rating for `held` names the floor blanked on `as_of`.
+
+    Does not delete the day's other scores. A fresh score already stored for
+    the ticker is left alone. Used by replay, whose book is not the live
+    `positions` table the dataset was scored against.
+    """
+    if not held:
+        return []
+    carry = sorted(held & _rejected_tickers(db, as_of))
+    if not carry:
+        return []
+    existing = {
+        row.ticker: row
+        for row in db.query(CompositeScore)
+        .filter(CompositeScore.as_of == as_of, CompositeScore.ticker.in_(carry))
+        .all()
+    }
+    priors = _prior_composite_scores(db, carry, as_of)
+    carried: list[str] = []
+    for ticker in carry:
+        row = existing.get(ticker)
+        if row is not None and not row.carried_forward:
+            continue
+        prior = priors.get(ticker)
+        if prior is None:
+            continue
+        if row is None:
+            row = CompositeScore(ticker=ticker, as_of=as_of)
+            db.add(row)
+        _copy_composite_score(row, prior)
+        carried.append(ticker)
+    return carried
+
+
+def score_universe(db: Session, params: StrategyParams | None = None) -> int:
+    from worker.services.ingest import recompute_latest_revisions
+
+    params = params or RUN118_PARAMS
+    as_of = date.today()
+    patched = recompute_latest_revisions(db, as_of)
+    if patched:
+        log.info("Recomputed revisions on %d latest snapshots", patched)
+
+    z_floor_rejected: set[str] = set()
+    scored, missing_factor, considered = compute_scores(
+        db, params, as_of, z_floor_rejected=z_floor_rejected
+    )
+    if not considered:
+        log.warning("No stocks to score")
+        return 0
+
+    # (ticker, as_of) is unique, so a re-run on the same day must update in
+    # place. Blind inserts would either violate the constraint or, before it
+    # existed, create a duplicate "prior" row for the same day.
+    stats = write_composite_scores(
+        db, scored, as_of, z_floor_rejected=z_floor_rejected
+    )
+    written = stats["written"]
+    dropped = stats["dropped"]
+    with_revisions = stats["with_revisions"]
+    # Carried rows are copies, not fresh factor coverage. The revisions warning
+    # is about names this run actually scored.
+    fresh = written - stats["carried"]
     unscoreable = considered - written
 
     db.commit()
     log.info(
-        "Wrote %s composite scores (%s unscoreable, %s stale rows dropped)",
+        "Wrote %s composite scores (%s unscoreable, %s stale rows dropped, "
+        "%s Z-floor holdings carried forward)",
         written,
         unscoreable,
         dropped,
+        stats["carried"],
     )
+    if stats["carried"]:
+        log.info(
+            "Open holdings below the %.2f Altman Z floor kept their previous "
+            "composite on %s (no new composite computed): %s. Sell rules "
+            "evaluate that last rating. It is marked carried_forward and "
+            "cannot fund a buy or an add.",
+            params.z_score_floor,
+            as_of.isoformat(),
+            stats["carried_tickers"],
+        )
     unrated = diagnose_unscored_holdings(db, params)
     if unrated:
         # Named, not folded into the coverage-floor warning above. That warning
@@ -861,16 +1062,13 @@ def score_universe(db: Session, params: StrategyParams | None = None) -> int:
             params.min_factor_coverage * 100,
             dict(sorted(missing_factor.items(), key=lambda kv: -kv[1])),
         )
-    if written:
-        # BUG-P3, stated every run rather than left to be rediscovered. A
-        # configured floor that never rejects anything is indistinguishable, in
-        # the params and in the ops UI, from one that passes every name.
-        log.warning(
-            "The z_score_floor=%.2f bankruptcy filter did NOT run on any of the "
-            "%s scored tickers: no FMP endpoint on this client supplies a "
-            "Z-score, so distressed names the backtest excluded are buyable.",
+    if z_floor_rejected:
+        log.info(
+            "Altman Z floor %.2f rejected %s names; %s open holdings were "
+            "carried forward and the rest have no score, so they cannot be bought.",
             params.z_score_floor,
-            written,
+            len(z_floor_rejected),
+            stats["carried"],
         )
     if not written:
         log.error(
@@ -878,15 +1076,15 @@ def score_universe(db: Session, params: StrategyParams | None = None) -> int:
             "scoring date, so an evaluation would run on stale scores rather "
             "than fail — treat this as an outage."
         )
-    if written and not with_revisions:
+    if fresh and not with_revisions:
         log.warning(
             "0/%s scored tickers have an estimate-revisions value. Revisions "
             "carries weight %.2f and gates every buy via min_revisions_grade=%s, "
             "so no buys will pass until consensus history accumulates.",
-            written,
+            fresh,
             params.weight_revisions,
             params.buy_criteria.min_revisions_grade,
         )
     else:
-        log.info("Revisions coverage: %s/%s scored tickers", with_revisions, written)
+        log.info("Revisions coverage: %s/%s scored tickers", with_revisions, fresh)
     return written

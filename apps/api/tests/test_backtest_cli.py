@@ -376,3 +376,106 @@ def test_update_config_pin_rewrites_end_and_hash(tmp_path):
     assert "abcabcabcabcabcabcabcabcabcabcabcd" in text
     assert "position_size_usd = 1000" in text
 
+
+def _without_carry_schema(dataset: Path) -> None:
+    """Drop the two objects the published dataset-v1.sqlite does not have."""
+    import sqlite3
+
+    con = sqlite3.connect(dataset)
+    try:
+        cols = [
+            row[1]
+            for row in con.execute("PRAGMA table_info(composite_scores)")
+            if row[1] != "carried_forward"
+        ]
+        listed = ", ".join(cols)
+        con.execute(
+            f"CREATE TABLE composite_scores_legacy AS SELECT {listed} FROM composite_scores"
+        )
+        con.execute("DROP TABLE composite_scores")
+        con.execute("ALTER TABLE composite_scores_legacy RENAME TO composite_scores")
+        con.execute("DROP TABLE IF EXISTS z_floor_rejections")
+        con.commit()
+    finally:
+        con.close()
+
+
+def test_run_checks_the_pin_before_open_dataset_migrates(tmp_path):
+    import json
+
+    from sqlalchemy import inspect
+
+    from app.services.portfolio import load_scores_as_of
+    from worker.backtest.manifest import sha256_file
+
+    dataset = tmp_path / "dataset-v1.sqlite"
+    db = open_dataset(dataset)
+    _seed(db)
+    bind = db.get_bind()
+    db.close()
+    bind.dispose()
+    _without_carry_schema(dataset)
+    pristine = sha256_file(dataset)
+
+    cfg_path = _toml(tmp_path, dataset)
+    cfg_path.write_text(
+        cfg_path.read_text().replace(
+            'dataset_sha256 = "deadbeef"', f'dataset_sha256 = "{pristine}"'
+        )
+    )
+    out = tmp_path / "result.json"
+    assert main(["run", "--config", str(cfg_path), "--out", str(out)]) == 0
+
+    payload = json.loads(out.read_text())
+    assert payload["dataset_sha256"] == pristine
+    assert payload["diagnostics"]["n_evaluations"] == 2
+    assert sha256_file(dataset) != pristine
+
+    db = open_dataset(dataset)
+    bind = db.get_bind()
+    cols = {c["name"] for c in inspect(bind).get_columns("composite_scores")}
+    assert "carried_forward" in cols
+    assert inspect(bind).has_table("z_floor_rejections")
+    scores = load_scores_as_of(db, FRIDAY)
+    assert scores["AAA"].carried_forward is False
+    db.close()
+    bind.dispose()
+
+
+def test_run_leaves_the_file_alone_when_the_pin_does_not_match(tmp_path):
+    import sqlite3
+
+    from worker.backtest.manifest import sha256_file
+
+    dataset = tmp_path / "dataset-v1.sqlite"
+    db = open_dataset(dataset)
+    _seed(db)
+    bind = db.get_bind()
+    db.close()
+    bind.dispose()
+    _without_carry_schema(dataset)
+    pristine = sha256_file(dataset)
+
+    with pytest.raises(ValueError, match="dataset hash mismatch"):
+        main(
+            [
+                "run",
+                "--config",
+                str(_toml(tmp_path, dataset)),
+                "--out",
+                str(tmp_path / "result.json"),
+            ]
+        )
+
+    assert sha256_file(dataset) == pristine
+    con = sqlite3.connect(dataset)
+    try:
+        cols = [row[1] for row in con.execute("PRAGMA table_info(composite_scores)")]
+        tables = {
+            row[0] for row in con.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+        }
+    finally:
+        con.close()
+    assert "carried_forward" not in cols
+    assert "z_floor_rejections" not in tables
+

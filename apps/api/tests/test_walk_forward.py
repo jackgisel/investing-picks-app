@@ -263,6 +263,14 @@ def test_walk_forward_cli_no_parity_on_fixture(tmp_path):
     dest.close()
     live.close()
     cfg = _toml(tmp_path, dataset)
+    from worker.backtest.manifest import sha256_file
+
+    digest = sha256_file(dataset)
+    cfg.write_text(
+        cfg.read_text().replace(
+            'dataset_sha256 = "deadbeef"', f'dataset_sha256 = "{digest}"'
+        )
+    )
     assert (
         main(
             [
@@ -409,6 +417,77 @@ def test_walk_forward_hard_fails_on_engine_drift(tmp_path):
         )
     live.close()
     dest.close()
+
+
+def test_walk_forward_does_not_repin_a_schema_only_open(tmp_path, monkeypatch):
+    import sqlite3
+
+    from worker.backtest.manifest import sha256_file
+
+    today = date(2026, 9, 12)
+    complete = latest_complete_evaluation_friday(today)
+    assert complete is not None
+    dataset = tmp_path / "dataset-v1.sqlite"
+    db = open_dataset(dataset)
+    _score(db, "AAA", complete)
+    _bar(db, "AAA", complete)
+    db.commit()
+    bind = db.get_bind()
+    db.close()
+    bind.dispose()
+
+    con = sqlite3.connect(dataset)
+    try:
+        cols = [
+            row[1]
+            for row in con.execute("PRAGMA table_info(composite_scores)")
+            if row[1] != "carried_forward"
+        ]
+        listed = ", ".join(cols)
+        con.execute(
+            f"CREATE TABLE composite_scores_legacy AS SELECT {listed} FROM composite_scores"
+        )
+        con.execute("DROP TABLE composite_scores")
+        con.execute("ALTER TABLE composite_scores_legacy RENAME TO composite_scores")
+        con.execute("DROP TABLE IF EXISTS z_floor_rejections")
+        con.commit()
+    finally:
+        con.close()
+    pristine = sha256_file(dataset)
+
+    path = _toml(tmp_path, dataset)
+    path.write_text(
+        path.read_text()
+        .replace('dataset_sha256 = "deadbeef"', f'dataset_sha256 = "{pristine}"')
+        .replace('end = "2026-09-04"', f'end = "{complete.isoformat()}"')
+    )
+    db = open_dataset(dataset)
+    live = open_dataset(tmp_path / "live.sqlite")
+    _fill_weekdays(live, date(2026, 8, 3), today)
+    monkeypatch.setattr(
+        "worker.backtest.walk_forward.export_live_vintages",
+        lambda *_args, **_kwargs: {"consensus_snapshots": 0, "fundamentals": 0},
+    )
+    manifest = tmp_path / "manifest.json"
+    result = walk_forward(
+        db,
+        live,
+        load_config(path),
+        today=today,
+        skip_ingest=True,
+        skip_score=True,
+        require_parity=False,
+        dataset_path=dataset,
+        manifest_path=manifest,
+        upload=False,
+    )
+    live.close()
+    db.close()
+    assert result["changed"] is False
+    assert result["new_sha256"] == pristine
+    assert not manifest.exists()
+    assert pristine in path.read_text()
+    assert sha256_file(dataset) != pristine
 
 
 def test_emit_github_output_separates_dataset_parity_from_engine_drift(

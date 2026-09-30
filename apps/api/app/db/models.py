@@ -341,7 +341,29 @@ class CompositeScore(Base):
     momentum_grade: Mapped[str] = mapped_column(String(4), default="F")
     revisions_grade: Mapped[str] = mapped_column(String(4), default="F")
     sector: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # True when this row is the previous composite copied forward because the
+    # holding failed the Altman Z floor. It is a real rating for display and
+    # for sell rules, and it is not a fresh score that can fund a buy or add.
+    carried_forward: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=false()
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ZFloorRejection(Base):
+    """Ticker the Z floor blanked on `as_of`, whether or not a score was copied.
+
+    The backtest sqlite has no live `positions` rows. Replay learns which
+    names failed the floor from this table, then copies the previous rating
+    only for names in the book it is simulating.
+    """
+
+    __tablename__ = "z_floor_rejections"
+    __table_args__ = (UniqueConstraint("as_of", "ticker"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    as_of: Mapped[date] = mapped_column(Date, index=True)
+    ticker: Mapped[str] = mapped_column(String(16), index=True)
 
 
 class Evaluation(Base):

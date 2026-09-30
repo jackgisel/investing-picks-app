@@ -1045,7 +1045,11 @@ def ops_replay(
     detail: bool = False,
     db: Session = Depends(get_db),
 ):
-    """Re-run evaluate() over stored scores and prices. Writes nothing.
+    """Re-run evaluate() over stored scores and prices. Writes no trades.
+
+    A holding the Z floor blanked may gain a carried composite row (the
+    previous rating, marked carried_forward) so this replay and live scoring
+    see the same sell input. That row cannot fund a buy.
 
     This is a replay of *our* scoring history, not a 2019-style backtest.
     Default window is the first through last composite-score date. The opening

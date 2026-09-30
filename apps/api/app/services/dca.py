@@ -252,6 +252,7 @@ def buy_universe(db: Session, as_of: date) -> list[str]:
             CompositeScore.as_of == score_date,
             CompositeScore.ticker.in_(held),
             CompositeScore.quant_rating >= SIGNAL_THRESHOLDS["buy"],
+            CompositeScore.carried_forward.is_(False),
         )
         .order_by(CompositeScore.ticker.asc())
         .all()

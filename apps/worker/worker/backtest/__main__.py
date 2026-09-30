@@ -38,7 +38,7 @@ from worker.backtest.manifest import write_manifest
 from worker.backtest.membership import write_universe_membership
 from worker.backtest.parity import parity_report
 from worker.backtest.report import load_result as load_report, render_report, write_equity_csv
-from worker.backtest.run import result_fingerprint, run_backtest, write_result
+from worker.backtest.run import result_fingerprint, run_backtest, verify_dataset, write_result
 from worker.backtest.score import score_dataset
 from worker.backtest.store import open_dataset
 from worker.backtest.sweep import run_sweep, sweep_markdown
@@ -144,6 +144,10 @@ def cmd_parity(ns) -> dict:
 
 def cmd_run(ns) -> dict:
     cfg = load_config(ns.config, dataset_override=ns.dataset)
+    # open_dataset migrates the pinned sqlite. The published hash is the file
+    # before that, so check it first and do not hash the migrated bytes.
+    if not ns.skip_hash:
+        verify_dataset(cfg)
     db = open_dataset(cfg.dataset)
     ledger_db = None
     ledger_engine = None
@@ -157,7 +161,7 @@ def cmd_run(ns) -> dict:
             db,
             cfg,
             sensitivity=not ns.no_sensitivity,
-            skip_hash=ns.skip_hash,
+            skip_hash=True,
             ledger_db=ledger_db,
             ledger_portfolio_id=ns.ledger_portfolio_id,
         )
@@ -196,11 +200,11 @@ def cmd_compare(ns) -> dict:
     if ns.sweep:
         cfg_path = ns.config or "backtests/run118.toml"
         cfg = load_config(cfg_path, dataset_override=ns.dataset)
+        if not ns.skip_hash:
+            verify_dataset(cfg)
         db = open_dataset(cfg.dataset)
         try:
-            report["sweep"] = run_sweep(
-                db, cfg, current, skip_hash=ns.skip_hash
-            )
+            report["sweep"] = run_sweep(db, cfg, current, skip_hash=True)
         finally:
             db.close()
     if ns.summary:
@@ -281,6 +285,8 @@ def cmd_walk_forward(ns) -> dict:
         return result
 
     cfg = load_config(ns.config, dataset_override=ns.dataset)
+    if cfg.dataset.exists():
+        verify_dataset(cfg)
     dest = open_dataset(cfg.dataset)
     engine = make_engine(url)
     src: Session = sessionmaker(bind=engine, autoflush=False, autocommit=False)()

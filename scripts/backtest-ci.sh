@@ -18,9 +18,22 @@ CSV="${CSV:-/tmp/backtest-equity.csv}"
 
 python3 -m worker.backtest download --dataset "$DATASET" --manifest "$MANIFEST"
 
+# The published pin is this file. The probe below, and `run`, both call
+# open_dataset, which adds composite_scores.carried_forward and
+# z_floor_rejections. Those bytes are not a new dataset.
+python3 - <<PY
+from pathlib import Path
+
+from worker.backtest.config import load_config
+from worker.backtest.run import verify_dataset
+
+cfg = load_config(Path("$CONFIG"), dataset_override="$DATASET")
+print(verify_dataset(cfg))
+PY
+
 # A derivation fix is a no-op if we only replay already-materialised scores.
-# Re-derive any Friday whose pit rows carry an older or missing deriveVersion,
-# then skip the pin check because the sqlite bytes (and hash) changed.
+# Re-derive any Friday whose pit rows carry an older or missing deriveVersion.
+# The run does not hash again: the pin was checked on the published file.
 RESCORE="$(
   python3 - <<PY
 from pathlib import Path
@@ -42,7 +55,9 @@ else:
 PY
 )"
 
-SKIP_HASH=""
+# Pin was checked above, before open_dataset. Hashing again would see the
+# schema migration, or a real tape re-score, and reject the published file.
+SKIP_HASH="--skip-hash"
 if [ "$RESCORE" != "no" ]; then
   FROM=$(echo "$RESCORE" | awk '{print $1}')
   TO=$(echo "$RESCORE" | awk '{print $2}')
@@ -63,7 +78,6 @@ if [ "$RESCORE" != "no" ]; then
   if [ -n "${BACKTEST_S3_ACCESS_KEY:-}" ] || [ -n "${BACKTEST_S3_SECRET_KEY:-}" ]; then
     python3 -m worker.backtest upload --dataset "$DATASET"
   fi
-  SKIP_HASH="--skip-hash"
 fi
 
 # shellcheck disable=SC2086

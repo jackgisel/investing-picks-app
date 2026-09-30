@@ -11,9 +11,9 @@ from sqlalchemy.orm import Session
 from outpick_strategy import RUN118_PARAMS, StrategyParams
 from outpick_strategy.cadence import evaluation_fridays_between
 
-from app.db.models import CompositeScore, Fundamentals, UniverseMembership
+from app.db.models import Fundamentals, UniverseMembership
 from worker.services.backtest_derive import DERIVE_VERSION, SOURCE_PIT, derive_universe
-from worker.services.scoring import compute_scores
+from worker.services.scoring import compute_scores, write_composite_scores
 
 log = logging.getLogger(__name__)
 
@@ -55,40 +55,29 @@ def assert_revisions_not_degenerate(
     return mode, share
 
 
-def persist_scores(db: Session, scored, as_of: date) -> dict:
-    """Upsert scores for `as_of`; drop stale same-day rows. No live side effects."""
-    existing = {
-        row.ticker: row
-        for row in db.query(CompositeScore).filter(CompositeScore.as_of == as_of).all()
-    }
-    written = 0
-    with_revisions = 0
-    for s in scored:
-        if s.factor_pcts.get("revisions") is not None:
-            with_revisions += 1
-        row = existing.pop(s.ticker, None)
-        if row is None:
-            row = CompositeScore(ticker=s.ticker, as_of=as_of)
-            db.add(row)
-        row.quant_rating = round(s.quant_rating, 3)
-        row.composite = round(s.composite, 3)
-        row.valuation_grade = s.grades.get("valuation", "F")
-        row.growth_grade = s.grades.get("growth", "F")
-        row.profitability_grade = s.grades.get("profitability", "F")
-        row.momentum_grade = s.grades.get("momentum", "F")
-        row.revisions_grade = s.grades.get("revisions", "F")
-        row.sector = s.sector
-        written += 1
-    dropped = 0
-    for stale in existing.values():
-        db.delete(stale)
-        dropped += 1
+def persist_scores(
+    db: Session,
+    scored,
+    as_of: date,
+    *,
+    z_floor_rejected: set[str] | None = None,
+) -> dict:
+    """Upsert scores for `as_of` and carry forward held Z-floor failures.
+
+    Same writer as live `score_universe`. Pass the set `compute_scores`
+    collected so a held name the floor blanked keeps its previous composite
+    here too. Omitting the set writes only `scored`.
+    """
+    stats = write_composite_scores(
+        db, scored, as_of, z_floor_rejected=z_floor_rejected
+    )
     db.commit()
     return {
         "as_of": as_of.isoformat(),
-        "written": written,
-        "dropped": dropped,
-        "with_revisions": with_revisions,
+        "written": stats["written"],
+        "dropped": stats["dropped"],
+        "with_revisions": stats["with_revisions"],
+        "carried": stats["carried"],
     }
 
 
@@ -196,14 +185,21 @@ def score_dataset(
         tickers = [m.ticker for m in members]
         scope = members[0].universe_scope
         derived = derive_universe(db, friday, tickers, universe_scope=scope)
+        z_floor_rejected: set[str] = set()
         scored, missing, considered = compute_scores(
-            db, params, friday, universe=tickers
+            db,
+            params,
+            friday,
+            universe=tickers,
+            z_floor_rejected=z_floor_rejected,
         )
         grades = [s.grades.get("revisions", "F") for s in scored]
         mode, share = assert_revisions_not_degenerate(
             grades, as_of=friday, allow=allow_degenerate_revisions
         )
-        persisted = persist_scores(db, scored, friday)
+        persisted = persist_scores(
+            db, scored, friday, z_floor_rejected=z_floor_rejected
+        )
         tape = revisions_tape_stats(db, friday)
         persisted.update(
             {

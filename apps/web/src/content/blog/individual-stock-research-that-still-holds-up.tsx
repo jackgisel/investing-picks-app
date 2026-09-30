@@ -39,6 +39,7 @@ const article: Article = {
     ],
     readingTime: 7,
     author: "Outpick Research",
+    cover: "/art/covers/individual-stock-research-that-still-holds-up.png",
   },
   Content: () => (
     <Prose>

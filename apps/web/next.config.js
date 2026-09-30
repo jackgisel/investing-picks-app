@@ -25,6 +25,26 @@ const nextConfig = {
       },
     ];
   },
+  // Next serves /public with `max-age=0`, so every repeat visit revalidated
+  // the hero plates and every blog print (Cloudflare was padding that to 4h).
+  // These files change only when the artwork is regenerated, which is rare
+  // and tolerates a week of stale edge/browser copies; a fresh render in the
+  // background covers the rest.
+  async headers() {
+    const longLived = [
+      {
+        key: "Cache-Control",
+        value: "public, max-age=604800, stale-while-revalidate=2592000",
+      },
+    ];
+    return [
+      "/art/:path*",
+      "/hero-moon.webp",
+      "/hero-moon-soft.webp",
+      "/hero-moon.png",
+      "/hero-moon-soft.png",
+    ].map((source) => ({ source, headers: longLived }));
+  },
   async redirects() {
     // Insights moved inside the dashboard shell. These URLs were subscriber-
     // gated and noindex, so nothing public depended on them, but a blog post

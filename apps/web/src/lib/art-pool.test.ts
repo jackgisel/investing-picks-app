@@ -56,10 +56,10 @@ describe("art pool", () => {
 
   it("exposes spare covers for future blog posts", () => {
     const next = nextSpareCover();
-    expect(next).toEqual({ id: "spare-07", src: "/art/pool/spare-07.png" });
+    expect(next).toEqual({ id: "spare-08", src: "/art/pool/spare-08.png" });
   });
 
-  it("keeps the twelve new prints unclaimed", () => {
+  it("keeps unused spare-07+ prints unclaimed", () => {
     const expected: Record<string, { label: string; ink: string }> = {
       "spare-07": { label: "Lighthouse", ink: "#1E3A8A" },
       "spare-08": { label: "Mesa", ink: "#0F5C5C" },
@@ -77,8 +77,13 @@ describe("art pool", () => {
     const fresh = SPARE_POOL.filter((s) => s.id in expected);
     expect(fresh).toHaveLength(12);
     expect(new Set(fresh.map((s) => s.ink)).size).toBe(12);
+    expect(SPARE_CLAIMED["spare-07"]).toBe(
+      "individual-stock-research-that-still-holds-up",
+    );
     for (const spare of fresh) {
-      expect(SPARE_CLAIMED[spare.id]).toBeUndefined();
+      if (spare.id !== "spare-07") {
+        expect(SPARE_CLAIMED[spare.id]).toBeUndefined();
+      }
       expect(spare.label).toBe(expected[spare.id].label);
       expect(spare.ink).toBe(expected[spare.id].ink);
       expect(spare.src).toBe(`/art/pool/${spare.id}.png`);
@@ -90,6 +95,6 @@ describe("art pool", () => {
     const status = poolStatus(new Date("2026-08-22T12:00:00Z"));
     expect(status.weeksReady).toBe(13);
     expect(status.weeksRemaining).toBeGreaterThanOrEqual(13);
-    expect(status.sparesFree).toBe(12);
+    expect(status.sparesFree).toBe(11);
   });
 });

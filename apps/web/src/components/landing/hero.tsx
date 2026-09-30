@@ -12,7 +12,10 @@ import { PriceLine } from "./price-line";
  * <Image priority> emitted two preload links — every phone paid for the desktop
  * plate it would never show. <source media> picks exactly one. That costs us
  * the optimizer, so both plates are pre-encoded to WebP (2.0MB/2.3MB PNG ->
- * 115KB/165KB) with the PNGs kept only as the <img> fallback.
+ * 79KB/165KB) with the PNGs kept only as the <img> fallback. The mobile plate
+ * is encoded at q70 from the PNG: phones show it upscaled under a 70% wash, so
+ * the 40KB the previous encode spent on the halftone texture was pure transfer
+ * time on the 4G LCP path.
  *
  * Each preload is gated on the same 1024px breakpoint as <source media>, so
  * a phone fetches hero-moon-soft.webp and a wide window fetches

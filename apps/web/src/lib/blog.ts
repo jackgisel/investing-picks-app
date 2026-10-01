@@ -70,6 +70,7 @@ import valueInvestingMoreThanCheapStocks from "@/content/blog/value-investing-mo
 import anthropicIpoValuation from "@/content/blog/anthropic-ipo-valuation-outpick-screen";
 import longTermInvestingWrittenThesis from "@/content/blog/long-term-investing-written-thesis";
 import individualStockResearchThatStillHoldsUp from "@/content/blog/individual-stock-research-that-still-holds-up";
+import earningsRevisionInvesting from "@/content/blog/earnings-revision-investing";
 
 export const articles: Article[] = [
   howToOutperformSp500,
@@ -96,6 +97,7 @@ export const articles: Article[] = [
   anthropicIpoValuation,
   longTermInvestingWrittenThesis,
   individualStockResearchThatStillHoldsUp,
+  earningsRevisionInvesting,
 ].sort((a, b) => b.meta.publishedAt.localeCompare(a.meta.publishedAt));
 
 export function getArticleBySlug(slug: string): Article | undefined {

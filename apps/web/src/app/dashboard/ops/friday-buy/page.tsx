@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 import { insightForTicker, type InsightMeta } from "@/lib/insights";
 import { formatWeekdayDate } from "@/lib/portfolio";
@@ -55,6 +55,22 @@ type LastBuy = {
   evaluation_id: number | null;
   executed_at: string | null;
   source: string;
+};
+
+type ExtraBuy = {
+  ticker: string;
+  evaluation_id: number;
+  committed: boolean;
+  rank: number | null;
+  queue_status: string;
+  price: number | null;
+  target_notional: number;
+  cash_before: number;
+  cash_after: number | null;
+  shares: number | null;
+  notional: number | null;
+  cycle_buys: string[];
+  already_done: boolean;
 };
 
 type BuyQueue = {
@@ -379,6 +395,9 @@ function CandidateDetail({
       </div>
       <p className={`text-sm ${statusClass(row.status)}`}>{statusLabel(row)}</p>
       {row.message && <p className="text-sm text-text-muted">{row.message}</p>}
+      {!row.held && row.status !== "near_miss" && (
+        <ExtraBuyPanel key={row.ticker} ticker={row.ticker} />
+      )}
       {row.ticker !== engineTicker && engineTicker && (
         <p className="text-xs text-text-dim">
           Engine pick remains {engineTicker}. Inspecting this row does not
@@ -434,6 +453,132 @@ function CandidateDetail({
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function usd(n: number): string {
+  return `$${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+}
+
+/**
+ * One-off second pick on today's executed evaluation. Preview first, always:
+ * the confirm button only exists once a preview has come back clean, and it
+ * buys exactly what the preview showed for the ticker on screen.
+ */
+function ExtraBuyPanel({ ticker }: { ticker: string }) {
+  const client = useQueryClient();
+  const [preview, setPreview] = useState<ExtraBuy | null>(null);
+
+  const run = useMutation({
+    mutationFn: async (commit: boolean) => {
+      const res = await fetch("/api/ops/extra-buy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticker, commit }),
+      });
+      if (!res.ok) throw new Error(await errorMessage(res));
+      return res.json() as Promise<ExtraBuy>;
+    },
+    onSuccess: (data) => {
+      setPreview(data);
+      // Not the buy queue: refetching it marks the name held, which unmounts
+      // this panel and the confirmation with it. Refresh shows the new book.
+      if (data.committed) {
+        client.invalidateQueries({ queryKey: ["ops-insights"] });
+      }
+    },
+  });
+
+  const done = preview?.committed || preview?.already_done;
+
+  return (
+    <div className="space-y-2 border-t border-border/50 pt-3">
+      <p className="font-mono text-[10px] tracking-[1px] text-text-dim">SECOND PICK</p>
+      <p className="text-xs text-text-muted">
+        Adds {ticker} to today&apos;s cycle as an extra buy at the normal entry
+        size. Overrides the one add per cycle rule, nothing else.
+      </p>
+
+      {preview && !preview.already_done && (
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+          <div>
+            <dt className="text-[11px] uppercase tracking-[0.12em] text-text-dim">Rank</dt>
+            <dd className="font-mono text-text">#{preview.rank}</dd>
+          </div>
+          <div>
+            <dt className="text-[11px] uppercase tracking-[0.12em] text-text-dim">Joins</dt>
+            <dd className="font-mono text-text">
+              eval #{preview.evaluation_id} · {preview.cycle_buys.join(", ")}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[11px] uppercase tracking-[0.12em] text-text-dim">Price</dt>
+            <dd className="font-mono text-text">
+              {preview.price ? usd(preview.price) : "n/a"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[11px] uppercase tracking-[0.12em] text-text-dim">
+              {preview.committed ? "Filled" : "Size"}
+            </dt>
+            <dd className="font-mono text-text">
+              {usd(preview.notional ?? preview.target_notional)}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-[11px] uppercase tracking-[0.12em] text-text-dim">Cash</dt>
+            <dd className="font-mono text-text">
+              {usd(preview.cash_before)}
+              {preview.cash_after !== null ? ` → ${usd(preview.cash_after)}` : ""}
+            </dd>
+          </div>
+          {preview.shares !== null && (
+            <div>
+              <dt className="text-[11px] uppercase tracking-[0.12em] text-text-dim">Shares</dt>
+              <dd className="font-mono text-text">{preview.shares.toFixed(4)}</dd>
+            </div>
+          )}
+        </dl>
+      )}
+
+      {preview?.committed && (
+        <p className="text-sm text-accent-green">
+          Bought {ticker}. Its research note is queued, and the pick email will
+          say this cycle bought {preview.cycle_buys.length} names.
+        </p>
+      )}
+      {preview?.already_done && (
+        <p className="text-sm text-text-muted">
+          {ticker} was already bought this cycle. Nothing to do.
+        </p>
+      )}
+      {run.error && (
+        <p className="text-sm text-accent-red">{(run.error as Error).message}</p>
+      )}
+
+      {!done && (
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => run.mutate(false)}
+            disabled={run.isPending}
+            className="btn-outline !py-2 !px-4 !text-[11px] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {run.isPending && !preview ? "Checking…" : "Preview"}
+          </button>
+          {preview && !preview.committed && (
+            <button
+              type="button"
+              onClick={() => run.mutate(true)}
+              disabled={run.isPending}
+              className="btn-primary !py-2 !px-4 !text-[11px] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {run.isPending ? "Buying…" : `Buy ${ticker} for ${usd(preview.target_notional)}`}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

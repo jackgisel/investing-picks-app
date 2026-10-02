@@ -1036,6 +1036,28 @@ def buy_queue_preview(db: Session = Depends(get_db)):
     }
 
 
+class ExtraBuyRequest(BaseModel):
+    ticker: str = Field(min_length=1, max_length=16)
+    commit: bool = False
+
+
+@router.post("/extra-buy", dependencies=[Depends(require_ops_key)])
+def extra_buy(payload: ExtraBuyRequest, db: Session = Depends(get_db)):
+    """Preview or commit a one-off second pick on today's executed evaluation.
+
+    Preview (`commit: false`) writes nothing. See app.services.extra_buy for
+    the gates; a refusal comes back as 409 with the reason.
+    """
+    from app.services.extra_buy import ExtraBuyRefused, run_extra_buy
+
+    ensure_default_portfolio(db, get_settings().initial_cash)
+    try:
+        result = run_extra_buy(db, payload.ticker, commit=payload.commit)
+    except ExtraBuyRefused as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    return result.to_dict()
+
+
 @router.get("/replay", dependencies=[Depends(require_ops_key)])
 def ops_replay(
     start: date | None = None,

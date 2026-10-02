@@ -120,3 +120,32 @@ def test_refuses_a_name_held_from_before(db, portfolio, cycle):
     db.commit()
     with pytest.raises(ExtraBuyRefused, match="already held"):
         run_extra_buy(db, "OLD")
+
+
+def test_ops_endpoint_previews_commits_and_refuses(db, portfolio, cycle):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from app.db.session import get_db
+    from app.routes import ops
+
+    app = FastAPI()
+    app.include_router(ops.router)
+    app.dependency_overrides[get_db] = lambda: db
+    client = TestClient(app)
+    headers = {"X-Ops-Key": "dev-ops-key"}
+
+    preview = client.post("/api/ops/extra-buy", json={"ticker": "TPR"}, headers=headers)
+    assert preview.status_code == 200
+    assert preview.json()["committed"] is False
+    assert db.query(Trade).filter_by(ticker="TPR").count() == 0
+
+    done = client.post(
+        "/api/ops/extra-buy", json={"ticker": "TPR", "commit": True}, headers=headers
+    )
+    assert done.json()["committed"] is True
+    assert done.json()["cycle_buys"] == ["MU", "TPR"]
+
+    refused = client.post("/api/ops/extra-buy", json={"ticker": "ZZZ"}, headers=headers)
+    assert refused.status_code == 409
+    assert "not scored" in refused.json()["detail"]

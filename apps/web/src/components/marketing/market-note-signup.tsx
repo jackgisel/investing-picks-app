@@ -3,6 +3,7 @@
 import { useId, useState } from "react";
 import { cn } from "@/lib/utils";
 import { trackMarketNoteSubscribeSuccess } from "@/lib/datafast-goals";
+import { trackGoogleAdsSignup } from "@/lib/google-ads";
 
 type Status = "idle" | "working" | "done" | "error";
 
@@ -52,6 +53,8 @@ export function MarketNoteSignup({
 
       setStatus("done");
       trackMarketNoteSubscribeSuccess(source);
+      // Only a new address counts as a signup for ads.
+      if (body.status !== "already") trackGoogleAdsSignup();
       setMessage(
         body.status === "already"
           ? "You're already on the list. The next note lands Monday."

@@ -512,7 +512,7 @@ export async function runAppMigrations() {
       ADD CONSTRAINT x_thread_kind_check
       CHECK (kind IN ('pick', 'weekly_review', 'market', 'spotlight',
                       'sunday_review', 'hot_take', 'leaderboard',
-                      'poll_prompt'))
+                      'poll_prompt', 'income_visual'))
   `);
   // The ops queue: newest first, drafts before anything else.
   await pool.query(`

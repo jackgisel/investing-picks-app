@@ -1,5 +1,8 @@
 export const DEFAULT_GOOGLE_ADS_ID = "AW-967967302";
 export const DEFAULT_GOOGLE_ADS_SEND_TO = "AW-967967302/0AqvCL3y2vYcEMaEyM0D";
+/** "Market Note Signup" conversion action (Sign-up category). */
+export const DEFAULT_GOOGLE_ADS_SIGNUP_SEND_TO =
+  "AW-967967302/GnSqCMKAvo4dEMaEyM0D";
 export const GOOGLE_ADS_FALLBACK_VALUE = 250;
 export const GOOGLE_ADS_CURRENCY = "USD";
 export const GOOGLE_ADS_CONVERSION_STORAGE_PREFIX =
@@ -55,6 +58,29 @@ export function googleAdsConversionSendTo(
   const value = readPublicSetting(raw, DEFAULT_GOOGLE_ADS_SEND_TO);
   if (!value || !SEND_TO_PATTERN.test(value)) return null;
   return value;
+}
+
+export function googleAdsSignupSendTo(
+  raw = process.env.NEXT_PUBLIC_GOOGLE_ADS_SIGNUP_SEND_TO,
+): string | null {
+  if (!googleAdsMeasurementId()) return null;
+  const value = readPublicSetting(raw, DEFAULT_GOOGLE_ADS_SIGNUP_SEND_TO);
+  if (!value || !SEND_TO_PATTERN.test(value)) return null;
+  return value;
+}
+
+/**
+ * Reports a new Market Note subscriber. The head stub defines window.gtag
+ * before gtag.js arrives, so the call queues even on a slow download.
+ */
+export function trackGoogleAdsSignup(
+  win: Pick<Window, "gtag"> | undefined = typeof window === "undefined"
+    ? undefined
+    : window,
+): void {
+  const sendTo = googleAdsSignupSendTo();
+  if (!sendTo || typeof win?.gtag !== "function") return;
+  win.gtag("event", "conversion", { send_to: sendTo });
 }
 
 export function parseCheckoutSessionId(
@@ -143,65 +169,9 @@ export function googleAdsConversionStorageKey(transactionId: string): string {
   return `${GOOGLE_ADS_CONVERSION_STORAGE_PREFIX}${transactionId}`;
 }
 
-/** Backstop so the tag still loads if LCP never fires (hidden tab, etc.). */
-export const GOOGLE_ADS_IDLE_TIMEOUT_MS = 3_000;
-
-export type GoogleAdsTagLoadCleanup = () => void;
-
-/**
- * Loads gtag after LCP when possible so gtag.js does not compete with the hero
- * image for the main thread. Falls back to window load, then a timeout.
- */
-export function scheduleGoogleAdsTagLoad(
-  load: () => void,
-  options?: { backstopTimeoutMs?: number },
-): GoogleAdsTagLoadCleanup {
-  const timeoutMs = options?.backstopTimeoutMs ?? GOOGLE_ADS_IDLE_TIMEOUT_MS;
-  let cancelled = false;
-  let loaded = false;
-
-  const run = () => {
-    if (cancelled || loaded) return;
-    loaded = true;
-    load();
-  };
-
-  let observer: PerformanceObserver | undefined;
-  if (typeof PerformanceObserver !== "undefined") {
-    try {
-      observer = new PerformanceObserver(() => {
-        observer?.disconnect();
-        run();
-      });
-      observer.observe({ type: "largest-contentful-paint", buffered: true });
-    } catch {
-      observer = undefined;
-    }
-  }
-
-  const onLoad = () => run();
-  if (typeof window !== "undefined") {
-    window.addEventListener("load", onLoad, { once: true });
-  }
-
-  const timer =
-    typeof window !== "undefined" ? window.setTimeout(run, timeoutMs) : undefined;
-
-  return () => {
-    cancelled = true;
-    observer?.disconnect();
-    if (typeof window !== "undefined") {
-      window.removeEventListener("load", onLoad);
-      if (timer !== undefined) window.clearTimeout(timer);
-    }
-  };
-}
-/** How often the purchase snippet rechecks for gtag after an idle load. */
+/** How often the purchase snippet rechecks for gtag before gtag.js runs. */
 export const GOOGLE_ADS_CONVERSION_WAIT_MS = 250;
-/**
- * 20s of retries. Longer than the idle backstop, so a conversion that starts
- * during HTML parse still fires once the idle callback defines gtag.
- */
+/** 20s of retries, so a conversion still fires on a slow gtag.js download. */
 export const GOOGLE_ADS_CONVERSION_WAIT_ATTEMPTS = 80;
 
 export function googleAdsTagSrc(id: string): string {

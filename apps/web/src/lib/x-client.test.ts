@@ -9,6 +9,7 @@ import {
   signatureBaseString,
   signRequest,
   threadUrl,
+  uploadImage,
   validateThread,
   type XCredentials,
 } from "@/lib/x-client";
@@ -323,6 +324,52 @@ describe("postThread", () => {
     const nonce = (h: string) => h.match(/oauth_nonce="([^"]+)"/)?.[1];
     expect(nonce(auths[0])).toBeTruthy();
     expect(nonce(auths[0])).not.toBe(nonce(auths[1]));
+  });
+});
+
+describe("media", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("uploads an image as multipart and returns its id", async () => {
+    const calls: { url: string; init: RequestInit }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init: RequestInit) => {
+        calls.push({ url, init });
+        return jsonResponse({ data: { id: "m1" } });
+      }),
+    );
+
+    const id = await uploadImage(creds(), Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+
+    expect(id).toBe("m1");
+    expect(calls[0].url).toBe("https://api.x.com/2/media/upload");
+    const form = calls[0].init.body as FormData;
+    expect(form.get("media_category")).toBe("tweet_image");
+    expect(form.get("media")).toBeInstanceOf(Blob);
+    expect(String((calls[0].init.headers as Record<string, string>).Authorization)).toMatch(/^OAuth /);
+  });
+
+  it("throws when the upload is refused", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({ title: "Unauthorized" }, 401)));
+    await expect(uploadImage(creds(), Buffer.from([1]))).rejects.toThrow(/Unauthorized/);
+  });
+
+  it("attaches media to the first post only", async () => {
+    const bodies: Record<string, unknown>[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        const body = JSON.parse(String(init.body));
+        bodies.push(body);
+        return jsonResponse({ data: { id: `id${bodies.length}`, text: body.text } });
+      }),
+    );
+
+    await postThread(creds(), ["one", "two"], { firstPostMediaIds: ["m1"] });
+
+    expect(bodies[0].media).toEqual({ media_ids: ["m1"] });
+    expect(bodies[1].media).toBeUndefined();
   });
 });
 

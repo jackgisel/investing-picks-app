@@ -197,6 +197,21 @@ def _ensure_consensus_snapshots(engine: Engine) -> None:
             log.debug("Could not create consensus_snapshots; assuming it exists")
 
 
+def _ensure_income_statements(engine: Engine) -> None:
+    """Create the income-statement display table if this database predates it.
+
+    The worker never runs `create_all`, and its daily refresh is the first
+    writer. `checkfirst` plus the except is the same race backstop as the
+    hand-written tables above.
+    """
+    from app.db.models import IncomeStatement
+
+    try:
+        IncomeStatement.__table__.create(engine, checkfirst=True)
+    except Exception:
+        log.debug("Could not create income_statements; assuming it exists")
+
+
 def _columns(conn, table: str) -> list[dict]:
     from sqlalchemy import inspect
 
@@ -287,7 +302,11 @@ def _correct_imported_lots(engine: Engine) -> None:
     nothing on a database that never had the bad rows. Notional is unchanged:
     the capital committed was right, the share count was not.
     """
+    from sqlalchemy import inspect
+
     with engine.begin() as conn:
+        if not inspect(conn).has_table("trades"):
+            return
         for ticker, wrong, right in _IMPORTED_LOT_PRICES:
             result = conn.execute(
                 text(
@@ -341,5 +360,6 @@ def ensure_schema(engine: Engine) -> None:
     _ensure_portfolio_contributions(engine)
     _ensure_stock_news(engine)
     _ensure_consensus_snapshots(engine)
+    _ensure_income_statements(engine)
     _correct_imported_lots(engine)
     _drop_weekend_rows(engine)

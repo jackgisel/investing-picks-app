@@ -151,6 +151,7 @@ export default function RootLayout({
           }}
         />
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <GoogleAdsScript />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(ORGANIZATION_JSON_LD) }}
@@ -168,7 +169,6 @@ export default function RootLayout({
             </MarketingFooter>
             <CookieBanner />
             <DataFastScript />
-            <GoogleAdsScript />
           </QueryProvider>
         </ThemeProvider>
       </body>

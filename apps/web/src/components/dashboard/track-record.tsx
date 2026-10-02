@@ -44,6 +44,15 @@ import {
   type Ratio,
 } from "@/lib/track-record";
 
+/**
+ * A scorecard figure, or null for a pick with no holding period yet. A name
+ * bought today has a mark but nothing to compare it against, so it reads as
+ * New rather than as a return.
+ */
+function shown(p: ScorecardPick, value: number | null): number | null {
+  return p.measurable === false ? null : value;
+}
+
 /** A month's name, flagged when the book was live for only part of it. */
 function monthLabel(m: MonthReturn): string {
   return m.partial ? `${formatMonth(m.month)} (partial)` : formatMonth(m.month);
@@ -596,22 +605,24 @@ export function PickScorecard() {
                         </span>
                         <span className="block font-sans text-[10px] text-text-dim">
                           {p.status === "closed" ? "Closed" : "Open"}
+                          {p.lot_kind === "add" ? " · Add" : ""}
+                          {p.measurable === false ? " · New" : ""}
                         </span>
                       </span>
                     </span>
                   </td>
-                  <td className={`whitespace-nowrap px-3 py-3 font-mono text-[13px] font-semibold tabular-nums sm:px-5 ${pnlClass(p.return_pct)}`}>
-                    {formatPctOrDash(p.return_pct, 1)}
+                  <td className={`whitespace-nowrap px-3 py-3 font-mono text-[13px] font-semibold tabular-nums sm:px-5 ${pnlClass(shown(p, p.return_pct))}`}>
+                    {formatPctOrDash(shown(p, p.return_pct), 1)}
                   </td>
-                  <td className={`whitespace-nowrap px-3 py-3 font-mono text-[12px] tabular-nums sm:px-5 ${pnlClass(p.spy_pct)}`}>
-                    {formatPctOrDash(p.spy_pct, 1)}
+                  <td className={`whitespace-nowrap px-3 py-3 font-mono text-[12px] tabular-nums sm:px-5 ${pnlClass(shown(p, p.spy_pct))}`}>
+                    {formatPctOrDash(shown(p, p.spy_pct), 1)}
                   </td>
                   <td className="whitespace-nowrap px-3 py-3 sm:px-5">
                     <span className="flex items-center gap-3">
-                      <span className={`w-[72px] font-mono text-[12px] font-semibold tabular-nums ${pnlClass(p.excess_pct)}`}>
-                        {pts(p.excess_pct)}
+                      <span className={`w-[72px] font-mono text-[12px] font-semibold tabular-nums ${pnlClass(shown(p, p.excess_pct))}`}>
+                        {pts(shown(p, p.excess_pct))}
                       </span>
-                      <ExcessBar value={p.excess_pct} scale={scale} />
+                      <ExcessBar value={shown(p, p.excess_pct)} scale={scale} />
                     </span>
                   </td>
                   <td className="whitespace-nowrap px-3 py-3 font-mono text-[12px] tabular-nums text-text-muted sm:px-5">
@@ -630,10 +641,12 @@ export function PickScorecard() {
         </table>
       </HScroll>
       <p className="border-t border-border px-5 py-3 font-sans text-[10px] leading-relaxed text-text-dim">
-        S&amp;P 500 is SPY from the close on the pick&apos;s entry date to the
-        close on its exit, or the latest close for an open pick. &ldquo;vs
-        S&amp;P&rdquo; is the difference in percentage points. Pick returns are
-        against average cost, the same figure shown on Positions.
+        Every buy is its own row: a conviction add is marked Add and runs from
+        its own date. S&amp;P 500 is SPY from the close on the buy date to the
+        close on the exit, or the latest close for an open pick. &ldquo;vs
+        S&amp;P&rdquo; is the difference in percentage points. A pick bought
+        on the latest session shows as New until it has a close to measure
+        from.
       </p>
     </div>
   );

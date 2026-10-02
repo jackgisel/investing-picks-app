@@ -13,6 +13,7 @@ import {
   OutroSlide,
 } from "./slides";
 import { useStrategy } from "@/lib/hooks/use-strategy";
+import { asLotRows } from "@/components/dashboard/positions-model";
 import { useChart, buildPicksComparison } from "@/lib/hooks/use-chart";
 import { useTrades } from "@/lib/hooks/use-trades";
 import { useInsights } from "@/lib/hooks/use-insights";
@@ -44,7 +45,8 @@ export default function DeckPage() {
   );
 
   const slides = useMemo(() => {
-    const holdings = strategy?.holdings ?? [];
+    // One row per buy, as on the Positions page.
+    const holdings = asLotRows(strategy?.holdings ?? []);
     const portfolio = strategy?.portfolio;
 
     // Cumulative return on capital deployed into picks is the headline the rest

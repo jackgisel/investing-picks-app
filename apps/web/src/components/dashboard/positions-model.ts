@@ -211,3 +211,35 @@ export function groupTradesByEvaluation(
     (a, b) => b.date.localeCompare(a.date) || b.key.localeCompare(a.key),
   );
 }
+
+/**
+ * Per-pick rows: a holding bought more than once becomes one row per buy.
+ *
+ * A conviction add is its own pick, with its own entry date and its own
+ * return. Blending them on average cost showed SEZL as one +40% position when
+ * it was a first buy up 87% and an add that was down. Weight is split by each
+ * lot's share of the holding. Book-level views (sector weights,
+ * concentration) must keep using the holdings whole.
+ */
+export function asLotRows<T extends Holding>(holdings: readonly T[]): T[] {
+  return holdings.flatMap((h) => {
+    const lots = h.lots ?? [];
+    if (lots.length < 2) return [h];
+    return lots.map((lot) => ({
+      ...h,
+      entry_date: lot.entry_date,
+      pnl_pct: lot.pnl_pct,
+      weight_pct:
+        typeof h.weight_pct === "number" ? h.weight_pct * lot.share : h.weight_pct,
+      lot: lot.lot,
+      lot_kind: lot.kind,
+    }));
+  });
+}
+
+/** A React key that stays unique when one ticker spans several rows. */
+export function holdingRowKey(h: Holding, index: number): string {
+  const base = h.ticker ?? h.entry_date ?? `anonymous-holding-${index}`;
+  return h.lot ? `${base}-lot-${h.lot}` : base;
+}
+

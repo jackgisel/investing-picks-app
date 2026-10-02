@@ -43,6 +43,7 @@ The payload has a "missing" array naming the facts that are NOT available. Treat
 Five sections, in this order, each introduced by an H2:
 1. The week: how the picks did, honestly, including versus the S&P 500 on the same money when that figure is present.
 2. What moved: buys, conviction adds, and sells this week, or a plain statement that there were none. The strategy evaluates on a fixed cadence and holds through the weeks in between; most weeks look like that, and saying so is not a failure. An \`Added to\` move is not a new name.
+   A holding with \`lots\` was bought more than once: report each buy as its own position with its own return, and never present the blended \`pnl_pct\` as the return since the first buy.
 3. Holdings: the open book. Call out names that moved, grades that matter, and anything that has gone wrong. Do not list every position as a table.
 4. What we are watching: the next evaluation, concentration, weak grades, anything that has to be true for the book to keep working.
 5. Closing: one or two paragraphs. What this week actually said.
@@ -97,6 +98,7 @@ type Holding = {
   ticker?: string | null;
   entry_date?: string | null;
   pnl_pct?: number | null;
+  lots?: { kind?: string; entry_date?: string; pnl_pct?: number | null }[];
   weight_pct?: number | null;
   sector?: string | null;
 };
@@ -141,6 +143,12 @@ export type WeeklyReviewFacts = {
     quant_rating_display: string | null;
     signal: string | null;
     entry_date: string | null;
+    /**
+     * Each buy as its own position when the name was bought more than once.
+     * `pnl_pct` above is the blend on average cost; these are what each buy
+     * returned from its own fill.
+     */
+    lots: { kind: string; entry_date: string; pnl_pct: number | null }[] | null;
   }[];
   moves: { ticker: string; action: string; when: string }[];
   next_evaluation_date: string | null;
@@ -235,6 +243,14 @@ export async function fetchWeeklyReviewFacts(
         quant_rating_display: formatQuantRating(quantRating),
         signal: pick?.signal ?? null,
         entry_date: h.entry_date ?? pick?.entry_date ?? null,
+        lots:
+          h.lots && h.lots.length > 1
+            ? h.lots.map((lot) => ({
+                kind: lot.kind ?? "entry",
+                entry_date: lot.entry_date ?? "",
+                pnl_pct: roundPct(lot.pnl_pct),
+              }))
+            : null,
       };
     });
 

@@ -114,18 +114,45 @@ def pick_scorecard(db: Session, picks: list[dict]) -> list[dict]:
     latest = sessions[-1] if sessions else None
     buys = [e for e in trade_ledger(db) if e.kind == "buy"]
 
-    out: list[dict] = []
+    # An open pick bought more than once is reported lot by lot: each buy is its
+    # own pick against the S&P from its own date, which is what a reader can
+    # check against a quote screen. Closed round trips stay whole; they were
+    # sold together.
+    expanded: list[dict] = []
     for p in picks:
+        lots = p.get("lots") or []
+        if p.get("status") == "active" and len(lots) > 1:
+            for lot in lots:
+                expanded.append(
+                    {
+                        **p,
+                        "entry_date": lot["entry_date"],
+                        "pnl_pct": lot["pnl_pct"],
+                        "lot": lot["lot"],
+                        "lot_kind": lot["kind"],
+                        "_single_lot": True,
+                    }
+                )
+        else:
+            expanded.append(p)
+
+    out: list[dict] = []
+    for p in expanded:
         entry = date.fromisoformat(p["entry_date"]) if p.get("entry_date") else None
         exit_ = date.fromisoformat(p["exit_date"]) if p.get("exit_date") else None
         end = exit_ or latest
         spy_pct: float | None = None
         if entry and end and sessions:
-            lots = [
-                (e.when, e.amount)
-                for e in buys
-                if e.ticker == p["ticker"] and entry <= e.when <= end
-            ] or [(entry, 1.0)]
+            lots = (
+                [(entry, 1.0)]
+                if p.get("_single_lot")
+                else [
+                    (e.when, e.amount)
+                    for e in buys
+                    if e.ticker == p["ticker"] and entry <= e.when <= end
+                ]
+                or [(entry, 1.0)]
+            )
             last = _price_on_or_before(closes, sessions, end)
             units = 0.0
             committed = 0.0
@@ -153,6 +180,8 @@ def pick_scorecard(db: Session, picks: list[dict]) -> list[dict]:
                     else None
                 ),
                 "measurable": bool(entry and end and end > entry),
+                "lot": p.get("lot"),
+                "lot_kind": p.get("lot_kind"),
             }
         )
     return out

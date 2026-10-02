@@ -13,6 +13,7 @@ import {
   leadersLaggardsEmptyCopy,
   splitLeadersAndLaggards,
 } from "@/components/dashboard/pulse-model";
+import { asLotRows } from "@/components/dashboard/positions-model";
 import { CompanyLogo } from "@/components/ui/company-logo";
 import {
   DataState,
@@ -96,11 +97,13 @@ export default function DashboardPage() {
 
   // The two ends of the open book by unrealized P&L. Disjoint by construction,
   // and unknown returns are in neither — see splitLeadersAndLaggards.
-  const { leaders, laggards } = holdings
-    ? splitLeadersAndLaggards(holdings)
+  // One row per buy, so a conviction add ranks as its own pick.
+  const pickRows = holdings ? asLotRows(holdings) : undefined;
+  const { leaders, laggards } = pickRows
+    ? splitLeadersAndLaggards(pickRows)
     : { leaders: undefined, laggards: undefined };
   const scoredCount =
-    holdings?.filter(
+    pickRows?.filter(
       (h) => typeof h.pnl_pct === "number" && Number.isFinite(h.pnl_pct),
     ).length ?? 0;
 
@@ -326,7 +329,13 @@ function HoldingsCard({
 }: {
   title: string;
   holdings:
-    | { ticker: string | null; pnl_pct: number | null; entry_date: string | null }[]
+    | {
+        ticker: string | null;
+        pnl_pct: number | null;
+        entry_date: string | null;
+        lot?: number;
+        lot_kind?: "entry" | "add";
+      }[]
     | undefined;
   state: DataStateKind | null;
   emptyMessage?: string;
@@ -368,7 +377,11 @@ function HoldingsCard({
               // Index is only the defensive fallback for identity-stripped
               // public rows; resolvePageAccessState prevents those rows from
               // rendering on this paid surface in normal operation.
-              key={h.ticker ?? `anonymous-holding-${index}`}
+              key={
+                h.lot
+                  ? `${h.ticker ?? index}-lot-${h.lot}`
+                  : (h.ticker ?? `anonymous-holding-${index}`)
+              }
               className="flex items-center justify-between px-5 py-3 transition-colors duration-100 hover:bg-bg-tertiary/50"
             >
               <div className="flex items-center gap-3">
@@ -377,7 +390,7 @@ function HoldingsCard({
                   {h.ticker}
                 </span>
                 <span className="font-mono text-[11px] text-text-dim">
-                  Entered {h.entry_date ?? "—"}
+                  {h.lot_kind === "add" ? "Added" : "Entered"} {h.entry_date ?? "—"}
                 </span>
               </div>
               <span

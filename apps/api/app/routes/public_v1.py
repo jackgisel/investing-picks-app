@@ -26,7 +26,9 @@ from app.services.benchmarks import (
     WINDOWS,
     benchmark_series,
     latest_session,
+    open_lots,
     picks_drawdown,
+    public_lots,
     picks_series,
     window_open,
     window_start,
@@ -307,6 +309,7 @@ def get_strategy(db: Session = Depends(get_db)):
     fundamentals = _latest_fundamentals_by_ticker(
         db, [p.ticker for p in positions]
     )
+    lots = open_lots(db, portfolio_id=portfolio.id)
     holdings = [
         {
             "ticker": p.ticker,
@@ -324,6 +327,9 @@ def get_strategy(db: Session = Depends(get_db)):
             "name": names.get(p.ticker),
             "market_cap": market_caps.get(p.ticker),
             "fundamentals": _with_live_mark(fundamentals.get(p.ticker), p.current_price),
+            # One row per buy for per-pick views; see `open_lots`. Book-level
+            # views (weights, sectors, concentration) keep the holding whole.
+            "lots": public_lots(lots.get(p.ticker), p.current_price),
         }
         for p in positions
     ]
@@ -454,6 +460,7 @@ def get_picks(
     rating_as_of: date | None = None
     if status in ("all", "active"):
         ratings, rating_as_of = _latest_ratings(db)
+        lots = open_lots(db, portfolio_id=portfolio.id)
         for p in db.query(Position).filter(Position.portfolio_id == portfolio.id).all():
             rating = ratings.get(p.ticker)
             picks.append(
@@ -470,6 +477,7 @@ def get_picks(
                     # nothing than to imply a rating we do not stand behind.
                     "quant_rating": round(rating, 3) if rating is not None else None,
                     "signal": quant_to_signal(rating) if rating is not None else None,
+                    "lots": public_lots(lots.get(p.ticker), p.current_price),
                 }
             )
     if status in ("all", "closed"):

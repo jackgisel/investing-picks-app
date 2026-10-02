@@ -26,6 +26,7 @@ type UpstreamHolding = {
   sector?: string | null;
   entry_date?: string | null;
   pnl_pct?: number | null;
+  lots?: { entry_date?: string | null; pnl_pct?: number | null }[];
 };
 
 export type LivePick = {
@@ -57,7 +58,15 @@ export async function GET() {
     };
     const holdings = Array.isArray(body.holdings) ? body.holdings : [];
 
-    const picks = holdings
+    // A holding bought more than once ranks lot by lot: the first SEZL buy up
+    // 87% "held since April" is a true sentence; the blended +40% is not.
+    const rows = holdings.flatMap((h): UpstreamHolding[] =>
+      h.lots && h.lots.length > 1
+        ? h.lots.map((lot) => ({ ...h, entry_date: lot.entry_date, pnl_pct: lot.pnl_pct }))
+        : [h],
+    );
+
+    const picks = rows
       // A null pnl_pct means the cost basis could not be rebuilt. Upstream is
       // careful never to coerce that to 0, and neither are we — a position we
       // cannot price has no business leading the landing page.

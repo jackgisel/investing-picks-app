@@ -383,3 +383,55 @@ def test_the_scorecard_index_leg_follows_every_lot(db, portfolio):
     assert sezl["measurable"] is True
     # Bought on the latest session: no holding period yet.
     assert new["measurable"] is False
+
+
+def test_open_lots_reports_each_buy_from_its_own_fill(db, portfolio):
+    from app.db.models import Position
+    from app.services.benchmarks import open_lots, public_lots
+
+    d1, d2 = date(2026, 4, 10), date(2026, 9, 4)
+    _buy(db, portfolio, "SEZL", d1, 1000.0, 60.0)
+    _buy(db, portfolio, "SEZL", d2, 1000.0, 120.0, action="double_buy")
+    db.add(
+        Position(
+            portfolio_id=portfolio.id, ticker="SEZL", shares=1000 / 60 + 1000 / 120,
+            avg_cost=80.0, current_price=108.0, initial_investment=2000.0, entry_date=d1,
+        )
+    )
+    db.commit()
+
+    lots = public_lots(open_lots(db, portfolio.id)["SEZL"], 108.0)
+    assert [(lot["kind"], lot["entry_date"], lot["pnl_pct"]) for lot in lots] == [
+        ("entry", d1.isoformat(), 80.0),
+        ("add", d2.isoformat(), -10.0),
+    ]
+    # Two-thirds of the shares came from the first buy.
+    assert lots[0]["share"] == pytest.approx(2 / 3, abs=1e-6)
+    # No cost basis leaves the API.
+    assert all("cost_per_share" not in lot for lot in lots)
+
+
+def test_the_scorecard_splits_an_open_double_buy_into_two_picks(db, portfolio):
+    from app.services.track_record import pick_scorecard
+
+    d1, d2, d3 = date(2026, 4, 10), date(2026, 9, 4), date(2026, 10, 1)
+    for d, spy in ((d1, 100.0), (d2, 120.0), (d3, 126.0)):
+        _bar(db, "SPY", d, spy)
+    db.commit()
+    rows = pick_scorecard(
+        db,
+        [
+            {
+                "ticker": "SEZL", "status": "active", "entry_date": d1.isoformat(),
+                "pnl_pct": 35.0,
+                "lots": [
+                    {"lot": 1, "kind": "entry", "entry_date": d1.isoformat(), "share": 0.67, "pnl_pct": 80.0},
+                    {"lot": 2, "kind": "add", "entry_date": d2.isoformat(), "share": 0.33, "pnl_pct": -10.0},
+                ],
+            }
+        ],
+    )
+    assert [(r["lot_kind"], r["return_pct"], r["spy_pct"]) for r in rows] == [
+        ("entry", 80.0, 26.0),
+        ("add", -10.0, 5.0),
+    ]

@@ -22,7 +22,7 @@ import type { InsightDraftFields } from "@/lib/insights";
  * separate, explicit act. Nothing here publishes anything.
  */
 
-const MODEL = "claude-opus-5";
+const MODEL = "claude-opus-5-5";
 
 /**
  * The house style, and the only part of the prompt that is identical across

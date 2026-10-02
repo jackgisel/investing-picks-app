@@ -396,6 +396,19 @@ export async function runAppMigrations() {
   `);
 
   /*
+   * The drawdown alert never ran until it moved onto the picks index, and by
+   * then the picks were already 13.6% below their 2026-08-04 high. Claiming
+   * that band up front means the first run does not announce a drawdown that
+   * is two months old; a deeper band from the same peak, or any drop from a
+   * new peak, still fires.
+   */
+  await pool.query(`
+    INSERT INTO email_dispatch (kind, dedupe_key, recipients)
+    VALUES ('performance_alert', 'drawdown:10:2026-08-04', 0)
+    ON CONFLICT (kind, dedupe_key) DO NOTHING
+  `);
+
+  /*
    * Product updates — the admin-composed announcement.
    *
    * A row, not a code deploy, for the same reason research notes became rows:

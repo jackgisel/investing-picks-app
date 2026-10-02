@@ -39,15 +39,8 @@ from worker.jobs.runner import (
     job_weekly_review_draft,
     job_weekly_review_publish,
     job_weekly_summary,
-    job_x_thread_draft,
     job_macro_refresh,
-    job_x_thread_hot_take_draft,
-    job_x_thread_leaderboard_draft,
-    job_x_thread_market_draft,
-    job_x_thread_poll_prompt_draft,
     job_x_thread_post,
-    job_x_thread_spotlight_draft,
-    job_x_thread_sunday_draft,
     reap_stale_weekly_refreshes,
     sweep_ops_alerts,
 )
@@ -219,35 +212,8 @@ def main():
         replace_existing=True,
     )
 
-    # Friday 10:30 PT — half an hour after the weekly review draft, so the
-    # thread is written against the same week's facts and an admin reviews both
-    # in one sitting. Drafting only; nothing reaches the timeline from here.
-    scheduler.add_job(
-        job_x_thread_draft,
-        CronTrigger(
-            day_of_week="fri",
-            hour=10,
-            minute=30,
-            timezone="America/Los_Angeles",
-        ),
-        id="x_thread_draft",
-        replace_existing=True,
-    )
-    # Tuesday 09:00 PT — the market-and-sectors thread, deliberately off the
-    # Friday cycle so the account is not silent for six days and loud for one.
-    scheduler.add_job(
-        job_x_thread_market_draft,
-        CronTrigger(
-            day_of_week="tue",
-            hour=9,
-            minute=0,
-            timezone="America/Los_Angeles",
-        ),
-        id="x_thread_market_draft",
-        replace_existing=True,
-    )
-    # Weekdays 06:00 PT — half an hour ahead of the spotlight draft, so a
-    # headline pulled this morning is available for it to write about.
+    # Weekdays 06:00 PT — headlines for the editorial brief behind the market
+    # note.
     scheduler.add_job(
         job_news_refresh,
         CronTrigger(
@@ -259,13 +225,8 @@ def main():
         id="news_refresh",
         replace_existing=True,
     )
-    # Weekdays 06:30 PT — half an hour ahead of the first post-check tick, so
-    # a spotlight drafted today has a chance of being confirmed before it.
-    # Alternates candidate/sector on its own (see `pickSpotlightIndex`); this
-    # Sunday 16:00 PT — macro pull, then the week-ahead draft ninety minutes
-    # later. Sunday rather than Monday morning because the thread argues about
-    # a week that has not started, and the econ calendar for it is published
-    # well before the Sunday close.
+    # Sunday 16:00 PT — Treasury yields and the coming week's econ calendar,
+    # for /ops/macro-brief.
     scheduler.add_job(
         job_macro_refresh,
         CronTrigger(
@@ -275,74 +236,6 @@ def main():
             timezone="America/Los_Angeles",
         ),
         id="macro_refresh",
-        replace_existing=True,
-    )
-    # Sunday 17:30 PT — late enough that an admin reading it still has the
-    # evening to confirm before futures open, early enough that they are not
-    # editing a thread at midnight.
-    scheduler.add_job(
-        job_x_thread_sunday_draft,
-        CronTrigger(
-            day_of_week="sun",
-            hour=17,
-            minute=30,
-            timezone="America/Los_Angeles",
-        ),
-        id="x_thread_sunday_draft",
-        replace_existing=True,
-    )
-    # is just "run every weekday morning."
-    scheduler.add_job(
-        job_x_thread_spotlight_draft,
-        CronTrigger(
-            day_of_week="mon-fri",
-            hour=6,
-            minute=30,
-            timezone="America/Los_Angeles",
-        ),
-        id="x_thread_spotlight_draft",
-        replace_existing=True,
-    )
-    # Weekdays 06:45 PT — alongside the spotlight, off the same morning's
-    # screener pull. One post and a link; the whole point is that it is cheap
-    # enough to fire every day and let most of them land quietly.
-    scheduler.add_job(
-        job_x_thread_hot_take_draft,
-        CronTrigger(
-            day_of_week="mon-fri",
-            hour=6,
-            minute=45,
-            timezone="America/Los_Angeles",
-        ),
-        id="x_thread_hot_take_draft",
-        replace_existing=True,
-    )
-    # Wednesday 09:00 PT — the ranked screen list. Weekly rather than daily
-    # because the watchlist barely moves between refreshes, and a list that
-    # repeats itself reads as a bot.
-    scheduler.add_job(
-        job_x_thread_leaderboard_draft,
-        CronTrigger(
-            day_of_week="wed",
-            hour=9,
-            minute=0,
-            timezone="America/Los_Angeles",
-        ),
-        id="x_thread_leaderboard_draft",
-        replace_existing=True,
-    )
-    # Thursday 09:00 PT — the question post. Once a week is deliberate: a
-    # question every day is the thing that makes an account read as farming,
-    # which costs more reach than the replies are worth.
-    scheduler.add_job(
-        job_x_thread_poll_prompt_draft,
-        CronTrigger(
-            day_of_week="thu",
-            hour=9,
-            minute=0,
-            timezone="America/Los_Angeles",
-        ),
-        id="x_thread_poll_prompt_draft",
         replace_existing=True,
     )
     # Every 15 minutes, weekdays 04:00–19:45 PT: pre-market releases through
@@ -417,16 +310,8 @@ def main():
             # Scheduled weekly (above); also runnable on demand for the
             # first load, which is much larger than a weekly top-up.
             "backfill_prices": job_backfill_prices,
-            # Scheduled Fri/Tue (above). On demand for a first draft or
-            # after editing the style guide. `x_thread_post` sends whatever is
-            # confirmed right now instead of waiting for the hourly tick.
-            "x_thread_draft": job_x_thread_draft,
-            "x_thread_hot_take_draft": job_x_thread_hot_take_draft,
-            "x_thread_leaderboard_draft": job_x_thread_leaderboard_draft,
-            "x_thread_market_draft": job_x_thread_market_draft,
-            "x_thread_poll_prompt_draft": job_x_thread_poll_prompt_draft,
-            "x_thread_spotlight_draft": job_x_thread_spotlight_draft,
-            "x_thread_sunday_draft": job_x_thread_sunday_draft,
+            # `x_thread_post` sends whatever is confirmed right now instead
+            # of waiting for the next tick.
             "macro_refresh": job_macro_refresh,
             "x_thread_post": job_x_thread_post,
             "income_visuals_watch": job_income_visuals_watch,

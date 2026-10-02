@@ -208,43 +208,11 @@ def job_weekly_summary():
     return job_weekly_review_publish()
 
 
-def job_x_thread_draft(kind: str = "weekly_review"):
-    """Draft an X thread for admin review. Never posts.
-
-    Same shape as the weekly review draft and for the same reason: the web app
-    owns the Anthropic client and the thread table, and a firing that never
-    lands is picked up by the operator's Draft button or the next schedule.
-    """
-    return _post_to_web_app(
-        "/api/internal/x/draft",
-        f"X thread draft ({kind})",
-        300.0,
-        json={"kind": kind},
-    )
-
-
-def job_x_thread_market_draft():
-    """The market-conditions-and-sectors thread. Own job so it can have its
-    own cron slot without threading an argument through APScheduler."""
-    return job_x_thread_draft("market")
-
-
-def job_x_thread_sunday_draft():
-    """The Sunday week-ahead thread.
-
-    Runs after `job_macro_refresh` so the yields and the econ calendar it
-    argues from were pulled the same evening, not left over from last week.
-    """
-    return job_x_thread_draft("sunday_review")
-
-
 def job_macro_refresh():
     """Pull Treasury yields and the coming week's US econ calendar.
 
-    Sunday-only, ahead of the week-ahead draft. The series it writes are the
-    only macro numbers the Sunday thread is allowed to cite; if this fails the
-    draft still runs and the payload names the gap, which produces a thinner
-    thread rather than an invented one.
+    Sunday-only. Kept for `/ops/macro-brief` now that the week-ahead X thread
+    it was written for is gone.
     """
 
     def _run(db: Session):
@@ -257,46 +225,11 @@ def job_macro_refresh():
     return _track("macro_refresh", _run)
 
 
-def job_x_thread_hot_take_draft():
-    """The daily single-post take.
-
-    One post plus its CTA, which makes it the cheapest thing the account
-    posts and the one most likely to break out. Drafted daily and keyed on
-    the day, so a re-fire finds the morning's draft rather than writing a
-    second one.
-    """
-    return job_x_thread_draft("hot_take")
-
-
-def job_x_thread_leaderboard_draft():
-    """The weekly ranked list of top-rated names we do NOT hold.
-
-    Needs the screener watchlist; the web app refuses the draft outright when
-    it is empty rather than letting the model rank our own positions instead.
-    """
-    return job_x_thread_draft("leaderboard")
-
-
-def job_x_thread_poll_prompt_draft():
-    """The weekly question post. Two posts: the question, then the CTA."""
-    return job_x_thread_draft("poll_prompt")
-
-
-def job_x_thread_spotlight_draft():
-    """The daily screener-name-or-sector spotlight.
-
-    Never an active pick or a book holding — see the style guide's compliance
-    line in `x-thread-draft.ts` for why that distinction has to be spelled out
-    in the thread every time, not just implied by the section it runs in."""
-    return job_x_thread_draft("spotlight")
-
-
 def job_news_refresh():
     """Pull recent headlines for held + top-rated non-held tickers.
 
-    Feeds the spotlight thread's "news" focus. Scheduled ahead of the
-    spotlight draft job so a headline from this morning is available to
-    write about, not just whatever was still in the table from yesterday.
+    Feeds the editorial brief behind the market note, so a headline from this
+    morning is available, not just whatever was still in the table.
     """
 
     def _run(db: Session):

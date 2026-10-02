@@ -71,21 +71,6 @@ const KIND_LABEL: Record<Thread["kind"], string> = {
   income_visual: "Income visual",
 };
 
-/**
- * The order the Draft buttons appear in: long threads first, then the three
- * short reach formats. Kept separate from KIND_LABEL because `pick` has no
- * scheduled job and no button — it is drafted from the insights flow.
- */
-const DRAFTABLE = [
-  "weekly_review",
-  "market",
-  "spotlight",
-  "sunday_review",
-  "hot_take",
-  "leaderboard",
-  "poll_prompt",
-] as const;
-
 async function errorMessage(res: Response): Promise<string> {
   // Read as text first. A proxy timeout or a crashed container answers with
   // HTML, and `res.json()` throwing there is what turned a perfectly clear
@@ -119,19 +104,6 @@ export function XThreadsPanel() {
     gcTime: 0,
   });
 
-  const draft = useMutation({
-    mutationFn: async (kind: Thread["kind"]) => {
-      const res = await fetch("/api/ops/x-threads", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind }),
-      });
-      if (!res.ok) throw new Error(await errorMessage(res));
-      return res.json();
-    },
-    onSuccess: invalidate,
-  });
-
   const data = page.data;
   const threads = data?.threads ?? [];
 
@@ -140,10 +112,9 @@ export function XThreadsPanel() {
       <header>
         <p className="panel-label mb-2">X Threads</p>
         <p className="text-text-muted mt-2 text-sm max-w-xl">
-          Drafted on a schedule, posted only once you confirm. The exception
-          is income visuals, which post themselves after their review window
-          unless you reject them. A posted thread cannot be un-posted — read it
-          first.
+          Income visuals, drafted as each company reports. They post
+          themselves after their review window unless you reject them. A
+          posted thread cannot be un-posted — read it first.
         </p>
       </header>
 
@@ -162,37 +133,16 @@ export function XThreadsPanel() {
                   : "No X credentials on this deployment — posting is disabled"}
             </p>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {DRAFTABLE.map((kind) => (
-              <button
-                key={kind}
-                type="button"
-                onClick={() => draft.mutate(kind)}
-                disabled={draft.isPending}
-                className="btn-outline !py-2 !px-4 !text-[11px] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <RefreshCw
-                  size={13}
-                  className={draft.isPending ? "animate-spin" : undefined}
-                />
-                Draft {KIND_LABEL[kind].toLowerCase()}
-              </button>
-            ))}
-          </div>
         </div>
         {page.error && (
           <p className="text-accent-red text-sm">{(page.error as Error).message}</p>
-        )}
-        {draft.error && (
-          <p className="text-accent-red text-sm">{(draft.error as Error).message}</p>
         )}
       </section>
 
       {threads.length === 0 && !page.isPending && (
         <div className="data-panel px-4 py-6">
           <p className="text-sm text-text-muted">
-            No threads yet. The Friday and Tuesday jobs write them, or press a
-            Draft button above.
+            Nothing queued. Income visuals appear here as companies report.
           </p>
         </div>
       )}

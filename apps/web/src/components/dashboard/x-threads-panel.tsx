@@ -11,6 +11,7 @@ import {
   Send,
   Undo2,
 } from "lucide-react";
+import { incomeVisualUrl } from "@/lib/income-visual/url";
 
 /**
  * Review queue for X threads.
@@ -32,10 +33,15 @@ type Thread = {
     | "sunday_review"
     | "hot_take"
     | "leaderboard"
-    | "poll_prompt";
+    | "poll_prompt"
+    | "income_visual";
   dedupeKey: string;
   posts: string[];
-  facts: { summary?: string };
+  facts: {
+    summary?: string;
+    ticker?: string;
+    period_type?: "quarter" | "annual";
+  };
   status: "draft" | "posted" | "failed" | "rejected";
   confirmedAt: string | null;
   postedAt: string | null;
@@ -62,6 +68,7 @@ const KIND_LABEL: Record<Thread["kind"], string> = {
   hot_take: "Hot take",
   leaderboard: "Leaderboard",
   poll_prompt: "Question",
+  income_visual: "Income visual",
 };
 
 /**
@@ -133,9 +140,10 @@ export function XThreadsPanel() {
       <header>
         <p className="panel-label mb-2">X Threads</p>
         <p className="text-text-muted mt-2 text-sm max-w-xl">
-          Drafted on a schedule, posted only once you confirm. Nothing here
-          reaches the timeline without a confirm, and a posted thread cannot be
-          un-posted — read it first.
+          Drafted on a schedule, posted only once you confirm. The exception
+          is income visuals, which post themselves after their review window
+          unless you reject them. A posted thread cannot be un-posted — read it
+          first.
         </p>
       </header>
 
@@ -266,6 +274,18 @@ function ThreadCard({
         </div>
         <StatusBadge thread={thread} handle={handle} />
       </div>
+
+      {thread.kind === "income_visual" && thread.facts.ticker && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={incomeVisualUrl(thread.facts.ticker, thread.facts.period_type)}
+          alt={`${thread.facts.ticker} income statement flow, attached to post 1`}
+          width={1080}
+          height={1080}
+          loading="lazy"
+          className="aspect-square w-full max-w-[360px] rounded-xl border border-border bg-bg"
+        />
+      )}
 
       <div className="space-y-3">
         {posts.map((post, i) => (
@@ -407,7 +427,11 @@ function StatusBadge({ thread, handle }: { thread: Thread; handle: string }) {
   }
   return (
     <span className="font-mono text-[11px] text-text-muted">
-      {thread.confirmedAt ? "Confirmed — posts on the next tick" : "Draft"}
+      {thread.confirmedAt
+        ? "Confirmed — posts on the next tick"
+        : thread.kind === "income_visual"
+          ? "Draft — posts itself after the review window unless rejected"
+          : "Draft"}
     </span>
   );
 }

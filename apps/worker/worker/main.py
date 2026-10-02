@@ -29,6 +29,8 @@ from worker.jobs.runner import (
     job_dca_backfill,
     job_dca_friday,
     job_extra_buy,
+    job_income_statements_refresh,
+    job_income_visuals_watch,
     job_market_note_prepare,
     job_market_note_send,
     job_news_refresh,
@@ -343,6 +345,35 @@ def main():
         id="x_thread_poll_prompt_draft",
         replace_existing=True,
     )
+    # Every 15 minutes, weekdays 04:00–19:45 PT: pre-market releases through
+    # the last after-hours filings. A print is drafted on the first tick
+    # after FMP has its statement, and the draft posts itself once its review
+    # window passes — the one X format that reaches the timeline without a
+    # confirm.
+    scheduler.add_job(
+        job_income_visuals_watch,
+        CronTrigger(
+            day_of_week="mon-fri",
+            hour="4-19",
+            minute="*/15",
+            timezone="America/Los_Angeles",
+        ),
+        id="income_visuals_watch",
+        replace_existing=True,
+    )
+    # Weekdays 03:30 PT, before the first watch tick: every held name, so the
+    # pick visuals stay current even for a print the calendar missed.
+    scheduler.add_job(
+        job_income_statements_refresh,
+        CronTrigger(
+            day_of_week="mon-fri",
+            hour=3,
+            minute=30,
+            timezone="America/Los_Angeles",
+        ),
+        id="income_statements_refresh",
+        replace_existing=True,
+    )
     # Hourly, weekdays 07:00–17:00 PT. A thread goes out on the first tick
     # after an admin confirms it, so confirming is the act that publishes and
     # the schedule is only how long you might wait. Ticks with nothing
@@ -398,6 +429,8 @@ def main():
             "x_thread_sunday_draft": job_x_thread_sunday_draft,
             "macro_refresh": job_macro_refresh,
             "x_thread_post": job_x_thread_post,
+            "income_visuals_watch": job_income_visuals_watch,
+            "income_statements_refresh": job_income_statements_refresh,
             "news_refresh": job_news_refresh,
             "dca_friday": job_dca_friday,
             "dca_backfill": job_dca_backfill,

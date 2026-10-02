@@ -226,14 +226,67 @@ export function validateThread(
   return errors;
 }
 
+function errorDetail(
+  payload: {
+    detail?: string;
+    title?: string;
+    errors?: { message?: string }[];
+  } | null,
+  status: number,
+): string {
+  return (
+    payload?.errors?.map((e) => e.message).filter(Boolean).join("; ") ||
+    payload?.detail ||
+    payload?.title ||
+    `HTTP ${status}`
+  );
+}
+
+/**
+ * Upload one image and return its media id, for attaching to a post.
+ *
+ * Simple (one-shot) upload: images are well under the 5 MB limit, so the
+ * chunked INIT/APPEND/FINALIZE dance buys nothing. Multipart bodies are not
+ * part of an OAuth 1.0a signature, so the same signer as `postOne` applies.
+ * An uploaded id that is never attached expires on its own.
+ */
+export async function uploadImage(
+  credentials: XCredentials,
+  image: Buffer,
+  mediaType = "image/png",
+): Promise<string> {
+  const url = "https://api.x.com/2/media/upload";
+  const form = new FormData();
+  form.append("media", new Blob([new Uint8Array(image)], { type: mediaType }), "visual.png");
+  form.append("media_category", "tweet_image");
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { Authorization: signRequest({ method: "POST", url, credentials }) },
+    body: form,
+  });
+  const payload = (await res.json().catch(() => null)) as {
+    data?: { id?: string };
+    detail?: string;
+    title?: string;
+    errors?: { message?: string }[];
+  } | null;
+  if (!res.ok || !payload?.data?.id) {
+    throw new Error(`Media upload failed: ${errorDetail(payload, res.status)}`);
+  }
+  return payload.data.id;
+}
+
 async function postOne(
   credentials: XCredentials,
   text: string,
   replyToId: string | null,
+  mediaIds: string[] = [],
 ): Promise<PostedTweet> {
   const url = "https://api.x.com/2/tweets";
   const body: Record<string, unknown> = { text };
   if (replyToId) body.reply = { in_reply_to_tweet_id: replyToId };
+  if (mediaIds.length) body.media = { media_ids: mediaIds };
 
   const res = await fetch(url, {
     method: "POST",
@@ -252,12 +305,7 @@ async function postOne(
   } | null;
 
   if (!res.ok || !payload?.data?.id) {
-    const detail =
-      payload?.errors?.map((e) => e.message).filter(Boolean).join("; ") ||
-      payload?.detail ||
-      payload?.title ||
-      `HTTP ${res.status}`;
-    throw new Error(detail);
+    throw new Error(errorDetail(payload, res.status));
   }
   return { id: payload.data.id, text: payload.data.text ?? text };
 }
@@ -276,7 +324,7 @@ async function postOne(
 export async function postThread(
   credentials: XCredentials,
   posts: string[],
-  opts: { maxChars?: number } = {},
+  opts: { maxChars?: number; firstPostMediaIds?: string[] } = {},
 ): Promise<ThreadResult> {
   const invalid = validateThread(posts, opts.maxChars);
   if (invalid.length > 0) {
@@ -294,7 +342,12 @@ export async function postThread(
 
   for (let i = 0; i < posts.length; i++) {
     try {
-      const tweet = await postOne(credentials, posts[i], replyTo);
+      const tweet = await postOne(
+        credentials,
+        posts[i],
+        replyTo,
+        i === 0 ? opts.firstPostMediaIds : undefined,
+      );
       posted.push(tweet);
       replyTo = tweet.id;
     } catch (e) {

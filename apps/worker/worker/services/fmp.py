@@ -219,6 +219,28 @@ class FMPClient:
         )
         return data if isinstance(data, list) else []
 
+    def income_statement_annual(self, ticker: str, limit: int = 2) -> list[dict]:
+        """Recent fiscal years, newest first. Two is the minimum for Y/Y."""
+        data = self._get(
+            "income-statement", {"symbol": ticker, "period": "annual", "limit": limit}
+        )
+        return data if isinstance(data, list) else []
+
+    def revenue_product_segmentation(
+        self, ticker: str, period: str = "annual"
+    ) -> list[dict]:
+        """Revenue by product line, newest first: `[{date, fiscalYear, period, data}]`.
+
+        `period="quarter"` is a premium parameter — on the current plan it is
+        refused with a 402-style message and raises FMPAccessError. Annual is
+        included.
+        """
+        params = {"symbol": ticker, "structure": "flat"}
+        if period != "annual":
+            params["period"] = period
+        data = self._get("revenue-product-segmentation", params)
+        return data if isinstance(data, list) else []
+
     def cash_flow_quarterly(self, ticker: str, limit: int = 12) -> list[dict]:
         """Recent quarterly cash-flow statements. Optional EV/EBITDA denominator."""
         data = self._get(
@@ -309,6 +331,18 @@ class FMPClient:
     def earnings(self, ticker: str, limit: int = 8) -> list[dict]:
         """Recent actual-versus-estimate earnings reports for one company."""
         data = self._get("earnings", {"symbol": ticker, "limit": limit})
+        return data if isinstance(data, list) else []
+
+    def earnings_calendar(self, start: date, end: date) -> list[dict]:
+        """Every company's report dates in a range, one request.
+
+        `epsActual` / `revenueActual` stay null until the company reports,
+        then fill in within the hour — which makes this the cheapest "who just
+        reported" signal on the plan (`latest-financial-statements` is 402).
+        """
+        data = self._get(
+            "earnings-calendar", {"from": start.isoformat(), "to": end.isoformat()}
+        )
         return data if isinstance(data, list) else []
 
     def price_target_consensus(self, ticker: str) -> dict | None:

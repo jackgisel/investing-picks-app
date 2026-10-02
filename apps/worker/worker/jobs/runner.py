@@ -313,12 +313,58 @@ def job_news_refresh():
     return _track("news_refresh", _run)
 
 
+def job_income_statements_refresh():
+    """Refresh every held name's income statements for the in-app visuals."""
+
+    def _run(db: Session):
+        from worker.services.income_statements import refresh_income_statements
+
+        fmp = _fmp()
+        try:
+            return refresh_income_statements(db, fmp)
+        finally:
+            fmp.close()
+
+    return _track("income_statements_refresh", _run)
+
+
+def job_income_visuals_watch():
+    """Store each new quarter as it lands, then let the web app draft for X.
+
+    The draft call runs every tick, not only when something new was stored:
+    the web app's drafting is idempotent and cheap, and a tick whose call
+    failed would otherwise strand that print until it is no longer news.
+    """
+
+    def _run(db: Session):
+        from worker.services.income_statements import watch_reporters
+
+        fmp = _fmp()
+        try:
+            return watch_reporters(db, fmp)
+        finally:
+            fmp.close()
+
+    try:
+        watched = _track("income_visuals_watch", _run)
+    except Exception as e:
+        # Already recorded as a failed job_runs row; what earlier ticks
+        # stored can still be drafted.
+        watched = {"error": str(e)}
+    drafted = _post_to_web_app(
+        "/api/internal/x/income-visuals", "Income visual drafts", 120.0
+    )
+    return {"watched": watched, "drafted": drafted}
+
+
 def job_x_thread_post():
     """Post every confirmed thread. Unconfirmed drafts are left alone.
 
-    The confirm gate is never bypassed here. A thread makes public performance
-    claims about a real book, so an unread draft going out on a schedule is
-    strictly worse than a thread that misses its slot.
+    A thread makes public performance claims about a real book, so an unread
+    draft going out on a schedule is strictly worse than a thread that misses
+    its slot. The one exception is the income visual: no model, no claim about
+    the book, held names refused — the web app confirms one per tick once its
+    review window has passed.
     """
     return _post_to_web_app("/api/internal/x/post", "X thread post", 300.0)
 

@@ -20,6 +20,7 @@ import { describeOpenRating } from "./open-rating";
 import { asShareOfInvested } from "./sector-model";
 import { actionMeta } from "./trade-action";
 import { PositionFundamentals } from "./position-fundamentals";
+import { PositionIncomeVisual } from "./position-income-visual";
 import { tradesForTicker } from "./positions-model";
 
 function heldBetween(entry: string, exit: string | null): string {
@@ -266,6 +267,12 @@ export function PositionDrawer({
                 appear after the next fundamentals refresh.
               </p>
             )}
+          </Section>
+        )}
+
+        {holding && (
+          <Section title="Income statement">
+            <PositionIncomeVisual ticker={ticker} />
           </Section>
         )}
 

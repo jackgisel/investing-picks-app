@@ -26,8 +26,10 @@ import {
   isProductionTestAccount,
   type CheckoutOffer,
 } from "@/lib/stripe-checkout";
-import { createComplimentarySubscription } from "@/lib/complimentary-grant";
-import { isComplimentaryInviteEmail } from "@/lib/membership-invites";
+import {
+  ensureComplimentaryCoupon,
+  isComplimentaryInviteEmail,
+} from "@/lib/membership-invites";
 import {
   getSubscriptionRecord,
   saveStripeCustomer,
@@ -148,28 +150,27 @@ async function createCheckoutResponse(request: NextRequest) {
     );
   }
 
-  // Invitees never see Checkout. The $0 Subscription is created here and the
-  // client is sent straight to /welcome. Normally the sign-in hook has already
-  // done this; this path covers an invite added while they were signed in.
-  if (!productionTest && (await isComplimentaryInviteEmail(user.email))) {
+  const complimentary =
+    !productionTest && (await isComplimentaryInviteEmail(user.email));
+  let complimentaryCouponId: string | null = null;
+  if (complimentary) {
     try {
-      await createComplimentarySubscription(stripe, {
-        userId: user.id,
-        customerId,
+      complimentaryCouponId = await ensureComplimentaryCoupon(
+        stripe,
         annualPriceId,
-      });
+      );
     } catch (error) {
-      console.error("Complimentary membership could not be created:", error);
+      console.error("Complimentary coupon is unavailable:", error);
       return NextResponse.json(
-        { error: "Complimentary membership is temporarily unavailable" },
+        { error: "Complimentary checkout is temporarily unavailable" },
         { status: 503 },
       );
     }
-    return NextResponse.json({ url: "/welcome" });
   }
 
   const foundersEligible =
     !productionTest &&
+    !complimentary &&
     isFoundersOfferEligible({
       foundersWindowActive: await isFoundersWindowActive(),
       redeemedAt: subscription.foundersDiscountRedeemedAt,
@@ -184,14 +185,18 @@ async function createCheckoutResponse(request: NextRequest) {
 
   const offer: CheckoutOffer = productionTest
     ? "production_test"
-    : foundersEligible
-      ? "founders"
-      : "standard";
+    : complimentary
+      ? "complimentary"
+      : foundersEligible
+        ? "founders"
+        : "standard";
   const couponId = productionTest
     ? productionTestCouponId
-    : foundersEligible
-      ? foundersCouponId
-      : null;
+    : complimentary
+      ? complimentaryCouponId
+      : foundersEligible
+        ? foundersCouponId
+        : null;
   const datafast = {
     visitorId: request.cookies.get(DATAFAST_VISITOR_COOKIE)?.value,
     sessionId: request.cookies.get(DATAFAST_SESSION_COOKIE)?.value,

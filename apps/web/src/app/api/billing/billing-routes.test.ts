@@ -55,9 +55,7 @@ vi.mock("@/lib/founders-server", () => ({
 vi.mock("@/lib/stripe", () => ({ getStripe: () => state.stripe }));
 vi.mock("@/lib/membership-invites", () => ({
   isComplimentaryInviteEmail: async () => state.complimentary,
-}));
-vi.mock("@/lib/complimentary-grant", () => ({
-  createComplimentarySubscription: vi.fn(async () => {}),
+  ensureComplimentaryCoupon: vi.fn(async () => "coupon_free"),
 }));
 vi.mock("@/lib/subscription", () => ({
   getSubscriptionRecord: async () => state.subscription,
@@ -352,28 +350,28 @@ describe("billing routes", () => {
     expect(state.stripe.checkout.sessions.create).not.toHaveBeenCalled();
   });
 
-  it("creates an invitee's $0 membership directly and skips Checkout", async () => {
+  it("gives the complimentary coupon priority over founders", async () => {
     state.complimentary = true;
-    const { createComplimentarySubscription } = await import(
-      "@/lib/complimentary-grant"
+    await checkout(request());
+    expect(state.stripe.checkout.sessions.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        discounts: [{ coupon: "coupon_free" }],
+        payment_method_collection: "if_required",
+        billing_address_collection: "auto",
+        metadata: expect.objectContaining({
+          offer_type: "complimentary",
+          founders_offer: "false",
+        }),
+      }),
+      { idempotencyKey: "outpick-checkout-v2-user_1-complimentary" },
     );
-    const response = await checkout(request());
-    expect(await response.json()).toEqual({ url: "/welcome" });
-    expect(createComplimentarySubscription).toHaveBeenCalledWith(state.stripe, {
-      userId: "user_1",
-      customerId: "cus_existing",
-      annualPriceId: "price_annual",
-    });
-    expect(state.stripe.checkout.sessions.create).not.toHaveBeenCalled();
   });
 
-  it("fails safely instead of opening a full-price Checkout when the grant fails", async () => {
+  it("fails safely instead of charging full price when the complimentary coupon cannot be created", async () => {
     state.complimentary = true;
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const { createComplimentarySubscription } = await import(
-      "@/lib/complimentary-grant"
-    );
-    vi.mocked(createComplimentarySubscription).mockRejectedValueOnce(
+    const { ensureComplimentaryCoupon } = await import("@/lib/membership-invites");
+    vi.mocked(ensureComplimentaryCoupon).mockRejectedValueOnce(
       new Error("No such coupon"),
     );
     const response = await checkout(request());

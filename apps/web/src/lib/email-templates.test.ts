@@ -72,7 +72,7 @@ const all = () => [
   }),
   renderMembershipInviteEmail({
     name: "Seneca",
-    inviteUrl: `${SITE}/login?next=/welcome&email=senecafuller%40gmail.com`,
+    inviteUrl: `${SITE}/login?next=/subscribe&email=senecafuller%40gmail.com`,
     siteUrl: SITE,
   }),
 ];
@@ -112,16 +112,15 @@ describe("membership invite email", () => {
   it("names the grant and points at sign-in, not a promo code", () => {
     const html = renderMembershipInviteEmail({
       name: "Seneca Fuller",
-      inviteUrl: `${SITE}/login?next=/welcome&email=senecafuller%40gmail.com`,
+      inviteUrl: `${SITE}/login?next=/subscribe&email=senecafuller%40gmail.com`,
       siteUrl: SITE,
     });
     expect(html).toContain("You&#39;re invited");
     expect(html).toContain("Hi Seneca,");
     expect(html).toContain("complimentary");
     expect(html).toContain("Accept the invitation");
-    expect(html).toContain(`${SITE}/login?next=/welcome&email=senecafuller%40gmail.com`);
+    expect(html).toContain(`${SITE}/login?next=/subscribe&email=senecafuller%40gmail.com`);
     expect(html).not.toContain("PROMO");
-    expect(html).not.toContain("checkout, and");
     expect(html).not.toContain("$1,000");
   });
 });

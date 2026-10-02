@@ -22,7 +22,10 @@ export type XThreadKind =
   // public claims about the same book, so they get the same review.
   | "hot_take"
   | "leaderboard"
-  | "poll_prompt";
+  | "poll_prompt"
+  // A one-post income statement image. The only kind that confirms itself —
+  // see `autoConfirmDueIncomeVisuals`.
+  | "income_visual";
 export type XThreadStatus = "draft" | "posted" | "failed" | "rejected";
 
 export type XThread = {
@@ -291,6 +294,107 @@ export async function releaseThreadClaim(id: string): Promise<void> {
       WHERE id = $1 AND jsonb_array_length(posted_ids) = 0`,
     [id],
   );
+}
+
+/**
+ * Confirm the oldest income visual whose review window has run out.
+ *
+ * The one exception to "nothing posts unconfirmed", and narrow on purpose: an
+ * income visual's text and image are both computed from a filed statement with
+ * no model in the loop, it makes no claim about our book, and the drafting
+ * step refuses held names. Rejecting inside the window is the stop.
+ *
+ * One per call. The posting tick is hourly, so this spaces a morning's
+ * drafts an hour apart instead of landing them on the timeline together.
+ */
+export async function autoConfirmDueIncomeVisuals(
+  reviewHours: number,
+): Promise<string | null> {
+  const { rows } = await pool.query<{ id: string }>(
+    `UPDATE x_thread
+        SET confirmed_at = NOW(), updated_at = NOW()
+      WHERE id = (
+              SELECT id FROM x_thread
+               WHERE kind = 'income_visual'
+                 AND status = 'draft'
+                 AND confirmed_at IS NULL
+                 AND posted_at IS NULL
+                 AND created_at <= NOW() - ($1::float8 * INTERVAL '1 hour')
+               ORDER BY created_at ASC
+               LIMIT 1
+            )
+        AND status = 'draft'
+        AND confirmed_at IS NULL
+        AND posted_at IS NULL
+      RETURNING id`,
+    [reviewHours],
+  );
+  return rows[0] ? String(rows[0].id) : null;
+}
+
+/** Start of today's trading day, which is what "per day" means for prints. */
+const ET_TODAY = `(date_trunc('day', NOW() AT TIME ZONE 'America/New_York')
+                   AT TIME ZONE 'America/New_York')`;
+
+/**
+ * Income visuals drafted today (US Eastern), whatever became of them — except
+ * ones displaced by a bigger print, whose slot went to that print.
+ */
+export async function countIncomeVisualsToday(): Promise<number> {
+  const { rows } = await pool.query<{ n: string }>(
+    `SELECT COUNT(*) AS n FROM x_thread
+      WHERE kind = 'income_visual' AND created_at >= ${ET_TODAY}
+        AND NOT (facts ? 'displaced_by')`,
+  );
+  return Number(rows[0]?.n ?? 0);
+}
+
+/**
+ * Today's smallest auto-drafted income visual that can still be withdrawn.
+ *
+ * Only drafts carrying a market cap qualify — the automatic ones. A visual an
+ * admin queued by hand is never displaced.
+ */
+export async function smallestOpenIncomeVisualToday(): Promise<
+  { id: string; ticker: string; marketCap: number } | null
+> {
+  const { rows } = await pool.query<{ id: string; ticker: string; market_cap: string }>(
+    `SELECT id, facts->>'ticker' AS ticker, facts->>'market_cap' AS market_cap
+       FROM x_thread
+      WHERE kind = 'income_visual'
+        AND status = 'draft'
+        AND confirmed_at IS NULL
+        AND posted_at IS NULL
+        AND created_at >= ${ET_TODAY}
+        AND jsonb_typeof(facts->'market_cap') = 'number'
+      ORDER BY (facts->>'market_cap')::float8 ASC
+      LIMIT 1`,
+  );
+  const row = rows[0];
+  return row ? { id: String(row.id), ticker: row.ticker, marketCap: Number(row.market_cap) } : null;
+}
+
+/**
+ * Retire an unconfirmed income-visual draft in favour of a bigger print.
+ *
+ * Rejected rather than deleted: the row keeps its dedupe key, so the
+ * displaced print is never drafted again — otherwise a market-cap refresh
+ * could flip the order and the two would trade places tick after tick. The
+ * gate is re-checked in the UPDATE: the posting tick may have auto-confirmed
+ * it since it was picked, and a confirmed draft stays.
+ */
+export async function displaceIncomeVisual(id: string, by: string): Promise<boolean> {
+  const { rowCount } = await pool.query(
+    `UPDATE x_thread
+        SET status = 'rejected',
+            facts = facts || jsonb_build_object('displaced_by', $2::text),
+            error = 'Displaced by $' || $2::text || ', a larger company',
+            updated_at = NOW()
+      WHERE id = $1 AND kind = 'income_visual' AND status = 'draft'
+        AND confirmed_at IS NULL AND posted_at IS NULL`,
+    [id, by],
+  );
+  return (rowCount ?? 0) > 0;
 }
 
 /** Confirmed drafts waiting for the next posting tick. */

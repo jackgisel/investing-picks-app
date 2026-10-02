@@ -1,12 +1,15 @@
 import {
+  autoConfirmDueIncomeVisuals,
   claimThreadForPosting,
   createThreadDraft,
   listThreadsReadyToPost,
   recordThreadResult,
+  rejectThread,
   releaseThreadClaim,
   type XThread,
   type XThreadKind,
 } from "@/lib/x-threads-db";
+import { incomeVisualConfig, incomeVisualMedia } from "@/lib/income-visual/x";
 import {
   fetchThreadFacts,
   generateThreadDraft,
@@ -161,7 +164,23 @@ async function postClaimed(thread: XThread, handle: string) {
     };
   }
 
-  const result = await postThread(credentials, thread.posts);
+  let firstPostMediaIds: string[] | undefined;
+  if (thread.kind === "income_visual") {
+    const media = await incomeVisualMedia(thread, credentials);
+    if (!media.ok) {
+      await releaseThreadClaim(thread.id);
+      if (media.reject) await rejectThread(thread.id);
+      return {
+        threadId: thread.id,
+        kind: thread.kind,
+        postedCount: 0,
+        error: media.error,
+      };
+    }
+    firstPostMediaIds = media.mediaIds;
+  }
+
+  const result = await postThread(credentials, thread.posts, { firstPostMediaIds });
   const postedIds = result.posted.map((p) => p.id);
 
   // Nothing left the building — pre-flight rejection, or the very first
@@ -212,6 +231,9 @@ export async function postConfirmedThreads(
       results: [],
     };
   }
+
+  const visuals = incomeVisualConfig();
+  if (visuals.autoPost) await autoConfirmDueIncomeVisuals(visuals.reviewHours);
 
   const ready = await listThreadsReadyToPost(limit);
   if (ready.length === 0) {

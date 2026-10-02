@@ -10,6 +10,7 @@ export const COMMUNICATION_TABS = [
   { id: "friday-portfolio-review", label: "Friday Portfolio Review" },
   { id: "sunday-market-preview", label: "Sunday Market Preview" },
   { id: "x-threads", label: "X Threads" },
+  { id: "income-visuals", label: "Income visuals" },
   { id: "campaign-drafts", label: "Campaign drafts" },
   { id: "product-updates", label: "Product Updates" },
   { id: "invites", label: "Invites" },

@@ -263,6 +263,38 @@ class Filing(Base):
     data: Mapped[dict] = mapped_column(JSON, default=dict)
 
 
+class IncomeStatement(Base):
+    """Latest reported income statements, for the income-statement visuals.
+
+    Separate from `filings` on purpose: that table is the backtest's
+    point-in-time store and is written by the backtest ingest. This one is the
+    live display copy — refreshed in place, carrying the product segment mix
+    that the visual's first column is drawn from.
+
+    `segments` is null when the vendor has no breakdown for the period (our
+    plan only carries annual product segmentation), never an empty guess.
+    """
+
+    __tablename__ = "income_statements"
+    __table_args__ = (UniqueConstraint("ticker", "period_type", "period"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ticker: Mapped[str] = mapped_column(String(16), index=True)
+    #: "quarter" | "annual"
+    period_type: Mapped[str] = mapped_column(String(8))
+    #: Fiscal period end date.
+    period: Mapped[date] = mapped_column(Date)
+    fiscal_year: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    #: "Q1".."Q4" or "FY".
+    fiscal_period: Mapped[str | None] = mapped_column(String(4), nullable=True)
+    accepted_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    data: Mapped[dict] = mapped_column(JSON, default=dict)
+    segments: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    fetched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), default=func.now()
+    )
+
+
 class MarketCapHistory(Base):
     """Daily market cap. The bar date is the availability date."""
 

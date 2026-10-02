@@ -32,7 +32,7 @@ import {
  * Nothing here publishes anything.
  */
 
-const MODEL = "claude-opus-5";
+const MODEL = "claude-opus-5-5";
 
 const STYLE_GUIDE = `You write the weekly portfolio review for ${SITE_NAME}, a subscription stock-research publication.
 

@@ -19,7 +19,7 @@ import type { InsightDraftFields } from "@/lib/insights";
  * nothing here publishes anything.
  */
 
-const MODEL = "claude-opus-5";
+const MODEL = "claude-opus-5-5";
 
 /**
  * The house style for exits. Identical on every note, so it carries the cache

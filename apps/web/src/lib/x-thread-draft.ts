@@ -35,7 +35,7 @@ import { periodLabel } from "@/lib/weekly-summary";
  * then does the posting job get a claim.
  */
 
-const MODEL = "claude-opus-5";
+const MODEL = "claude-opus-5-5";
 
 /**
  * Leave headroom under the real limit. The model is a poor character counter

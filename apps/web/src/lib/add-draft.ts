@@ -25,7 +25,7 @@ import { getInsightByTicker } from "@/lib/insights-db";
  * event, not a rewrite.
  */
 
-const MODEL = "claude-opus-5";
+const MODEL = "claude-opus-5-5";
 
 const STYLE_GUIDE = `You write conviction-add notes for ${SITE_NAME}, a subscription stock-research publication.
 

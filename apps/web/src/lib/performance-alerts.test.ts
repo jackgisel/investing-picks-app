@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   crossedThreshold,
-  currentDrawdownPct,
   DRAWDOWN_THRESHOLDS,
   MILESTONE_THRESHOLDS,
 } from "@/lib/performance-alerts";
@@ -42,57 +41,3 @@ describe("crossedThreshold", () => {
   });
 });
 
-describe("currentDrawdownPct", () => {
-  it("measures from the high-water mark, not from inception", () => {
-    // Up 50%, then back to 20%. That is a 20% fall from the peak, not a gain.
-    const dd = currentDrawdownPct([
-      { date: "a", return_pct: 0 },
-      { date: "b", return_pct: 50 },
-      { date: "c", return_pct: 20 },
-    ]);
-    // 1 - 1.20/1.50 = 20%
-    expect(dd).toBeCloseTo(20, 4);
-  });
-
-  it("is zero at a new high", () => {
-    expect(
-      currentDrawdownPct([
-        { date: "a", return_pct: 10 },
-        { date: "b", return_pct: 40 },
-      ]),
-    ).toBe(0);
-  });
-
-  it("never reports a negative drawdown", () => {
-    const dd = currentDrawdownPct([
-      { date: "a", return_pct: 0 },
-      { date: "b", return_pct: 5 },
-      { date: "c", return_pct: 80 },
-    ]);
-    expect(dd).toBe(0);
-  });
-
-  it("handles a book that is underwater overall", () => {
-    const dd = currentDrawdownPct([
-      { date: "a", return_pct: 0 },
-      { date: "b", return_pct: 10 },
-      { date: "c", return_pct: -12 },
-    ]);
-    // 1 - 0.88/1.10 = 20%
-    expect(dd).toBeCloseTo(20, 4);
-  });
-
-  it("is null without two points to compare", () => {
-    expect(currentDrawdownPct([])).toBeNull();
-    expect(currentDrawdownPct([{ date: "a", return_pct: 4 }])).toBeNull();
-  });
-
-  it("ignores points carrying no number", () => {
-    const dd = currentDrawdownPct([
-      { date: "a", return_pct: 50 },
-      { date: "b", return_pct: null },
-      { date: "c", return_pct: 20 },
-    ]);
-    expect(dd).toBeCloseTo(20, 4);
-  });
-});

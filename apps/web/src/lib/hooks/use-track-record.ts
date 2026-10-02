@@ -21,6 +21,11 @@ export interface ScorecardPick {
   spy_pct: number | null;
   /** return_pct - spy_pct, in points. Null when either side is unknown. */
   excess_pct: number | null;
+  /**
+   * False until the pick has been held over at least one session close. A name
+   * bought today is 0% on both sides, which says nothing about the pick.
+   */
+  measurable?: boolean;
 }
 
 export interface TrackRecordResponse {

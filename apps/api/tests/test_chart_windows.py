@@ -19,11 +19,10 @@ import pytest
 
 from app.db.models import Position, PriceBar, Trade
 from app.services.benchmarks import (
-    exit_schedule,
     picks_series,
     benchmark_series,
-    rebase_flows,
-    deployment_schedule,
+    trade_ledger,
+    window_events,
     shift_back,
     window_open,
     window_start,
@@ -145,12 +144,10 @@ def test_a_pick_bought_inside_the_window_keeps_its_real_flow(db, portfolio):
     )
     db.commit()
 
-    flows = rebase_flows(
-        db, deployment_schedule(db), exit_schedule(db), date(2026, 6, 1)
-    )
+    events = window_events(db, trade_ledger(db), date(2026, 6, 1))
     # Entered after the window opened, so it is NOT repriced — its own entry is
     # already inside the window.
-    assert [(f.ticker, f.when, f.amount) for f in flows] == [
+    assert [(e.ticker, e.when, e.amount) for e in events] == [
         ("NEW", date(2026, 7, 1), 1000.0)
     ]
 
@@ -178,8 +175,16 @@ class TestClosedPicks:
         return portfolio
 
     def test_exit_is_recorded(self, db, sold):
-        gone = exit_schedule(db)["OUT"]
-        assert (gone.when, gone.proceeds) == (date(2026, 7, 1), 1800.0)
+        sells = [e for e in trade_ledger(db) if e.kind == "sell"]
+        assert [(e.ticker, e.when, e.amount) for e in sells] == [
+            ("OUT", date(2026, 7, 1), 1800.0)
+        ]
+
+    def test_the_benchmark_sells_alongside_the_pick(self, db, sold):
+        # SPY is flat here, so after the exit the benchmark must freeze at its
+        # proceeds too rather than keep riding the index.
+        rows = benchmark_series(db, tickers={"SPY": "S&P 500"})["series"]["SPY"]
+        assert rows[-1]["return_pct"] == 0.0
 
     def test_a_pick_closed_inside_the_window_freezes_at_its_proceeds(self, db, sold):
         rows = {r["date"]: r["return_pct"] for r in picks_series(db, start=date(2026, 6, 1))}

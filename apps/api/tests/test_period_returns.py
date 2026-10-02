@@ -13,6 +13,7 @@ import pytest
 
 from app.db.models import PortfolioSnapshot, Position, PriceBar, Stock
 from app.services.period_returns import (
+    book_period_returns,
     period_returns_payload,
     resolve_anchors,
 )
@@ -103,6 +104,7 @@ def book(db, portfolio):
         (AUG_05, 106_090.0, 520.0),
     ]:
         _snap(db, d, total, spy)
+        _bar(db, "SPY", d, spy)
     db.commit()
     return portfolio
 
@@ -117,13 +119,16 @@ def test_book_and_spy_returns_use_the_right_anchor(db, book):
 
     day = _period(payload, "day")
     assert day["from_date"] == AUG_04.isoformat()
-    assert day["book_return_pct"] == 3.0  # 103,000 -> 106,090
+    # The whole book, idle cash included, is not a published number.
+    assert "book_return_pct" not in day
+    # Same money as the picks: $2,100 into SPY at 515, worth 520 -> +0.97%.
     assert day["spy_return_pct"] == 0.97
 
     week = _period(payload, "week")
     assert week["from_date"] == JUL_31.isoformat()
-    assert week["book_return_pct"] == 5.04  # 101,000 -> 106,090
-    assert week["spy_return_pct"] == 2.97
+    # $1,000 at 505 (OLD, held at the anchor) plus $1,000 at 515 (NEW, bought
+    # on the 4th), worth 520 -> +1.97%. Not the index's own 505 -> 520.
+    assert week["spy_return_pct"] == 1.97
 
 
 def test_position_held_throughout_is_measured_from_the_anchor(db, book):
@@ -154,7 +159,7 @@ def test_position_entered_mid_period_is_measured_from_entry_and_flagged(db, book
     assert new["periods"]["week"]["return_pct"] == 10.0
 
 
-def test_open_picks_sleeve_excludes_mid_period_entries(db, book):
+def test_open_picks_sleeve_is_money_weighted_like_the_chart(db, book):
     payload = period_returns_payload(db)
 
     # Today: both names were held at Tuesday's close.
@@ -164,13 +169,13 @@ def test_open_picks_sleeve_excludes_mid_period_entries(db, book):
     assert day["open_picks_positions"] == 2
     assert day["open_picks_excluded_new"] == 0
 
-    # This week: NEW did not exist on Friday. Folding it in at its entry price
-    # would put its $1,000 in the denominator for days it was not at risk, so
-    # the sleeve is OLD alone and says so.
+    # This week: OLD re-entered at Friday's $1,000, NEW bought Tuesday for
+    # $1,000 as its own lot. 1,210 + 1,100 on 2,000 = +15.5%, the same number
+    # the chart and the monthly table compute for the same window.
     week = _period(payload, "week")
-    assert week["open_picks_return_pct"] == 21.0
-    assert week["open_picks_positions"] == 1
-    assert week["open_picks_excluded_new"] == 1
+    assert week["open_picks_return_pct"] == 15.5
+    assert week["open_picks_positions"] == 2
+    assert week["open_picks_excluded_new"] == 0
 
 
 def test_empty_book_publishes_nulls_not_zeros(db, portfolio):
@@ -178,7 +183,7 @@ def test_empty_book_publishes_nulls_not_zeros(db, portfolio):
     assert payload["as_of"] is None
     assert payload["positions"] == []
     for period in payload["periods"]:
-        assert period["book_return_pct"] is None
+        assert period["spy_return_pct"] is None
         assert period["open_picks_return_pct"] is None
 
 
@@ -186,8 +191,8 @@ def test_zero_base_snapshot_yields_none_rather_than_a_vast_return(db, portfolio)
     _snap(db, AUG_04, 0.0, 500.0)
     _snap(db, AUG_05, 100_000.0, 505.0)
     db.commit()
-    day = _period(period_returns_payload(db), "day")
-    assert day["book_return_pct"] is None
+    _anchors, book = book_period_returns(db)
+    assert book["day"]["book_return_pct"] is None
 
 
 def test_missing_bar_carries_the_position_at_its_last_close(db, portfolio):
@@ -233,7 +238,7 @@ def test_endpoint_serves_the_payload(db, book):
 
     assert [p["id"] for p in payload["periods"]] == ["day", "week", "month"]
     assert {p["ticker"] for p in payload["positions"]} == {"OLD", "NEW"}
-    assert payload["periods"][0]["book_return_pct"] == 3.0
+    assert payload["periods"][0]["open_picks_return_pct"] == 10.0
 
 
 def test_sector_falls_back_to_the_stocks_table(db, portfolio):

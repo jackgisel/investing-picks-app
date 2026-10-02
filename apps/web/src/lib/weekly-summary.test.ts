@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   movesInWeek,
   periodLabel,
-  weekChangePct,
 } from "@/lib/weekly-summary";
 import { isoWeekKey } from "@/lib/email-dispatch";
 
@@ -10,56 +9,6 @@ import { isoWeekKey } from "@/lib/email-dispatch";
  * The digest's arithmetic and its dedupe key. The fan-out itself is the same
  * chunked loop the pick announcement uses and is covered there.
  */
-
-describe("weekChangePct", () => {
-  // The series carries SINCE-INCEPTION returns, so the week's move is the
-  // difference between two points on it — not the last point, which is the
-  // whole run. Getting this wrong publishes the lifetime return as "this week".
-  it("is the change between the points, not the latest point", () => {
-    const change = weekChangePct([
-      { date: "2026-08-01", return_pct: 20 },
-      { date: "2026-08-08", return_pct: 32 },
-    ]);
-    // 1.32 / 1.20 - 1 = 10%
-    expect(change).toBeCloseTo(10, 4);
-  });
-
-  it("compares against the last point at or before the cutoff", () => {
-    const change = weekChangePct([
-      { date: "2026-07-20", return_pct: 5 },
-      { date: "2026-08-01", return_pct: 20 },
-      { date: "2026-08-05", return_pct: 25 },
-      { date: "2026-08-08", return_pct: 32 },
-    ]);
-    // 2026-08-01 is the last point on or before 2026-08-01 (08-08 minus 7).
-    expect(change).toBeCloseTo(10, 4);
-  });
-
-  it("returns null when nothing is a week old", () => {
-    // A four-day-old book has no "this week" figure that means what the label
-    // says, and inventing one from the whole run is the bug this guards.
-    expect(
-      weekChangePct([
-        { date: "2026-08-06", return_pct: 1 },
-        { date: "2026-08-08", return_pct: 4 },
-      ]),
-    ).toBeNull();
-  });
-
-  it("handles a losing week", () => {
-    const change = weekChangePct([
-      { date: "2026-08-01", return_pct: 20 },
-      { date: "2026-08-08", return_pct: 8 },
-    ]);
-    // 1.08 / 1.20 - 1 = -10%
-    expect(change).toBeCloseTo(-10, 4);
-  });
-
-  it("is null on a series too short to compare", () => {
-    expect(weekChangePct([])).toBeNull();
-    expect(weekChangePct([{ date: "2026-08-08", return_pct: 4 }])).toBeNull();
-  });
-});
 
 describe("movesInWeek", () => {
   const weekEnd = new Date("2026-08-09T00:00:00Z");

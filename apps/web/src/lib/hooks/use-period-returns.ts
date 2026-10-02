@@ -29,13 +29,16 @@ export interface PeriodSummary {
   label: string;
   /** Last session before the period opened: Friday's close for a week. */
   from_date: string | null;
-  /** Whole-book equity, cash drag included. */
-  book_return_pct: number | null;
+  /** SPY bought with the same dollars on the same dates as the picks. */
   spy_return_pct: number | null;
-  /** What the currently-held names did, value weighted. */
+  /**
+   * The picks' return on capital deployed over the period: names held at the
+   * anchor re-entered at that close, buys inside it as their own lots. The
+   * same machinery as the chart and the monthly table.
+   */
   open_picks_return_pct: number | null;
   open_picks_positions: number;
-  /** Positions left out because they were bought inside the window. */
+  /** Always 0 now that buys inside the period count; kept for older clients. */
   open_picks_excluded_new: number;
 }
 

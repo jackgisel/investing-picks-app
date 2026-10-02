@@ -77,23 +77,23 @@ export function QuantRatingMeter({
 }
 
 /**
- * Week vs S&P comparison for the Friday review — percentages only.
+ * The picks' week vs the S&P on the same money, for the Friday review.
  */
 export function WeekVsSpyBars({
-  bookChangePct,
+  picksChangePct,
   spyChangePct,
 }: {
-  bookChangePct: number;
+  picksChangePct: number;
   spyChangePct: number;
 }) {
   const maxAbs = Math.max(
-    Math.abs(bookChangePct),
+    Math.abs(picksChangePct),
     Math.abs(spyChangePct),
     0.01,
   );
 
   const rows: { label: string; value: number }[] = [
-    { label: "Book", value: bookChangePct },
+    { label: "Picks", value: picksChangePct },
     { label: "S&P 500", value: spyChangePct },
   ];
 

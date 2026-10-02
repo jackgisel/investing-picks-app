@@ -14,11 +14,7 @@ import {
 } from "@/lib/content-draft";
 import { isoWeekKey } from "@/lib/email-dispatch";
 import type { InsightDraftFields } from "@/lib/insights";
-import {
-  movesInWeek,
-  periodLabel,
-  weekChangePct,
-} from "@/lib/weekly-summary";
+import { movesInWeek, periodLabel } from "@/lib/weekly-summary";
 
 /**
  * Drafting the Friday portfolio review from facts the public API already
@@ -37,13 +33,15 @@ const MODEL = "claude-opus-5-5";
 const STYLE_GUIDE = `You write the weekly portfolio review for ${SITE_NAME}, a subscription stock-research publication.
 
 ## What you are given
-A JSON payload of facts drawn from the system's own public API: the book's week and since-inception returns, a SPY comparison over the same week, the open holdings with percentage P&L, weight, sector and quantitative rating, the week's buys and sells, and the next evaluation date.
+A JSON payload of facts drawn from the system's own public API: the picks' return for the week and since inception, the S&P 500 over the same spans with the same money (SPY bought with the same dollars on the same dates as the picks), the open holdings with percentage P&L, share of the capital in picks, sector and quantitative rating, the week's buys and sells, and the next evaluation date.
+
+Every return is on the capital committed to picks. Uninvested cash is not part of the record and must never be described, so do not talk about "the book" as a dollar portfolio or about how much of it is invested.
 
 The payload has a "missing" array naming the facts that are NOT available. Treat those as genuinely unknown. Do not estimate them, do not reason around them, and do not imply the model considered something it did not.
 
 ## The note
 Five sections, in this order, each introduced by an H2:
-1. The week: how the book and the picks did, honestly, including versus the S&P 500 when that figure is present.
+1. The week: how the picks did, honestly, including versus the S&P 500 on the same money when that figure is present.
 2. What moved: buys, conviction adds, and sells this week, or a plain statement that there were none. The strategy evaluates on a fixed cadence and holds through the weeks in between; most weeks look like that, and saying so is not a failure. An \`Added to\` move is not a new name.
 3. Holdings: the open book. Call out names that moved, grades that matter, and anything that has gone wrong. Do not list every position as a table.
 4. What we are watching: the next evaluation, concentration, weak grades, anything that has to be true for the book to keep working.
@@ -86,17 +84,14 @@ const DraftSchema = z.object({
   readingTime: z.number().int().min(1).max(30),
 });
 
-type PerformancePoint = {
-  date?: string;
-  return_pct?: number | null;
+type PeriodSummary = {
+  id?: string;
+  from_date?: string | null;
+  open_picks_return_pct?: number | null;
   spy_return_pct?: number | null;
 };
 
-type PerformanceSummary = {
-  picks_return_pct?: number | null;
-  total_return_pct?: number | null;
-  position_count?: number | null;
-};
+type SeriesPoint = { date?: string; return_pct?: number | null };
 
 type Holding = {
   ticker?: string | null;
@@ -127,10 +122,14 @@ export type WeeklyReviewFacts = {
   period_label: string;
   missing: string[];
   week: {
-    book_change_pct: number | null;
-    spy_change_pct: number | null;
+    /** The picks' return on capital deployed, Friday close to now. */
+    picks_week_pct: number | null;
+    /** SPY with the same dollars on the same dates, same span. */
+    spy_week_pct: number | null;
+    week_from_date: string | null;
+    /** Since the first pick, on capital deployed. */
     picks_return_pct: number | null;
-    total_return_pct: number | null;
+    spy_return_pct: number | null;
     position_count: number | null;
   };
   holdings: {
@@ -172,11 +171,12 @@ export async function fetchWeeklyReviewFacts(
   now: Date = new Date(),
 ): Promise<WeeklyReviewFacts> {
   const missing: string[] = [];
-  const [perf, strategy, picksBody, tradesBody] = await Promise.all([
+  const [perf, periods, strategy, picksBody, tradesBody] = await Promise.all([
     getJson<{
-      summary?: PerformanceSummary;
-      series?: PerformancePoint[];
+      picks_series?: SeriesPoint[];
+      benchmarks?: { series?: Record<string, SeriesPoint[]> };
     }>("/performance"),
+    getJson<{ periods?: PeriodSummary[] }>("/period-returns"),
     getJson<{
       holdings?: Holding[];
       next_evaluation_date?: string | null;
@@ -186,27 +186,36 @@ export async function fetchWeeklyReviewFacts(
     getJson<{ trades?: ApiTrade[] }>("/trades?limit=100"),
   ]);
 
-  if (!perf?.summary) missing.push("performance_summary");
-  if (!perf?.series?.length) missing.push("equity_curve");
+  if (!perf?.picks_series?.length) missing.push("picks_series");
   if (!strategy?.holdings) missing.push("holdings");
   if (!picksBody?.picks) missing.push("ratings");
   if (!tradesBody?.trades) missing.push("trades");
 
-  const bookChange = weekChangePct(perf?.series ?? []);
-  const spyChange = weekChangePct(
-    (perf?.series ?? []).map((p) => ({
-      date: p.date,
-      return_pct: p.spy_return_pct,
-    })),
-  );
-  if (bookChange === null) missing.push("week_book_change");
-  if (spyChange === null) missing.push("week_spy_change");
+  // Week to date from the same machinery as the chart: each pick held at
+  // Friday's close re-entered there, each buy since then its own lot, and SPY
+  // given the same dollars on the same dates. The whole-book equity curve,
+  // idle cash included, published W37 as a beat that was really a lag.
+  const week = periods?.periods?.find((p) => p.id === "week");
+  const picksWeek = roundPct(week?.open_picks_return_pct);
+  const spyWeek = roundPct(week?.spy_return_pct);
+  if (picksWeek === null) missing.push("week_picks_change");
+  if (spyWeek === null) missing.push("week_spy_change");
+  const lastOf = (rows: SeriesPoint[] | undefined) =>
+    roundPct(rows?.[rows.length - 1]?.return_pct);
+  const picksSince = lastOf(perf?.picks_series);
+  const spySince = lastOf(perf?.benchmarks?.series?.SPY);
 
   const ratings = new Map<string, PickRow>();
   for (const p of picksBody?.picks ?? []) {
     if (p.ticker) ratings.set(p.ticker.toUpperCase(), p);
   }
 
+  // The API's weight is a share of the whole $100k book. Rebased onto the
+  // capital actually in picks, the same way the dashboard shows it.
+  const invested = (strategy?.holdings ?? []).reduce(
+    (n, h) => n + (typeof h.weight_pct === "number" ? h.weight_pct : 0),
+    0,
+  );
   const holdings = (strategy?.holdings ?? [])
     .filter((h): h is Holding & { ticker: string } => Boolean(h.ticker))
     .map((h) => {
@@ -215,7 +224,12 @@ export async function fetchWeeklyReviewFacts(
       return {
         ticker: h.ticker.toUpperCase(),
         pnl_pct: roundPct(h.pnl_pct),
-        weight_pct: roundPct(h.weight_pct),
+        // Share of the capital in picks, not of the $100k book: "2.7% of the
+        // book" read as a token position when it was one of the largest.
+        weight_pct:
+          typeof h.weight_pct === "number" && invested > 0
+            ? roundPct((h.weight_pct / invested) * 100)
+            : null,
         sector: h.sector ?? null,
         quant_rating: quantRating,
         quant_rating_display: formatQuantRating(quantRating),
@@ -229,14 +243,12 @@ export async function fetchWeeklyReviewFacts(
     period_label: periodLabel(now),
     missing,
     week: {
-      book_change_pct: roundPct(bookChange),
-      spy_change_pct: roundPct(spyChange),
-      picks_return_pct: roundPct(perf?.summary?.picks_return_pct),
-      total_return_pct: roundPct(perf?.summary?.total_return_pct),
-      position_count:
-        typeof perf?.summary?.position_count === "number"
-          ? perf.summary.position_count
-          : holdings.length || null,
+      picks_week_pct: picksWeek,
+      spy_week_pct: spyWeek,
+      week_from_date: week?.from_date ?? null,
+      picks_return_pct: picksSince,
+      spy_return_pct: spySince,
+      position_count: holdings.length || null,
     },
     holdings,
     moves: movesInWeek(tradesBody?.trades ?? [], now),

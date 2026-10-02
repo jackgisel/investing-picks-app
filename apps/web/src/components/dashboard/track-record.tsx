@@ -44,6 +44,11 @@ import {
   type Ratio,
 } from "@/lib/track-record";
 
+/** A month's name, flagged when the book was live for only part of it. */
+function monthLabel(m: MonthReturn): string {
+  return m.partial ? `${formatMonth(m.month)} (partial)` : formatMonth(m.month);
+}
+
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 function pts(v: number | null | undefined, digits = 1): string {
@@ -122,7 +127,7 @@ export function TrackRecordStats() {
         // outer ones under the panel's own border, which clips them.
         <dl className="-mb-px -mr-px grid grid-cols-2 sm:grid-cols-4">
           <Stat
-            label="BEAT THE S&P"
+            label="PICKS AHEAD OF S&P"
             value={ratioPct(picks.beatSpy)}
             valueClass={
               picks.beatSpy.pct === null
@@ -131,7 +136,7 @@ export function TrackRecordStats() {
                   ? "text-accent-green"
                   : "text-accent-red"
             }
-            detail={`${picks.beatSpy.n} of ${picks.beatSpy.of} picks, each over its own holding period`}
+            detail={`${picks.beatSpy.n} of ${picks.beatSpy.of} picks, each over its own holding period${picks.tooNew > 0 ? `. ${picks.tooNew} bought too recently to count` : ""}`}
           />
           <Stat
             label="MEDIAN PICK"
@@ -189,7 +194,7 @@ export function TrackRecordStats() {
             }
             detail={
               months.best
-                ? `${formatMonth(months.best.month)}${months.worst ? ` · ${formatMonth(months.worst.month)}` : ""}`
+                ? `${monthLabel(months.best)}${months.worst ? ` · ${monthLabel(months.worst)}` : ""}`
                 : undefined
             }
           />
@@ -283,8 +288,9 @@ export function RecentPeriods() {
             </tbody>
           </table>
           <p className="mt-auto border-t border-border px-4 py-3 font-sans text-[10px] leading-relaxed text-text-dim">
-            Picks held now, value weighted. A pick bought inside the period is
-            left out rather than counted from its entry.
+            Return on capital in the picks over the period, closed picks
+            included. A pick bought inside the period counts from its own buy,
+            and the S&amp;P gets the same dollars on the same dates.
           </p>
         </>
       )}

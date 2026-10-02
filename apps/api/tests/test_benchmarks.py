@@ -297,3 +297,89 @@ def test_a_double_buy_is_its_own_lot_at_its_own_price(db, portfolio):
     # SPY: 10 units at 100 + 9.09 at 110, worth 2100 at 110 -> +5%, not +10%.
     spy = benchmark_series(db, portfolio.id, {"SPY": "S&P 500"})["series"]["SPY"]
     assert spy[-1]["return_pct"] == pytest.approx(5.0, abs=0.01)
+
+
+def test_a_trim_sells_the_same_fraction_of_the_benchmark(db, portfolio):
+    """Half the pick sold: the benchmark sells half its shadow too, and both
+    sides hold the proceeds flat from then on."""
+    from app.db.models import Position
+
+    d1, d2, d3 = date(2026, 4, 10), date(2026, 6, 1), date(2026, 7, 1)
+    _buy(db, portfolio, "AAA", d1, 1000.0, 100.0, action="buy")
+    db.add(
+        Trade(
+            portfolio_id=portfolio.id, ticker="AAA", side="sell", shares=5.0,
+            price=200.0, notional=1000.0, action="partial_sell",
+            timestamp=datetime(2026, 6, 1, tzinfo=timezone.utc),
+        )
+    )
+    db.add(
+        Position(
+            portfolio_id=portfolio.id, ticker="AAA", shares=5.0, avg_cost=100.0,
+            current_price=200.0, initial_investment=1000.0, entry_date=d1,
+        )
+    )
+    for d, aaa, spy in ((d1, 100.0, 100.0), (d2, 200.0, 110.0), (d3, 200.0, 130.0)):
+        _bar(db, "AAA", d, aaa)
+        _bar(db, "SPY", d, spy)
+    db.commit()
+
+    # Picks: $1,000 back in cash + 5 x 200 = 2,000 on 1,000 -> +100%.
+    picks = {r["date"]: r["return_pct"] for r in picks_series(db, portfolio.id)}
+    assert picks[d3.isoformat()] == pytest.approx(100.0, abs=0.01)
+
+    # SPY: 10 units at 100. Half sold at 110 = 550 cash; the other 5 at 130 =
+    # 650. 1,200 on 1,000 -> +20%. Never selling would have printed +30%.
+    spy = benchmark_series(db, portfolio.id, {"SPY": "S&P 500"})["series"]["SPY"]
+    assert spy[-1]["return_pct"] == pytest.approx(20.0, abs=0.01)
+
+
+def test_the_growth_index_treats_new_money_as_a_flow(db, portfolio):
+    """A flat new buy beside a winner is not a drawdown."""
+    from app.services.benchmarks import picks_drawdown, picks_growth_index
+
+    d1, d2, d3 = date(2026, 4, 10), date(2026, 6, 1), date(2026, 7, 1)
+    _buy(db, portfolio, "AAA", d1, 1000.0, 100.0, action="buy")
+    _buy(db, portfolio, "BBB", d2, 10000.0, 50.0, action="buy")
+    for d, aaa in ((d1, 100.0), (d2, 150.0), (d3, 150.0)):
+        _bar(db, "AAA", d, aaa)
+        _bar(db, "SPY", d, 100.0)
+    for d in (d2, d3):
+        _bar(db, "BBB", d, 50.0)
+    db.commit()
+
+    rows = {r["date"]: r["index"] for r in picks_growth_index(db, portfolio.id)}
+    assert rows[d2.isoformat()] == pytest.approx(1.5)
+    assert rows[d3.isoformat()] == pytest.approx(1.5)
+    assert picks_drawdown(db, portfolio.id)["drawdown_pct"] == 0.0
+
+    # The money-weighted line falls from +50% to about +4.5% on the same day,
+    # which is why it cannot drive a drawdown alert.
+    picks = {r["date"]: r["return_pct"] for r in picks_series(db, portfolio.id)}
+    assert picks[d3.isoformat()] < 5.0
+
+
+def test_the_scorecard_index_leg_follows_every_lot(db, portfolio):
+    from app.services.track_record import pick_scorecard
+
+    d1, d2, d3 = date(2026, 4, 10), date(2026, 9, 4), date(2026, 10, 1)
+    _buy(db, portfolio, "SEZL", d1, 1000.0, 60.0)
+    _buy(db, portfolio, "SEZL", d2, 1000.0, 120.0, action="double_buy")
+    for d, spy in ((d1, 100.0), (d2, 120.0), (d3, 120.0)):
+        _bar(db, "SPY", d, spy)
+    db.commit()
+
+    rows = pick_scorecard(
+        db,
+        [
+            {"ticker": "SEZL", "status": "active", "entry_date": d1.isoformat(), "pnl_pct": 50.0},
+            {"ticker": "NEW", "status": "active", "entry_date": d3.isoformat(), "pnl_pct": 0.0},
+        ],
+    )
+    sezl, new = rows
+    # 10 SPY units in April + 8.33 in September, worth 2,200 on 2,000 -> +10%.
+    # The April-only leg would have said +20%.
+    assert sezl["spy_pct"] == pytest.approx(10.0, abs=0.01)
+    assert sezl["measurable"] is True
+    # Bought on the latest session: no holding period yet.
+    assert new["measurable"] is False

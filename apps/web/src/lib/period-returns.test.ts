@@ -34,7 +34,6 @@ function summary(over: Partial<PeriodSummary> = {}): PeriodSummary {
     id: "week",
     label: "Week to date",
     from_date: "2026-08-21",
-    book_return_pct: 1.2,
     spy_return_pct: 0.4,
     open_picks_return_pct: 2.1,
     open_picks_positions: 7,

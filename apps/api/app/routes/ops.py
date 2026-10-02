@@ -1795,13 +1795,26 @@ def add_facts(ticker: str, add_date: str, db: Session = Depends(get_db)):
     if entry_trade is None:
         missing.append("entry_trade")
 
+    # The position's own entry date: a hand-entered trade's timestamp is when
+    # its row was written, not when the position opened.
     entry_date = (
-        entry_trade.timestamp.date()
+        position.entry_date
+        if position is not None and position.entry_date
+        else entry_trade.timestamp.date()
         if entry_trade and entry_trade.timestamp
         else None
     )
     held_days = (wanted - entry_date).days if entry_date else None
-    return_pct = (
+    # The first lot's gain when we added: what the double-buy rule saw. The
+    # position's return on avg cost blends in the add itself, so publishing it
+    # as "since first entry" told readers SEZL was +48% when it had doubled.
+    first_lot_at_add_pct = (
+        round((add.price / entry_trade.price - 1) * 100, 2)
+        if entry_trade and entry_trade.price and add.price
+        else None
+    )
+    # Every lot together, marked now. A different statement, named as one.
+    position_return_pct = (
         round(
             (position.current_price - position.avg_cost) / position.avg_cost * 100,
             2,
@@ -1826,7 +1839,8 @@ def add_facts(ticker: str, add_date: str, db: Session = Depends(get_db)):
             "add_date": add.timestamp.date().isoformat(),
             "days_held_at_add": held_days,
             "still_open": position is not None,
-            "return_pct": return_pct,
+            "first_lot_return_at_add_pct": first_lot_at_add_pct,
+            "position_return_now_pct": position_return_pct,
         },
         "add_trade": {
             "action": add.action,

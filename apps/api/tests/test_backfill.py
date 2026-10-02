@@ -492,3 +492,23 @@ def test_malformed_and_non_positive_rows_are_dropped():
         {"date": "2026-04-06", "close": None, "adjClose": 105.0},
     ])
     assert series.dates == [date(2026, 4, 1), date(2026, 4, 6)]
+
+
+def test_a_double_buy_is_backfilled_as_two_lots(db, portfolio):
+    """The add is its own purchase. One lot on the entry date for the whole
+    position put SEZL's September $1,000 into April at April's price."""
+    from worker.services.backfill import build_lots
+
+    d1, d2 = date(2026, 4, 10), date(2026, 9, 4)
+    _trade(db, portfolio, "SEZL", "buy", 1000 / 60, 60.0, d1, action="manual_buy")
+    _trade(db, portfolio, "SEZL", "buy", 1000 / 120, 120.0, d2, action="double_buy")
+    make_position(
+        db, portfolio, "SEZL", 1000 / 60 + 1000 / 120, 80.0, 120.0,
+        entry_date=d1, initial_investment=2000.0,
+    )
+
+    lots = sorted(build_lots(db, portfolio, d1, []), key=lambda lot: lot.open_date)
+    assert [(lot.open_date, round(lot.cost, 2), round(lot.shares, 4)) for lot in lots] == [
+        (d1, 1000.0, round(1000 / 60, 4)),
+        (d2, 1000.0, round(1000 / 120, 4)),
+    ]

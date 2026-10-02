@@ -1,7 +1,6 @@
 import {
   autoConfirmDueIncomeVisuals,
   claimThreadForPosting,
-  createThreadDraft,
   listThreadsReadyToPost,
   recordThreadResult,
   rejectThread,
@@ -11,44 +10,20 @@ import {
 } from "@/lib/x-threads-db";
 import { incomeVisualConfig, incomeVisualMedia } from "@/lib/income-visual/x";
 import {
-  fetchThreadFacts,
-  generateThreadDraft,
-  threadDedupeKey,
-  type ThreadKind,
-} from "@/lib/x-thread-draft";
-import {
-  estimateCostUsd,
   postThread,
   threadUrl,
   xCredentialsFromEnv,
 } from "@/lib/x-client";
 
 /**
- * Orchestration for X threads: draft on a schedule, post only what an admin
- * confirmed.
+ * Posting the X queue. Income visuals are the only thing drafted into it now;
+ * the written thread formats are gone.
  *
- * The worker POSTs into these two functions. Neither ever throws for an
+ * The worker POSTs into these functions. Neither ever throws for an
  * expected condition — a missing API key, an unconfirmed draft, an empty queue
  * are all `skipped` results, because they are scheduled sweeps and a thrown
  * exception would turn "nothing to do" into a paged failure.
  */
-
-export type DraftThreadResult = {
-  kind: ThreadKind;
-  dedupeKey: string;
-  generated: boolean;
-  skipped?: "already_drafted";
-  /**
-   * The draft could not run because an input was missing, not because
-   * anything failed. Callers map this to 409, never 5xx — a 502 tells an
-   * operator the server is broken when the truth is "run the macro job".
-   */
-  blocked?: boolean;
-  threadId?: string;
-  posts?: string[];
-  estimatedCostUsd?: number;
-  error?: string;
-};
 
 export type PostThreadsResult = {
   attempted: number;
@@ -63,88 +38,6 @@ export type PostThreadsResult = {
     error?: string;
   }[];
 };
-
-/**
- * Draft a thread for this week, or leave the existing one alone.
- *
- * The draft is written to the database BEFORE anything is returned, so a
- * caller that times out still finds the work when it comes back. An existing
- * row is never overwritten — an admin may already have edited it by hand.
- */
-export async function draftThread(
-  kind: ThreadKind,
-  now: Date = new Date(),
-): Promise<DraftThreadResult> {
-  const dedupeKey = threadDedupeKey(kind, now);
-
-  try {
-    const facts = await fetchThreadFacts(kind, now);
-
-    // A week-ahead thread with no week-ahead facts is not a thin thread, it is
-    // a different thread wearing the wrong header. The first production draft
-    // ran with an empty `macro_readings` table and produced a backward-looking
-    // review of the book labelled WEEK AHEAD, because the book facts were the
-    // only thing in the payload it could write about. Refusing is the correct
-    // outcome: the macro pull runs 90 minutes earlier for exactly this reason,
-    // and if it did not land, the fix is to run it, not to publish around it.
-    if (kind === "sunday_review" && !facts.macro) {
-      return {
-        kind,
-        dedupeKey,
-        generated: false,
-        blocked: true,
-        error:
-          "No macro facts yet — `macro_readings` is empty, so this would " +
-          "become a book review instead of a week-ahead thread. Run the " +
-          "macro_refresh worker job, then draft again.",
-      };
-    }
-
-    // A leaderboard IS its list. With an empty watchlist the model has
-    // nothing to rank and will reach for the book instead — which turns a
-    // "names we don't own" post into a post about names we do own, the one
-    // thing this format must never become. Same reasoning as the Sunday
-    // guard above: refuse and name the job to run.
-    if (kind === "leaderboard" && !facts.spotlight?.candidates.length) {
-      return {
-        kind,
-        dedupeKey,
-        generated: false,
-        blocked: true,
-        error:
-          "No screener watchlist — there is nothing to rank, and the draft " +
-          "would fall back to naming positions we hold. Run the weekly " +
-          "refresh so `/ops/editorial-brief` returns candidates, then draft " +
-          "again.",
-      };
-    }
-
-    const draft = await generateThreadDraft(facts);
-    const { thread, created } = await createThreadDraft({
-      kind,
-      dedupeKey,
-      posts: draft.posts,
-      facts: { ...facts, summary: draft.summary },
-    });
-
-    return {
-      kind,
-      dedupeKey,
-      generated: created,
-      skipped: created ? undefined : "already_drafted",
-      threadId: thread.id,
-      posts: thread.posts,
-      estimatedCostUsd: estimateCostUsd(thread.posts),
-    };
-  } catch (e) {
-    return {
-      kind,
-      dedupeKey,
-      generated: false,
-      error: e instanceof Error ? e.message : "Thread draft failed",
-    };
-  }
-}
 
 /**
  * Post one already-claimed thread and record what landed.

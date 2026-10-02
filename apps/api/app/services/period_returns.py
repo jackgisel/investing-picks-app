@@ -277,72 +277,59 @@ def position_period_returns(
 
 
 def open_picks_period_returns(
-    db: Session, anchors: Anchors, rows: Sequence[dict], portfolio_id: int = 1
+    db: Session, anchors: Anchors, portfolio_id: int = 1
 ) -> dict[str, dict]:
-    """What the stocks we hold today did over each period, as one number.
+    """What the picks did over each period, against the S&P on the same money.
 
-    Value-weighted with TODAY's share counts held constant on both sides, which
-    is what makes it a return rather than a mixture of a return and the trading
-    we did inside the window.
-
-    Positions entered mid-period are excluded, not folded in at their entry
-    price: a name bought on Tuesday has no Friday-close value, and inventing one
-    would put the money in the denominator for days it was not at risk. The
-    count of what was left out is published so the number can be read for what
-    it is — the return of the continuously-held sleeve.
+    The same machinery as the chart and the monthly table: every pick held at
+    the anchor close is re-entered at what it was worth then, every buy inside
+    the period is its own lot on its own date, and SPY receives the same dollars
+    on the same dates. Holding today's share counts constant from the anchor
+    instead credited a conviction add with moves made before it was bought, and
+    left the Short Term and Monthly views printing two different "October so
+    far" figures.
     """
-    positions = {
-        p.ticker: p
-        for p in db.query(Position).filter(Position.portfolio_id == portfolio_id).all()
-    }
-    if not positions:
-        return {p: {"return_pct": None, "positions": 0, "excluded_new": 0} for p in PERIODS}
-
-    closes = _closes_by_ticker(
-        db,
-        list(positions),
-        min([a for a in (anchors.month, anchors.week, anchors.day) if a] or [anchors.latest])
-        if anchors.latest
-        else None,
-    )
-    stocks = _stocks_by_ticker(db, list(positions))
+    from app.services.benchmarks import benchmark_series, picks_series
 
     out: dict[str, dict] = {}
     for period in PERIODS:
-        anchor_date = anchors.anchor_for(period)
-        start_value = 0.0
-        end_value = 0.0
-        counted = 0
-        excluded = 0
-        for row in rows:
-            pos = positions.get(row["ticker"])
-            if pos is None:
-                continue
-            if row["periods"][period]["partial"]:
-                excluded += 1
-                continue
-            ticker_closes = closes.get(pos.ticker, {})
-            start = _mark_on_or_before(ticker_closes, anchor_date)
-            end = _live_mark(stocks.get(pos.ticker), ticker_closes, anchors.latest)
-            if start is None or end is None or start <= 0:
-                excluded += 1
-                continue
-            start_value += pos.shares * start
-            end_value += pos.shares * end
-            counted += 1
+        anchor = anchors.anchor_for(period)
+        picks_pct: float | None = None
+        spy_pct: float | None = None
+        names = 0
+        if anchor is not None:
+            rows = picks_series(db, portfolio_id, start=anchor)
+            spy = (
+                benchmark_series(db, portfolio_id, {"SPY": "S&P 500"}, start=anchor)
+                .get("series", {})
+                .get("SPY", [])
+            )
+            if rows and rows[-1]["date"] > anchor.isoformat():
+                picks_pct = rows[-1]["return_pct"]
+            if spy and spy[-1]["date"] > anchor.isoformat():
+                spy_pct = spy[-1]["return_pct"]
+            names = _names_in_window(db, anchor, portfolio_id)
         out[period] = {
-            "return_pct": _pct(start_value, end_value) if counted else None,
-            "positions": counted,
-            "excluded_new": excluded,
+            "return_pct": picks_pct,
+            "spy_return_pct": spy_pct,
+            "positions": names,
+            "excluded_new": 0,
         }
     return out
+
+
+def _names_in_window(db: Session, anchor: date, portfolio_id: int) -> int:
+    from app.services.benchmarks import trade_ledger, window_events
+
+    events = window_events(db, trade_ledger(db, portfolio_id), anchor)
+    return len({e.ticker for e in events if e.kind == "buy"})
 
 
 def period_returns_payload(db: Session, portfolio_id: int = 1) -> dict:
     """The whole surface: anchors, book, held sleeve, and every position."""
     anchors, book = book_period_returns(db, portfolio_id)
     rows = position_period_returns(db, anchors, portfolio_id)
-    sleeve = open_picks_period_returns(db, anchors, rows, portfolio_id)
+    sleeve = open_picks_period_returns(db, anchors, portfolio_id)
 
     return {
         "as_of": anchors.latest.isoformat() if anchors.latest else None,
@@ -351,8 +338,9 @@ def period_returns_payload(db: Session, portfolio_id: int = 1) -> dict:
                 "id": period,
                 "label": PERIOD_LABELS[period],
                 "from_date": book[period]["from_date"],
-                "book_return_pct": book[period]["book_return_pct"],
-                "spy_return_pct": book[period]["spy_return_pct"],
+                # Same-money SPY, not the index's own move: the picks number
+                # beside it is a return on capital deployed, so this is too.
+                "spy_return_pct": sleeve[period]["spy_return_pct"],
                 "open_picks_return_pct": sleeve[period]["return_pct"],
                 "open_picks_positions": sleeve[period]["positions"],
                 "open_picks_excluded_new": sleeve[period]["excluded_new"],

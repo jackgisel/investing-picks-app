@@ -4,11 +4,9 @@ import type { WeeklyMove } from "@/lib/email-templates";
  * Arithmetic shared by the Friday weekly review.
  *
  * The Sunday stats digest that used these numbers is gone. The helpers stay
- * because the written review still needs a week change, a period label, and
- * reader-facing moves — percentages only, same rule as every published surface.
+ * because the written review still needs a period label and reader-facing
+ * moves — percentages only, same rule as every published surface.
  */
-
-type PerformancePoint = { date?: string; return_pct?: number | null };
 
 type ApiTrade = {
   ticker?: string | null;
@@ -30,42 +28,6 @@ export function periodLabel(weekEnd: Date): string {
     return `${month.format(weekEnd)} ${start.getUTCDate()}–${weekEnd.getUTCDate()}, ${weekEnd.getUTCFullYear()}`;
   }
   return `${month.format(start)} ${start.getUTCDate()}–${month.format(weekEnd)} ${weekEnd.getUTCDate()}, ${weekEnd.getUTCFullYear()}`;
-}
-
-/**
- * Change over the trailing week, from the equity curve.
- *
- * The series carries since-inception returns, so the week's move is the
- * difference between two points on it — not the last point, which is the whole
- * run. Returns null when there is no point at least a week old to compare
- * against, because a "this week" figure computed from four days of a new book
- * is a different claim than the one the label makes.
- */
-export function weekChangePct(series: PerformancePoint[]): number | null {
-  const points = series.filter(
-    (p): p is { date: string; return_pct: number } =>
-      typeof p.date === "string" && typeof p.return_pct === "number",
-  );
-  if (points.length < 2) return null;
-
-  const latest = points[points.length - 1];
-  const cutoff = new Date(latest.date);
-  cutoff.setDate(cutoff.getDate() - 7);
-
-  // The last point at or before the cutoff — the book as it stood a week ago.
-  let prior: { date: string; return_pct: number } | null = null;
-  for (const p of points) {
-    if (new Date(p.date) <= cutoff) prior = p;
-    else break;
-  }
-  if (!prior) return null;
-
-  // Both numbers are since-inception percentages off the same base, so the
-  // difference of the two multiples is the week's return on that base.
-  const a = 1 + prior.return_pct / 100;
-  const b = 1 + latest.return_pct / 100;
-  if (a <= 0) return null;
-  return (b / a - 1) * 100;
 }
 
 /** Trades in the seven days ending `weekEnd`, newest first. */

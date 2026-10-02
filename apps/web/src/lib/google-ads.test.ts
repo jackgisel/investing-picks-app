@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   DEFAULT_GOOGLE_ADS_ID,
   DEFAULT_GOOGLE_ADS_SEND_TO,
+  DEFAULT_GOOGLE_ADS_SIGNUP_SEND_TO,
   GOOGLE_ADS_CONVERSION_WAIT_ATTEMPTS,
   GOOGLE_ADS_CONVERSION_WAIT_MS,
   GOOGLE_ADS_FALLBACK_VALUE,
@@ -16,8 +17,10 @@ import {
   googleAdsConversionSnippet,
   googleAdsConversionStorageKey,
   googleAdsMeasurementId,
+  googleAdsSignupSendTo,
   googleAdsTagSrc,
   parseCheckoutSessionId,
+  trackGoogleAdsSignup,
   transactionIdFromSession,
 } from "./google-ads";
 
@@ -279,5 +282,22 @@ describe("Google Ads tag loads after idle", () => {
     expect(welcome).not.toContain("GoogleAdsScript");
     expect(thankYou).not.toContain("gtag");
     expect(thankYou).not.toContain("googletagmanager");
+  });
+
+  it("sends the Market Note signup conversion", () => {
+    const calls: unknown[][] = [];
+    trackGoogleAdsSignup({ gtag: (...args: unknown[]) => calls.push(args) });
+    expect(calls).toEqual([
+      ["event", "conversion", { send_to: "AW-967967302/GnSqCMKAvo4dEMaEyM0D" }],
+    ]);
+    expect(DEFAULT_GOOGLE_ADS_SIGNUP_SEND_TO).toBe(
+      "AW-967967302/GnSqCMKAvo4dEMaEyM0D",
+    );
+  });
+
+  it("skips the signup conversion without gtag or when turned off", () => {
+    expect(() => trackGoogleAdsSignup({})).not.toThrow();
+    expect(googleAdsSignupSendTo("off")).toBeNull();
+    expect(googleAdsSignupSendTo("AW-1")).toBeNull();
   });
 });

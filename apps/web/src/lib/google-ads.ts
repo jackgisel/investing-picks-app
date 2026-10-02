@@ -1,5 +1,8 @@
 export const DEFAULT_GOOGLE_ADS_ID = "AW-967967302";
 export const DEFAULT_GOOGLE_ADS_SEND_TO = "AW-967967302/0AqvCL3y2vYcEMaEyM0D";
+/** "Market Note Signup" conversion action (Sign-up category). */
+export const DEFAULT_GOOGLE_ADS_SIGNUP_SEND_TO =
+  "AW-967967302/GnSqCMKAvo4dEMaEyM0D";
 export const GOOGLE_ADS_FALLBACK_VALUE = 250;
 export const GOOGLE_ADS_CURRENCY = "USD";
 export const GOOGLE_ADS_CONVERSION_STORAGE_PREFIX =
@@ -55,6 +58,29 @@ export function googleAdsConversionSendTo(
   const value = readPublicSetting(raw, DEFAULT_GOOGLE_ADS_SEND_TO);
   if (!value || !SEND_TO_PATTERN.test(value)) return null;
   return value;
+}
+
+export function googleAdsSignupSendTo(
+  raw = process.env.NEXT_PUBLIC_GOOGLE_ADS_SIGNUP_SEND_TO,
+): string | null {
+  if (!googleAdsMeasurementId()) return null;
+  const value = readPublicSetting(raw, DEFAULT_GOOGLE_ADS_SIGNUP_SEND_TO);
+  if (!value || !SEND_TO_PATTERN.test(value)) return null;
+  return value;
+}
+
+/**
+ * Reports a new Market Note subscriber. The head stub defines window.gtag
+ * before gtag.js arrives, so the call queues even on a slow download.
+ */
+export function trackGoogleAdsSignup(
+  win: Pick<Window, "gtag"> | undefined = typeof window === "undefined"
+    ? undefined
+    : window,
+): void {
+  const sendTo = googleAdsSignupSendTo();
+  if (!sendTo || typeof win?.gtag !== "function") return;
+  win.gtag("event", "conversion", { send_to: sendTo });
 }
 
 export function parseCheckoutSessionId(

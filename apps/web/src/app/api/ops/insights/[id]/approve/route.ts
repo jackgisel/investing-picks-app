@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { ensureMigrations } from "@/lib/auth";
-import { announceAdd, announceExit, announcePick } from "@/lib/pick-announce";
+import {
+  announceAdd,
+  announceExit,
+  announcePick,
+  announcePickCycle,
+} from "@/lib/pick-announce";
 import { claimForPublish, getInsightById } from "@/lib/insights-db";
 import { addDateFromSlug, shouldAnnounceAdd } from "@/lib/insights";
+import { claimCycleSiblings, openCycleSiblings } from "@/lib/pick-cycle";
 
 export const dynamic = "force-dynamic";
 
@@ -76,8 +82,18 @@ export async function POST(
     );
   }
 
+  // A multi-pick cycle sends one mail. Approving one of its notes publishes
+  // the other drafted notes in the cycle with it; the ops page says so on the
+  // card and in the confirm prompt before anyone presses this.
+  const partners =
+    claimed.postType === "pick" && claimed.ticker
+      ? await claimCycleSiblings(await openCycleSiblings(claimed.ticker))
+      : [];
+
   const result =
-    claimed.postType === "exit"
+    partners.length
+      ? await announcePickCycle([claimed, ...partners])
+      : claimed.postType === "exit"
       ? await announceExit({
           ticker: claimed.ticker!,
           title: claimed.title!,
@@ -105,6 +121,7 @@ export async function POST(
     ok: result.failed === 0,
     published: true,
     slug: claimed.slug,
+    alsoPublished: partners.map((p) => p.ticker),
     ...result,
   });
 }

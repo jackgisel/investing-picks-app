@@ -1,6 +1,17 @@
-import { announceAdd, announceExit, announcePick } from "@/lib/pick-announce";
+import {
+  announceAdd,
+  announceExit,
+  announcePick,
+  announcePickCycle,
+} from "@/lib/pick-announce";
 import { claimForPublish, listDraftsDueForPublish } from "@/lib/insights-db";
 import { addDateFromSlug, shouldAnnounceAdd } from "@/lib/insights";
+import {
+  claimCycleSiblings,
+  fetchRecentTrades,
+  openCycleSiblings,
+  siblingStillComing,
+} from "@/lib/pick-cycle";
 import { autoPublishEnabled } from "@/lib/review-window";
 
 /**
@@ -30,6 +41,13 @@ import { autoPublishEnabled } from "@/lib/review-window";
  * the others, and a note that was claimed but whose send partly failed is
  * reported, not rolled back — there is no un-send.
  */
+
+/**
+ * Longest a due pick waits on a cycle sibling before going out alone. Long
+ * enough to cover a second note drafted a day later, short enough that a
+ * sibling stuck generating cannot sit on a pick for the whole cycle.
+ */
+export const MAX_CYCLE_HOLD_MS = 24 * 60 * 60 * 1000;
 
 export type AutoPublishResult = {
   published: { ticker: string; slug: string; sent: number; failed: number }[];
@@ -62,12 +80,65 @@ export async function autoPublishDueDrafts(): Promise<AutoPublishResult> {
   }
 
   const due = await listDraftsDueForPublish();
+  const dueIds = new Set(due.map((d) => d.id));
+  // Notes already claimed as part of an earlier note's cycle mail this sweep.
+  const handled = new Set<string>();
+  const trades = due.some((d) => d.postType === "pick")
+    ? await fetchRecentTrades()
+    : [];
 
   // Sequential. Each note fans out to the whole list through a rate-limited
   // mailer, and running two at once buys nothing but a 429.
   for (const meta of due) {
+    if (handled.has(meta.id)) continue;
     const ticker = meta.ticker ?? "—";
     try {
+      if (meta.postType === "pick" && meta.ticker) {
+        // A multi-pick cycle sends one mail. Hold this note while a sibling is
+        // still in review; once every sibling is due, the first one through
+        // here claims the rest and mails them together.
+        const siblings = await openCycleSiblings(meta.ticker, trades);
+        const overdueBy = meta.autoPublishAt
+          ? Date.now() - new Date(meta.autoPublishAt).getTime()
+          : 0;
+        const waitingOn = siblings.filter(
+          (s) => !dueIds.has(s.id) && siblingStillComing(s),
+        );
+        if (waitingOn.length && overdueBy < MAX_CYCLE_HOLD_MS) {
+          result.skipped.push({
+            ticker,
+            reason: `held to send with ${waitingOn.map((s) => s.ticker).join(", ")}`,
+          });
+          continue;
+        }
+        const claimed = await claimForPublish(meta.id);
+        if (!claimed) {
+          result.skipped.push({ ticker, reason: "no longer an unsent draft" });
+          continue;
+        }
+        const partners = await claimCycleSiblings(
+          siblings.filter((s) => dueIds.has(s.id)),
+        );
+        for (const p of partners) handled.add(p.id);
+        const sent = partners.length
+          ? await announcePickCycle([claimed, ...partners])
+          : await announcePick({
+              ticker: claimed.ticker!,
+              title: claimed.title!,
+              description: claimed.description!,
+              insightSlug: claimed.slug,
+            });
+        for (const n of [claimed, ...partners]) {
+          result.published.push({
+            ticker: n.ticker ?? "—",
+            slug: n.slug,
+            sent: sent.sent,
+            failed: sent.failed,
+          });
+        }
+        continue;
+      }
+
       const claimed = await claimForPublish(meta.id);
       if (!claimed) {
         result.skipped.push({

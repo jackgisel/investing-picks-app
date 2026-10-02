@@ -1,9 +1,14 @@
-import { PUBLIC_API_BASE } from "@/lib/api-config";
 import { formatQuantRating } from "@/lib/content-draft";
-import { sendAddNoteEmail, sendExitNoteEmail, sendNewPickEmail } from "@/lib/email";
+import {
+  sendAddNoteEmail,
+  sendExitNoteEmail,
+  sendNewPickEmail,
+  sendNewPicksEmail,
+} from "@/lib/email";
 import type { PickStat } from "@/lib/email-templates";
 import { fetchQuantRatingForTicker } from "@/lib/insight-viz-data";
-import { cyclePicks } from "@/lib/insights";
+import type { Insight } from "@/lib/insights";
+import { fetchCyclePicks } from "@/lib/pick-cycle";
 import { getOptedInRecipients } from "@/lib/preferences";
 import { formatStreetPrice } from "@/lib/street-range";
 import { fetchStreetRangeForTicker } from "@/lib/street-range-server";
@@ -21,24 +26,6 @@ import { fetchStreetRangeForTicker } from "@/lib/street-range-server";
  * gets two emails.
  */
 
-/**
- * Names bought alongside `ticker` this cycle, for the announcement copy.
- * Best effort: the email is still correct without the line, so an upstream
- * failure costs the context, never the send.
- */
-async function fetchCyclePicks(ticker: string): Promise<string[]> {
-  try {
-    const res = await fetch(`${PUBLIC_API_BASE}/trades?limit=50`, { cache: "no-store" });
-    if (!res.ok) return [];
-    const body = (await res.json()) as {
-      trades?: { ticker?: string | null; action?: string | null; date?: string | null }[];
-    };
-    return cyclePicks(body.trades ?? [], ticker);
-  } catch {
-    return [];
-  }
-}
-
 export type AnnounceResult = {
   sent: number;
   failed: number;
@@ -46,21 +33,11 @@ export type AnnounceResult = {
   errors: { email: string; error: string }[];
 };
 
-export async function announcePick(args: {
-  ticker: string;
-  title: string;
-  description: string;
-  insightSlug: string;
-}): Promise<AnnounceResult> {
-  const recipients = await getOptedInRecipients("newPicks");
-  if (recipients.length === 0) {
-    return { sent: 0, failed: 0, total: 0, errors: [] };
-  }
-
-  const [street, quant, alsoPicked] = await Promise.all([
-    fetchStreetRangeForTicker(args.ticker),
-    fetchQuantRatingForTicker(args.ticker),
-    fetchCyclePicks(args.ticker),
+/** The figures under a ticker in a pick mail. */
+async function pickStats(ticker: string): Promise<PickStat[]> {
+  const [street, quant] = await Promise.all([
+    fetchStreetRangeForTicker(ticker),
+    fetchQuantRatingForTicker(ticker),
   ]);
   const stats: PickStat[] = [];
   const ratingLabel = quant ? formatQuantRating(quant.rating) : null;
@@ -78,6 +55,24 @@ export async function announcePick(args: {
     });
     stats.push({ label: "Street high", value: formatStreetPrice(street.high) });
   }
+  return stats;
+}
+
+export async function announcePick(args: {
+  ticker: string;
+  title: string;
+  description: string;
+  insightSlug: string;
+}): Promise<AnnounceResult> {
+  const recipients = await getOptedInRecipients("newPicks");
+  if (recipients.length === 0) {
+    return { sent: 0, failed: 0, total: 0, errors: [] };
+  }
+
+  const [stats, alsoPicked] = await Promise.all([
+    pickStats(args.ticker),
+    fetchCyclePicks(args.ticker),
+  ]);
 
   // Resend's free tier is ~2 req/sec; chunks of 5 with awaits is conservative.
   const CHUNK = 5;
@@ -114,6 +109,55 @@ export async function announcePick(args: {
 }
 
 /**
+ * One mail for every pick note published together in a multi-pick cycle.
+ *
+ * The caller has already claimed every note in `notes` (see
+ * `lib/pick-cycle.ts`). A single note goes through `announcePick` instead.
+ */
+export async function announcePickCycle(notes: Insight[]): Promise<AnnounceResult> {
+  const recipients = await getOptedInRecipients("newPicks");
+  if (recipients.length === 0) {
+    return { sent: 0, failed: 0, total: 0, errors: [] };
+  }
+
+  const allStats = await Promise.all(notes.map((n) => pickStats(n.ticker!)));
+  const picks = notes.map((n, i) => ({
+    ticker: n.ticker!,
+    stats: allStats[i].length ? allStats[i] : undefined,
+    articleTitle: n.title!,
+    articleDescription: n.description!,
+    insightSlug: n.slug,
+  }));
+
+  const CHUNK = 5;
+  let sent = 0;
+  let failed = 0;
+  const errors: { email: string; error: string }[] = [];
+
+  for (let i = 0; i < recipients.length; i += CHUNK) {
+    const results = await Promise.all(
+      recipients.slice(i, i + CHUNK).map((r) =>
+        sendNewPicksEmail({
+          to: r.email,
+          userId: r.id,
+          recipientName: r.name,
+          picks,
+        }).then((res) => ({ email: r.email, ...res })),
+      ),
+    );
+    for (const r of results) {
+      if (r.ok) sent += 1;
+      else {
+        failed += 1;
+        errors.push({ email: r.email, error: r.error ?? "unknown" });
+      }
+    }
+  }
+
+  return { sent, failed, total: recipients.length, errors };
+}
+
+/**
  * Mail every opted-in member that we added to a name we already hold.
  *
  * Same list as `announcePick`. A conviction add is still a buy the subscriber
@@ -131,26 +175,7 @@ export async function announceAdd(args: {
     return { sent: 0, failed: 0, total: 0, errors: [] };
   }
 
-  const [street, quant] = await Promise.all([
-    fetchStreetRangeForTicker(args.ticker),
-    fetchQuantRatingForTicker(args.ticker),
-  ]);
-  const stats: PickStat[] = [];
-  const ratingLabel = quant ? formatQuantRating(quant.rating) : null;
-  if (ratingLabel) {
-    stats.push({ label: "Quant rating", value: ratingLabel });
-  }
-  if (street) {
-    if (street.mark !== null) {
-      stats.push({ label: "Mark", value: formatStreetPrice(street.mark) });
-    }
-    stats.push({ label: "Street low", value: formatStreetPrice(street.low) });
-    stats.push({
-      label: "Street mean",
-      value: formatStreetPrice(street.mean),
-    });
-    stats.push({ label: "Street high", value: formatStreetPrice(street.high) });
-  }
+  const stats = await pickStats(args.ticker);
 
   const CHUNK = 5;
   let sent = 0;

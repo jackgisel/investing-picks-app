@@ -6,7 +6,9 @@ import { weekKeyFromInsightSlug } from "@/lib/art-pool";
 import {
   countWord,
   cyclePicksSentence,
+  joinTickers,
   renderNewPickEmail,
+  renderNewPicksEmail,
   renderAddNoteEmail,
   renderExitNoteEmail,
   renderDeleteAccountEmail,
@@ -149,6 +151,54 @@ export async function sendNewPickEmail(args: {
     subject: args.alsoPicked?.length
       ? `New pick: ${args.ticker}, one of ${countWord(args.alsoPicked.length + 1)} this cycle`
       : `New pick: ${args.ticker} · ${args.articleTitle}`,
+    html,
+    text,
+    headers: {
+      "List-Unsubscribe": `<${oneClick}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    },
+  });
+}
+
+/**
+ * One mail for a cycle that bought more than one name. Same list, same
+ * unsubscribe pair as `sendNewPickEmail`; see `renderNewPicksEmail`.
+ */
+export async function sendNewPicksEmail(args: {
+  to: string;
+  userId: string;
+  recipientName: string | null;
+  picks: {
+    ticker: string;
+    companyName?: string | null;
+    stats?: PickStat[];
+    articleTitle: string;
+    articleDescription: string;
+    insightSlug: string;
+  }[];
+  banner?: string;
+}): Promise<SendResult> {
+  const picks = args.picks.map((p) => ({
+    ...p,
+    articleUrl: `${SITE_URL}/dashboard/insights/${p.insightSlug}`,
+  }));
+  const tickers = picks.map((p) => p.ticker);
+  const html = renderNewPicksEmail({
+    recipientName: args.recipientName,
+    picks,
+    siteUrl: SITE_URL,
+    banner: args.banner,
+    weekKey: isoWeekKey(),
+  });
+  const sections = picks
+    .map((p) => `${p.ticker}: ${p.articleTitle}\n\n${p.articleDescription}\n\nRead the research: ${p.articleUrl}`)
+    .join("\n\n");
+  const text = `New ${SITE_NAME} picks: ${joinTickers(tickers)}\n\nWe bought ${countWord(tickers.length)} names this cycle instead of the usual one. Each has its own research note.\n\n${sections}\n\nYou're receiving this because you opted in to new pick alerts. Manage your preferences: ${SITE_URL}/dashboard/settings`;
+  const oneClick = pickAlertOneClickUrl(pickAlertToken(args.userId));
+
+  return send({
+    to: args.to,
+    subject: `New picks: ${joinTickers(tickers)}`,
     html,
     text,
     headers: {

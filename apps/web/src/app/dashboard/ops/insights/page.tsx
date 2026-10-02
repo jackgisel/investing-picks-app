@@ -67,7 +67,10 @@ export default function OpsInsightsPage() {
     queryFn: async () => {
       const res = await fetch("/api/ops/insights", { cache: "no-store" });
       if (!res.ok) throw new Error(await errorMessage(res));
-      return res.json() as Promise<{ insights: InsightMeta[] }>;
+      return res.json() as Promise<{
+        insights: InsightMeta[];
+        cycleWith?: Record<string, string[]>;
+      }>;
     },
     staleTime: 0,
     gcTime: 0,
@@ -83,6 +86,7 @@ export default function OpsInsightsPage() {
   });
 
   const insights = list.data?.insights ?? [];
+  const cycleWith = list.data?.cycleWith ?? {};
   const queue = insights.filter((i) => i.status !== "approved");
   const published = insights.filter((i) => i.status === "approved");
 
@@ -147,6 +151,7 @@ export default function OpsInsightsPage() {
               <Editor
                 key={meta.id}
                 id={meta.id}
+                sendsWith={cycleWith[meta.id] ?? []}
                 onClose={() => setEditingId(null)}
                 onSent={setSent}
               />
@@ -154,6 +159,7 @@ export default function OpsInsightsPage() {
               <Row
                 key={meta.id}
                 meta={meta}
+                sendsWith={cycleWith[meta.id] ?? []}
                 onEdit={() => setEditingId(meta.id)}
               />
             ),
@@ -224,7 +230,15 @@ export default function OpsInsightsPage() {
   );
 }
 
-function Row({ meta, onEdit }: { meta: InsightMeta; onEdit: () => void }) {
+function Row({
+  meta,
+  sendsWith,
+  onEdit,
+}: {
+  meta: InsightMeta;
+  sendsWith: string[];
+  onEdit: () => void;
+}) {
   const due = meta.status === "draft" ? countdown(meta.autoPublishAt) : null;
   return (
     <div className="data-card flex items-start justify-between gap-4">
@@ -249,6 +263,11 @@ function Row({ meta, onEdit }: { meta: InsightMeta; onEdit: () => void }) {
               {due}
             </span>
           )}
+          {sendsWith.length > 0 && (
+            <span className="font-mono text-xs text-text-muted">
+              one email with {sendsWith.join(", ")}
+            </span>
+          )}
         </div>
         <p className="mt-1 text-sm text-text-muted">
           {meta.title ?? "No draft yet"}
@@ -267,10 +286,12 @@ function Row({ meta, onEdit }: { meta: InsightMeta; onEdit: () => void }) {
 
 function Editor({
   id,
+  sendsWith,
   onClose,
   onSent,
 }: {
   id: string;
+  sendsWith: string[];
   onClose: () => void;
   onSent: (r: AnnounceResult) => void;
 }) {
@@ -573,7 +594,9 @@ function Editor({
           onClick={() => {
             if (
               window.confirm(
-                `Publish this note and email every opted-in subscriber about ${form.ticker}?\n\nThis cannot be undone — there is no un-send.`,
+                sendsWith.length
+                  ? `${form.ticker} shares this cycle with ${sendsWith.join(", ")}. Approving publishes the drafted notes for all of them and sends one email covering ${[form.ticker, ...sendsWith].join(" and ")}.\n\nThis cannot be undone — there is no un-send.`
+                  : `Publish this note and email every opted-in subscriber about ${form.ticker}?\n\nThis cannot be undone — there is no un-send.`,
               )
             ) {
               approve.mutate();

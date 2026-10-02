@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { cyclePicksSentence, renderNewPickEmail } from "@/lib/email-templates";
+import {
+  cyclePicksSentence,
+  joinTickers,
+  renderNewPickEmail,
+  renderNewPicksEmail,
+} from "@/lib/email-templates";
 import { cyclePicks } from "@/lib/insights";
 
 const SITE = "https://outpick.xyz";
@@ -47,5 +52,40 @@ describe("cycle line in the pick email", () => {
     expect(cyclePicksSentence("TPR", [])).toBeNull();
     expect(render()).not.toContain("this cycle");
     expect(render([])).toEqual(render());
+  });
+});
+
+describe("combined cycle email", () => {
+  const html = renderNewPicksEmail({
+    recipientName: "Ada Lovelace",
+    siteUrl: SITE,
+    picks: [
+      {
+        ticker: "TPR",
+        articleTitle: "Tapestry note",
+        articleDescription: "Margins.",
+        articleUrl: `${SITE}/dashboard/insights/tpr`,
+      },
+      {
+        ticker: "MU",
+        articleTitle: "Micron note",
+        articleDescription: "Memory.",
+        articleUrl: `${SITE}/dashboard/insights/mu`,
+      },
+    ],
+  });
+
+  it("carries both notes and both links in one mail", () => {
+    expect(html).toContain("We bought two names this cycle");
+    expect(html).toContain("Tapestry note");
+    expect(html).toContain("Micron note");
+    expect(html).toContain(`${SITE}/dashboard/insights/tpr`);
+    expect(html).toContain(`${SITE}/dashboard/insights/mu`);
+    expect(html).toContain("Read the MU research");
+  });
+
+  it("joins tickers the way the copy reads", () => {
+    expect(joinTickers(["TPR", "MU"])).toBe("TPR and MU");
+    expect(joinTickers(["A", "B", "C"])).toBe("A, B and C");
   });
 });

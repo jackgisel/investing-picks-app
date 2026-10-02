@@ -381,6 +381,29 @@ export type PickStat = {
   direction?: "up" | "down";
 };
 
+const COUNT_WORDS = ["zero", "one", "two", "three", "four", "five"];
+
+export function countWord(n: number): string {
+  return COUNT_WORDS[n] ?? String(n);
+}
+
+/**
+ * The line a pick email carries when the cycle bought more than one name.
+ * Null in a normal week, so single-pick mail is unchanged.
+ */
+export function cyclePicksSentence(
+  ticker: string,
+  alsoPicked: string[] | undefined,
+): string | null {
+  if (!alsoPicked?.length) return null;
+  const names = [ticker, ...alsoPicked];
+  const list =
+    names.length === 2
+      ? `${names[0]} and ${names[1]}`
+      : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  return `We bought ${countWord(names.length)} names this cycle instead of the usual one: ${list}. Each has its own research note.`;
+}
+
 /**
  * The pick announcement. The ticker is the headline.
  *
@@ -403,6 +426,8 @@ export function renderNewPickEmail(args: {
   banner?: string;
   /** ISO week key (`2026-W35`) — prefers the pre-generated weekly pool art. */
   weekKey?: string;
+  /** Other new names bought this same cycle; empty in a normal week. */
+  alsoPicked?: string[];
 }): string {
   const greeting = args.recipientName
     ? `Hi ${escapeHtml(args.recipientName.split(" ")[0])},`
@@ -431,6 +456,11 @@ export function renderNewPickEmail(args: {
     ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0 0 0;"><tr>${statCells}</tr></table>`
     : "";
 
+  const cycleSentence = cyclePicksSentence(args.ticker, args.alsoPicked);
+  const cycleBlock = cycleSentence
+    ? `<p class="dm-muted" style="margin:20px 0 0 0;font-family:${FONT_SANS};font-size:15px;line-height:1.5;color:${TEXT_MUTED};">${escapeHtml(cycleSentence)}</p>`
+    : "";
+
   const body = `
     ${eyebrow("New pick", "coral")}
 
@@ -439,6 +469,7 @@ export function renderNewPickEmail(args: {
     </p>
     ${company}
     ${statBlock}
+    ${cycleBlock}
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:26px 0 24px 0;">
       <tr><td class="dm-rule" style="border-top:1px solid ${BORDER};font-size:0;line-height:0;">&nbsp;</td></tr>

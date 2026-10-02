@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from datetime import date, datetime, timedelta, timezone
 
 import httpx
@@ -806,6 +807,39 @@ def job_biweekly_evaluate():
             fmp.close()
 
     return _track("biweekly_evaluate", _run)
+
+
+def job_extra_buy():
+    """One-off second pick on today's already-executed evaluation.
+
+    Not scheduled. Dry run unless EXTRA_BUY_COMMIT is set:
+
+        RUN_JOB_ONCE=extra_buy EXTRA_BUY_TICKER=TPR python -m worker.main
+        RUN_JOB_ONCE=extra_buy EXTRA_BUY_TICKER=TPR EXTRA_BUY_COMMIT=1 python -m worker.main
+
+    Refreshes marks first so the fill is today's price, like the evaluation
+    it joins. See app.services.extra_buy for what it will and will not do.
+    """
+
+    def _run(db: Session):
+        from app.services.extra_buy import run_extra_buy
+
+        ticker = os.environ.get("EXTRA_BUY_TICKER", "").strip()
+        if not ticker:
+            raise ValueError("EXTRA_BUY_TICKER is required")
+        commit = bool(os.environ.get("EXTRA_BUY_COMMIT"))
+        fmp = _fmp()
+        try:
+            refresh_marks(db, fmp)
+        finally:
+            fmp.close()
+        result = run_extra_buy(db, ticker, commit=commit).to_dict()
+        log.info("extra_buy %s: %s", "COMMITTED" if commit else "dry run", result)
+        if commit and not result["already_done"]:
+            result["drafts"] = sync_insight_drafts()
+        return result
+
+    return _track("extra_buy", _run)
 
 
 def dca_target_friday(today: date) -> date | None:

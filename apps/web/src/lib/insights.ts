@@ -257,6 +257,32 @@ export function doubleBuyAdds(
 }
 
 /**
+ * Other new names bought in the same cycle as `ticker`.
+ *
+ * Run 118 buys one name per evaluation, so this is normally empty. A one-off
+ * second pick (see apps/api extra_buy) lands as a second `buy` on the same
+ * date, and the announcement should say the cycle bought two rather than read
+ * like the only pick. Only engine `buy` rows count: `manual_buy` is imported
+ * history and `double_buy` adds to a name already held.
+ */
+export function cyclePicks(
+  trades: { ticker?: string | null; action?: string | null; date?: string | null }[],
+  ticker: string,
+): string[] {
+  const symbol = ticker.toUpperCase();
+  const buys = trades.filter((t) => t.action === "buy" && t.ticker && t.date);
+  const own = buys.find((t) => t.ticker!.toUpperCase() === symbol);
+  if (!own) return [];
+  const day = own.date!.slice(0, 10);
+  const others = new Set<string>();
+  for (const t of buys) {
+    const other = t.ticker!.toUpperCase();
+    if (other !== symbol && t.date!.slice(0, 10) === day) others.add(other);
+  }
+  return [...others].sort();
+}
+
+/**
  * Slug for a pick note: `<ticker>-<kebab-title>`, matching the shape of the
  * eight hand-authored notes.
  *

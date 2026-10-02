@@ -502,38 +502,44 @@ def persist_evaluation(
     db.flush()
 
     for sig in signals:
-        row = SignalRow(
-            evaluation_id=ev.id,
-            ticker=sig.ticker,
-            action=sig.action.value,
-            reason=sig.reason,
-            sell_shares=sig.sell_shares,
-            keep_shares=sig.keep_shares,
-            score_json=sig.to_dict().get("score"),
-            metadata_json=sig.metadata,
-            # Never `executed` here: this runs BEFORE apply_signals, which skips
-            # a TRIM suppressed behind a FULL_SELL, a buy with no usable mark and
-            # a sell on a position that is already gone. Stamping the run's
-            # intent onto every row recorded those skips as trades that were
-            # made. apply_signals flips this to True per row as it fills, so the
-            # ledger — the artifact that makes a published record checkable —
-            # says what actually happened.
-            executed=False,
-        )
-        db.add(row)
-        db.flush()
-        for rule in sig.rules:
-            db.add(
-                SignalReason(
-                    signal_id=row.id,
-                    rule_id=rule.rule_id,
-                    passed=rule.passed,
-                    inputs=rule.inputs,
-                    threshold=rule.threshold,
-                    message=rule.message or None,
-                )
-            )
+        persist_signal(db, ev.id, sig)
     return ev
+
+
+def persist_signal(db: Session, evaluation_id: int, sig: Signal) -> SignalRow:
+    """Write one signal and its rule checks under an evaluation, unexecuted."""
+    row = SignalRow(
+        evaluation_id=evaluation_id,
+        ticker=sig.ticker,
+        action=sig.action.value,
+        reason=sig.reason,
+        sell_shares=sig.sell_shares,
+        keep_shares=sig.keep_shares,
+        score_json=sig.to_dict().get("score"),
+        metadata_json=sig.metadata,
+        # Never `executed` here: this runs BEFORE apply_signals, which skips
+        # a TRIM suppressed behind a FULL_SELL, a buy with no usable mark and
+        # a sell on a position that is already gone. Stamping the run's
+        # intent onto every row recorded those skips as trades that were
+        # made. apply_signals flips this to True per row as it fills, so the
+        # ledger — the artifact that makes a published record checkable —
+        # says what actually happened.
+        executed=False,
+    )
+    db.add(row)
+    db.flush()
+    for rule in sig.rules:
+        db.add(
+            SignalReason(
+                signal_id=row.id,
+                rule_id=rule.rule_id,
+                passed=rule.passed,
+                inputs=rule.inputs,
+                threshold=rule.threshold,
+                message=rule.message or None,
+            )
+        )
+    return row
 
 
 def apply_signals(

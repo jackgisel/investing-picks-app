@@ -88,6 +88,11 @@ const nextConfig = {
         permanent: false,
       },
       {
+        source: "/dashboard/ops/x-threads",
+        destination: "/dashboard/ops/communication?tab=x-threads",
+        permanent: false,
+      },
+      {
         source: "/dashboard/ops/product-updates",
         destination: "/dashboard/ops/communication?tab=product-updates",
         permanent: false,

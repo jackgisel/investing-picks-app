@@ -113,6 +113,7 @@ const NAV_GROUPS: readonly NavGroup[] = [
         owns: [
           "/dashboard/ops/weekly-review",
           "/dashboard/ops/market-note",
+          "/dashboard/ops/x-threads",
           "/dashboard/ops/product-updates",
           "/dashboard/dca",
         ],

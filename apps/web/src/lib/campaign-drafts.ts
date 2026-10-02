@@ -1,7 +1,7 @@
 /**
- * Read-only social campaign drafts for the admin Communication page.
+ * Read-only X campaign drafts for the admin Communication page.
  *
- * Copy is the post blocks. Planning notes stay out of this module. Nothing
+ * Copy is the tweet blocks. Planning notes stay out of this module. Nothing
  * here is scheduled or sent, and nothing in the UI posts it.
  *
  * Lists are names in a supply chain, not book entries. The two operating

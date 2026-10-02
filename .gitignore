@@ -48,3 +48,7 @@ next-env.d.ts
 
 # auth database (dev)
 auth.db
+
+# local-only video pipeline
+apps/video/
+apps/web/src/app/api/internal/video/

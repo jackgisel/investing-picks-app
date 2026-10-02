@@ -257,3 +257,43 @@ def test_closed_picks_still_come_from_trades(db, portfolio):
 
     flows = deployment_schedule(db, portfolio.id)
     assert [(f.ticker, f.when) for f in flows] == [("GONE", date(2026, 5, 1))]
+
+
+def test_a_double_buy_is_its_own_lot_at_its_own_price(db, portfolio):
+    """A conviction add is fresh capital on its own date.
+
+    SEZL's September add was charted as a second April lot because the schedule
+    read the position's summed `initial_investment` on its `entry_date`. Bought
+    at $60 instead of $120, it doubled the name's weight for the whole history.
+    """
+    from app.db.models import Position
+
+    d1, d2, d3 = date(2026, 4, 10), date(2026, 9, 4), date(2026, 10, 1)
+    _buy(db, portfolio, "SEZL", d1, 1000.0, 60.0)
+    _buy(db, portfolio, "SEZL", d2, 1000.0, 120.0, action="double_buy")
+    db.add(
+        Position(
+            portfolio_id=portfolio.id,
+            ticker="SEZL",
+            shares=1000.0 / 60.0 + 1000.0 / 120.0,
+            avg_cost=80.0,
+            current_price=120.0,
+            initial_investment=2000.0,
+            entry_date=d1,
+        )
+    )
+    for d, px in ((d1, 60.0), (d2, 120.0), (d3, 120.0)):
+        _bar(db, "SEZL", d, px)
+        _bar(db, "SPY", d, 100.0 if d == d1 else 110.0)
+    db.commit()
+
+    flows = deployment_schedule(db, portfolio.id)
+    assert [(f.when, f.amount) for f in flows] == [(d1, 1000.0), (d2, 1000.0)]
+
+    # First lot doubled, second flat: 3000 on 2000 deployed = +50%, not +100%.
+    picks = {r["date"]: r["return_pct"] for r in picks_series(db, portfolio.id)}
+    assert picks[d3.isoformat()] == pytest.approx(50.0, abs=0.01)
+
+    # SPY: 10 units at 100 + 9.09 at 110, worth 2100 at 110 -> +5%, not +10%.
+    spy = benchmark_series(db, portfolio.id, {"SPY": "S&P 500"})["series"]["SPY"]
+    assert spy[-1]["return_pct"] == pytest.approx(5.0, abs=0.01)

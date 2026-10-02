@@ -252,7 +252,7 @@ export function HoldingsSlide({
       <div className="grid grid-cols-2 gap-x-16 gap-y-0 content-start">
         {holdings.map((h) => (
           <div
-            key={h.ticker}
+            key={h.lot ? `${h.ticker}-lot-${h.lot}` : h.ticker}
             className="flex items-baseline justify-between gap-6 border-b border-border py-[18px]"
           >
             <div className="flex items-baseline gap-4 min-w-0">
@@ -301,7 +301,7 @@ export function WinnersLaggardsSlide({ holdings }: { holdings: Holding[] }) {
             Leading
           </p>
           {winners.map((h) => (
-            <Row key={h.ticker ?? "—"} ticker={h.ticker ?? "—"} value={h.pnl_pct} />
+            <Row key={`${h.ticker ?? "—"}-${h.lot ?? 0}`} ticker={h.ticker ?? "—"} value={h.pnl_pct} />
           ))}
         </div>
         <div>
@@ -309,7 +309,7 @@ export function WinnersLaggardsSlide({ holdings }: { holdings: Holding[] }) {
             Lagging
           </p>
           {laggards.map((h) => (
-            <Row key={h.ticker ?? "—"} ticker={h.ticker ?? "—"} value={h.pnl_pct} />
+            <Row key={`${h.ticker ?? "—"}-${h.lot ?? 0}`} ticker={h.ticker ?? "—"} value={h.pnl_pct} />
           ))}
         </div>
       </div>

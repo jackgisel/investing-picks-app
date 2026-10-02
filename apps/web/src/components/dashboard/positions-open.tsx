@@ -33,7 +33,12 @@ import {
 import { describeOpenRating } from "@/components/dashboard/open-rating";
 import { CompanyLogo } from "@/components/ui/company-logo";
 import { TONE_BG } from "@/lib/tones";
-import { holdingSignals, type HoldingSignals } from "./positions-model";
+import {
+  asLotRows,
+  holdingRowKey,
+  holdingSignals,
+  type HoldingSignals,
+} from "./positions-model";
 
 type SortKey = "ticker" | "pnl_pct" | "weight_pct" | "held" | "upside";
 type Grouping = "none" | "sector";
@@ -139,7 +144,9 @@ export function PositionsOpen({
       ? strategy.params.min_holding_days
       : null;
 
-  const rows = (holdings ?? []).map((h) => ({
+  // One row per buy: a conviction add is its own pick. Sector grouping below
+  // still reads `holdings` whole.
+  const rows = asLotRows(holdings ?? []).map((h) => ({
     h,
     signals: holdingSignals(h),
     held: calendarDaysHeld(h.entry_date),
@@ -192,7 +199,7 @@ export function PositionsOpen({
     });
     return (
       <tr
-        key={ticker ?? h.entry_date ?? `anonymous-holding-${index}`}
+        key={holdingRowKey(h, index)}
         onClick={ticker ? () => onSelect(ticker) : undefined}
         className="group cursor-pointer border-b border-border transition-colors duration-100 last:border-b-0 hover:bg-bg-tertiary/50"
       >
@@ -214,6 +221,14 @@ export function PositionsOpen({
                   </button>
                 ) : (
                   <span className="font-mono text-[14px] font-semibold">—</span>
+                )}
+                {h.lot_kind === "add" && (
+                  <span
+                    className="badge !px-2 !text-[9px]"
+                    title="A conviction add, shown as its own position from its own buy."
+                  >
+                    Add
+                  </span>
                 )}
                 {h.is_house_money && (
                   <span

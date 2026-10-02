@@ -26,6 +26,9 @@ export interface ScorecardPick {
    * bought today is 0% on both sides, which says nothing about the pick.
    */
   measurable?: boolean;
+  /** Set when an open pick bought more than once is split into its buys. */
+  lot?: number | null;
+  lot_kind?: "entry" | "add" | null;
 }
 
 export interface TrackRecordResponse {

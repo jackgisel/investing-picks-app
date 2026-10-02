@@ -656,3 +656,67 @@ def picks_drawdown(db: Session, portfolio_id: int = 1) -> dict:
         "drawdown_pct": round(max(0.0, (1 - latest / peak["index"]) * 100), 2),
         "peak_date": peak["date"],
     }
+
+
+def open_lots(db: Session, portfolio_id: int = 1) -> dict[str, list[dict]]:
+    """Each open position's buys in its current holding period, as lots.
+
+    A conviction add is reported as its own position: its own entry date, and
+    its own return from its own fill. One blended row on average cost hid both
+    halves of SEZL, a first lot that had nearly doubled and an add that was
+    down. A trim scales every lot by the same fraction, so the lots always sum
+    to what is held.
+
+    `share` is the lot's fraction of the position's shares, which is also its
+    fraction of the position's market value, since every lot marks at the same
+    price. No prices or dollar amounts: these go into public payloads.
+    """
+    by_ticker: dict[str, list[LedgerEvent]] = {}
+    for e in trade_ledger(db, portfolio_id):
+        by_ticker.setdefault(e.ticker, []).append(e)
+
+    out: dict[str, list[dict]] = {}
+    for ticker, events in by_ticker.items():
+        lots: list[list] = []  # [when, shares, cost per share]
+        for e in events:
+            held = sum(lot[1] for lot in lots)
+            if e.kind == "buy":
+                if held <= SHARE_EPSILON:
+                    lots = []
+                if e.shares > 0:
+                    lots.append([e.when, e.shares, e.amount / e.shares])
+                continue
+            keep = max(0.0, 1 - e.shares / held) if held > SHARE_EPSILON else 0.0
+            for lot in lots:
+                lot[1] *= keep
+        total = sum(lot[1] for lot in lots)
+        if total <= SHARE_EPSILON:
+            continue
+        out[ticker] = [
+            {
+                "lot": i + 1,
+                "kind": "entry" if i == 0 else "add",
+                "entry_date": when.isoformat(),
+                "share": round(shares / total, 6),
+                "cost_per_share": cost,
+            }
+            for i, (when, shares, cost) in enumerate(lots)
+        ]
+    return out
+
+
+def public_lots(lots: list[dict] | None, mark: float | None) -> list[dict]:
+    """`open_lots` rows with a return on each lot and the cost basis removed."""
+    rows = []
+    for lot in lots or []:
+        cost = lot["cost_per_share"]
+        rows.append(
+            {
+                "lot": lot["lot"],
+                "kind": lot["kind"],
+                "entry_date": lot["entry_date"],
+                "share": lot["share"],
+                "pnl_pct": round((mark / cost - 1) * 100, 2) if mark and cost else None,
+            }
+        )
+    return rows

@@ -11,7 +11,7 @@ import {
   formatWeekdayDate,
   pnlTone,
 } from "@/lib/portfolio";
-import { closedSummary, openSummary } from "./positions-model";
+import { asLotRows, closedSummary, openSummary } from "./positions-model";
 
 /**
  * The book at a glance, above the list. Everything here was already in the
@@ -22,7 +22,7 @@ export function PositionsSummary() {
   const strategyQuery = useStrategy();
   const closedQuery = usePicks("closed");
   const strategy = strategyQuery.data;
-  const open = openSummary(strategy?.holdings ?? []);
+  const open = openSummary(asLotRows(strategy?.holdings ?? []));
   const closed = closedSummary(closedQuery.data?.picks ?? []);
   const maxPositions = strategy?.strategy?.max_positions ?? null;
 

@@ -1,6 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
 import { dataQueryOptions, fetchJson } from "./api-error";
 
+/** One buy of a holding, reported as its own position. See `asLotRows`. */
+export interface HoldingLot {
+  lot: number;
+  /** "entry" is the first buy of the holding period; "add" a conviction add. */
+  kind: "entry" | "add";
+  entry_date: string;
+  /** Fraction of the holding's shares, and so of its market value. */
+  share: number;
+  /** This lot's return from its own fill. */
+  pnl_pct: number | null;
+}
+
 export interface Holding {
   /**
    * Null on the anonymised payload served to non-subscribers — `/api/data/
@@ -21,6 +33,11 @@ export interface Holding {
    */
   pnl_pct: number | null;
   weight_pct?: number;
+  /** Every buy in the current holding period. Absent on older payloads. */
+  lots?: HoldingLot[];
+  /** Set on a row `asLotRows` split out of a multi-buy holding. */
+  lot?: number;
+  lot_kind?: HoldingLot["kind"];
   /**
    * Company market cap in USD, from the `stocks` reference table. Absent on
    * the anonymised payload, and null for a name whose profile has never been

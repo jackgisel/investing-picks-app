@@ -566,5 +566,48 @@ export async function runAppMigrations() {
       invited_by TEXT
     )
   `);
+  await correctSezlAddNote();
   await seedBootstrapMembershipInvites();
+}
+
+/**
+ * The SEZL add note (published 2026-09-14) reported +48.25% as the return
+ * "since first entry". That was both buys blended on average cost: measured
+ * from the first buy the name was up about 80%, and the add was down about
+ * 11%. Each passage is replaced only while it still reads the wrong way, so
+ * this is a no-op once applied and never touches a hand edit.
+ */
+const SEZL_ADD_SLUG = "add-sezl-2026-09-04";
+const SEZL_TLDR_WRONG =
+  "The holding is currently recorded at +48.25% since first entry, well below the level at which the add fired.";
+const SEZL_TLDR_RIGHT =
+  "Measured from the first buy, Sezzle is up about 80% as of October 2, 2026. The add itself is down about 11% from its own buy.";
+const SEZL_BODY_WRONG =
+  "The holding return currently recorded is +48.25% since first entry. That is worth stating plainly rather than burying: the gain that triggered the add has since roughly halved, and the second tranche went in near the top of the move so far. The position remains open and remains ahead of the first entry, but anyone reading the +101.7% in the rule log should not mistake it for where the holding sits now.";
+const SEZL_BODY_RIGHT =
+  "*Corrected October 2, 2026.* An earlier version of this note reported +48.25% as the return since first entry. That figure blended both buys on average cost, so it understated the first buy and hid the add. Measured from the first buy, Sezzle is up about 80% as of October 2, 2026, below the 101.7% the rule saw on September 4. The add went in near the top of the move so far and is down about 11% from its own buy. Both are open, and the dashboard now reports them as separate positions.";
+const SEZL_TAKEAWAY_WRONG =
+  "The C on valuation was the one thing the doubling did not fix — and the holding has since given back much of the gain that triggered the add.";
+const SEZL_TAKEAWAY_RIGHT =
+  "The C on valuation was the one thing the doubling did not fix. Since the add the stock has slipped about 11%, which is where the second buy now sits, while the first buy is still up about 80%.";
+
+async function correctSezlAddNote() {
+  await pool.query(
+    `UPDATE insight
+        SET tldr = jsonb_set(tldr, '{4}', to_jsonb($2::text)), updated_at = NOW()
+      WHERE slug = $1 AND tldr->>4 = $3`,
+    [SEZL_ADD_SLUG, SEZL_TLDR_RIGHT, SEZL_TLDR_WRONG],
+  );
+  await pool.query(
+    `UPDATE insight
+        SET body_md = replace(body_md, $3, $2), updated_at = NOW()
+      WHERE slug = $1 AND position($3 in body_md) > 0`,
+    [SEZL_ADD_SLUG, SEZL_BODY_RIGHT, SEZL_BODY_WRONG],
+  );
+  await pool.query(
+    `UPDATE insight
+        SET key_takeaway = replace(key_takeaway, $3, $2), updated_at = NOW()
+      WHERE slug = $1 AND position($3 in key_takeaway) > 0`,
+    [SEZL_ADD_SLUG, SEZL_TAKEAWAY_RIGHT, SEZL_TAKEAWAY_WRONG],
+  );
 }

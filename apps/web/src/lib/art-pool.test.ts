@@ -56,10 +56,10 @@ describe("art pool", () => {
 
   it("exposes spare covers for future blog posts", () => {
     const next = nextSpareCover();
-    expect(next).toEqual({ id: "spare-09", src: "/art/pool/spare-09.png" });
+    expect(next).toEqual({ id: "spare-10", src: "/art/pool/spare-10.png" });
   });
 
-  it("keeps unused spare-08+ prints unclaimed", () => {
+  it("keeps unused spare-09+ prints unclaimed", () => {
     const expected: Record<string, { label: string; ink: string }> = {
       "spare-07": { label: "Lighthouse", ink: "#1E3A8A" },
       "spare-08": { label: "Mesa", ink: "#0F5C5C" },
@@ -81,8 +81,15 @@ describe("art pool", () => {
       "individual-stock-research-that-still-holds-up",
     );
     expect(SPARE_CLAIMED["spare-08"]).toBe("earnings-revision-investing");
+    expect(SPARE_CLAIMED["spare-09"]).toBe(
+      "market-cycle-analysis-stock-investors",
+    );
     for (const spare of fresh) {
-      if (spare.id !== "spare-07" && spare.id !== "spare-08") {
+      if (
+        spare.id !== "spare-07" &&
+        spare.id !== "spare-08" &&
+        spare.id !== "spare-09"
+      ) {
         expect(SPARE_CLAIMED[spare.id]).toBeUndefined();
       }
       expect(spare.label).toBe(expected[spare.id].label);
@@ -96,6 +103,6 @@ describe("art pool", () => {
     const status = poolStatus(new Date("2026-08-22T12:00:00Z"));
     expect(status.weeksReady).toBe(13);
     expect(status.weeksRemaining).toBeGreaterThanOrEqual(13);
-    expect(status.sparesFree).toBe(10);
+    expect(status.sparesFree).toBe(9);
   });
 });

@@ -4,6 +4,8 @@ import { pickAlertToken } from "@/lib/pick-alerts";
 import { isoWeekKey } from "@/lib/email-dispatch";
 import { weekKeyFromInsightSlug } from "@/lib/art-pool";
 import {
+  countWord,
+  cyclePicksSentence,
   renderNewPickEmail,
   renderAddNoteEmail,
   renderExitNoteEmail,
@@ -111,6 +113,8 @@ export async function sendNewPickEmail(args: {
   articleDescription: string;
   /** Slug of the /dashboard/insights research note for this pick. */
   insightSlug: string;
+  /** Other new names bought this same cycle; empty in a normal week. */
+  alsoPicked?: string[];
   /** Test-send marker; omitted on real sends. */
   banner?: string;
 }): Promise<SendResult> {
@@ -129,8 +133,10 @@ export async function sendNewPickEmail(args: {
     siteUrl: SITE_URL,
     banner: args.banner,
     weekKey: isoWeekKey(),
+    alsoPicked: args.alsoPicked,
   });
-  const text = `New ${SITE_NAME} pick: ${args.ticker}\n\n${args.articleTitle}\n\n${args.articleDescription}\n\nRead the full research: ${articleUrl}\n\nYou're receiving this because you opted in to new pick alerts. Manage your preferences: ${SITE_URL}/dashboard/settings`;
+  const cycleNote = cyclePicksSentence(args.ticker, args.alsoPicked);
+  const text = `New ${SITE_NAME} pick: ${args.ticker}\n\n${cycleNote ? `${cycleNote}\n\n` : ""}${args.articleTitle}\n\n${args.articleDescription}\n\nRead the full research: ${articleUrl}\n\nYou're receiving this because you opted in to new pick alerts. Manage your preferences: ${SITE_URL}/dashboard/settings`;
 
   // This is a BULK send — notify-pick fans it out to every opted-in member — so
   // it carries the same List-Unsubscribe pair as the market note. It shipped
@@ -140,7 +146,9 @@ export async function sendNewPickEmail(args: {
 
   return send({
     to: args.to,
-    subject: `New pick: ${args.ticker} · ${args.articleTitle}`,
+    subject: args.alsoPicked?.length
+      ? `New pick: ${args.ticker}, one of ${countWord(args.alsoPicked.length + 1)} this cycle`
+      : `New pick: ${args.ticker} · ${args.articleTitle}`,
     html,
     text,
     headers: {

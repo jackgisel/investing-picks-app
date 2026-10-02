@@ -28,6 +28,7 @@ from worker.jobs.runner import (
     job_daily_marks,
     job_dca_backfill,
     job_dca_friday,
+    job_extra_buy,
     job_market_note_prepare,
     job_market_note_send,
     job_news_refresh,
@@ -400,6 +401,9 @@ def main():
             "news_refresh": job_news_refresh,
             "dca_friday": job_dca_friday,
             "dca_backfill": job_dca_backfill,
+            # Not on any schedule. A one-off second pick on today's cycle;
+            # dry run unless EXTRA_BUY_COMMIT is set.
+            "extra_buy": job_extra_buy,
         }[name]()
         return
 

@@ -1,7 +1,9 @@
+import { PUBLIC_API_BASE } from "@/lib/api-config";
 import { formatQuantRating } from "@/lib/content-draft";
 import { sendAddNoteEmail, sendExitNoteEmail, sendNewPickEmail } from "@/lib/email";
 import type { PickStat } from "@/lib/email-templates";
 import { fetchQuantRatingForTicker } from "@/lib/insight-viz-data";
+import { cyclePicks } from "@/lib/insights";
 import { getOptedInRecipients } from "@/lib/preferences";
 import { formatStreetPrice } from "@/lib/street-range";
 import { fetchStreetRangeForTicker } from "@/lib/street-range-server";
@@ -18,6 +20,24 @@ import { fetchStreetRangeForTicker } from "@/lib/street-range-server";
  * `claimForPublish`). Nothing here is idempotent; call it twice and the list
  * gets two emails.
  */
+
+/**
+ * Names bought alongside `ticker` this cycle, for the announcement copy.
+ * Best effort: the email is still correct without the line, so an upstream
+ * failure costs the context, never the send.
+ */
+async function fetchCyclePicks(ticker: string): Promise<string[]> {
+  try {
+    const res = await fetch(`${PUBLIC_API_BASE}/trades?limit=50`, { cache: "no-store" });
+    if (!res.ok) return [];
+    const body = (await res.json()) as {
+      trades?: { ticker?: string | null; action?: string | null; date?: string | null }[];
+    };
+    return cyclePicks(body.trades ?? [], ticker);
+  } catch {
+    return [];
+  }
+}
 
 export type AnnounceResult = {
   sent: number;
@@ -37,9 +57,10 @@ export async function announcePick(args: {
     return { sent: 0, failed: 0, total: 0, errors: [] };
   }
 
-  const [street, quant] = await Promise.all([
+  const [street, quant, alsoPicked] = await Promise.all([
     fetchStreetRangeForTicker(args.ticker),
     fetchQuantRatingForTicker(args.ticker),
+    fetchCyclePicks(args.ticker),
   ]);
   const stats: PickStat[] = [];
   const ratingLabel = quant ? formatQuantRating(quant.rating) : null;
@@ -76,6 +97,7 @@ export async function announcePick(args: {
           articleTitle: args.title,
           articleDescription: args.description,
           insightSlug: args.insightSlug,
+          alsoPicked,
         }).then((res) => ({ email: r.email, ...res })),
       ),
     );

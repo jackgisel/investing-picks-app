@@ -44,6 +44,12 @@ import {
   type Ratio,
 } from "@/lib/track-record";
 
+/** "SEZL · open", or "SEZL · add" for a conviction add split out as its own pick. */
+function pickTag(p: ScorecardPick): string {
+  const state = p.lot_kind === "add" ? "add" : p.status === "closed" ? "closed" : "open";
+  return `${p.ticker} · ${state}`;
+}
+
 /**
  * A scorecard figure, or null for a pick with no holding period yet. A name
  * bought today has a mark but nothing to compare it against, so it reads as
@@ -171,13 +177,13 @@ export function TrackRecordStats() {
             label="BEST PICK"
             value={formatPctOrDash(picks.best?.return_pct, 1)}
             valueClass={pnlClass(picks.best?.return_pct)}
-            detail={picks.best ? `${picks.best.ticker} · ${picks.best.status === "closed" ? "closed" : "open"}` : undefined}
+            detail={picks.best ? pickTag(picks.best) : undefined}
           />
           <Stat
             label="WORST PICK"
             value={formatPctOrDash(picks.worst?.return_pct, 1)}
             valueClass={pnlClass(picks.worst?.return_pct)}
-            detail={picks.worst ? `${picks.worst.ticker} · ${picks.worst.status === "closed" ? "closed" : "open"}` : undefined}
+            detail={picks.worst ? pickTag(picks.worst) : undefined}
           />
           <Stat
             label="MONTHS AHEAD OF S&P"

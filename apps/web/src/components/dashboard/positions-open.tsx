@@ -327,7 +327,11 @@ export function PositionsOpen({
             labelFor={(g) => (g === "none" ? "All" : "By sector")}
           />
           <span className="font-mono text-[10px] text-text-dim">
-            {isPending || isError ? "—" : `${rows.length} HOLDINGS`}
+            {isPending || isError
+              ? "—"
+              : rows.length === (holdings?.length ?? 0)
+                ? `${rows.length} HOLDINGS`
+                : `${holdings?.length ?? 0} HOLDINGS · ${rows.length} BUYS`}
           </span>
         </div>
       </PanelHeader>

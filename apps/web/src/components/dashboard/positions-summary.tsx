@@ -22,7 +22,9 @@ export function PositionsSummary() {
   const strategyQuery = useStrategy();
   const closedQuery = usePicks("closed");
   const strategy = strategyQuery.data;
+  // Returns are per buy; the position cap counts holdings.
   const open = openSummary(asLotRows(strategy?.holdings ?? []));
+  const holdingCount = strategy?.holdings?.length ?? 0;
   const closed = closedSummary(closedQuery.data?.picks ?? []);
   const maxPositions = strategy?.strategy?.max_positions ?? null;
 
@@ -38,8 +40,8 @@ export function PositionsSummary() {
         value={
           strategy
             ? maxPositions
-              ? `${open.count}/${maxPositions}`
-              : open.count.toString()
+              ? `${holdingCount}/${maxPositions}`
+              : holdingCount.toString()
             : "—"
         }
         // Unrealized marks on running positions. Deliberately not a win rate.
@@ -56,7 +58,7 @@ export function PositionsSummary() {
         label="AVG OPEN RETURN"
         value={formatPctOrDash(open.avgPct, 1)}
         valueTone={pnlTone(open.avgPct)}
-        caption="Unrealized, each open name weighted equally."
+        caption="Unrealized, each buy weighted equally. A conviction add counts as its own."
         icon={Percent}
         tone="cyan"
         loading={strategyQuery.isPending}

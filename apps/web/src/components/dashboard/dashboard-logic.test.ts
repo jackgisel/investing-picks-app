@@ -209,9 +209,6 @@ describe("visibleGroups", () => {
     expect(activeHref("/dashboard/ops/market-note", ALL)).toBe(
       "/dashboard/ops/communication",
     );
-    expect(activeHref("/dashboard/ops/x-threads", ALL)).toBe(
-      "/dashboard/ops/communication",
-    );
     expect(activeHref("/dashboard/ops/product-updates", ALL)).toBe(
       "/dashboard/ops/communication",
     );

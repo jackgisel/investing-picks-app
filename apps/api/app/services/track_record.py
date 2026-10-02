@@ -5,7 +5,7 @@ cumulative curve cannot answer on its own:
 
 - **Monthly returns.** The curve says where the book ended up; it does not say
   whether that came from one lucky month or from steady ones. Each month is
-  REBUILT as its own window (see `rebase_flows`) rather than read off the
+  REBUILT as its own window (see `window_events`) rather than read off the
   cumulative curve: the curve is money-weighted on a growing base, so chaining
   its month-end values would not give the month's return.
 
@@ -27,6 +27,7 @@ from app.services.benchmarks import (
     deployment_schedule,
     latest_session,
     picks_series,
+    trade_ledger,
 )
 
 SPY = "SPY"
@@ -95,28 +96,48 @@ def monthly_returns(db: Session, portfolio_id: int = 1) -> list[dict]:
 
 
 def pick_scorecard(db: Session, picks: list[dict]) -> list[dict]:
-    """Each pick beside the S&P 500's move over the same holding period.
+    """Each pick beside the S&P 500 over the same holding period, same money.
 
     `picks` is the `/picks?status=all` payload, so the pick's own return is the
-    exact figure published everywhere else. The index leg runs from the close
-    on (or before) entry to the close on (or before) exit, or the latest
-    session for a pick still open. Unknown on either side stays None — a pick
-    with no entry date is not "level with the market".
+    exact figure published everywhere else. That return is on the pick's whole
+    cost, every lot included, so the index leg has to be too: each buy's dollars
+    buy SPY at that day's close and are held to the exit (or the latest
+    session). Anchoring the whole position on its first entry credited SEZL's
+    September add with SPY's move since April.
+
+    `measurable` is False until the pick has been held over at least one
+    session close. A name bought today has 0% on both sides; counting it as a
+    pick that failed to beat the index is a statement about the clock.
     """
     closes = _closes(db, SPY)
     sessions = sorted(closes)
     latest = sessions[-1] if sessions else None
+    buys = [e for e in trade_ledger(db) if e.kind == "buy"]
 
     out: list[dict] = []
     for p in picks:
         entry = date.fromisoformat(p["entry_date"]) if p.get("entry_date") else None
         exit_ = date.fromisoformat(p["exit_date"]) if p.get("exit_date") else None
+        end = exit_ or latest
         spy_pct: float | None = None
-        if entry and sessions:
-            first = _price_on_or_before(closes, sessions, entry)
-            last = _price_on_or_before(closes, sessions, exit_ or latest)
-            if first and last and first > 0:
-                spy_pct = round((last / first - 1) * 100, 2)
+        if entry and end and sessions:
+            lots = [
+                (e.when, e.amount)
+                for e in buys
+                if e.ticker == p["ticker"] and entry <= e.when <= end
+            ] or [(entry, 1.0)]
+            last = _price_on_or_before(closes, sessions, end)
+            units = 0.0
+            committed = 0.0
+            for when, amount in lots:
+                px = _price_on_or_before(closes, sessions, when)
+                if not px:
+                    units = 0.0
+                    break
+                units += amount / px
+                committed += amount
+            if last and units > 0 and committed > 0:
+                spy_pct = round((units * last / committed - 1) * 100, 2)
         ret = p.get("pnl_pct")
         out.append(
             {
@@ -131,6 +152,7 @@ def pick_scorecard(db: Session, picks: list[dict]) -> list[dict]:
                     if ret is not None and spy_pct is not None
                     else None
                 ),
+                "measurable": bool(entry and end and end > entry),
             }
         )
     return out

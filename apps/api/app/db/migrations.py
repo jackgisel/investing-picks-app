@@ -268,6 +268,68 @@ def ensure_dataset_schema(engine: Engine) -> None:
     _ensure_z_floor_rejections(engine)
 
 
+#: Hand-imported opening buys whose trade row disagrees with the position it
+#: opened. The position is right: SEZL's first lot was bought at $59.71 (the
+#: Apr 10 close), not the $68.75 the old server's import wrote. Every
+#: performance figure that replays trades, and every exit return computed from
+#: them, inherited the wrong price. (ticker, wrong price, right price)
+_IMPORTED_LOT_PRICES = (
+    ("SEZL", 68.75, 59.71),
+    ("ASIC", 21.43, 21.16),
+    ("SKWD", 61.82, 61.42),
+)
+
+
+def _correct_imported_lots(engine: Engine) -> None:
+    """Reprice the three imported buys to their positions' cost.
+
+    Matched on the exact wrong price, so it touches nothing once corrected and
+    nothing on a database that never had the bad rows. Notional is unchanged:
+    the capital committed was right, the share count was not.
+    """
+    with engine.begin() as conn:
+        for ticker, wrong, right in _IMPORTED_LOT_PRICES:
+            result = conn.execute(
+                text(
+                    "UPDATE trades SET price = :right, shares = notional / :right "
+                    "WHERE portfolio_id = 1 AND ticker = :ticker AND side = 'buy' "
+                    "AND action = 'manual_buy' AND price = :wrong"
+                ),
+                {"ticker": ticker, "wrong": wrong, "right": right},
+            )
+            if result.rowcount:
+                log.info("Repriced imported %s buy %.2f -> %.2f", ticker, wrong, right)
+
+
+def _drop_weekend_rows(engine: Engine) -> None:
+    """Delete price bars and snapshots dated on a Saturday or Sunday.
+
+    The old server's import left a Saturday 2026-07-25 copy of Friday's close
+    for 115 tickers, and a snapshot to match. SPY's bars are the trading
+    calendar, so it charted as a session. `refresh_marks` no longer writes
+    them; this clears the ones already there.
+    """
+    from sqlalchemy import inspect
+
+    with engine.begin() as conn:
+        inspector = inspect(conn)
+        for table in ("price_bars", "portfolio_snapshots"):
+            if not inspector.has_table(table):
+                continue
+            dates = [r[0] for r in conn.execute(text(f"SELECT DISTINCT date FROM {table}"))]
+            weekend = [d for d in dates if d is not None and _as_date(d).weekday() >= 5]
+            for d in weekend:
+                conn.execute(text(f"DELETE FROM {table} WHERE date = :d"), {"d": d})
+            if weekend:
+                log.info("Deleted %s rows on weekend dates %s", table, weekend)
+
+
+def _as_date(value):
+    from datetime import date
+
+    return value if isinstance(value, date) else date.fromisoformat(str(value)[:10])
+
+
 def ensure_schema(engine: Engine) -> None:
     """Bring an existing database up to the current model definitions."""
     # Job-failure alerting. Without this column the worker's alert sweep has no
@@ -279,3 +341,5 @@ def ensure_schema(engine: Engine) -> None:
     _ensure_portfolio_contributions(engine)
     _ensure_stock_news(engine)
     _ensure_consensus_snapshots(engine)
+    _correct_imported_lots(engine)
+    _drop_weekend_rows(engine)

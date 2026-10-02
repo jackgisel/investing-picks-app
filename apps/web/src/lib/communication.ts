@@ -9,7 +9,6 @@ export const COMMUNICATION_TABS = [
   { id: "friday-stock-pick", label: "Friday Stock Pick" },
   { id: "friday-portfolio-review", label: "Friday Portfolio Review" },
   { id: "sunday-market-preview", label: "Sunday Market Preview" },
-  { id: "x-threads", label: "X Threads" },
   { id: "campaign-drafts", label: "Campaign drafts" },
   { id: "product-updates", label: "Product Updates" },
   { id: "invites", label: "Invites" },
@@ -28,7 +27,6 @@ export const LEGACY_COMMUNICATION_REDIRECTS: Readonly<
   "/dashboard/dca": "friday-stock-pick",
   "/dashboard/ops/weekly-review": "friday-portfolio-review",
   "/dashboard/ops/market-note": "sunday-market-preview",
-  "/dashboard/ops/x-threads": "x-threads",
   "/dashboard/ops/product-updates": "product-updates",
 };
 

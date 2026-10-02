@@ -33,9 +33,6 @@ describe("legacyCommunicationRedirect", () => {
     expect(legacyCommunicationRedirect("/dashboard/ops/market-note")).toBe(
       communicationHref("sunday-market-preview"),
     );
-    expect(legacyCommunicationRedirect("/dashboard/ops/x-threads")).toBe(
-      communicationHref("x-threads"),
-    );
     expect(legacyCommunicationRedirect("/dashboard/ops/product-updates")).toBe(
       communicationHref("product-updates"),
     );

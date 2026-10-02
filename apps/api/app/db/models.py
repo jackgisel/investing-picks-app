@@ -176,9 +176,8 @@ class MacroReading(Base):
     """Point-in-time macro facts for the Sunday week-ahead thread.
 
     Mirrors `StockNews`: the worker pulls from FMP, this table is the payload
-    the thread is written from, and nothing is computed at draft time. The
-    reason is the same one the whole X-thread feature is built around — every
-    number a thread publishes has to trace back to a stored fact, so "the
+    the thread is written from, and nothing is computed at draft time. Every
+    number we publish has to trace back to a stored fact, so "the
     10-year was at 4.726% on Friday" is auditable after the fact rather than
     whatever the vendor happened to return the moment the model ran.
 

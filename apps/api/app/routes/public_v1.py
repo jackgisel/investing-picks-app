@@ -26,6 +26,7 @@ from app.services.benchmarks import (
     WINDOWS,
     benchmark_series,
     latest_session,
+    picks_drawdown,
     picks_series,
     window_open,
     window_start,
@@ -646,7 +647,7 @@ def get_performance(
     # sitting directly above the chart.
     # Every line is rebuilt on the window rather than sliced out of the
     # since-inception series: a slice would open the chart at each pick's
-    # accumulated gain instead of at 0%. See `rebase_flows`.
+    # accumulated gain instead of at 0%. See `window_events`.
     start = window_start(db, window, portfolio_id=1)
     bench = benchmark_series(db, portfolio_id=1, start=start)
     picks_line = picks_series(db, portfolio_id=1, start=start)
@@ -680,7 +681,9 @@ def get_performance(
             # beside its own chart.
             "return_basis": RETURN_BASIS,
             "snapshot_return_pct": last,
-            "position_count": snaps[-1].position_count if snaps else len(positions),
+            # The live book, not the last snapshot: snapshots are written at the
+            # close, so a buy made today was missing from the count until then.
+            "position_count": len(positions),
             "snapshots": len(snaps),
             **annualize_return(headline, days_live, days_recorded),
             # The picks basis, carried alongside so a surface that leads with
@@ -693,6 +696,9 @@ def get_performance(
             **annualize_return(
                 picks_headline, days_live, days_recorded, prefix="picks_"
             ),
+            # Time-weighted, so new buys do not read as losses; see
+            # `picks_growth_index`. What the drawdown alert watches.
+            **{f"picks_{k}": v for k, v in picks_drawdown(db, portfolio_id=1).items()},
         },
     }
 

@@ -9,7 +9,6 @@ import { InvitesPanel } from "@/components/dashboard/invites-panel";
 import { ProductUpdatesPanel } from "@/components/dashboard/product-updates-panel";
 import { SundayMarketPreviewPanel } from "@/components/dashboard/sunday-market-preview-panel";
 import { TabPanel, Tabs } from "@/components/dashboard/tabs";
-import { XThreadsPanel } from "@/components/dashboard/x-threads-panel";
 import {
   COMMUNICATION_TABS,
   parseCommunicationTab,
@@ -33,8 +32,8 @@ export function CommunicationPage() {
       <div>
         <h1 className="page-title">Communication</h1>
         <p className="mt-1 max-w-[640px] font-sans text-[13px] leading-relaxed text-text-dim">
-          Friday pick and portfolio review, Sunday market preview, X threads,
-          campaign drafts, and product updates. Complimentary invites live here
+          Friday pick and portfolio review, Sunday market preview, campaign
+          drafts, and product updates. Complimentary invites live here
           too.
         </p>
       </div>
@@ -64,13 +63,6 @@ export function CommunicationPage() {
           <div className="pt-5">
             <TabPanel id="sunday-market-preview">
               <SundayMarketPreviewPanel />
-            </TabPanel>
-          </div>
-        )}
-        {tab === "x-threads" && (
-          <div className="pt-5">
-            <TabPanel id="x-threads">
-              <XThreadsPanel />
             </TabPanel>
           </div>
         )}

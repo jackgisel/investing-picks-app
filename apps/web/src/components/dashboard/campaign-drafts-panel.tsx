@@ -5,10 +5,8 @@ import {
 } from "@/lib/campaign-drafts";
 
 /**
- * Read-only review of the X campaign mocks.
- *
- * Separate from the X Threads queue on purpose: those drafts can be confirmed
- * and posted. These cannot. There is no send action on this panel.
+ * Read-only review of the social campaign mocks. There is no send action on
+ * this panel.
  */
 export function CampaignDraftsPanel() {
   return (

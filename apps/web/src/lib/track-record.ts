@@ -44,11 +44,16 @@ export interface ScorecardStats {
   worst: ScorecardPick | null;
   /** Picks at +100% or better. */
   doubled: number;
+  /** Picks bought too recently to have a holding period, left out above. */
+  tooNew: number;
 }
 
 export function scorecardStats(picks: readonly ScorecardPick[]): ScorecardStats {
-  const scored = picks.filter((p) => known(p.return_pct));
-  const withExcess = picks.filter((p) => known(p.excess_pct));
+  // A pick bought today has no holding period yet. Counting its 0% against the
+  // S&P's 0% as a miss, and as the median, says something about the clock.
+  const measured = picks.filter((p) => p.measurable !== false);
+  const scored = measured.filter((p) => known(p.return_pct));
+  const withExcess = measured.filter((p) => known(p.excess_pct));
   const closedScored = scored.filter((p) => p.status === "closed");
   const byReturn = [...scored].sort(
     (a, b) => (b.return_pct as number) - (a.return_pct as number),
@@ -70,6 +75,7 @@ export function scorecardStats(picks: readonly ScorecardPick[]): ScorecardStats 
     best: byReturn[0] ?? null,
     worst: byReturn.length > 1 ? byReturn[byReturn.length - 1] : null,
     doubled: scored.filter((p) => (p.return_pct as number) >= 100).length,
+    tooNew: picks.length - measured.length,
   };
 }
 

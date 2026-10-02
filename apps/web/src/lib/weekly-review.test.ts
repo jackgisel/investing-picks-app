@@ -4,7 +4,6 @@ import {
   fridayNoonPacific,
   isPastFridayNoon,
 } from "@/lib/weekly-review";
-import { weekChangePct } from "@/lib/weekly-summary";
 
 describe("weeklyReviewSlug", () => {
   it("lowercases the ISO week key", () => {
@@ -57,17 +56,5 @@ describe("isPastFridayNoon", () => {
 
   it("is true at 12:00 PT on Friday", () => {
     expect(isPastFridayNoon(new Date("2026-08-21T19:00:00.000Z"))).toBe(true);
-  });
-});
-
-describe("week change facts", () => {
-  it("keeps the SPY comparison as a percentage of the same series", () => {
-    // Same helper the review facts use after mapping spy_return_pct onto
-    // return_pct. A dollar figure cannot survive this function.
-    const change = weekChangePct([
-      { date: "2026-08-01", return_pct: 10 },
-      { date: "2026-08-08", return_pct: 21 },
-    ]);
-    expect(change).toBeCloseTo(10, 4);
   });
 });

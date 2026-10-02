@@ -85,8 +85,8 @@ export default function DashboardPage() {
 
   const strategyFailed = strategyState === "error";
 
-  // What the picks did with the money put into them. Each name is entered at
-  // the same size, and closed picks stay in so a sold loser does not vanish.
+  // What the picks did with the money put into them, every buy counted as its
+  // own lot. Closed picks stay in so a sold loser does not vanish.
   // Unknown stays an em dash — never coerced to 0.
   const picksReturnPct = computePortfolioReturnPct(strategy);
   const spyComparison = buildPicksComparison(chartQuery.data);
@@ -148,13 +148,14 @@ export default function DashboardPage() {
         />
       ) : (
         <>
-          {/* Four figures. Picks return is the equal-size record. S&P is the
-              same dollars on the same dates, not the index's own move. */}
+          {/* Four figures. Picks return is on the capital committed to picks.
+              S&P is the same dollars on the same dates, not the index's own
+              move. */}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <StatTile
               label="PICKS RETURN"
               value={formatPctOrDash(picksReturnPct)}
-              caption="Each pick entered at the same size. Closed picks included."
+              caption="Return on the capital put into picks. Closed picks included."
               icon={TrendingUp}
               tone="mint"
               valueTone={pnlTone(picksReturnPct)}
@@ -191,8 +192,8 @@ export default function DashboardPage() {
               value={portfolio ? portfolio.position_count.toString() : "—"}
               caption={
                 maxPositions
-                  ? `Open now · cap ${maxPositions} · equal size at entry`
-                  : "Open now · equal size at entry"
+                  ? `Open now · cap ${maxPositions}`
+                  : "Open now"
               }
               icon={Layers}
               tone="mint"

@@ -136,16 +136,60 @@ class BackfillError(RuntimeError):
 # ---------------------------------------------------------------------------
 
 
-def _position_lot(pos: Position, fallback_open: date) -> Lot:
-    cost = pos.initial_investment
-    if not cost or cost <= 0:
-        cost = (pos.shares or 0.0) * (pos.avg_cost or 0.0)
-    return Lot(
-        ticker=pos.ticker.upper(),
-        shares=pos.shares or 0.0,
-        cost=float(cost or 0.0),
-        open_date=pos.entry_date or fallback_open,
-    )
+def _position_lots(
+    pos: Position, buys: list[Trade], fallback_open: date
+) -> list[Lot]:
+    """An open position as one lot per buy in its current holding period.
+
+    A conviction add is its own purchase at its own price. Booking the whole
+    position on `entry_date` put SEZL's September $1,000 into the April curve at
+    April's price. The first buy takes the position's `entry_date` (a
+    hand-entered trade's timestamp is when the row was written); later buys
+    keep their own dates, never earlier than that. If trims left fewer shares
+    than were bought, every lot is scaled down by the same fraction so the lots
+    sum to what is actually held.
+    """
+    ticker = pos.ticker.upper()
+    opened = pos.entry_date or fallback_open
+    if len(buys) < 2:
+        cost = pos.initial_investment
+        if not cost or cost <= 0:
+            cost = (pos.shares or 0.0) * (pos.avg_cost or 0.0)
+        return [
+            Lot(ticker=ticker, shares=pos.shares or 0.0, cost=float(cost or 0.0), open_date=opened)
+        ]
+
+    bought = sum(t.shares or 0.0 for t in buys)
+    scale = (pos.shares or 0.0) / bought if bought > 0 else 0.0
+    lots = []
+    for i, t in enumerate(buys):
+        when = t.timestamp.date() if t.timestamp else opened
+        lots.append(
+            Lot(
+                ticker=ticker,
+                shares=(t.shares or 0.0) * scale,
+                cost=float(t.notional or 0.0) * scale,
+                open_date=opened if i == 0 else max(when, opened),
+            )
+        )
+    return lots
+
+
+def _current_period_buys(rows: list[Trade]) -> list[Trade]:
+    """Buys since the ticker was last flat: the open position's own lots."""
+    held = 0.0
+    period: list[Trade] = []
+    for t in rows:
+        if t.action in CORRECTION_ACTIONS:
+            continue
+        if t.side == "buy":
+            if held <= 1e-9:
+                period = []
+            period.append(t)
+            held += t.shares or 0.0
+        else:
+            held -= t.shares or 0.0
+    return period
 
 
 def _closed_lots(
@@ -229,6 +273,14 @@ def build_lots(
         .all()
     )
     open_tickers = {(p.ticker or "").upper() for p in positions}
+    trades_by_ticker: dict[str, list[Trade]] = {}
+    for t in (
+        db.query(Trade)
+        .filter(Trade.portfolio_id == portfolio.id)
+        .order_by(Trade.timestamp.asc(), Trade.id.asc())
+        .all()
+    ):
+        trades_by_ticker.setdefault((t.ticker or "").upper(), []).append(t)
     lots = []
     for pos in positions:
         if not pos.entry_date:
@@ -236,7 +288,8 @@ def build_lots(
                 f"{pos.ticker} has no entry_date; assuming it was held from "
                 f"inception ({inception.isoformat()})"
             )
-        lots.append(_position_lot(pos, inception))
+        buys = _current_period_buys(trades_by_ticker.get((pos.ticker or "").upper(), []))
+        lots.extend(_position_lots(pos, buys, inception))
     lots.extend(_closed_lots(db, portfolio.id, open_tickers, warnings))
     return lots
 

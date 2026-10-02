@@ -1,5 +1,4 @@
-import { OPS_API_BASE } from "@/lib/api-config";
-import { opsHeaders } from "@/lib/admin";
+import { PUBLIC_API_BASE } from "@/lib/api-config";
 import { claimDispatch } from "@/lib/email-dispatch";
 import { sendPerformanceAlertEmail } from "@/lib/email";
 import { getOptedInRecipients } from "@/lib/preferences";
@@ -9,7 +8,7 @@ import type { PickStat } from "@/lib/email-templates";
  * Milestone and drawdown notifications.
  *
  * Two things fire one: a position crossing a gain threshold for the first time,
- * and the whole book falling a set distance below its own high-water mark.
+ * and the picks falling a set distance below their own high-water mark.
  *
  * "For the first time" is the entire difficulty. A position sitting at +103%
  * is over the 100% line every single day, so a naive check mails the list daily
@@ -24,7 +23,7 @@ import type { PickStat } from "@/lib/email-templates";
 /** Gain thresholds, ascending. A position crossing one announces itself once. */
 export const MILESTONE_THRESHOLDS = [50, 100, 200] as const;
 
-/** Book drawdown bands from the high-water mark, deepening. */
+/** Picks drawdown bands from the high-water mark, deepening. */
 export const DRAWDOWN_THRESHOLDS = [10, 20, 30] as const;
 
 export type PerformanceAlertResult = {
@@ -38,7 +37,10 @@ type OpsHolding = {
   pnl_pct?: number | null;
 };
 
-type PerformancePoint = { date?: string; return_pct?: number | null };
+type PerformanceSummary = {
+  picks_drawdown_pct?: number | null;
+  picks_peak_date?: string | null;
+};
 
 /**
  * The deepest threshold `value` has crossed, or null.
@@ -59,30 +61,9 @@ export function crossedThreshold(
   return hit;
 }
 
-/**
- * Peak-to-current decline of the equity curve, as a positive percent.
- *
- * Computed off the since-inception series, so the high-water mark is the best
- * the book has ever closed rather than the best inside some window.
- */
-export function currentDrawdownPct(series: PerformancePoint[]): number | null {
-  const points = series
-    .map((p) => p.return_pct)
-    .filter((n): n is number => typeof n === "number");
-  if (points.length < 2) return null;
-
-  const peak = Math.max(...points);
-  const latest = points[points.length - 1];
-  const peakMult = 1 + peak / 100;
-  if (peakMult <= 0) return null;
-  const decline = (1 - (1 + latest / 100) / peakMult) * 100;
-  return decline > 0 ? decline : 0;
-}
-
-async function opsJson<T>(path: string): Promise<T | null> {
+async function apiJson<T>(path: string): Promise<T | null> {
   try {
-    const res = await fetch(`${OPS_API_BASE}${path}`, {
-      headers: opsHeaders(),
+    const res = await fetch(`${PUBLIC_API_BASE}${path}`, {
       cache: "no-store",
     });
     if (!res.ok) return null;
@@ -131,11 +112,13 @@ export async function runPerformanceAlerts(): Promise<PerformanceAlertResult> {
     errors: [],
   };
 
-  // Holdings come from the OPS surface, not /api/data: the public one
-  // anonymises tickers for non-subscribers, and an alert that says "a position
-  // crossed +100%" without naming it is not worth sending.
-  const strategy = await opsJson<{ holdings?: OpsHolding[] }>("/strategy");
-  const perf = await opsJson<{ series?: PerformancePoint[] }>("/performance");
+  // Straight from the API, not the web app's /api/data proxy, which
+  // anonymises tickers for non-subscribers: an alert that says "a position
+  // crossed +100%" without naming it is not worth sending. These used to read
+  // /api/ops/strategy and /api/ops/performance, which do not exist, so every
+  // run got a 404 and no alert of either kind ever fired.
+  const strategy = await apiJson<{ holdings?: OpsHolding[] }>("/strategy");
+  const perf = await apiJson<{ summary?: PerformanceSummary }>("/performance");
 
   /* ------------------------------ Milestones ----------------------------- */
 
@@ -196,26 +179,24 @@ export async function runPerformanceAlerts(): Promise<PerformanceAlertResult> {
 
   /* ------------------------------ Drawdown ------------------------------- */
 
-  const drawdown = currentDrawdownPct(perf?.series ?? []);
-  if (drawdown !== null) {
+  // Time-weighted, so a new buy is a flow rather than a loss. The whole-book
+  // equity curve this used to read is mostly idle cash and could not fall 10%.
+  const drawdown = perf?.summary?.picks_drawdown_pct ?? null;
+  const peakDate = perf?.summary?.picks_peak_date ?? null;
+  if (typeof drawdown === "number" && peakDate) {
     const band = crossedThreshold(drawdown, DRAWDOWN_THRESHOLDS);
     if (band !== null) {
-      // Keyed by band AND by the peak it fell from, so a book that recovers to
-      // a new high and later falls 10% again is a NEW event rather than one
+      // Keyed by band AND by the peak it fell from, so picks that recover to
+      // a new high and later fall 10% again are a NEW event rather than one
       // permanently silenced by the first occurrence.
-      const peak = Math.max(
-        ...(perf?.series ?? [])
-          .map((p) => p.return_pct)
-          .filter((n): n is number => typeof n === "number"),
-      );
-      const key = `drawdown:${band}:${peak.toFixed(0)}`;
+      const key = `drawdown:${band}:${peakDate}`;
       if (await claimDispatch("performance_alert", key)) {
         try {
           const { sent, failed } = await fanOut(
             key,
             "drawdown",
-            `The portfolio is ${drawdown.toFixed(1)}% off its high`,
-            `The book has fallen ${drawdown.toFixed(1)}% from its high-water mark, crossing the ${band}% mark. Drawdowns are part of the strategy. The published backtest had a maximum drawdown of 27.38%, and we are not changing the process in response to this one.`,
+            `The picks are ${drawdown.toFixed(1)}% off their high`,
+            `The picks have fallen ${drawdown.toFixed(1)}% from their high-water mark, crossing the ${band}% mark. Drawdowns are part of the strategy. The published backtest had a maximum drawdown of 27.38%, and we are not changing the process in response to this one.`,
             [
               {
                 label: "Off the high",
@@ -227,7 +208,7 @@ export async function runPerformanceAlerts(): Promise<PerformanceAlertResult> {
           );
           result.fired.push({
             key,
-            headline: `Portfolio ${drawdown.toFixed(1)}% off its high`,
+            headline: `Picks ${drawdown.toFixed(1)}% off their high`,
             sent,
             failed,
           });

@@ -234,7 +234,7 @@ export function buildPicksComparison(chart: ChartData | undefined): PicksCompari
 // switching back to one already seen is instant. It is NOT a client-side slice
 // of a single response: a window is rebuilt server-side with every pick
 // re-entered at its value on the window's first day, which is the only way all
-// the lines start at 0% together. See `rebase_flows` in the API.
+// the lines start at 0% together. See `window_events` in the API.
 export function useChart(window: ChartWindow = "inception") {
   return useQuery<ChartData>({
     queryKey: ["chart", window],

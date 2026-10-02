@@ -141,7 +141,7 @@ export default async function InsightDetailPage({
 
             {weekVsSpy ? (
               <WeekVsSpyBars
-                bookChangePct={weekVsSpy.bookChangePct}
+                picksChangePct={weekVsSpy.picksChangePct}
                 spyChangePct={weekVsSpy.spyChangePct}
               />
             ) : null}

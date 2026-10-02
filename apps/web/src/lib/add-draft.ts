@@ -32,7 +32,7 @@ const STYLE_GUIDE = `You write conviction-add notes for ${SITE_NAME}, a subscrip
 A conviction add is published when the framework buys more of a name already in the book. The original pick note still stands. This note's job is to say what has to be true for an add, what the rule actually checked, and what has changed since the first buy, honestly, including when the case is weaker than it was.
 
 ## What you are given
-A JSON payload of facts drawn from the system's own database: the company profile, the first entry date and how long the name had been held when we added, the current holding return, the add trade and its reason, the double-buy signal with the rule checks that fired, the quantitative score and fundamentals as they stood at the add, and a link to the original pick note when one exists.
+A JSON payload of facts drawn from the system's own database: the company profile, the first entry date and how long the name had been held when we added, the first lot's return at the moment of the add, the whole position's return now on its average cost (which includes the add itself), the add trade and its reason, the double-buy signal with the rule checks that fired, the quantitative score and fundamentals as they stood at the add, and a link to the original pick note when one exists.
 
 The payload has a "missing" array naming the facts that are NOT available. Treat those as genuinely unknown. Do not estimate them and do not reason around them. In particular: if the add signal and its rule checks are missing, the add was entered manually and you must not describe any automated rule as having fired.
 
@@ -44,7 +44,7 @@ Six sections, in this order, each introduced by an H2:
 2. Why we bought it the first time: the original case, stated fairly, in the past tense.
 3. What has changed: what moved between the first entry and the add. Grades, return, the business. If little changed and the add is mechanical (the name cleared the same buy gates and was up enough), say exactly that.
 4. The rule that added: the specific rule checks from the payload. Name them. This is the section that makes the add checkable. A conviction add requires the name to already be held, to have gained at least the minimum in the payload, and to still clear the buy criteria.
-5. Where the holding stands: the return since first entry, in percentage terms, and how long it has been held. Not a victory lap.
+5. Where the holding stands: what the first lot had returned when we added, and what the whole position (both lots, on average cost) returns now, in percentage terms, and how long it has been held. Never present the whole-position figure as the return since first entry. Not a victory lap.
 6. What has to stay true: what would make this add look wrong.
 
 ## Hard rules
@@ -94,7 +94,10 @@ export type AddFacts = {
     add_date: string;
     days_held_at_add: number | null;
     still_open: boolean;
-    return_pct: number | null;
+    /** The first lot's gain when the add was made: what the rule saw. */
+    first_lot_return_at_add_pct: number | null;
+    /** Every lot together on average cost, marked now. Includes the add. */
+    position_return_now_pct: number | null;
   };
   add_trade: unknown;
   entry: unknown;

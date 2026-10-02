@@ -91,6 +91,9 @@ function logoSources(ticker: string): string[] {
  * Logos are decorative wherever this is used because the adjacent ticker is
  * the accessible name. The ticker fallback appears only after every image
  * source fails so it cannot bleed through transparent company marks.
+ *
+ * Loaded marks sit on a light tile, inset slightly, because many are drawn for
+ * white pages (Micron, Atlanticus, Sandisk) and vanish on the dark theme.
  */
 export function CompanyLogo({
   ticker,
@@ -115,7 +118,9 @@ export function CompanyLogo({
       aria-hidden="true"
       className={cn(
         "relative inline-grid shrink-0 place-items-center overflow-hidden",
-        failed && "bg-bg-tertiary ring-1 ring-inset ring-border",
+        failed
+          ? "bg-bg-tertiary ring-1 ring-inset ring-border"
+          : "bg-[#f4f4f5]",
         styles.frame,
         className,
       )}
@@ -138,7 +143,7 @@ export function CompanyLogo({
           width={styles.pixels}
           height={styles.pixels}
           sizes={`${styles.pixels}px`}
-          className="absolute inset-0 h-full w-full object-contain"
+          className="absolute inset-[12%] h-[76%] w-[76%] object-contain"
           draggable={false}
           priority={priority}
           referrerPolicy="no-referrer"

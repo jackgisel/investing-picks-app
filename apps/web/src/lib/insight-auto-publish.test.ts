@@ -14,6 +14,9 @@ const claimForPublish = vi.fn();
 const announcePick = vi.fn();
 const announceExit = vi.fn();
 const announceAdd = vi.fn();
+const announcePickCycle = vi.fn();
+const openCycleSiblings = vi.fn();
+const claimCycleSiblings = vi.fn();
 
 vi.mock("@/lib/insights-db", () => ({
   listDraftsDueForPublish,
@@ -23,7 +26,19 @@ vi.mock("@/lib/pick-announce", () => ({
   announcePick,
   announceExit,
   announceAdd,
+  announcePickCycle,
 }));
+vi.mock("@/lib/pick-cycle", async () => {
+  const real = await vi.importActual<typeof import("@/lib/pick-cycle")>(
+    "@/lib/pick-cycle",
+  );
+  return {
+    siblingStillComing: real.siblingStillComing,
+    fetchRecentTrades: async () => [],
+    openCycleSiblings,
+    claimCycleSiblings,
+  };
+});
 
 const { autoPublishDueDrafts } = await import("@/lib/insight-auto-publish");
 
@@ -64,6 +79,11 @@ beforeEach(() => {
   process.env.RESEND_API_KEY = "test-key";
   delete process.env.AUTO_PUBLISH_ENABLED;
   announcePick.mockResolvedValue({ sent: 3, failed: 0, total: 3, errors: [] });
+  announcePickCycle.mockResolvedValue({ sent: 3, failed: 0, total: 3, errors: [] });
+  openCycleSiblings.mockResolvedValue([]);
+  claimCycleSiblings.mockImplementation(async (s: InsightMeta[]) =>
+    s.map((m) => claimed(m)),
+  );
 });
 
 describe("autoPublishDueDrafts", () => {
@@ -184,5 +204,61 @@ describe("autoPublishDueDrafts", () => {
     expect(result.published).toEqual([
       { ticker: "SEZL", slug: "add-sezl-2020-01-01", sent: 0, failed: 0 },
     ]);
+  });
+
+  describe("a multi-pick cycle", () => {
+    const MU: InsightMeta = { ...DUE, id: "2", ticker: "MU", slug: "mu-note" };
+    const inFuture = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+
+    it("sends one email for both notes when both are due", async () => {
+      listDraftsDueForPublish.mockResolvedValue([DUE, MU]);
+      claimForPublish.mockResolvedValue(claimed());
+      openCycleSiblings.mockResolvedValue([MU]);
+
+      const result = await autoPublishDueDrafts();
+
+      expect(announcePickCycle).toHaveBeenCalledTimes(1);
+      expect(
+        announcePickCycle.mock.calls[0][0].map((n: InsightMeta) => n.ticker),
+      ).toEqual(["WDC", "MU"]);
+      expect(announcePick).not.toHaveBeenCalled();
+      // MU was claimed inside WDC's send, so the loop must not claim it again.
+      expect(claimForPublish).toHaveBeenCalledTimes(1);
+      expect(result.published.map((p) => p.ticker)).toEqual(["WDC", "MU"]);
+    });
+
+    it("holds a due note while its sibling is still in review", async () => {
+      const justDue = new Date(Date.now() - 60 * 1000).toISOString();
+      listDraftsDueForPublish.mockResolvedValue([
+        { ...DUE, autoPublishAt: justDue },
+      ]);
+      openCycleSiblings.mockResolvedValue([
+        { ...MU, autoPublishAt: inFuture },
+      ]);
+
+      const result = await autoPublishDueDrafts();
+
+      expect(claimForPublish).not.toHaveBeenCalled();
+      expect(announcePick).not.toHaveBeenCalled();
+      expect(result.skipped).toEqual([
+        { ticker: "WDC", reason: "held to send with MU" },
+      ]);
+    });
+
+    it("stops holding once the note is a full day overdue", async () => {
+      const stale = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
+      listDraftsDueForPublish.mockResolvedValue([
+        { ...DUE, autoPublishAt: stale },
+      ]);
+      claimForPublish.mockResolvedValue(claimed());
+      openCycleSiblings.mockResolvedValue([
+        { ...MU, status: "pending", autoPublishAt: null },
+      ]);
+
+      await autoPublishDueDrafts();
+
+      expect(announcePick).toHaveBeenCalledTimes(1);
+      expect(announcePickCycle).not.toHaveBeenCalled();
+    });
   });
 });

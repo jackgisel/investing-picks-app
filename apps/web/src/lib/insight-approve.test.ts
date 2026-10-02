@@ -19,13 +19,18 @@ const announcePick = vi.fn();
 const announceExit = vi.fn();
 const announceAdd = vi.fn();
 const requireAdmin = vi.fn();
+const announcePickCycle = vi.fn();
+const openCycleSiblings = vi.fn();
+const claimCycleSiblings = vi.fn();
 
 vi.mock("@/lib/insights-db", () => ({ claimForPublish, getInsightById }));
 vi.mock("@/lib/pick-announce", () => ({
   announcePick,
   announceExit,
   announceAdd,
+  announcePickCycle,
 }));
+vi.mock("@/lib/pick-cycle", () => ({ openCycleSiblings, claimCycleSiblings }));
 vi.mock("@/lib/admin", () => ({ requireAdmin }));
 vi.mock("@/lib/auth", () => ({ ensureMigrations: async () => {} }));
 
@@ -65,6 +70,9 @@ beforeEach(() => {
   process.env.RESEND_API_KEY = "test-key";
   requireAdmin.mockResolvedValue({ ok: true, user: { id: "u", email: "a@b.c" } });
   announcePick.mockResolvedValue({ sent: 3, failed: 0, total: 3, errors: [] });
+  announcePickCycle.mockResolvedValue({ sent: 3, failed: 0, total: 3, errors: [] });
+  openCycleSiblings.mockResolvedValue([]);
+  claimCycleSiblings.mockResolvedValue([]);
 });
 
 describe("approve", () => {
@@ -158,5 +166,19 @@ describe("approve", () => {
 
     expect(res.status).toBe(404);
     expect(claimForPublish).not.toHaveBeenCalled();
+  });
+
+  it("sends one email for the cycle when a sibling draft is ready", async () => {
+    getInsightById.mockResolvedValue(DRAFT);
+    claimForPublish.mockResolvedValue({ ...DRAFT, status: "approved" });
+    const mu = { ...DRAFT, id: "2", ticker: "MU", slug: "mu-note", status: "approved" };
+    claimCycleSiblings.mockResolvedValue([mu]);
+
+    const res = await call();
+    const body = await res.json();
+
+    expect(announcePickCycle).toHaveBeenCalledTimes(1);
+    expect(announcePick).not.toHaveBeenCalled();
+    expect(body.alsoPublished).toEqual(["MU"]);
   });
 });

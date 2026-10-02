@@ -147,6 +147,30 @@ export async function getInsightByTicker(
   return rows[0] ? toMeta(rows[0]) : null;
 }
 
+/**
+ * Pick notes for these tickers that have not been mailed and still might be:
+ * drafts, notes waiting on a body, and failed ones with retries left. Used to
+ * group a multi-pick cycle into one announcement (see `lib/pick-cycle.ts`).
+ */
+export async function listUnsentPickNotes(
+  tickers: string[],
+): Promise<InsightMeta[]> {
+  if (!tickers.length) return [];
+  const { rows } = await pool.query<DbInsightRow>(
+    `SELECT ${META_COLUMNS}
+       FROM insight
+      WHERE post_type = 'pick'
+        AND UPPER(ticker) = ANY($1::text[])
+        AND email_sent_at IS NULL
+        AND (
+          status IN ('pending', 'draft')
+          OR (status = 'failed' AND generation_attempts < $2)
+        )`,
+    [tickers.map((t) => t.toUpperCase()), MAX_GENERATION_ATTEMPTS],
+  );
+  return rows.map(toMeta);
+}
+
 /* ------------------------------- Writing -------------------------------- */
 
 /**

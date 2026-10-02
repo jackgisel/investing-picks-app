@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { ensureMigrations } from "@/lib/auth";
 import { syncAddDrafts, syncExitDrafts, syncPickDrafts } from "@/lib/insight-sync";
+import { cyclePicks } from "@/lib/insights";
 import { listInsights } from "@/lib/insights-db";
+import { fetchRecentTrades } from "@/lib/pick-cycle";
 
 export const dynamic = "force-dynamic";
 
@@ -12,11 +14,27 @@ export async function GET() {
   if (!guard.ok) return guard.response;
 
   await ensureMigrations();
-  return NextResponse.json({
-    insights: (await listInsights({ includeUnpublished: true })).filter(
-      (i) => i.postType !== "weekly_review",
-    ),
-  });
+  const insights = (await listInsights({ includeUnpublished: true })).filter(
+    (i) => i.postType !== "weekly_review",
+  );
+
+  // Unsent pick notes that will go out in one mail with each other, keyed by
+  // note id. Mirrors what `lib/pick-cycle.ts` does at send time so the queue
+  // can say "sends with MU" before anyone approves.
+  const unsent = insights.filter(
+    (i) => i.postType === "pick" && i.ticker && i.status !== "approved" && i.status !== "rejected",
+  );
+  const cycleWith: Record<string, string[]> = {};
+  if (unsent.length > 1) {
+    const trades = await fetchRecentTrades();
+    const open = new Set(unsent.map((i) => i.ticker!.toUpperCase()));
+    for (const i of unsent) {
+      const others = cyclePicks(trades, i.ticker!).filter((t) => open.has(t));
+      if (others.length) cycleWith[i.id] = others;
+    }
+  }
+
+  return NextResponse.json({ insights, cycleWith });
 }
 
 /**

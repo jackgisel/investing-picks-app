@@ -495,6 +495,113 @@ export function renderNewPickEmail(args: {
   });
 }
 
+export type CyclePick = {
+  ticker: string;
+  companyName?: string | null;
+  stats?: PickStat[];
+  articleTitle: string;
+  articleDescription: string;
+  articleUrl: string;
+};
+
+/** "TPR and MU", "TPR, MU and SEZL". */
+export function joinTickers(tickers: string[]): string {
+  if (tickers.length <= 1) return tickers.join("");
+  return `${tickers.slice(0, -1).join(", ")} and ${tickers[tickers.length - 1]}`;
+}
+
+function statRow(stats: PickStat[] | undefined): string {
+  const shown = (stats ?? []).filter((s) => s.value);
+  if (!shown.length) return "";
+  const cells = shown
+    .map((s) => {
+      const colour =
+        s.direction === "up" ? GREEN : s.direction === "down" ? RED : TEXT;
+      const cls =
+        s.direction === "up" ? "dm-up" : s.direction === "down" ? "dm-down" : "dm-text";
+      return `
+        <td width="${Math.floor(100 / shown.length)}%" style="padding:0 12px 0 0;vertical-align:top;">
+          ${fieldLabel(s.label)}
+          <p class="${cls}" style="margin:0;font-family:${FONT_MONO};font-size:17px;font-weight:600;color:${colour};">${escapeHtml(s.value)}</p>
+        </td>`;
+    })
+    .join("");
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0 0 0;"><tr>${cells}</tr></table>`;
+}
+
+/**
+ * One announcement for a cycle that bought more than one name.
+ *
+ * Run 118 buys one name per evaluation, so this only fires on the rare day a
+ * second pick is added by hand. Two back to back "New pick" mails on the same
+ * morning read like a glitch; one mail that says why there are two does not.
+ * Each name keeps its own block and its own link, since each has its own note.
+ */
+export function renderNewPicksEmail(args: {
+  recipientName: string | null;
+  picks: CyclePick[];
+  siteUrl: string;
+  banner?: string;
+  weekKey?: string;
+}): string {
+  const greeting = args.recipientName
+    ? `Hi ${escapeHtml(args.recipientName.split(" ")[0])},`
+    : "Hi there,";
+  const tickers = args.picks.map((p) => p.ticker);
+
+  const rule = `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:26px 0 24px 0;">
+      <tr><td class="dm-rule" style="border-top:1px solid ${BORDER};font-size:0;line-height:0;">&nbsp;</td></tr>
+    </table>`;
+
+  const blocks = args.picks
+    .map((p) => {
+      const company = p.companyName
+        ? `<p class="dm-muted" style="margin:4px 0 0 0;font-family:${FONT_SANS};font-size:15px;font-weight:500;color:${TEXT_MUTED};">${escapeHtml(p.companyName)}</p>`
+        : "";
+      return `
+    ${rule}
+    <p class="dm-text" style="margin:0;font-family:${FONT_MONO};font-size:32px;line-height:1;font-weight:700;color:${TEXT};letter-spacing:-1px;">
+      ${escapeHtml(p.ticker)}
+    </p>
+    ${company}
+    ${statRow(p.stats)}
+    <div style="height:22px;line-height:22px;font-size:0;">&nbsp;</div>
+    ${heading(p.articleTitle)}
+    ${paragraph(escapeHtml(p.articleDescription), 22)}
+    ${pillButton(p.articleUrl, `Read the ${p.ticker} research`)}`;
+    })
+    .join("");
+
+  const body = `
+    ${eyebrow("New picks", "coral")}
+
+    <p class="ticker dm-text" style="margin:0;font-family:${FONT_MONO};font-size:48px;line-height:1.05;font-weight:700;color:${TEXT};letter-spacing:-2px;">
+      ${tickers.map(escapeHtml).join(" · ")}
+    </p>
+
+    ${rule}
+
+    ${paragraph(greeting, 14)}
+    ${paragraph(
+      `We bought ${countWord(tickers.length)} names this cycle instead of the usual one: ${escapeHtml(joinTickers(tickers))}. Each has its own research note, linked below.`,
+      0,
+    )}
+    ${blocks}
+  `;
+
+  return shell({
+    preview: `${joinTickers(tickers)}: ${countWord(tickers.length)} new picks this cycle`,
+    bodyHtml: body,
+    siteUrl: args.siteUrl,
+    banner: args.banner,
+    artUrl: artAbsoluteUrl(
+      args.weekKey ? artForWeek(args.weekKey) : artForKey(tickers[0]),
+      args.siteUrl,
+    ),
+  });
+}
+
 /**
  * A conviction add to a name we already hold.
  *

@@ -25,6 +25,15 @@ from worker.services.employee_counts import (
     refresh_employee_counts,
 )
 from worker.services.fmp import FMPClient
+from worker.services.job_openings import (
+    COLLECT_JOB,
+    COLLECT_TIMEOUT_MINUTES,
+    DISCOVER_JOB,
+    DISCOVER_TIMEOUT_MINUTES,
+    AtsClient,
+    collect_openings,
+    discover_boards,
+)
 from worker.services.market_calendar import is_effective_run_day, is_trading_day
 from worker.services.ingest import (
     CONSENSUS_SNAPSHOT_GAP_JOB,
@@ -82,6 +91,12 @@ def reap_stale_weekly_refreshes() -> int:
             db,
             job_name=EMPLOYEE_COUNTS_JOB,
             stale_after=timedelta(minutes=EMPLOYEE_COUNTS_TIMEOUT_MINUTES),
+        )
+        count += reap_stale_job_runs(
+            db, job_name=DISCOVER_JOB, stale_after=timedelta(minutes=DISCOVER_TIMEOUT_MINUTES)
+        )
+        count += reap_stale_job_runs(
+            db, job_name=COLLECT_JOB, stale_after=timedelta(minutes=COLLECT_TIMEOUT_MINUTES)
         )
         if count:
             log.error("Reaped %s stale scheduled-job run(s)", count)
@@ -648,6 +663,36 @@ def job_employee_counts_refresh():
             fmp.close()
 
     return _track(EMPLOYEE_COUNTS_JOB, _run)
+
+
+def job_job_boards_discover():
+    """Weekly: find which public job board, if any, belongs to each company."""
+
+    def _run(db: Session):
+        ats = AtsClient()
+        try:
+            return discover_boards(db, ats)
+        finally:
+            ats.close()
+
+    return _track(DISCOVER_JOB, _run)
+
+
+def job_job_openings_collect():
+    """Weekday mornings: append today's open-posting count per company.
+
+    History cannot be rebuilt, so a failure here mails the admins through the
+    normal job-failure sweep rather than quietly leaving a hole.
+    """
+
+    def _run(db: Session):
+        ats = AtsClient()
+        try:
+            return collect_openings(db, ats)
+        finally:
+            ats.close()
+
+    return _track(COLLECT_JOB, _run)
 
 
 def job_daily_marks():

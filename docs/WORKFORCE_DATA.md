@@ -45,3 +45,36 @@ forward of Phase 2 if the clock matters more than the page.
 3. Read it as: mostly populated → continue to Phase 2. `402` → plan
    restriction, stop and decide on spend. Many empties → coverage question for
    the leaderboard's floor.
+
+## Phase 2: leaderboard
+
+- `company_revenue` holds annual revenue, filled by the headcount job in the
+  same pass (one extra request per name that has a headcount; a capped
+  revenue-only backfill picks up names that came back empty).
+- `app/services/workforce.py` pairs each headcount with the revenue year ending
+  within 45 days of its period. Growth is only taken against a pair about a
+  year earlier. Leverage = revenue growth minus headcount growth. In-industry
+  percentile needs 5 peers. USD reporters only; $500M revenue and 50 employees
+  floor (`MIN_REVENUE` / `MIN_EMPLOYEES` in `apps/web/src/lib/workforce.ts`).
+- Public `/workforce`: top 10 for everyone, top 100 + sector filter + per
+  company history chart for members (`requireSubscriber` on
+  `/api/data/workforce/[ticker]`). The FastAPI routes are open like the rest of
+  `/api/v1`; the web layer is the paywall.
+
+## Phase 3: job openings
+
+- Source: public Greenhouse, Lever and Ashby job-board feeds. Free. Large
+  caps mostly use Workday or custom sites, so coverage skews to tech and
+  mid-caps; a Workday pass is the obvious next source.
+- `job_boards`: which board belongs to which company. `verified` only on an
+  exact Greenhouse name match, or the company named in 60%+ of a Lever/Ashby
+  board's postings. Unverified boards are counted but must not feed anything
+  published.
+- `job_opening_snapshots`: one row per company per day, append-only, total
+  open postings plus the per-board split. A company is skipped for the day if
+  any of its boards fails to load, so a partial count never reads as a
+  hiring collapse.
+- Jobs: `job_boards_discover` (Sun 09:00 ET, resumable) and
+  `job_openings_collect` (weekdays 07:00 ET). Ops: `GET /api/ops/job-openings`
+  (coverage by ATS, latest snapshot, weekday holes), `POST
+  /api/ops/job-openings/discover|collect`.

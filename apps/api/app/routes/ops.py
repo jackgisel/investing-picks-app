@@ -1332,6 +1332,67 @@ def employee_counts_status(db: Session = Depends(get_db)):
     }
 
 
+def _trigger_job(db: Session, background: BackgroundTasks, job_name: str, timeout_minutes: float, runner_name: str):
+    reap_stale_job_runs(db, job_name=job_name, stale_after=timedelta(minutes=timeout_minutes))
+    running = (
+        db.query(JobRun)
+        .filter(JobRun.job_name == job_name, JobRun.status == "running")
+        .first()
+    )
+    if running is not None:
+        raise HTTPException(status_code=409, detail=f"{job_name} is already running; watch /api/ops/jobs.")
+
+    def _task() -> None:
+        try:
+            from worker.jobs import runner
+
+            getattr(runner, runner_name)()
+        except Exception:
+            log.exception("Manual %s failed", job_name)
+
+    background.add_task(_task)
+    return {"started": True, "job_name": job_name}
+
+
+@router.post("/job-openings/{step}", dependencies=[Depends(require_ops_key)])
+def trigger_job_openings(step: str, background: BackgroundTasks, db: Session = Depends(get_db)):
+    """Run board discovery or today's collection now. `step` is discover | collect."""
+    from worker.services import job_openings as jo
+
+    if step == "discover":
+        return _trigger_job(db, background, jo.DISCOVER_JOB, jo.DISCOVER_TIMEOUT_MINUTES, "job_job_boards_discover")
+    if step == "collect":
+        return _trigger_job(db, background, jo.COLLECT_JOB, jo.COLLECT_TIMEOUT_MINUTES, "job_job_openings_collect")
+    raise HTTPException(status_code=404, detail="step must be discover or collect")
+
+
+@router.get("/job-openings", dependencies=[Depends(require_ops_key)])
+def job_openings_status(db: Session = Depends(get_db)):
+    """Board coverage by ATS, the latest snapshot, weekday holes, and last runs."""
+    from worker.services import job_openings as jo
+
+    def last(name: str):
+        run = (
+            db.query(JobRun)
+            .filter(JobRun.job_name == name)
+            .order_by(JobRun.started_at.desc())
+            .first()
+        )
+        if run is None:
+            return None
+        return {
+            "status": run.status,
+            "detail": run.detail,
+            "started_at": run.started_at.isoformat() if run.started_at else None,
+        }
+
+    return {
+        **jo.coverage(db),
+        "last_discover": last(jo.DISCOVER_JOB),
+        "last_collect": last(jo.COLLECT_JOB),
+    }
+
+
 @router.get("/jobs", dependencies=[Depends(require_ops_key)])
 def list_jobs(db: Session = Depends(get_db), limit: int = 30):
     rows = db.query(JobRun).order_by(JobRun.started_at.desc()).limit(limit).all()

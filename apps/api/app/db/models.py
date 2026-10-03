@@ -302,6 +302,60 @@ class CompanyRevenue(Base):
     )
 
 
+class JobBoard(Base):
+    """A public ATS job board we believe belongs to a company.
+
+    `verified` is positive evidence it is that company's board (an exact name
+    from Greenhouse, or the company named in most of its postings). Unverified
+    boards are still counted, but nothing published may rely on them.
+    """
+
+    __tablename__ = "job_boards"
+    __table_args__ = (UniqueConstraint("ticker", "ats", "slug"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ticker: Mapped[str] = mapped_column(String(16), index=True)
+    #: "greenhouse" | "lever" | "ashby"
+    ats: Mapped[str] = mapped_column(String(16))
+    slug: Mapped[str] = mapped_column(String(128))
+    board_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    discovered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class JobBoardCheck(Base):
+    """When discovery last looked for a company's board, and whether it found one."""
+
+    __tablename__ = "job_board_checks"
+
+    ticker: Mapped[str] = mapped_column(String(16), primary_key=True)
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    found: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class JobOpeningSnapshot(Base):
+    """Append-only count of a company's open postings on one day.
+
+    The history cannot be rebuilt later, so a day is written once and never
+    revised. `boards` keeps the per-board split behind the total.
+    """
+
+    __tablename__ = "job_opening_snapshots"
+    __table_args__ = (UniqueConstraint("ticker", "as_of"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ticker: Mapped[str] = mapped_column(String(16))
+    as_of: Mapped[date] = mapped_column(Date, index=True)
+    open_count: Mapped[int] = mapped_column(Integer)
+    #: True only if every board behind the count is verified.
+    verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    boards: Mapped[list] = mapped_column(JSON, default=list)
+    fetched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), default=func.now()
+    )
+
+
 class EmployeeCountCheck(Base):
     """When we last asked FMP for a ticker's headcount, and what came back.
 

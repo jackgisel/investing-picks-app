@@ -25,6 +25,11 @@ from worker.backtest.workforce_ic import (
     WORKFORCE_IC_TIMEOUT_MINUTES,
     compute_workforce_ic,
 )
+from worker.services.deep_prices import (
+    DEEP_PRICE_JOB,
+    DEEP_PRICE_TIMEOUT_MINUTES,
+    deep_price_history,
+)
 from worker.services.employee_counts import (
     EMPLOYEE_COUNTS_JOB,
     EMPLOYEE_COUNTS_TIMEOUT_MINUTES,
@@ -103,6 +108,11 @@ def reap_stale_weekly_refreshes() -> int:
         )
         count += reap_stale_job_runs(
             db, job_name=COLLECT_JOB, stale_after=timedelta(minutes=COLLECT_TIMEOUT_MINUTES)
+        )
+        count += reap_stale_job_runs(
+            db,
+            job_name=DEEP_PRICE_JOB,
+            stale_after=timedelta(minutes=DEEP_PRICE_TIMEOUT_MINUTES),
         )
         count += reap_stale_job_runs(
             db,
@@ -704,6 +714,23 @@ def job_job_openings_collect():
             ats.close()
 
     return _track(COLLECT_JOB, _run)
+
+
+def job_price_history_deep():
+    """On demand: load five years of daily closes for factor studies.
+
+    Writes `price_bars_deep`, never the live `price_bars`. Resumable (a ticker
+    commits as it goes) and never scheduled.
+    """
+
+    def _run(db: Session):
+        fmp = _fmp()
+        try:
+            return deep_price_history(db, fmp)
+        finally:
+            fmp.close()
+
+    return _track(DEEP_PRICE_JOB, _run)
 
 
 def job_workforce_ic():

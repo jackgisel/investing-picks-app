@@ -36,7 +36,7 @@ from statistics import mean
 
 from sqlalchemy.orm import Session
 
-from app.db.models import CompanyRevenue, EmployeeCount, Stock
+from app.db.models import CompanyRevenue, DeepPriceBar, EmployeeCount, Stock
 from worker.backtest.factor_ic import ForwardReturns, spearman, summarize
 
 log = logging.getLogger(__name__)
@@ -188,7 +188,15 @@ def compute_workforce_ic(
         return {"error": "no headcount data", "factors": {}}
     first_filing = min(rows[0][0] for rows in history.hc.values())
     price_start = start or first_filing
-    fwd = ForwardReturns(db, price_start, end)
+    # Prefer the deep table (one price basis per name, years of it); fall back
+    # to the live bars, whose ~14 months leave too few dates to say much.
+    has_deep = db.query(DeepPriceBar.id).first() is not None
+    price_source = "deep" if has_deep else "live"
+    fwd = (
+        ForwardReturns(db, price_start, end, model=DeepPriceBar)
+        if has_deep
+        else ForwardReturns(db, price_start, end)
+    )
     if not fwd.sessions:
         return {"error": "no price history", "factors": {}}
     last_session = fwd.sessions[-1]
@@ -261,6 +269,8 @@ def compute_workforce_ic(
         "last_date": used_dates[-1].isoformat() if used_dates else None,
         "avg_names_with_a_factor": round(mean(covered)) if covered else 0,
         "last_price_session": last_session.isoformat(),
+        "price_source": price_source,
+        "first_price_session": first_session.isoformat(),
         "horizons_trading_days": list(horizons),
         "factors": factors,
     })
@@ -297,7 +307,8 @@ def render_markdown(result: dict) -> str:
         "# Workforce factor IC",
         "",
         f"Month-end dates: {result['dates_used']} ({result['first_date']} to {result['last_date']}), "
-        f"about {result['avg_names_with_a_factor']} names per date. Last price session: {result['last_price_session']}.",
+        f"about {result['avg_names_with_a_factor']} names per date. Prices: {result.get('price_source', 'live')} history, "
+        f"{result.get('first_price_session', 'n/a')} to {result['last_price_session']}.",
         "",
         "IC is the Spearman correlation between a factor and the forward return across names on a date, "
         "averaged over dates; `t` is mean / (sd / sqrt(n)). Horizons beyond 21 sessions overlap between "

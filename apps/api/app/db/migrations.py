@@ -238,6 +238,17 @@ def _ensure_job_openings(engine: Engine) -> None:
             log.warning("Could not create %s; assuming it exists", model.__tablename__)
 
 
+def _ensure_deep_prices(engine: Engine) -> None:
+    """Create the deep price history tables if this database predates them."""
+    from app.db.models import DeepPriceBar, DeepPriceCheck
+
+    for model in (DeepPriceBar, DeepPriceCheck):
+        try:
+            model.__table__.create(engine, checkfirst=True)
+        except Exception:
+            log.warning("Could not create %s; assuming it exists", model.__tablename__)
+
+
 def _columns(conn, table: str) -> list[dict]:
     from sqlalchemy import inspect
 
@@ -389,5 +400,6 @@ def ensure_schema(engine: Engine) -> None:
     _ensure_income_statements(engine)
     _ensure_employee_counts(engine)
     _ensure_job_openings(engine)
+    _ensure_deep_prices(engine)
     _correct_imported_lots(engine)
     _drop_weekend_rows(engine)

@@ -278,6 +278,30 @@ class EmployeeCount(Base):
     )
 
 
+class CompanyRevenue(Base):
+    """Annual revenue per ticker, the denominator for revenue per employee.
+
+    Kept apart from `income_statements`, which is the live display copy for
+    held names only. This one covers every name with a headcount and keeps the
+    first value seen for a fiscal year, so a later restatement cannot rewrite
+    what the leaderboard showed.
+    """
+
+    __tablename__ = "company_revenue"
+    __table_args__ = (UniqueConstraint("ticker", "period"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ticker: Mapped[str] = mapped_column(String(16))
+    #: Fiscal year end.
+    period: Mapped[date] = mapped_column(Date)
+    filing_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    revenue: Mapped[float] = mapped_column(Float)
+    currency: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    fetched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), default=func.now()
+    )
+
+
 class EmployeeCountCheck(Base):
     """When we last asked FMP for a ticker's headcount, and what came back.
 

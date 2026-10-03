@@ -218,9 +218,9 @@ def _ensure_employee_counts(engine: Engine) -> None:
     The worker never runs `create_all` and its weekly refresh is the first
     writer, so it has to be able to make its own tables.
     """
-    from app.db.models import EmployeeCount, EmployeeCountCheck
+    from app.db.models import CompanyRevenue, EmployeeCount, EmployeeCountCheck
 
-    for model in (EmployeeCount, EmployeeCountCheck):
+    for model in (EmployeeCount, EmployeeCountCheck, CompanyRevenue):
         try:
             model.__table__.create(engine, checkfirst=True)
         except Exception:

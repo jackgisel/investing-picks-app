@@ -55,6 +55,7 @@ const MARKETING = [
   "src/app/privacy/page.tsx",
   "src/app/research/[slug]/page.tsx",
   "src/app/strategy/page.tsx",
+  "src/app/workforce/page.tsx",
   "src/app/terms/page.tsx",
   "src/app/track-record/page.tsx",
   "src/app/welcome/welcome-experience.tsx",

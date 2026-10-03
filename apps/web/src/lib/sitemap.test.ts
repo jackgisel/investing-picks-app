@@ -87,6 +87,7 @@ describe("buildSitemapEntries", () => {
       "/blog",
       "/pricing",
       "/track-record",
+      "/workforce",
       "/strategy",
       "/tools",
       "/tools/concentrated-portfolio-calculator",

@@ -16,7 +16,7 @@ from datetime import date, datetime, timedelta, timezone
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.db.models import EmployeeCount, EmployeeCountCheck
+from app.db.models import CompanyRevenue, EmployeeCount, EmployeeCountCheck
 from worker.services.fmp import FMPAccessError, FMPClient
 from worker.services.ingest import held_tickers, snapshot_universe_tickers, today_et
 
@@ -38,6 +38,8 @@ HISTORY_LIMIT = 10
 #: Consecutive per-request access errors that mean the endpoint is off-plan
 #: rather than one symbol being restricted.
 ACCESS_ERROR_LIMIT = 3
+#: Revenue-only requests per run for names that have a headcount but no revenue.
+REVENUE_BACKFILL_LIMIT = 100
 #: This many never-asked names with none returning data is a broken source,
 #: not thin coverage.
 ALL_EMPTY_ALARM = 25
@@ -96,6 +98,93 @@ def bulk_insert_employee_counts(db: Session, rows: list[dict]) -> int:
     )
     db.commit()
     return len(rows)
+
+
+def parse_revenue(row: dict) -> dict | None:
+    """One annual income statement as a revenue row, or None if unusable."""
+    period = _parse_date(row.get("date"))
+    try:
+        revenue = float(row.get("revenue"))
+    except (TypeError, ValueError):
+        return None
+    if period is None or revenue <= 0:
+        return None
+    return {
+        "period": period,
+        "filing_date": _parse_date(
+            row.get("acceptedDate") or row.get("filingDate") or row.get("fillingDate")
+        ),
+        "revenue": revenue,
+        "currency": (str(row["reportedCurrency"])[:8] if row.get("reportedCurrency") else None),
+    }
+
+
+def store_revenue(db: Session, ticker: str, statements: list[dict]) -> int:
+    """Append annual revenue, keeping the first value seen for each year."""
+    now = datetime.now(timezone.utc)
+    parsed: dict[date, dict] = {}
+    for st in statements or []:
+        item = parse_revenue(st)
+        if item is None:
+            continue
+        item.update(ticker=ticker, fetched_at=now)
+        parsed[item["period"]] = item
+    if not parsed:
+        return 0
+    dialect = db.get_bind().dialect.name
+    if dialect == "postgresql":
+        from sqlalchemy.dialects.postgresql import insert as _insert
+    elif dialect == "sqlite":
+        from sqlalchemy.dialects.sqlite import insert as _insert
+    else:  # pragma: no cover - only these two are ever deployed
+        raise RuntimeError(f"unsupported dialect {dialect}")
+    stmt = _insert(CompanyRevenue.__table__).values(list(parsed.values()))
+    db.execute(stmt.on_conflict_do_nothing(index_elements=["ticker", "period"]))
+    db.commit()
+    return len(parsed)
+
+
+def _fetch_revenue(db: Session, fmp: FMPClient, ticker: str) -> int:
+    """Store a ticker's annual revenue. Never aborts the run: revenue is the
+    secondary fetch, and a refusal on one symbol (or an empty statement) only
+    leaves that name for `backfill_revenue`."""
+    try:
+        statements = fmp.income_statement_annual(ticker, limit=HISTORY_LIMIT)
+    except FMPAccessError:
+        log.warning("income-statement refused for %s; leaving it for the backfill", ticker)
+        return 0
+    return store_revenue(db, ticker, statements)
+
+
+def backfill_revenue(
+    db: Session, fmp: FMPClient, universe: list[str], limit: int, started: float, budget: float
+) -> int:
+    """Revenue-only pass for names that have a headcount but no revenue yet.
+
+    One request each and capped per run, so a name whose statements never
+    parse costs a handful of requests a week, not a re-pull of its headcount.
+    """
+    have_headcount = {
+        t
+        for (t,) in db.query(EmployeeCount.ticker)
+        .filter(EmployeeCount.ticker.in_(universe))
+        .distinct()
+        .all()
+    }
+    have_revenue = {
+        t
+        for (t,) in db.query(CompanyRevenue.ticker)
+        .filter(CompanyRevenue.ticker.in_(universe))
+        .distinct()
+        .all()
+    }
+    done = 0
+    for ticker in sorted(have_headcount - have_revenue):
+        if done >= limit or time.monotonic() - started > budget:
+            break
+        _fetch_revenue(db, fmp, ticker)
+        done += 1
+    return done
 
 
 def _record_check(db: Session, ticker: str, rows: int, now: datetime) -> None:
@@ -219,6 +308,10 @@ def refresh_employee_counts(
             item["fetched_at"] = now
             parsed[(item["period_of_report"], item["filing_date"])] = item
         rows_attempted += bulk_insert_employee_counts(db, list(parsed.values()))
+        if parsed:
+            # The 10-K that carries the headcount also carries the year's
+            # revenue; one more request per name that has a headcount.
+            _fetch_revenue(db, fmp, ticker)
         _record_check(db, ticker, len(parsed), now)
         asked += 1
         if ticker not in checked_before:
@@ -229,6 +322,10 @@ def refresh_employee_counts(
             empty += 1
         if asked % 50 == 0:
             log.info("Employee counts progress: %s/%s", asked, len(queue))
+
+    revenue_backfilled = backfill_revenue(
+        db, fmp, universe, REVENUE_BACKFILL_LIMIT, started, budget
+    )
 
     # Only never-asked names count toward the alarm: a recheck batch of names
     # FMP never had data for is expected to come back empty.
@@ -245,6 +342,7 @@ def refresh_employee_counts(
         "with_data": with_data,
         "empty": empty,
         "errors": errors,
+        "revenue_backfilled": revenue_backfilled,
         "rows_attempted": rows_attempted,
         "remaining": len(queue) - asked,
     }

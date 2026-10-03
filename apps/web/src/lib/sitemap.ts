@@ -20,6 +20,7 @@ export const PUBLIC_STATIC_PATHS = [
   "/blog",
   "/pricing",
   "/track-record",
+  "/workforce",
   "/strategy",
   ...PUBLIC_TOOL_PATHS,
   "/faq",
@@ -71,6 +72,7 @@ const STATIC_META: Record<
   "/blog": { changeFrequency: "weekly", priority: 0.9 },
   "/pricing": { changeFrequency: "monthly", priority: 0.9 },
   "/track-record": { changeFrequency: "daily", priority: 0.9 },
+  "/workforce": { changeFrequency: "weekly", priority: 0.8 },
   "/strategy": { changeFrequency: "monthly", priority: 0.8 },
   "/tools": { changeFrequency: "monthly", priority: 0.75 },
   "/tools/concentrated-portfolio-calculator": {

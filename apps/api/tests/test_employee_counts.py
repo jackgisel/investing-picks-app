@@ -38,15 +38,19 @@ def _row(period="2025-12-31", filed="2026-02-20", count=1000, form="10-K"):
 
 
 class FakeFMP:
-    def __init__(self, data=None, access_error=False):
+    def __init__(self, data=None, access_error=False, failing=(), denied=()):
         self.data = data or {}
         self.access_error = access_error
+        self.failing = set(failing)
+        self.denied = set(denied)
         self.asked: list[str] = []
 
     def employee_count_history(self, ticker, limit=10):
         self.asked.append(ticker)
-        if self.access_error:
+        if self.access_error or ticker in self.denied:
             raise FMPAccessError("FMP historical-employee-count returned 402")
+        if ticker in self.failing:
+            return None
         return self.data.get(ticker, [])
 
 
@@ -75,6 +79,14 @@ def test_parse_drops_rows_it_cannot_place_in_time():
     assert parse_employee_count(_row(period=None)) is None
     assert parse_employee_count(_row(count=None)) is None
     assert parse_employee_count(_row(count=-5)) is None
+
+
+def test_parse_accepts_float_strings_and_has_no_period_fallback():
+    assert parse_employee_count(_row(count="1234.0"))["employee_count"] == 1234
+    row = _row()
+    row.pop("periodOfReport")
+    row["date"] = "2025-12-31"
+    assert parse_employee_count(row) is None
 
 
 def test_parse_keeps_zero_headcount():
@@ -164,12 +176,44 @@ def test_off_plan_endpoint_raises(db, universe):
     assert db.query(EmployeeCountCheck).count() == 0
 
 
+def test_failed_request_is_not_recorded_as_empty(db, universe):
+    fmp = FakeFMP({"AAA": [_row()], "BBB": [_row()]}, failing={"CCC"})
+    result = refresh_employee_counts(db, fmp, today=TODAY)
+    assert result["errors"] == 1 and result["empty"] == 0
+    assert db.get(EmployeeCountCheck, "CCC") is None
+    # Asked again next run, not hidden for 60 days.
+    again = FakeFMP({"CCC": [_row(count=7)]})
+    refresh_employee_counts(db, again, today=TODAY)
+    assert again.asked == ["CCC"]
+    assert db.query(EmployeeCount).filter_by(ticker="CCC").count() == 1
+
+
+def test_one_restricted_symbol_does_not_block_the_run(db, universe):
+    fmp = FakeFMP({"BBB": [_row()], "CCC": [_row()]}, denied={"AAA"})
+    result = refresh_employee_counts(db, fmp, today=TODAY)
+    assert result["with_data"] == 2 and result["errors"] == 1
+    assert db.get(EmployeeCountCheck, "AAA") is None
+
+
+def test_recheck_of_known_empty_names_does_not_trip_the_alarm(db, monkeypatch):
+    many = [f"T{i}" for i in range(30)]
+    monkeypatch.setattr(
+        employee_counts, "snapshot_universe_tickers", lambda db, fmp: list(many)
+    )
+    long_ago = datetime.now(timezone.utc) - timedelta(days=90)
+    for t in many:
+        db.add(EmployeeCountCheck(ticker=t, checked_at=long_ago, rows=0))
+    db.commit()
+    result = refresh_employee_counts(db, FakeFMP(), today=TODAY)
+    assert result["asked"] == 30 and result["with_data"] == 0
+
+
 def test_all_empty_run_raises_instead_of_recording_success(db, monkeypatch):
     many = [f"T{i}" for i in range(30)]
     monkeypatch.setattr(
         employee_counts, "snapshot_universe_tickers", lambda db, fmp: list(many)
     )
-    with pytest.raises(RuntimeError, match="0 of 30"):
+    with pytest.raises(RuntimeError, match="0 filings from 30"):
         refresh_employee_counts(db, FakeFMP(), today=TODAY)
 
 

@@ -224,7 +224,7 @@ def _ensure_employee_counts(engine: Engine) -> None:
         try:
             model.__table__.create(engine, checkfirst=True)
         except Exception:
-            log.debug("Could not create %s; assuming it exists", model.__tablename__)
+            log.warning("Could not create %s; assuming it exists", model.__tablename__)
 
 
 def _columns(conn, table: str) -> list[dict]:

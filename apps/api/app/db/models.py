@@ -266,7 +266,7 @@ class EmployeeCount(Base):
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    ticker: Mapped[str] = mapped_column(String(16), index=True)
+    ticker: Mapped[str] = mapped_column(String(16))
     period_of_report: Mapped[date] = mapped_column(Date)
     filing_date: Mapped[date] = mapped_column(Date)
     employee_count: Mapped[int] = mapped_column(Integer)

@@ -35,6 +35,12 @@ RECHECK_DUE_DAYS = 14
 #: How often to look again at a name FMP had nothing for.
 RECHECK_EMPTY_DAYS = 60
 HISTORY_LIMIT = 10
+#: Consecutive per-request access errors that mean the endpoint is off-plan
+#: rather than one symbol being restricted.
+ACCESS_ERROR_LIMIT = 3
+#: This many never-asked names with none returning data is a broken source,
+#: not thin coverage.
+ALL_EMPTY_ALARM = 25
 
 
 def _parse_date(raw) -> date | None:
@@ -47,15 +53,16 @@ def _parse_date(raw) -> date | None:
 def parse_employee_count(row: dict) -> dict | None:
     """One FMP headcount row, or None if it cannot be stored point-in-time.
 
-    A row with no filing date is dropped rather than guessed: the filing date
-    is what stops a backtest reading a number before the market could.
+    A row with no filing (or SEC acceptance) date is dropped rather than
+    guessed: that date is what stops a backtest reading a number before the
+    market could. There is no fallback to the period end.
     """
-    period = _parse_date(row.get("periodOfReport") or row.get("date"))
+    period = _parse_date(row.get("periodOfReport"))
     filed = _parse_date(row.get("filingDate") or row.get("acceptanceTime"))
     if period is None or filed is None:
         return None
     try:
-        count = int(row.get("employeeCount"))
+        count = int(float(row.get("employeeCount")))
     except (TypeError, ValueError):
         return None
     if count < 0:
@@ -175,18 +182,33 @@ def refresh_employee_counts(
     universe.sort(key=lambda t: (t not in held, t))
     queue = tickers_to_check(db, universe, today)
 
-    asked = with_data = empty = rows_attempted = 0
+    checked_before = {t for (t,) in db.query(EmployeeCountCheck.ticker).all()}
+    asked = with_data = empty = errors = rows_attempted = 0
+    first_asked = 0
+    access_streak = 0
     for ticker in queue:
         if time.monotonic() - started > budget:
             break
         try:
             history = fmp.employee_count_history(ticker, limit=HISTORY_LIMIT)
         except FMPAccessError:
-            log.exception(
-                "historical-employee-count is not available; stopping so the "
-                "gap is visible instead of a green run of zeros"
-            )
-            raise
+            access_streak += 1
+            if access_streak >= ACCESS_ERROR_LIMIT:
+                log.exception(
+                    "historical-employee-count is not available; stopping so "
+                    "the gap is visible instead of a green run of zeros"
+                )
+                raise
+            # One restricted symbol must not block the rest. No check row, so
+            # it is simply asked again next run.
+            errors += 1
+            continue
+        access_streak = 0
+        if history is None:
+            # The request failed; that says nothing about the name, and
+            # recording it as empty would hide it for RECHECK_EMPTY_DAYS.
+            errors += 1
+            continue
         now = datetime.now(timezone.utc)
         parsed: dict[tuple, dict] = {}
         for row in history or []:
@@ -199,6 +221,8 @@ def refresh_employee_counts(
         rows_attempted += bulk_insert_employee_counts(db, list(parsed.values()))
         _record_check(db, ticker, len(parsed), now)
         asked += 1
+        if ticker not in checked_before:
+            first_asked += 1
         if parsed:
             with_data += 1
         else:
@@ -206,8 +230,13 @@ def refresh_employee_counts(
         if asked % 50 == 0:
             log.info("Employee counts progress: %s/%s", asked, len(queue))
 
-    if asked >= 25 and with_data == 0:
-        raise RuntimeError(f"employee counts: 0 of {asked} tickers returned a filing")
+    # Only never-asked names count toward the alarm: a recheck batch of names
+    # FMP never had data for is expected to come back empty.
+    if first_asked + errors >= ALL_EMPTY_ALARM and with_data == 0:
+        raise RuntimeError(
+            f"employee counts: 0 filings from {first_asked} new names "
+            f"({errors} failed requests)"
+        )
     return {
         "as_of": today.isoformat(),
         "universe": len(universe),
@@ -215,6 +244,7 @@ def refresh_employee_counts(
         "asked": asked,
         "with_data": with_data,
         "empty": empty,
+        "errors": errors,
         "rows_attempted": rows_attempted,
         "remaining": len(queue) - asked,
     }

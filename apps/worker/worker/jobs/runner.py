@@ -78,8 +78,13 @@ def reap_stale_weekly_refreshes() -> int:
             job_name=CONSENSUS_SNAPSHOT_JOB,
             stale_after=snap_timeout,
         )
+        count += reap_stale_job_runs(
+            db,
+            job_name=EMPLOYEE_COUNTS_JOB,
+            stale_after=timedelta(minutes=EMPLOYEE_COUNTS_TIMEOUT_MINUTES),
+        )
         if count:
-            log.error("Reaped %s stale weekly_refresh/consensus_snapshot run(s)", count)
+            log.error("Reaped %s stale scheduled-job run(s)", count)
         return count
     finally:
         db.close()

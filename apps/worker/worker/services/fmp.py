@@ -296,10 +296,14 @@ class FMPClient:
         data = self._get("delisted-companies", {"page": page, "limit": limit})
         return data if isinstance(data, list) else []
 
-    def employee_count_history(self, ticker: str, limit: int = 10) -> list[dict]:
-        """Headcount as reported in each 10-K, newest first."""
+    def employee_count_history(self, ticker: str, limit: int = 10) -> list[dict] | None:
+        """Headcount as reported in each 10-K, newest first.
+
+        `[]` means FMP answered and has none; `None` means the request failed
+        (timeout, 5xx, rate limit, bad JSON) and says nothing about the name.
+        """
         data = self._get("historical-employee-count", {"symbol": ticker, "limit": limit})
-        return data if isinstance(data, list) else []
+        return data if isinstance(data, list) else None
 
     def probe_backtest_endpoints(self, ticker: str = "AAPL") -> dict:
         """Cheap live check that the extra FMP paths (backtest Phase 2, headcount) respond on this key.

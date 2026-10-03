@@ -78,3 +78,25 @@ forward of Phase 2 if the clock matters more than the page.
   `job_openings_collect` (weekdays 07:00 ET). Ops: `GET /api/ops/job-openings`
   (coverage by ATS, latest snapshot, weekday holes), `POST
   /api/ops/job-openings/discover|collect`.
+
+## Phase 4: growth shape
+
+Each company is placed in one of five shapes by revenue growth against
+headcount growth (`classify_shape`): leaner, efficient growth, hiring ahead,
+contracting, hiring into decline. Members get shape filters and a scatter of
+every screened company.
+
+## Phase 5: do the factors predict returns?
+
+Runs as the on-demand job `workforce_ic` (`POST /api/ops/workforce-ic`, read
+`GET /api/ops/workforce-ic`), or locally with `python -m worker.backtest.workforce_ic`
+against whatever `DATABASE_URL` points at. Read-only. Factors: headcount growth, revenue growth (a control), leverage,
+and revenue per employee ranked within industry. Month-end dates, forward
+returns over 21 / 63 / 126 sessions, Spearman IC with a t-stat, same as
+`factor_ic`. A headcount (and the revenue beside it) is only used from the
+session after its filing date, and an amended filing only from its own. A name
+whose prices stop before the horizon is dropped, not given a flat return.
+
+Read it with the caveats it prints: today's universe (survivorship), overlapping
+horizons overstate t, and a short window means direction, not size. Nothing
+feeds `evaluate()` unless a factor holds up here and in the walk-forward.

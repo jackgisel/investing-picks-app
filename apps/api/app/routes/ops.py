@@ -1344,6 +1344,56 @@ def employee_counts_status(db: Session = Depends(get_db)):
     }
 
 
+@router.post("/workforce-ic", dependencies=[Depends(require_ops_key)])
+def trigger_workforce_ic(background: BackgroundTasks, db: Session = Depends(get_db)):
+    """Run the workforce factor IC study (read-only) in the background."""
+    from worker.backtest.workforce_ic import (
+        WORKFORCE_IC_JOB,
+        WORKFORCE_IC_TIMEOUT_MINUTES,
+    )
+
+    return _trigger_job(
+        db, background, WORKFORCE_IC_JOB, WORKFORCE_IC_TIMEOUT_MINUTES, "job_workforce_ic"
+    )
+
+
+@router.get("/workforce-ic", dependencies=[Depends(require_ops_key)])
+def workforce_ic_result(db: Session = Depends(get_db)):
+    """The latest finished study, as the table the factor-IC reports use.
+
+    Always the latest successful run, so a new run in progress (or a failed
+    one) does not hide the last good result; `latest_run` says what the most
+    recent attempt did.
+    """
+    import json
+
+    from worker.backtest.workforce_ic import WORKFORCE_IC_JOB, render_markdown, sanitize
+
+    base = db.query(JobRun).filter(JobRun.job_name == WORKFORCE_IC_JOB)
+    latest = base.order_by(JobRun.started_at.desc()).first()
+    if latest is None:
+        return {"status": "never_run"}
+    out: dict = {
+        "latest_run": {
+            "status": latest.status,
+            "started_at": latest.started_at.isoformat() if latest.started_at else None,
+            "error": latest.detail if latest.status == "error" else None,
+        }
+    }
+    good = base.filter(JobRun.status == "ok").order_by(JobRun.started_at.desc()).first()
+    if good is None or not good.detail:
+        return out
+    try:
+        result = sanitize(json.loads(good.detail))
+    except ValueError:
+        out["error"] = "unreadable result"
+        return out
+    out["result_started_at"] = good.started_at.isoformat() if good.started_at else None
+    out["result"] = result
+    out["markdown"] = render_markdown(result)
+    return out
+
+
 @router.post("/job-openings/{step}", dependencies=[Depends(require_ops_key)])
 def trigger_job_openings(step: str, background: BackgroundTasks, db: Session = Depends(get_db)):
     """Run board discovery or today's collection now. `step` is discover | collect."""

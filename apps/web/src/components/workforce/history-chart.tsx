@@ -41,7 +41,8 @@ export function HistoryChart({ history }: { history: WorkforceHistory }) {
   const lo = Math.min(...all, 100);
   const hi = Math.max(...all, 100);
   const span = hi - lo || 1;
-  const yMin = lo - span * 0.08;
+  // An index of two positive series cannot go below zero, so neither can the axis.
+  const yMin = Math.max(0, lo - span * 0.08);
   const yMax = hi + span * 0.08;
 
   const x = (i: number) =>
@@ -70,7 +71,7 @@ export function HistoryChart({ history }: { history: WorkforceHistory }) {
   const active = hover !== null ? pts[hover] : null;
 
   return (
-    <div>
+    <div className="max-w-[760px]">
       <div className="mb-2 flex flex-wrap items-center gap-x-5 gap-y-1 font-sans text-[12px] text-text-muted">
         <span className="inline-flex items-center gap-2">
           <span className="h-0.5 w-4 rounded-full" style={{ background: "var(--chart-headcount)" }} />

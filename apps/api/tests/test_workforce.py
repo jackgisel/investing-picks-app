@@ -235,6 +235,26 @@ def test_shape_counts_are_within_the_chosen_sector(db):
     assert _board(db, sector="Tech")["shape_counts"]["leaner"] == 1
 
 
+def test_financials_and_real_estate_are_left_out_of_the_default_view_only(db):
+    _stock(db, "SOFT", sector="Technology")
+    _stock(db, "BANK", sector="Financial Services")
+    _stock(db, "REIT", sector="Real Estate")
+    for t, rev in (("SOFT", 1e9), ("BANK", 5e9), ("REIT", 9e9)):
+        _year(db, t, 2025, 100, rev)
+    db.commit()
+    default = _board(db)
+    assert [r["ticker"] for r in default["rows"]] == ["SOFT"]
+    assert default["excluded_sectors"] == ["Financial Services", "Real Estate"]
+    assert default["universe"] == 1
+    # Still selectable, and the sector list is not narrowed.
+    assert "Financial Services" in default["sectors"]
+    banks = _board(db, sector="Financial Services")
+    assert [r["ticker"] for r in banks["rows"]] == ["BANK"]
+    assert banks["excluded_sectors"] == []
+    # And the caller can opt out.
+    assert len(_board(db, exclude_sectors=())["rows"]) == 3
+
+
 def test_shape_names_are_pinned():
     # The web app's links and labels (lib/workforce.ts) use these exact ids.
     assert workforce.SHAPES == (

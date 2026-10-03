@@ -84,6 +84,7 @@ export type WorkforceBoard = {
   universe: number;
   median_rev_per_employee: number | null;
   sectors: string[];
+  excluded_sectors: string[];
   shape_counts: Record<WorkforceShape, number>;
   count: number;
   rows: WorkforceRow[];
@@ -139,7 +140,11 @@ export async function getWorkforceBoard(opts: {
     if (!Array.isArray(data?.rows)) return null;
     // A response cached before a deploy may predate a field; never let that
     // reach the page as undefined.
-    return { ...data, shape_counts: data.shape_counts ?? ({} as WorkforceBoard["shape_counts"]) };
+    return {
+      ...data,
+      shape_counts: data.shape_counts ?? ({} as WorkforceBoard["shape_counts"]),
+      excluded_sectors: data.excluded_sectors ?? [],
+    };
   } catch {
     return null;
   }

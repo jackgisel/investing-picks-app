@@ -206,6 +206,9 @@ export default async function WorkforcePage({
                 : ""}{" "}
               Leverage is revenue growth minus headcount growth over the last
               fiscal year, in percentage points.
+              {board && board.excluded_sectors.length > 0
+                ? ` ${board.excluded_sectors.join(" and ")} ${board.excluded_sectors.length > 1 ? "are" : "is"} left out of this view, because revenue there means interest and rent rather than sales, which makes revenue per employee a different thing.${entitled ? " Pick the sector above to see it." : ""}`
+                : ""}
             </p>
           </>
         )}

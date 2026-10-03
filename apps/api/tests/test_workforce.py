@@ -341,5 +341,30 @@ def test_history_includes_the_openings_series(db):
     _snap(db, "AAA", today, 35)
     db.commit()
     hist = workforce.company_history(db, "AAA")
-    assert [o["open_count"] for o in hist["openings"]] == [30, 35]
-    assert hist["openings_per_1000"] == 35.0
+    assert [o["open_count"] for o in hist["openings_series"]] == [30, 35]
+    assert hist["openings_current"]["openings_per_1000"] == 35.0
+
+
+def test_a_stale_verified_count_is_not_shown_as_current(db):
+    today = date.today()
+    f = workforce.openings_fields
+    assert f([(today - timedelta(days=30), 50)], 1000, today)["openings"] is None
+    assert f([(today - timedelta(days=3), 50)], 1000, today)["openings"] == 50
+    _stock(db, "AAA")
+    _year(db, "AAA", 2025, 1000, 1e9)
+    _snap(db, "AAA", today - timedelta(days=60), 50)
+    db.commit()
+    row = workforce.leaderboard(db, min_revenue=0, min_employees=0)["rows"][0]
+    assert row["openings"] is None
+    # ...but the company's own history still shows what was recorded.
+    assert len(workforce.company_history(db, "AAA")["openings_series"]) == 1
+
+
+def test_openings_follow_the_injected_today(db):
+    old = date(2025, 6, 1)
+    _stock(db, "AAA")
+    _year(db, "AAA", 2024, 1000, 1e9)
+    _snap(db, "AAA", old, 40)
+    db.commit()
+    row = workforce.leaderboard(db, min_revenue=0, min_employees=0, today=old + timedelta(days=2))["rows"][0]
+    assert row["openings"] == 40

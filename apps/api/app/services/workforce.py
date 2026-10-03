@@ -111,40 +111,60 @@ def _series_by_ticker(db: Session, ticker: str | None = None) -> dict[str, list[
     return out
 
 
-#: Open-role history shown and used for the change figure.
+#: Open-role history shown on a company's page.
 OPENINGS_WINDOW_DAYS = 400
+#: The board only needs the latest count and one ~90 day prior.
+OPENINGS_BOARD_WINDOW_DAYS = 110
+#: A count older than this is not "open roles" any more (collector stopped, or
+#: the board stopped being verified); it is dropped rather than shown as current.
+OPENINGS_MAX_AGE_DAYS = 7
 #: The snapshot used as "90 days ago" may be this far off the exact date.
 OPENINGS_CHANGE_DAYS = 90
 OPENINGS_CHANGE_SLACK = 14
 
 
-def _openings_by_ticker(db: Session, ticker: str | None = None) -> dict[str, list[tuple[date, int]]]:
-    """Verified open-role counts per ticker, oldest first.
+def _openings_by_ticker(
+    db: Session,
+    tickers: list[str],
+    today: date,
+    window_days: int = OPENINGS_WINDOW_DAYS,
+) -> dict[str, list[tuple[date, int]]]:
+    """Verified open-role counts for these tickers, oldest first.
 
     Only snapshots whose every board is verified: an unverified board might be
-    some other company's, and nothing published may rest on it.
+    some other company's, and nothing published may rest on it. Only the asked
+    tickers are read, so a board of a few hundred names does not load every
+    snapshot ever taken.
     """
-    since = date.today() - timedelta(days=OPENINGS_WINDOW_DAYS)
+    if not tickers:
+        return {}
+    since = today - timedelta(days=window_days)
     q = db.query(
         JobOpeningSnapshot.ticker, JobOpeningSnapshot.as_of, JobOpeningSnapshot.open_count
-    ).filter(JobOpeningSnapshot.verified == True, JobOpeningSnapshot.as_of >= since)  # noqa: E712
-    if ticker:
-        q = q.filter(JobOpeningSnapshot.ticker == ticker)
+    ).filter(
+        JobOpeningSnapshot.verified == True,  # noqa: E712
+        JobOpeningSnapshot.as_of >= since,
+        JobOpeningSnapshot.ticker.in_(tickers),
+    )
     out: dict[str, list[tuple[date, int]]] = defaultdict(list)
     for t, as_of, n in q.order_by(JobOpeningSnapshot.as_of).all():
         out[t].append((as_of, n))
     return out
 
 
-def openings_fields(series: list[tuple[date, int]] | None, employees: int | None) -> dict:
+def openings_fields(
+    series: list[tuple[date, int]] | None, employees: int | None, today: date | None = None
+) -> dict:
     """Latest open roles, per 1,000 staff, and the change over ~90 days.
 
-    The change is None until a snapshot exists about 90 days before the latest;
-    the history simply is not there yet, and a short window must not be
-    dressed up as a trend.
+    Returns nothing when the latest verified count is older than
+    `OPENINGS_MAX_AGE_DAYS`: a stale number must not pass for current. The
+    change is None unless a snapshot exists about 90 days before the latest;
+    a short or gappy history must not be dressed up as a trend.
     """
+    today = today or date.today()
     empty = {"openings": None, "openings_as_of": None, "openings_per_1000": None, "openings_change_90d": None}
-    if not series:
+    if not series or (today - series[-1][0]).days > OPENINGS_MAX_AGE_DAYS:
         return empty
     as_of, count = series[-1]
     target = as_of - timedelta(days=OPENINGS_CHANGE_DAYS)
@@ -235,7 +255,6 @@ def leaderboard(
         .filter(Stock.is_active == True, Stock.is_etf == False)  # noqa: E712
         .all()
     }
-    openings = _openings_by_ticker(db)
     rows: list[dict] = []
     for ticker, pairs in _series_by_ticker(db).items():
         stock = stocks.get(ticker)
@@ -244,7 +263,6 @@ def leaderboard(
         row = _row(stock, pairs)
         if row is None:
             continue
-        row.update(openings_fields(openings.get(ticker), row["employees"]))
         if row["revenue"] < min_revenue or row["employees"] < min_employees:
             continue
         rows.append(row)
@@ -258,6 +276,13 @@ def leaderboard(
         if len(peers) >= MIN_INDUSTRY_PEERS:
             below = sum(1 for v in peers if v < r["rev_per_employee"])
             r["industry_pct"] = below / (len(peers) - 1) if len(peers) > 1 else None
+
+    # Open roles, for the screened names only.
+    snaps = _openings_by_ticker(
+        db, [r["ticker"] for r in rows], today, window_days=OPENINGS_BOARD_WINDOW_DAYS
+    )
+    for r in rows:
+        r.update(openings_fields(snaps.get(r["ticker"]), r["employees"], today))
 
     # Every sector stays selectable; only the default view drops the excluded ones.
     sectors = sorted({r["sector"] for r in rows if r["sector"]})
@@ -316,15 +341,17 @@ def company_history(db: Session, ticker: str) -> dict | None:
             }
         )
         prev = p
-    snaps = _openings_by_ticker(db, ticker).get(ticker, [])
+    today = date.today()
+    snaps = _openings_by_ticker(db, [ticker], today).get(ticker, [])
+    current = openings_fields(snaps, pairs[-1]["employees"], today)
     return {
         "ticker": ticker,
         "name": stock.name if stock else None,
         "sector": stock.sector if stock else None,
         "industry": stock.industry if stock else None,
         "series": series,
-        "openings": [{"as_of": d.isoformat(), "open_count": n} for d, n in snaps],
-        **{k: v for k, v in openings_fields(snaps, pairs[-1]["employees"]).items() if k != "openings"},
+        "openings_series": [{"as_of": d.isoformat(), "open_count": n} for d, n in snaps],
+        "openings_current": current,
     }
 
 

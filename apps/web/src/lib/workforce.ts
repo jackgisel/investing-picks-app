@@ -113,10 +113,13 @@ export type WorkforceHistory = {
   sector: string | null;
   industry: string | null;
   series: WorkforcePoint[];
-  openings: OpeningsPoint[];
-  openings_as_of: string | null;
-  openings_per_1000: number | null;
-  openings_change_90d: number | null;
+  openings_series: OpeningsPoint[];
+  openings_current: {
+    openings: number | null;
+    openings_as_of: string | null;
+    openings_per_1000: number | null;
+    openings_change_90d: number | null;
+  };
 };
 
 export function isWorkforceOrder(value: unknown): value is WorkforceOrder {

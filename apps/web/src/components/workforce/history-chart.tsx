@@ -164,29 +164,42 @@ export function HistoryChart({ history }: { history: WorkforceHistory }) {
         </tbody>
       </table>
 
-      <div className="mt-4 border-t border-border pt-3 font-sans text-[13px] text-text-muted">
-        {history.openings.length === 0 ? (
-          <p>
-            Open roles: we have not matched a verified job board for this company yet.
-          </p>
-        ) : (
-          <>
-            <p>
-              Open roles on its job board:{" "}
-              <span className="font-mono text-text">
-                {formatOpenings(history.openings[history.openings.length - 1].open_count)}
-              </span>{" "}
-              ({formatOpeningsRate(history.openings_per_1000)}), as of{" "}
-              {history.openings[history.openings.length - 1].as_of}.
-              {history.openings_change_90d !== null
-                ? ` ${formatGrowth(history.openings_change_90d)} over about 90 days.`
-                : history.openings.length > 1
-                  ? ` Tracking since ${history.openings[0].as_of}; the 90 day change appears once there are three months of history.`
-                  : " Tracking started today, so there is no trend yet."}
-            </p>
-          </>
-        )}
-      </div>
+      <OpeningsNote history={history} />
     </div>
+  );
+}
+
+function OpeningsNote({ history }: { history: WorkforceHistory }) {
+  // An older API response may predate the field; treat that as "no data".
+  const series = history.openings_series ?? [];
+  const current = history.openings_current;
+  const note = "mt-4 border-t border-border pt-3 font-sans text-[13px] text-text-muted";
+  if (series.length === 0) {
+    return (
+      <p className={note}>
+        Open roles: we have not matched a verified job board for this company yet.
+      </p>
+    );
+  }
+  const latest = series[series.length - 1];
+  if (!current || current.openings === null) {
+    return (
+      <p className={note}>
+        Open roles: the last count we hold is from {latest.as_of}, so it is not shown as current.
+      </p>
+    );
+  }
+  return (
+    <p className={note}>
+      Open roles on its job board:{" "}
+      <span className="font-mono text-text">{formatOpenings(current.openings)}</span> (
+      {formatOpeningsRate(current.openings_per_1000)}, against its latest annual headcount), as of{" "}
+      {current.openings_as_of}.
+      {current.openings_change_90d !== null
+        ? ` ${formatGrowth(current.openings_change_90d)} over about 90 days.`
+        : series.length > 1
+          ? ` Tracked since ${series[0].as_of}. No 90 day change yet.`
+          : " No trend yet."}
+    </p>
   );
 }

@@ -249,6 +249,50 @@ class ConsensusSnapshot(Base):
     )
 
 
+class EmployeeCount(Base):
+    """Append-only employee headcount, one row per filing that reported it.
+
+    FMP serves this from the 10-K, so it is annual and lags the period end by
+    weeks. `filing_date` is the availability date — a backtest may only read a
+    row on or after it. An amended filing restating the same period is a new
+    row, never an edit, so what the market could see on a given day stays
+    reconstructible.
+    """
+
+    __tablename__ = "employee_counts"
+    __table_args__ = (
+        UniqueConstraint("ticker", "period_of_report", "filing_date"),
+        Index("ix_employee_counts_ticker_filing", "ticker", "filing_date"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ticker: Mapped[str] = mapped_column(String(16))
+    period_of_report: Mapped[date] = mapped_column(Date)
+    filing_date: Mapped[date] = mapped_column(Date)
+    employee_count: Mapped[int] = mapped_column(Integer)
+    form_type: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    source_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    raw: Mapped[dict] = mapped_column(JSON, default=dict)
+    fetched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), default=func.now()
+    )
+
+
+class EmployeeCountCheck(Base):
+    """When we last asked FMP for a ticker's headcount, and what came back.
+
+    Without this a name FMP has no headcount for is indistinguishable from one
+    we never asked about, so it would be re-requested every run and starve the
+    names that do have data.
+    """
+
+    __tablename__ = "employee_count_checks"
+
+    ticker: Mapped[str] = mapped_column(String(16), primary_key=True)
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    rows: Mapped[int] = mapped_column(Integer, default=0)
+
+
 class Filing(Base):
     """Point-in-time quarterly statement. `available_from` is acceptedDate."""
 

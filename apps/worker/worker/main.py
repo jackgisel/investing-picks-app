@@ -28,6 +28,7 @@ from worker.jobs.runner import (
     job_daily_marks,
     job_dca_backfill,
     job_dca_friday,
+    job_employee_counts_refresh,
     job_extra_buy,
     job_income_statements_refresh,
     job_income_visuals_watch,
@@ -106,6 +107,14 @@ def main():
         job_consensus_snapshot,
         CronTrigger(day_of_week="mon-fri", hour=17, minute=0),
         id="consensus_snapshot",
+        replace_existing=True,
+    )
+    # Sunday, clear of the Saturday refresh: separate FMP clients throttle
+    # independently, so overlapping them would double the request rate.
+    scheduler.add_job(
+        job_employee_counts_refresh,
+        CronTrigger(day_of_week="sun", hour=6, minute=0),
+        id="employee_counts_refresh",
         replace_existing=True,
     )
     scheduler.add_job(
@@ -291,6 +300,8 @@ def main():
             "daily_marks": job_daily_marks,
             "consensus_snapshot": job_consensus_snapshot,
             "weekly_refresh": job_weekly_refresh,
+            # Scheduled Sunday 06:00 ET; on demand for the first load.
+            "employee_counts_refresh": job_employee_counts_refresh,
             "biweekly_evaluate": job_biweekly_evaluate,
             # Scheduled every 15 min (above); on demand for when you have just
             # shortened the review window and do not want to wait for the tick.

@@ -118,3 +118,36 @@ of daily closes for the live universe into its own table, `price_bars_deep`:
 - The study uses this table when it has data and says so in its report
   (`price_source`). Remove it with `DROP TABLE price_bars_deep,
   price_bars_deep_checks`; nothing live depends on it.
+
+## First results (2026-10-03)
+
+**State of the data.** Headcount: 1,340 of 1,388 universe names, up to 10 years
+each. Job boards: 1,145 companies checked, 149 boards found, 109 companies
+verified (~9.5%; skews to tech and mid-caps; DoorDash and Coinbase, for
+example, are not matched). First daily openings snapshot taken 2026-10-03
+(143 stored, 6 zero counts held back as suspect); the openings history starts
+there and cannot be backfilled. Deep prices: 1,170 names, 1.39M bars from
+2021-09-29.
+
+**Factor IC (60 month-ends, ~1,026 names per date, deep prices).**
+
+| Factor | 21d IC (t) | 63d IC (t) | 126d IC (t) | 126d Q5-Q1 |
+|---|---|---|---|---|
+| headcount_growth | -0.002 (-0.16) | +0.000 (+0.02) | +0.007 (+0.52) | -0.22% |
+| revenue_growth (control) | -0.001 (-0.07) | +0.000 (+0.00) | +0.008 (+0.46) | +0.84% |
+| leverage | +0.003 (+0.24) | +0.005 (+0.48) | +0.013 (+1.09) | +2.67% |
+| rev_per_employee (in industry) | +0.015 (+2.64) | +0.017 (+3.26) | +0.023 (+5.71) | -3.15% |
+
+**Read.** The growth factors (headcount growth, revenue growth, leverage) show
+no detectable relationship with forward returns: ICs within noise at every
+horizon. Revenue per employee has a small positive rank IC, but its top-minus-
+bottom quintile spread is NEGATIVE, so the two measures disagree; the 63 and 126
+session t-stats are also inflated by overlapping windows (divide by roughly
+sqrt(3) and sqrt(6)), and the factor exists only for industries with 5+ peers.
+Together with survivorship (today's names only) that is not evidence of a
+usable signal. Do not feed any of this into `evaluate()`.
+
+**What would change the answer.** More history (headcount goes back to ~2016,
+prices only to 2021), point-in-time membership instead of today's names, an
+industry-neutral and size-neutral construction of rev/employee, and the openings
+series once it has 6 to 12 months. Re-run `POST /api/ops/workforce-ic` then.

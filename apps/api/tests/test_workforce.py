@@ -197,6 +197,33 @@ def test_cached_board_is_reused_within_the_ttl(db):
     workforce._CACHE.clear()
 
 
+def test_shape_quadrants():
+    c = workforce.classify_shape
+    assert c(0.10, -0.05) == "leaner"
+    assert c(0.10, 0.0) == "leaner"
+    assert c(0.20, 0.05) == "efficient_growth"
+    assert c(0.05, 0.20) == "hiring_ahead"
+    assert c(-0.10, -0.05) == "contracting"
+    assert c(-0.10, 0.0) == "contracting"
+    assert c(-0.10, 0.05) == "hiring_into_decline"
+    assert c(None, 0.05) is None and c(0.05, None) is None
+
+
+def test_shape_filter_and_counts(db):
+    for t in ("L", "H"):
+        _stock(db, t)
+    _year(db, "L", 2024, 1000, 1e9)
+    _year(db, "L", 2025, 900, 1.2e9)  # leaner
+    _year(db, "H", 2024, 1000, 1e9)
+    _year(db, "H", 2025, 1500, 1.1e9)  # hiring ahead
+    db.commit()
+    board = _board(db, shape="leaner")
+    assert [r["ticker"] for r in board["rows"]] == ["L"]
+    assert board["shape_counts"]["leaner"] == 1 and board["shape_counts"]["hiring_ahead"] == 1
+    with __import__("pytest").raises(ValueError):
+        _board(db, shape="nope")
+
+
 def test_api_serves_board_and_history(db):
     workforce._CACHE.clear()
     _stock(db, "AAA")
@@ -211,6 +238,13 @@ def test_api_serves_board_and_history(db):
     board = client.get("/api/v1/workforce/leaderboard?min_revenue=0&min_employees=0").json()
     assert board["rows"][0]["ticker"] == "AAA"
     assert client.get("/api/v1/workforce/leaderboard?order=nope").status_code == 422
+    assert client.get("/api/v1/workforce/leaderboard?shape=nope").status_code == 422
+    growth = client.get("/api/v1/workforce-growth?min_revenue=0&min_employees=0").json()
+    assert growth["points"][0]["ticker"] == "AAA"
+    assert growth["points"][0]["shape"] == "efficient_growth"
+    assert set(growth["points"][0]) == {
+        "ticker", "name", "sector", "employees_yoy", "revenue_yoy", "rev_per_employee", "shape"
+    }
     hist = client.get("/api/v1/workforce/aaa").json()
     assert [s["employees"] for s in hist["series"]] == [1000, 1100]
     assert client.get("/api/v1/workforce/ZZZ").status_code == 404

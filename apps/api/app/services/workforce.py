@@ -31,6 +31,27 @@ USD = "USD"
 
 ORDERS = ("rev_per_employee", "leverage", "revenue")
 
+#: How a company's year looked: revenue growth against headcount growth.
+SHAPES = ("leaner", "efficient_growth", "hiring_ahead", "contracting", "hiring_into_decline")
+
+
+def classify_shape(revenue_yoy: float | None, employees_yoy: float | None) -> str | None:
+    """Name the quadrant a company sits in, or None without both growth rates.
+
+    - leaner: revenue up (or flat), headcount down (or flat)
+    - efficient_growth: both up, revenue faster
+    - hiring_ahead: both up, headcount faster
+    - contracting: revenue down, headcount down (or flat)
+    - hiring_into_decline: revenue down, headcount up
+    """
+    if revenue_yoy is None or employees_yoy is None:
+        return None
+    if revenue_yoy >= 0:
+        if employees_yoy <= 0:
+            return "leaner"
+        return "efficient_growth" if revenue_yoy >= employees_yoy else "hiring_ahead"
+    return "contracting" if employees_yoy <= 0 else "hiring_into_decline"
+
 
 def _series_by_ticker(db: Session, ticker: str | None = None) -> dict[str, list[dict]]:
     """Per ticker, paired (headcount, revenue) years, oldest first.
@@ -120,6 +141,7 @@ def _row(stock: Stock, pairs: list[dict]) -> dict | None:
             rev_yoy - hc_yoy if rev_yoy is not None and hc_yoy is not None else None
         ),
         "industry_pct": None,
+        "shape": classify_shape(rev_yoy, hc_yoy),
     }
 
 
@@ -131,6 +153,7 @@ def leaderboard(
     min_employees: int = 50,
     sector: str | None = None,
     order: str = "rev_per_employee",
+    shape: str | None = None,
     today: date | None = None,
 ) -> dict:
     """Companies ranked by revenue per employee (or by leverage / revenue).
@@ -142,6 +165,8 @@ def leaderboard(
     """
     if order not in ORDERS:
         raise ValueError(f"order must be one of {ORDERS}")
+    if shape is not None and shape not in SHAPES:
+        raise ValueError(f"shape must be one of {SHAPES}")
     today = today or date.today()
     oldest = today - timedelta(days=MAX_PERIOD_AGE_DAYS)
 
@@ -177,8 +202,11 @@ def leaderboard(
     sectors = sorted({r["sector"] for r in rows if r["sector"]})
     # The screen's own median, before the sector and sort filters narrow it.
     screen_median = median(r["rev_per_employee"] for r in rows) if rows else None
+    shape_counts = {s: sum(1 for r in rows if r["shape"] == s) for s in SHAPES}
     if sector:
         rows = [r for r in rows if r["sector"] == sector]
+    if shape:
+        rows = [r for r in rows if r["shape"] == shape]
     rows = [r for r in rows if r.get(order) is not None]
     rows.sort(key=lambda r: r[order], reverse=True)
     for i, r in enumerate(rows, 1):
@@ -189,6 +217,7 @@ def leaderboard(
         "universe": universe,
         "median_rev_per_employee": screen_median,
         "sectors": sectors,
+        "shape_counts": shape_counts,
         "count": min(len(rows), limit),
         "rows": rows[:limit],
     }

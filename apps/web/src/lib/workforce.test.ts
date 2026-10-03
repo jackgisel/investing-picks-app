@@ -6,8 +6,11 @@ import {
   formatGrowth,
   formatLeverage,
   formatPerEmployee,
+  growthDomain,
   indexTo100,
   isWorkforceOrder,
+  isWorkforceShape,
+  shapeLabel,
 } from "./workforce";
 
 describe("workforce formatting", () => {
@@ -37,6 +40,25 @@ describe("workforce formatting", () => {
   it("indexes a series to 100 at its first value", () => {
     expect(indexTo100([200, 300, 100])).toEqual([100, 150, 50]);
     expect(indexTo100([0, 5]).every(Number.isNaN)).toBe(true);
+  });
+
+  it("names shapes and rejects unknown ones", () => {
+    expect(shapeLabel("hiring_ahead")).toBe("Hiring ahead");
+    expect(shapeLabel(null)).toBe("—");
+    expect(isWorkforceShape("leaner")).toBe(true);
+    expect(isWorkforceShape("nope")).toBe(false);
+  });
+
+  it("builds a scatter domain that always includes zero and ignores outliers", () => {
+    const values = Array.from({ length: 100 }, (_, i) => i / 100); // 0..0.99
+    values.push(50); // one absurd outlier
+    const [lo, hi] = growthDomain(values);
+    expect(lo).toBeLessThanOrEqual(0);
+    expect(hi).toBeLessThan(2);
+    expect(growthDomain([])).toEqual([-0.2, 0.2]);
+    const [nlo, nhi] = growthDomain([-0.5, -0.4]);
+    expect(nhi).toBeGreaterThanOrEqual(0);
+    expect(nlo).toBeLessThan(-0.5);
   });
 
   it("labels fiscal years and validates orders", () => {

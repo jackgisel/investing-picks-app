@@ -13,7 +13,7 @@ from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
-from app.db.models import EmployeeCount, EmployeeCountCheck, Stock
+from app.db.models import CompanyRevenue, EmployeeCount, EmployeeCountCheck, Stock
 from worker.services import employee_counts
 from worker.services.employee_counts import (
     coverage,
@@ -43,7 +43,11 @@ class FakeFMP:
         self.access_error = access_error
         self.failing = set(failing)
         self.denied = set(denied)
+        self.revenue: dict = {}
         self.asked: list[str] = []
+
+    def income_statement_annual(self, ticker, limit=2):
+        return self.revenue.get(ticker, [])
 
     def employee_count_history(self, ticker, limit=10):
         self.asked.append(ticker)
@@ -225,3 +229,47 @@ def test_coverage_reports_counts_and_overdue(db, universe):
     assert out["tickers_empty"] == 1
     assert out["tickers_overdue_for_new_filing"] == 1
     assert out["newest_filing"] == "2026-02-20"
+
+
+def _statement(period="2025-12-31", revenue=5e9, filed="2026-02-20"):
+    return {
+        "date": period,
+        "revenue": revenue,
+        "acceptedDate": f"{filed} 16:05:00",
+        "reportedCurrency": "USD",
+    }
+
+
+def test_revenue_is_stored_for_names_with_a_headcount_only(db, universe):
+    fmp = FakeFMP({"AAA": [_row()]})
+    fmp.revenue = {
+        "AAA": [_statement("2025-12-31", 5e9), _statement("2024-12-31", 4e9)],
+        "CCC": [_statement()],
+    }
+    refresh_employee_counts(db, fmp, today=TODAY)
+    assert db.query(CompanyRevenue).filter_by(ticker="AAA").count() == 2
+    assert db.query(CompanyRevenue).filter_by(ticker="CCC").count() == 0
+    row = db.query(CompanyRevenue).filter_by(ticker="AAA", period=date(2025, 12, 31)).one()
+    assert row.revenue == 5e9 and row.currency == "USD"
+    assert row.filing_date == date(2026, 2, 20)
+
+
+def test_first_revenue_for_a_year_wins(db, universe):
+    fmp = FakeFMP({"AAA": [_row()]})
+    fmp.revenue = {"AAA": [_statement(revenue=5e9)]}
+    refresh_employee_counts(db, fmp, today=TODAY)
+    fmp.revenue = {"AAA": [_statement(revenue=9e9)]}
+    from worker.services.employee_counts import store_revenue
+
+    store_revenue(db, "AAA", fmp.revenue["AAA"])
+    assert db.query(CompanyRevenue).filter_by(ticker="AAA").one().revenue == 5e9
+
+
+def test_headcount_without_revenue_is_requeued(db, universe):
+    fmp = FakeFMP({"AAA": [_row(filed="2026-02-20")]})
+    refresh_employee_counts(db, fmp, today=TODAY)  # revenue fetch returned nothing
+    db.query(EmployeeCountCheck).update(
+        {"checked_at": datetime.now(timezone.utc) - timedelta(days=20)}
+    )
+    db.commit()
+    assert "AAA" in tickers_to_check(db, universe, TODAY)

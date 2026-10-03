@@ -112,6 +112,14 @@ export function Footer() {
                 </li>
                 <li>
                   <Link
+                    href="/workforce"
+                    className="font-sans text-[13px] font-semibold tracking-[0.08em] uppercase text-text-muted hover:text-text transition-colors"
+                  >
+                    Workforce data
+                  </Link>
+                </li>
+                <li>
+                  <Link
                     href="/faq"
                     className="font-sans text-[13px] font-semibold tracking-[0.08em] uppercase text-text-muted hover:text-text transition-colors"
                   >

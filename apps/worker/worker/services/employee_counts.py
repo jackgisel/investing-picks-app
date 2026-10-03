@@ -16,7 +16,7 @@ from datetime import date, datetime, timedelta, timezone
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.db.models import EmployeeCount, EmployeeCountCheck
+from app.db.models import CompanyRevenue, EmployeeCount, EmployeeCountCheck
 from worker.services.fmp import FMPAccessError, FMPClient
 from worker.services.ingest import held_tickers, snapshot_universe_tickers, today_et
 
@@ -98,6 +98,50 @@ def bulk_insert_employee_counts(db: Session, rows: list[dict]) -> int:
     return len(rows)
 
 
+def parse_revenue(row: dict) -> dict | None:
+    """One annual income statement as a revenue row, or None if unusable."""
+    period = _parse_date(row.get("date"))
+    try:
+        revenue = float(row.get("revenue"))
+    except (TypeError, ValueError):
+        return None
+    if period is None or revenue <= 0:
+        return None
+    return {
+        "period": period,
+        "filing_date": _parse_date(
+            row.get("acceptedDate") or row.get("filingDate") or row.get("fillingDate")
+        ),
+        "revenue": revenue,
+        "currency": (str(row["reportedCurrency"])[:8] if row.get("reportedCurrency") else None),
+    }
+
+
+def store_revenue(db: Session, ticker: str, statements: list[dict]) -> int:
+    """Append annual revenue, keeping the first value seen for each year."""
+    now = datetime.now(timezone.utc)
+    parsed: dict[date, dict] = {}
+    for st in statements or []:
+        item = parse_revenue(st)
+        if item is None:
+            continue
+        item.update(ticker=ticker, fetched_at=now)
+        parsed[item["period"]] = item
+    if not parsed:
+        return 0
+    dialect = db.get_bind().dialect.name
+    if dialect == "postgresql":
+        from sqlalchemy.dialects.postgresql import insert as _insert
+    elif dialect == "sqlite":
+        from sqlalchemy.dialects.sqlite import insert as _insert
+    else:  # pragma: no cover - only these two are ever deployed
+        raise RuntimeError(f"unsupported dialect {dialect}")
+    stmt = _insert(CompanyRevenue.__table__).values(list(parsed.values()))
+    db.execute(stmt.on_conflict_do_nothing(index_elements=["ticker", "period"]))
+    db.commit()
+    return len(parsed)
+
+
 def _record_check(db: Session, ticker: str, rows: int, now: datetime) -> None:
     check = db.get(EmployeeCountCheck, ticker)
     if check is None:
@@ -125,6 +169,13 @@ def tickers_to_check(
         .group_by(EmployeeCount.ticker)
         .all()
     )
+    has_revenue = {
+        t
+        for (t,) in db.query(CompanyRevenue.ticker)
+        .filter(CompanyRevenue.ticker.in_(universe))
+        .distinct()
+        .all()
+    }
     checked = {
         c.ticker: c
         for c in db.query(EmployeeCountCheck)
@@ -148,9 +199,10 @@ def tickers_to_check(
         if filed is None:
             if _age_days(check) >= RECHECK_EMPTY_DAYS:
                 due.append(ticker)
-        elif (today - filed).days >= REFILE_AFTER_DAYS and (
-            _age_days(check) >= RECHECK_DUE_DAYS
+        elif _age_days(check) >= RECHECK_DUE_DAYS and (
+            (today - filed).days >= REFILE_AFTER_DAYS or ticker not in has_revenue
         ):
+            # A new 10-K could exist, or the revenue fetch failed last time.
             due.append(ticker)
     return never + due
 
@@ -219,6 +271,10 @@ def refresh_employee_counts(
             item["fetched_at"] = now
             parsed[(item["period_of_report"], item["filing_date"])] = item
         rows_attempted += bulk_insert_employee_counts(db, list(parsed.values()))
+        if parsed:
+            # The 10-K that carries the headcount also carries the year's
+            # revenue; one more request per name that has a headcount.
+            store_revenue(db, ticker, fmp.income_statement_annual(ticker, limit=HISTORY_LIMIT))
         _record_check(db, ticker, len(parsed), now)
         asked += 1
         if ticker not in checked_before:

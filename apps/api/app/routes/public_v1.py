@@ -6,7 +6,7 @@ import logging
 import math
 from datetime import date
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, func
 from sqlalchemy.orm import Session
 
@@ -33,6 +33,7 @@ from app.services.benchmarks import (
     window_open,
     window_start,
 )
+from app.services import workforce
 from app.services.period_returns import period_returns_payload
 from app.services.track_record import monthly_returns, pick_scorecard
 from app.services.portfolio import (
@@ -741,3 +742,35 @@ def get_track_record(db: Session = Depends(get_db)):
 def get_chart(db: Session = Depends(get_db), window: str | None = Query(None)):
     """Alias for performance (legacy frontend hook)."""
     return get_performance(db, window=window)
+
+
+@router.get("/workforce/leaderboard")
+def workforce_leaderboard(
+    limit: int = Query(100, ge=1, le=200),
+    min_revenue: float = Query(500_000_000, ge=0),
+    min_employees: int = Query(50, ge=0),
+    sector: str | None = None,
+    order: str = Query("rev_per_employee"),
+    db: Session = Depends(get_db),
+):
+    """Revenue per employee, from each company's own 10-K. Public numbers; the
+    web app decides how much of the list a visitor sees."""
+    if order not in workforce.ORDERS:
+        raise HTTPException(status_code=422, detail=f"order must be one of {workforce.ORDERS}")
+    return workforce.leaderboard(
+        db,
+        limit=limit,
+        min_revenue=min_revenue,
+        min_employees=min_employees,
+        sector=sector,
+        order=order,
+    )
+
+
+@router.get("/workforce/{ticker}")
+def workforce_company(ticker: str, db: Session = Depends(get_db)):
+    """One company's headcount and revenue by fiscal year."""
+    out = workforce.company_history(db, ticker)
+    if out is None:
+        raise HTTPException(status_code=404, detail="No headcount on file")
+    return out

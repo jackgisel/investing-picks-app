@@ -100,3 +100,21 @@ whose prices stop before the horizon is dropped, not given a flat return.
 Read it with the caveats it prints: today's universe (survivorship), overlapping
 horizons overstate t, and a short window means direction, not size. Nothing
 feeds `evaluate()` unless a factor holds up here and in the walk-forward.
+
+## Deep price history (for the Phase 5 study)
+
+Production's live `price_bars` keeps ~14 months for the momentum factor, which
+left the study 16 month-ends. `price_history_deep` (on demand,
+`POST /api/ops/deep-prices`, status `GET /api/ops/deep-prices`) loads five years
+of daily closes for the live universe into its own table, `price_bars_deep`:
+
+- One fetch per ticker, and a refetch REPLACES that ticker's rows, so a series
+  always has one adjustment basis (appending to older bars would put a step at
+  the join for any name that split in between).
+- `price_bars_deep_checks` records every fetch, so a recent IPO with under five
+  years of bars is not refetched each run; a failed request records nothing and
+  is retried; an empty answer is retried monthly.
+- Resumable with a time budget; never scheduled; never touches `price_bars`.
+- The study uses this table when it has data and says so in its report
+  (`price_source`). Remove it with `DROP TABLE price_bars_deep,
+  price_bars_deep_checks`; nothing live depends on it.

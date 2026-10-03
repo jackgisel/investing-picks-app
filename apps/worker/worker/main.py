@@ -31,6 +31,7 @@ from worker.jobs.runner import (
     job_employee_counts_refresh,
     job_job_boards_discover,
     job_job_openings_collect,
+    job_price_history_deep,
     job_workforce_ic,
     job_extra_buy,
     job_income_statements_refresh,
@@ -333,6 +334,8 @@ def main():
             "job_openings_collect": job_job_openings_collect,
             # Read-only study; not on any schedule.
             "workforce_ic": job_workforce_ic,
+            # Five years of closes for factor studies; never scheduled.
+            "price_history_deep": job_price_history_deep,
             "biweekly_evaluate": job_biweekly_evaluate,
             # Scheduled every 15 min (above); on demand for when you have just
             # shortened the review window and do not want to wait for the tick.

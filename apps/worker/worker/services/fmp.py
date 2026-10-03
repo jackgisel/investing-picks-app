@@ -204,6 +204,24 @@ class FMPClient:
             return data.get("historical") or []
         return []
 
+    def historical_price_series(
+        self, ticker: str, from_date: date | None = None
+    ) -> list[dict] | None:
+        """Like `historical_prices`, but `None` means the request failed.
+
+        `[]` means FMP answered and has no bars. A caller that records "checked"
+        must be able to tell the two apart.
+        """
+        data = self._get(
+            "historical-price-eod/full",
+            {"symbol": ticker, "from": from_date.isoformat() if from_date else None},
+        )
+        if isinstance(data, list):
+            return data
+        if isinstance(data, dict) and isinstance(data.get("historical"), list):
+            return data["historical"]
+        return None
+
     def income_statement_quarterly(self, ticker: str, limit: int = 8) -> list[dict]:
         """Recent quarters, newest first, for deriving TTM growth.
 

@@ -128,12 +128,12 @@ def summarize(values: list[float]) -> Summary:
 class ForwardReturns:
     """Close-to-close forward returns over trading-day horizons."""
 
-    def __init__(self, db: Session, start: date, end: date | None = None):
-        q = db.query(PriceBar.ticker, PriceBar.date, PriceBar.close).filter(
-            PriceBar.date >= start
-        )
+    def __init__(
+        self, db: Session, start: date, end: date | None = None, model=PriceBar
+    ):
+        q = db.query(model.ticker, model.date, model.close).filter(model.date >= start)
         if end is not None:
-            q = q.filter(PriceBar.date <= end)
+            q = q.filter(model.date <= end)
         self.series: dict[str, tuple[list[date], list[float]]] = {}
         raw: dict[str, list[tuple[date, float]]] = {}
         for ticker, day, close in q.all():

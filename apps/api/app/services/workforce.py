@@ -20,6 +20,10 @@ from sqlalchemy.orm import Session
 
 from app.db.models import CompanyRevenue, EmployeeCount, Stock
 
+#: The screen every public view shares. The web layer mirrors these in
+#: `lib/workforce.ts` and passes them explicitly.
+DEFAULT_MIN_REVENUE = 500_000_000
+DEFAULT_MIN_EMPLOYEES = 50
 PAIR_TOLERANCE_DAYS = 45
 #: A prior year is the pair roughly twelve months before the latest one.
 PRIOR_YEAR_WINDOW = (300, 430)
@@ -30,6 +34,27 @@ MIN_INDUSTRY_PEERS = 5
 USD = "USD"
 
 ORDERS = ("rev_per_employee", "leverage", "revenue")
+
+#: How a company's year looked: revenue growth against headcount growth.
+SHAPES = ("leaner", "efficient_growth", "hiring_ahead", "contracting", "hiring_into_decline")
+
+
+def classify_shape(revenue_yoy: float | None, employees_yoy: float | None) -> str | None:
+    """Name the quadrant a company sits in, or None without both growth rates.
+
+    - leaner: revenue up (or flat), headcount down (or flat)
+    - efficient_growth: both up, revenue faster
+    - hiring_ahead: both up, headcount faster
+    - contracting: revenue down, headcount down (or flat)
+    - hiring_into_decline: revenue down, headcount up
+    """
+    if revenue_yoy is None or employees_yoy is None:
+        return None
+    if revenue_yoy >= 0:
+        if employees_yoy <= 0:
+            return "leaner"
+        return "efficient_growth" if revenue_yoy >= employees_yoy else "hiring_ahead"
+    return "contracting" if employees_yoy <= 0 else "hiring_into_decline"
 
 
 def _series_by_ticker(db: Session, ticker: str | None = None) -> dict[str, list[dict]]:
@@ -120,6 +145,7 @@ def _row(stock: Stock, pairs: list[dict]) -> dict | None:
             rev_yoy - hc_yoy if rev_yoy is not None and hc_yoy is not None else None
         ),
         "industry_pct": None,
+        "shape": classify_shape(rev_yoy, hc_yoy),
     }
 
 
@@ -127,10 +153,11 @@ def leaderboard(
     db: Session,
     *,
     limit: int = 100,
-    min_revenue: float = 500_000_000,
-    min_employees: int = 50,
+    min_revenue: float = DEFAULT_MIN_REVENUE,
+    min_employees: int = DEFAULT_MIN_EMPLOYEES,
     sector: str | None = None,
     order: str = "rev_per_employee",
+    shape: str | None = None,
     today: date | None = None,
 ) -> dict:
     """Companies ranked by revenue per employee (or by leverage / revenue).
@@ -142,6 +169,8 @@ def leaderboard(
     """
     if order not in ORDERS:
         raise ValueError(f"order must be one of {ORDERS}")
+    if shape is not None and shape not in SHAPES:
+        raise ValueError(f"shape must be one of {SHAPES}")
     today = today or date.today()
     oldest = today - timedelta(days=MAX_PERIOD_AGE_DAYS)
 
@@ -179,6 +208,10 @@ def leaderboard(
     screen_median = median(r["rev_per_employee"] for r in rows) if rows else None
     if sector:
         rows = [r for r in rows if r["sector"] == sector]
+    # Counted inside the chosen sector, so a chip's number is what clicking it shows.
+    shape_counts = {s: sum(1 for r in rows if r["shape"] == s) for s in SHAPES}
+    if shape:
+        rows = [r for r in rows if r["shape"] == shape]
     rows = [r for r in rows if r.get(order) is not None]
     rows.sort(key=lambda r: r[order], reverse=True)
     for i, r in enumerate(rows, 1):
@@ -189,6 +222,7 @@ def leaderboard(
         "universe": universe,
         "median_rev_per_employee": screen_median,
         "sectors": sectors,
+        "shape_counts": shape_counts,
         "count": min(len(rows), limit),
         "rows": rows[:limit],
     }
@@ -248,7 +282,10 @@ def cached_leaderboard(db: Session, **kwargs) -> dict:
     if hit and now - hit[0] < CACHE_TTL_SECONDS:
         return hit[1]
     result = leaderboard(db, **kwargs)
-    if len(_CACHE) > 64:
-        _CACHE.clear()
-    _CACHE[key] = (now, result)
+    # An empty screen is the state before the data lands (or a transient
+    # failure); holding it for five minutes would hide the first real rows.
+    if result["universe"] > 0:
+        if len(_CACHE) > 64:
+            _CACHE.clear()
+        _CACHE[key] = (now, result)
     return result

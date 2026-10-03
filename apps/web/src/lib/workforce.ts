@@ -18,6 +18,48 @@ export const MEMBER_ROWS = 100;
 export const MIN_REVENUE = 500_000_000;
 export const MIN_EMPLOYEES = 50;
 
+export type WorkforceShape =
+  | "leaner"
+  | "efficient_growth"
+  | "hiring_ahead"
+  | "contracting"
+  | "hiring_into_decline";
+
+export const WORKFORCE_SHAPES: ReadonlyArray<{
+  id: WorkforceShape;
+  label: string;
+  blurb: string;
+}> = [
+  { id: "leaner", label: "Leaner", blurb: "Revenue up or flat, headcount down or flat" },
+  { id: "efficient_growth", label: "Efficient growth", blurb: "Both up, revenue faster" },
+  { id: "hiring_ahead", label: "Hiring ahead", blurb: "Both up, headcount faster" },
+  { id: "contracting", label: "Contracting", blurb: "Revenue down, headcount down or flat" },
+  { id: "hiring_into_decline", label: "Hiring into decline", blurb: "Revenue down, headcount up" },
+];
+
+export function isWorkforceShape(value: unknown): value is WorkforceShape {
+  return WORKFORCE_SHAPES.some((s) => s.id === value);
+}
+
+export function shapeLabel(shape: WorkforceShape | null | undefined): string {
+  return WORKFORCE_SHAPES.find((s) => s.id === shape)?.label ?? "—";
+}
+
+export type GrowthPoint = {
+  ticker: string;
+  name: string | null;
+  sector: string | null;
+  employees_yoy: number;
+  revenue_yoy: number;
+  rev_per_employee: number;
+  shape: WorkforceShape;
+};
+
+export type GrowthPayload = {
+  shape_counts: Record<WorkforceShape, number>;
+  points: GrowthPoint[];
+};
+
 export type WorkforceRow = {
   rank: number;
   ticker: string;
@@ -34,6 +76,7 @@ export type WorkforceRow = {
   revenue_yoy: number | null;
   leverage: number | null;
   industry_pct: number | null;
+  shape: WorkforceShape | null;
 };
 
 export type WorkforceBoard = {
@@ -41,6 +84,7 @@ export type WorkforceBoard = {
   universe: number;
   median_rev_per_employee: number | null;
   sectors: string[];
+  shape_counts: Record<WorkforceShape, number>;
   count: number;
   rows: WorkforceRow[];
 };
@@ -75,6 +119,7 @@ export async function getWorkforceBoard(opts: {
   order: WorkforceOrder;
   limit: number;
   sector?: string | null;
+  shape?: WorkforceShape | null;
 }): Promise<WorkforceBoard | null> {
   const params = new URLSearchParams({
     order: opts.order,
@@ -83,6 +128,7 @@ export async function getWorkforceBoard(opts: {
     min_employees: String(MIN_EMPLOYEES),
   });
   if (opts.sector) params.set("sector", opts.sector);
+  if (opts.shape) params.set("shape", opts.shape);
   try {
     const res = await fetch(`${PUBLIC_API_BASE}/workforce/leaderboard?${params}`, {
       next: { revalidate: 300 },
@@ -90,7 +136,10 @@ export async function getWorkforceBoard(opts: {
     });
     if (!res.ok) return null;
     const data = (await res.json()) as WorkforceBoard;
-    return Array.isArray(data?.rows) ? data : null;
+    if (!Array.isArray(data?.rows)) return null;
+    // A response cached before a deploy may predate a field; never let that
+    // reach the page as undefined.
+    return { ...data, shape_counts: data.shape_counts ?? ({} as WorkforceBoard["shape_counts"]) };
   } catch {
     return null;
   }
@@ -153,4 +202,19 @@ export function indexTo100(values: number[]): number[] {
   const base = values[0];
   if (!base) return values.map(() => NaN);
   return values.map((v) => (v / base) * 100);
+}
+
+/**
+ * Where to draw a growth scatter. Axes run from the 2nd to the 98th
+ * percentile (always including zero) so a handful of extreme companies do not
+ * flatten everyone else; points beyond an edge are pinned to it.
+ */
+export function growthDomain(values: number[]): [number, number] {
+  const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
+  if (sorted.length === 0) return [-0.2, 0.2];
+  const at = (q: number) => sorted[Math.min(sorted.length - 1, Math.max(0, Math.round(q * (sorted.length - 1))))];
+  const lo = Math.min(at(0.02), 0);
+  const hi = Math.max(at(0.98), 0);
+  const pad = (hi - lo) * 0.06 || 0.05;
+  return [lo - pad, hi + pad];
 }

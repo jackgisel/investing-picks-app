@@ -11,6 +11,7 @@ import {
   formatGrowth,
   formatLeverage,
   formatPerEmployee,
+  shapeLabel,
   type WorkforceHistory,
   type WorkforceRow,
 } from "@/lib/workforce";
@@ -59,7 +60,7 @@ export function WorkforceTable({
 
   return (
     <HScroll>
-      <table className="w-full min-w-[820px] border-collapse">
+      <table className="w-full min-w-[920px] border-collapse">
         <thead>
           <tr className="border-b border-border-strong text-left">
             <th className={cn(th, "w-12")}>#</th>
@@ -70,6 +71,7 @@ export function WorkforceTable({
             <th className={cn(th, "text-right")}>Staff YoY</th>
             <th className={cn(th, "text-right")}>Revenue YoY</th>
             <th className={cn(th, "text-right")}>Leverage</th>
+            <th className={th}>Shape</th>
             <th className={cn(th, "w-12")}>
               <span className="sr-only">History</span>
             </th>
@@ -103,6 +105,9 @@ export function WorkforceTable({
                   <td className={cn("py-3 px-3 text-right", growthTone(r.leverage))}>
                     {formatLeverage(r.leverage)}
                   </td>
+                  <td className="py-3 px-3 font-sans text-[12px] text-text-muted whitespace-nowrap">
+                    {shapeLabel(r.shape)}
+                  </td>
                   <td className="py-3 px-3 text-right">
                     <button
                       type="button"
@@ -121,7 +126,7 @@ export function WorkforceTable({
                 </tr>
                 {isOpen && (
                   <tr className="border-b border-border/70 bg-bg-secondary">
-                    <td colSpan={9} className="px-4 py-5 sm:px-6">
+                    <td colSpan={10} className="px-4 py-5 sm:px-6">
                       {!entitled ? (
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <p className="max-w-[520px] font-sans text-[14px] text-text-muted">

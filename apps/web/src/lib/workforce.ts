@@ -77,6 +77,11 @@ export type WorkforceRow = {
   leverage: number | null;
   industry_pct: number | null;
   shape: WorkforceShape | null;
+  /** Open roles on the company's public job board; null where we have no verified board. */
+  openings: number | null;
+  openings_as_of: string | null;
+  openings_per_1000: number | null;
+  openings_change_90d: number | null;
 };
 
 export type WorkforceBoard = {
@@ -100,12 +105,21 @@ export type WorkforcePoint = {
   revenue_yoy: number | null;
 };
 
+export type OpeningsPoint = { as_of: string; open_count: number };
+
 export type WorkforceHistory = {
   ticker: string;
   name: string | null;
   sector: string | null;
   industry: string | null;
   series: WorkforcePoint[];
+  openings_series: OpeningsPoint[];
+  openings_current: {
+    openings: number | null;
+    openings_as_of: string | null;
+    openings_per_1000: number | null;
+    openings_change_90d: number | null;
+  };
 };
 
 export function isWorkforceOrder(value: unknown): value is WorkforceOrder {
@@ -222,4 +236,16 @@ export function growthDomain(values: number[]): [number, number] {
   const hi = Math.max(at(0.98), 0);
   const pad = (hi - lo) * 0.06 || 0.05;
   return [lo - pad, hi + pad];
+}
+
+/** `212`, or a dash where we have no verified job board. */
+export function formatOpenings(value: number | null | undefined): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "—";
+  return Math.round(value).toLocaleString("en-US");
+}
+
+/** `14 per 1,000 staff`, one decimal under ten. */
+export function formatOpeningsRate(value: number | null | undefined): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "—";
+  return `${value < 10 ? value.toFixed(1) : Math.round(value)} per 1,000 staff`;
 }

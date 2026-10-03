@@ -205,7 +205,10 @@ export default async function WorkforcePage({
                 ? ` Median revenue per employee: ${formatPerEmployee(board.median_rev_per_employee)}.`
                 : ""}{" "}
               Leverage is revenue growth minus headcount growth over the last
-              fiscal year, in percentage points.
+              fiscal year, in percentage points. Open roles are counted from a
+              company's own public job board where we have matched one, so many
+              companies show a dash. The per 1,000 rate uses the latest annual
+              headcount.
               {board && board.excluded_sectors.length > 0
                 ? ` ${board.excluded_sectors.join(" and ")} ${board.excluded_sectors.length > 1 ? "are" : "is"} left out of this view, because revenue there means interest and rent rather than sales, which makes revenue per employee a different thing.${entitled ? " Pick the sector above to see it." : ""}`
                 : ""}

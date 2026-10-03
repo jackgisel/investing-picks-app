@@ -6,6 +6,8 @@ import {
   fiscalYearShort,
   formatEmployees,
   formatGrowth,
+  formatOpenings,
+  formatOpeningsRate,
   formatPerEmployee,
   indexTo100,
   type WorkforceHistory,
@@ -161,6 +163,43 @@ export function HistoryChart({ history }: { history: WorkforceHistory }) {
           ))}
         </tbody>
       </table>
+
+      <OpeningsNote history={history} />
     </div>
+  );
+}
+
+function OpeningsNote({ history }: { history: WorkforceHistory }) {
+  // An older API response may predate the field; treat that as "no data".
+  const series = history.openings_series ?? [];
+  const current = history.openings_current;
+  const note = "mt-4 border-t border-border pt-3 font-sans text-[13px] text-text-muted";
+  if (series.length === 0) {
+    return (
+      <p className={note}>
+        Open roles: we have not matched a verified job board for this company yet.
+      </p>
+    );
+  }
+  const latest = series[series.length - 1];
+  if (!current || current.openings === null) {
+    return (
+      <p className={note}>
+        Open roles: the last count we hold is from {latest.as_of}, so it is not shown as current.
+      </p>
+    );
+  }
+  return (
+    <p className={note}>
+      Open roles on its job board:{" "}
+      <span className="font-mono text-text">{formatOpenings(current.openings)}</span> (
+      {formatOpeningsRate(current.openings_per_1000)}, against its latest annual headcount), as of{" "}
+      {current.openings_as_of}.
+      {current.openings_change_90d !== null
+        ? ` ${formatGrowth(current.openings_change_90d)} over about 90 days.`
+        : series.length > 1
+          ? ` Tracked since ${series[0].as_of}. No 90 day change yet.`
+          : " No trend yet."}
+    </p>
   );
 }

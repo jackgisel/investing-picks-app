@@ -130,6 +130,8 @@ const article: Article = {
           alpha vs beta
         </A>
         . The biweekly cadence is the operating system that makes that philosophy livable.
+        What the membership costs, and who it is for, is on{" "}
+        <A href="/pricing">pricing</A>.
       </P>
 
       <InlineCTA />

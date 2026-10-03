@@ -277,6 +277,11 @@ const article: Article = {
         <A href="/blog/is-paying-for-a-stock-picking-service-worth-it">
           our piece on whether stock picking services are worth the fee
         </A>
+        . If you are still deciding whether a research membership is the right
+        shape of product, read{" "}
+        <A href="/blog/is-a-stock-research-membership-worth-it">
+          is a stock research membership worth it
+        </A>
         .
       </P>
 

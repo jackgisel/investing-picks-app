@@ -19,6 +19,11 @@ from app.db.session import SessionLocal
 from app.services.portfolio import ensure_default_portfolio, run_evaluation
 from app.services.job_runs import reap_stale_job_runs
 from worker.jobs.deadline import JobDeadline, JobDeadlineExceeded
+from worker.backtest.workforce_ic import (
+    WORKFORCE_IC_JOB,
+    WORKFORCE_IC_TIMEOUT_MINUTES,
+    compute_workforce_ic,
+)
 from worker.services.employee_counts import (
     EMPLOYEE_COUNTS_JOB,
     EMPLOYEE_COUNTS_TIMEOUT_MINUTES,
@@ -97,6 +102,11 @@ def reap_stale_weekly_refreshes() -> int:
         )
         count += reap_stale_job_runs(
             db, job_name=COLLECT_JOB, stale_after=timedelta(minutes=COLLECT_TIMEOUT_MINUTES)
+        )
+        count += reap_stale_job_runs(
+            db,
+            job_name=WORKFORCE_IC_JOB,
+            stale_after=timedelta(minutes=WORKFORCE_IC_TIMEOUT_MINUTES),
         )
         if count:
             log.error("Reaped %s stale scheduled-job run(s)", count)
@@ -693,6 +703,15 @@ def job_job_openings_collect():
             ats.close()
 
     return _track(COLLECT_JOB, _run)
+
+
+def job_workforce_ic():
+    """On demand: do the workforce factors rank forward returns? Read-only."""
+
+    def _run(db: Session):
+        return compute_workforce_ic(db)
+
+    return _track(WORKFORCE_IC_JOB, _run)
 
 
 def job_daily_marks():

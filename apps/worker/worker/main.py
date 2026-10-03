@@ -31,6 +31,7 @@ from worker.jobs.runner import (
     job_employee_counts_refresh,
     job_job_boards_discover,
     job_job_openings_collect,
+    job_workforce_ic,
     job_extra_buy,
     job_income_statements_refresh,
     job_income_visuals_watch,
@@ -330,6 +331,8 @@ def main():
             # first board discovery and the first collection.
             "job_boards_discover": job_job_boards_discover,
             "job_openings_collect": job_job_openings_collect,
+            # Read-only study; not on any schedule.
+            "workforce_ic": job_workforce_ic,
             "biweekly_evaluate": job_biweekly_evaluate,
             # Scheduled every 15 min (above); on demand for when you have just
             # shortened the review window and do not want to wait for the tick.

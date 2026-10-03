@@ -36,8 +36,13 @@ from worker.services.job_openings import (
 TODAY = date(2026, 10, 5)  # a Monday
 
 
+@pytest.fixture(autouse=True)
+def _no_retry_sleep(monkeypatch):
+    monkeypatch.setattr(job_openings.time, "sleep", lambda s: None)
+
+
 class FakeAts:
-    def __init__(self, gh_names=None, lever=None, ashby=None, greenhouse=None, fail=()):
+    def __init__(self, gh_names=None, lever=None, ashby=None, greenhouse=None, fail=(), gone=(), flaky=()):
         self.gh_names = gh_names or {}
         self.boards = {
             GREENHOUSE: greenhouse or {},
@@ -45,6 +50,9 @@ class FakeAts:
             ASHBY: ashby or {},
         }
         self.fail = set(fail)
+        self.gone = set(gone)
+        self.flaky = set(flaky)  # fails once, then answers
+        self.last_status = 200
         self.calls: list[str] = []
 
     def greenhouse_name(self, slug):
@@ -53,8 +61,18 @@ class FakeAts:
 
     def jobs(self, ats, slug):
         self.calls.append(f"{ats}:{slug}")
-        if (ats, slug) in self.fail:
+        key = (ats, slug)
+        if key in self.gone:
+            self.last_status = 404
             return None
+        if key in self.fail:
+            self.last_status = 0
+            return None
+        if key in self.flaky:
+            self.flaky.discard(key)
+            self.last_status = 0
+            return None
+        self.last_status = 200
         return self.boards[ats].get(slug)
 
 
@@ -204,8 +222,144 @@ def test_collect_raises_without_boards_or_when_every_board_fails(db):
         collect_openings(db, FakeAts(), as_of=TODAY)
     for i in range(10):
         _board(db, f"T{i}", GREENHOUSE, f"t{i}")
-    with pytest.raises(RuntimeError, match="all 10 boards"):
+    with pytest.raises(RuntimeError, match="10 of 10 companies failed"):
         collect_openings(db, FakeAts(), as_of=TODAY)
+
+
+def test_text_verification_ignores_generic_words_and_matches_whole_words():
+    assert job_openings.distinctive_token("United Rentals, Inc.") == "rentals"
+    assert job_openings.distinctive_token("American Express") == "express"
+    assert job_openings.distinctive_token("First Solar") == "solar"
+    assert job_openings.distinctive_token("United Corp") is None
+    # "visa" must not be found inside "revisable"; "united" is not evidence.
+    assert not text_names_company(_jobs(25, "a revisable plan"), "Visa Inc.")
+    assert text_names_company(_jobs(25, "Visa is hiring"), "Visa Inc.")
+    assert not text_names_company(_jobs(25, "United States only"), "United Rentals")
+
+
+def test_one_transient_failure_is_retried(db):
+    _board(db, "AAA", GREENHOUSE, "aaa")
+    ats = FakeAts(greenhouse={"aaa": _jobs(3)}, flaky={(GREENHOUSE, "aaa")})
+    assert collect_openings(db, ats, as_of=TODAY)["stored"] == 1
+
+
+def test_a_board_that_is_gone_is_dropped_after_three_misses(db):
+    _board(db, "AAA", GREENHOUSE, "aaa")
+    _board(db, "BBB", GREENHOUSE, "bbb")
+    ats = FakeAts(greenhouse={"bbb": _jobs(2)}, gone={(GREENHOUSE, "aaa")})
+    for day in range(3):
+        collect_openings(db, ats, as_of=TODAY + timedelta(days=day))
+    assert db.query(JobBoard).filter_by(ticker="AAA").one().active is False
+    assert db.query(JobBoard).filter_by(ticker="BBB").one().active is True
+
+
+def test_a_recovering_board_resets_its_misses(db):
+    _board(db, "AAA", GREENHOUSE, "aaa")
+    _board(db, "BBB", GREENHOUSE, "bbb")
+    collect_openings(db, FakeAts(greenhouse={"bbb": _jobs(1)}, gone={(GREENHOUSE, "aaa")}), as_of=TODAY)
+    assert db.query(JobBoard).filter_by(ticker="AAA").one().misses == 1
+    collect_openings(
+        db, FakeAts(greenhouse={"aaa": _jobs(5), "bbb": _jobs(1)}), as_of=TODAY + timedelta(days=1)
+    )
+    assert db.query(JobBoard).filter_by(ticker="AAA").one().misses == 0
+
+
+def test_an_empty_board_is_not_recorded_as_zero_for_an_established_company(db):
+    _board(db, "AAA", GREENHOUSE, "aaa")
+    _board(db, "BBB", GREENHOUSE, "bbb")
+    collect_openings(db, FakeAts(greenhouse={"aaa": _jobs(40), "bbb": _jobs(1)}), as_of=TODAY)
+    result = collect_openings(
+        db, FakeAts(greenhouse={"aaa": [], "bbb": []}), as_of=TODAY + timedelta(days=1)
+    )
+    # AAA had 40, so a zero is suspect; BBB was already tiny, so it is believed.
+    assert result["suspicious_zero"] == 1 and result["stored"] == 1
+    rows = {r.ticker: r.open_count for r in db.query(JobOpeningSnapshot).filter(
+        JobOpeningSnapshot.as_of == TODAY + timedelta(days=1))}
+    assert rows == {"BBB": 0}
+
+
+def test_a_new_company_with_zero_postings_is_not_recorded(db):
+    _board(db, "AAA", GREENHOUSE, "aaa")
+    result = collect_openings(db, FakeAts(greenhouse={"aaa": []}), as_of=TODAY)
+    assert result["suspicious_zero"] == 1 and db.query(JobOpeningSnapshot).count() == 0
+
+
+def test_mostly_failed_day_raises_after_storing_what_it_got(db):
+    for i in range(10):
+        _board(db, f"T{i:02d}", GREENHOUSE, f"t{i}")
+    ats = FakeAts(greenhouse={f"t{i}": _jobs(2) for i in range(10)}, fail={(GREENHOUSE, f"t{i}") for i in range(4)})
+    with pytest.raises(RuntimeError, match="4 of 10"):
+        collect_openings(db, ats, as_of=TODAY)
+    assert db.query(JobOpeningSnapshot).count() == 6
+
+
+def test_one_ats_failing_entirely_raises(db):
+    for i in range(5):
+        _board(db, f"L{i}", LEVER, f"l{i}")
+    for i in range(20):
+        _board(db, f"G{i:02d}", GREENHOUSE, f"g{i}")
+    ats = FakeAts(
+        greenhouse={f"g{i}": _jobs(2) for i in range(20)},
+        lever={f"l{i}": _jobs(2) for i in range(5)},
+        fail={(LEVER, f"l{i}") for i in range(5)},
+    )
+    with pytest.raises(RuntimeError, match="every lever board failed"):
+        collect_openings(db, ats, as_of=TODAY)
+
+
+def test_collect_budget_leaves_the_rest_unfinished_without_failing(db):
+    for i in range(3):
+        _board(db, f"T{i}", GREENHOUSE, f"t{i}")
+    result = collect_openings(
+        db, FakeAts(greenhouse={f"t{i}": _jobs(2) for i in range(3)}), as_of=TODAY, budget_seconds=-1
+    )
+    assert result["unfinished"] == 3 and result["stored"] == 0
+
+
+def test_overlapping_run_loses_quietly_on_the_unique_key(db):
+    _board(db, "AAA", GREENHOUSE, "aaa")
+
+    class Racing(FakeAts):
+        def jobs(self, ats, slug):
+            # The other run lands its row while this one is mid-fetch.
+            if not db.query(JobOpeningSnapshot).count():
+                db.add(JobOpeningSnapshot(ticker="AAA", as_of=TODAY, open_count=9, verified=True, boards=[]))
+                db.commit()
+            return super().jobs(ats, slug)
+
+    result = collect_openings(db, Racing(greenhouse={"aaa": _jobs(3)}), as_of=TODAY)
+    assert result["stored"] == 0 and result["already_had"] == 1
+    assert db.query(JobOpeningSnapshot).one().open_count == 9
+
+
+def test_share_class_representative_does_not_depend_on_what_is_held(db):
+    _stocks(db, [("GOOGL", "Alphabet Inc."), ("GOOG", "Alphabet Inc."), ("BRK-B", "Berkshire Hathaway Inc."), ("BRK-A", "Berkshire Hathaway Inc.")])
+    assert [t for t, _ in discovery_universe(db)] == ["GOOG", "BRK-A"]
+
+
+def test_throttle_is_per_host(monkeypatch):
+    sleeps: list[float] = []
+    monkeypatch.setattr(job_openings.time, "sleep", sleeps.append)
+    now = [100.0]
+    monkeypatch.setattr(job_openings.time, "monotonic", lambda: now[0])
+
+    class Resp:
+        status_code = 200
+        def json(self):
+            return {}
+
+    class Http:
+        def get(self, url):
+            return Resp()
+        def close(self):
+            pass
+
+    client = job_openings.AtsClient(client=Http(), interval=0.4)
+    client._get("https://boards-api.greenhouse.io/v1/boards/x")
+    client._get("https://api.lever.co/v0/postings/x")  # different host: no wait
+    assert sleeps == []
+    client._get("https://api.lever.co/v0/postings/y")  # same host, no time passed
+    assert sleeps and sleeps[0] == pytest.approx(0.4)
 
 
 def test_missing_weekdays_and_coverage(db):

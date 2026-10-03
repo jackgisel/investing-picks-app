@@ -18,16 +18,19 @@ number. A wrong board is worse than no board.
 from __future__ import annotations
 
 import logging
+import random
 import re
 import time
+from urllib.parse import urlparse
 from datetime import date, datetime, timedelta, timezone
 
 import httpx
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db.models import JobBoard, JobBoardCheck, JobOpeningSnapshot, Stock
-from worker.services.ingest import held_tickers, today_et
+from worker.services.ingest import today_et
 
 log = logging.getLogger(__name__)
 
@@ -44,6 +47,22 @@ RECHECK_FOUND_DAYS = 90
 TEXT_VERIFY_SHARE = 0.6
 TEXT_VERIFY_SAMPLE = 20
 MIN_TOKEN_LEN = 4
+#: Consecutive "board not found" answers before a board stops being collected.
+GONE_AFTER_MISSES = 3
+#: A day's run is a failure, not a success with holes, past this share skipped.
+MAX_SKIPPED_SHARE = 0.25
+#: A zero count is only believed for a company that was already this small.
+ZERO_PLAUSIBLE_PREVIOUS = 3
+COLLECT_BUDGET_MINUTES = 16.0
+#: Words too common to tell one company's postings from another's.
+GENERIC_TOKENS = {
+    "united", "american", "first", "national", "general", "global", "international",
+    "new", "western", "southern", "northern", "eastern", "bank", "financial",
+    "health", "healthcare", "energy", "systems", "technologies", "technology",
+    "services", "capital", "partners", "trust", "digital", "consulting", "software",
+    "industries", "resources", "solutions", "networks", "communications", "media",
+    "pharmaceuticals", "therapeutics", "biosciences", "bancorp", "realty",
+}
 
 GREENHOUSE = "greenhouse"
 LEVER = "lever"
@@ -85,33 +104,44 @@ def candidate_slugs(name: str | None, ticker: str) -> list[str]:
 
 
 class AtsClient:
-    """Thin client over the three public job-board feeds."""
+    """Thin client over the three public job-board feeds.
+
+    Throttled per host, so the three feeds do not queue behind each other but
+    none of them sees more than one request per `interval`. `last_status` is
+    the HTTP status of the latest request (0 for a network error), so a caller
+    can tell a board that is gone (404) from one that merely failed to answer.
+    """
 
     def __init__(self, client: httpx.Client | None = None, interval: float = REQUEST_INTERVAL):
         self._client = client or httpx.Client(
             timeout=30.0, headers={"User-Agent": "outpick-data/1.0 (+https://outpick.xyz)"}
         )
         self._interval = interval
-        self._last = 0.0
+        self._last: dict[str, float] = {}
+        self.last_status = 0
 
     def close(self) -> None:
         self._client.close()
 
     def _get(self, url: str) -> list | dict | None:
-        wait = self._interval - (time.monotonic() - self._last)
+        host = urlparse(url).netloc
+        wait = self._interval - (time.monotonic() - self._last.get(host, 0.0))
         if wait > 0:
             time.sleep(wait)
-        self._last = time.monotonic()
+        self._last[host] = time.monotonic()
         try:
             r = self._client.get(url)
         except Exception as e:
             log.warning("job board request failed: %s", type(e).__name__)
+            self.last_status = 0
             return None
+        self.last_status = r.status_code
         if r.status_code != 200:
             return None
         try:
             return r.json()
         except Exception:
+            self.last_status = 0
             return None
 
     def greenhouse_name(self, slug: str) -> str | None:
@@ -152,14 +182,26 @@ def _posting_text(job: dict) -> str:
     return " ".join(str(p) for p in parts if p).lower()
 
 
+def distinctive_token(company: str | None) -> str | None:
+    """The first word of the name specific enough to recognise it by."""
+    for t in name_tokens(company):
+        if len(t) >= MIN_TOKEN_LEN and t not in GENERIC_TOKENS:
+            return t
+    return None
+
+
 def text_names_company(jobs: list[dict], company: str | None) -> bool:
-    """Does the company's name appear in most of a board's postings?"""
-    tokens = [t for t in name_tokens(company) if len(t) >= MIN_TOKEN_LEN]
-    if not tokens or not jobs:
+    """Is the company named, as a whole word, in most of a board's postings?
+
+    Only a distinctive word counts: "united" or "first" would be found in the
+    postings of almost any board, and "visa" must not match "revisable".
+    """
+    needle = distinctive_token(company)
+    if not needle or not jobs:
         return False
-    needle = tokens[0]
+    pattern = re.compile(rf"\b{re.escape(needle)}\b")
     sample = jobs[:TEXT_VERIFY_SAMPLE]
-    hits = sum(1 for j in sample if needle in _posting_text(j))
+    hits = sum(1 for j in sample if pattern.search(_posting_text(j)))
     return hits / len(sample) >= TEXT_VERIFY_SHARE
 
 
@@ -201,15 +243,19 @@ def discover_ticker(ats: AtsClient, ticker: str, name: str | None) -> list[dict]
 
 
 def discovery_universe(db: Session) -> list[tuple[str, str | None]]:
-    """(ticker, name) for every live-universe name, held first."""
-    held = held_tickers(db)
+    """(ticker, name) for every live-universe company, one per company.
+
+    Share classes share a board, so each company is looked up once under a
+    representative ticker chosen only from the ticker itself (no suffix, then
+    shortest, then alphabetical). It must not depend on what is held today, or
+    the representative, and with it the history, would change.
+    """
     rows = (
         db.query(Stock.ticker, Stock.name)
         .filter(Stock.is_active == True, Stock.is_etf == False)  # noqa: E712
         .all()
     )
-    rows.sort(key=lambda r: (r[0] not in held, r[0]))
-    # One entry per company: share classes share a board.
+    rows.sort(key=lambda r: (("-" in r[0] or "." in r[0]), len(r[0]), r[0]))
     seen: set[str] = set()
     out: list[tuple[str, str | None]] = []
     for ticker, name in rows:
@@ -301,15 +347,37 @@ def missing_weekdays(db: Session, today: date) -> list[date]:
     return out
 
 
-def collect_openings(db: Session, ats: AtsClient, as_of: date | None = None) -> dict:
+def _fetch_board(ats: AtsClient, board: JobBoard) -> tuple[list[dict] | None, bool]:
+    """(jobs, gone). One retry for a transient failure; `gone` means a 404."""
+    for attempt in range(2):
+        jobs = ats.jobs(board.ats, board.slug)
+        if jobs is not None:
+            return jobs, False
+        if ats.last_status == 404:
+            return None, True
+        if attempt == 0:
+            time.sleep(1.0)
+    return None, False
+
+
+def collect_openings(
+    db: Session,
+    ats: AtsClient,
+    as_of: date | None = None,
+    budget_seconds: float = COLLECT_BUDGET_MINUTES * 60,
+) -> dict:
     """Append today's open-posting count for every company with a known board.
 
     One row per (ticker, day), the first write wins. A ticker's count is the
-    sum over its boards, and `boards` keeps the split. If any one of a
-    company's boards fails to load, the company is skipped for the day rather
-    than recording a partial count that would read as a hiring collapse.
+    sum over its boards, and `boards` keeps the split. A company is skipped for
+    the day, never recorded partially, if any board fails to load, or if the
+    total is zero for a company that was not already tiny (an emptied or moved
+    board would otherwise read as a hiring collapse and cannot be revised). A
+    board that answers "not found" three days running stops being collected.
+    Raises, after storing what it got, when too much of the day was skipped.
     """
     as_of = as_of or today_et()
+    started = time.monotonic()
     boards = db.query(JobBoard).filter(JobBoard.active == True).all()  # noqa: E712
     by_ticker: dict[str, list[JobBoard]] = {}
     for b in boards:
@@ -317,49 +385,95 @@ def collect_openings(db: Session, ats: AtsClient, as_of: date | None = None) -> 
     if not by_ticker:
         raise RuntimeError("no job boards known; run discovery first")
 
-    stored = skipped = 0
     existing = {
         t
         for (t,) in db.query(JobOpeningSnapshot.ticker).filter(
             JobOpeningSnapshot.as_of == as_of
         )
     }
-    for ticker, group in sorted(by_ticker.items()):
+    previous = {
+        t: n
+        for t, n in db.query(JobOpeningSnapshot.ticker, JobOpeningSnapshot.open_count)
+        .filter(JobOpeningSnapshot.as_of < as_of)
+        .order_by(JobOpeningSnapshot.as_of)
+        .all()
+    }
+    # A fixed order would always starve the same tail of the alphabet if a day
+    # ever runs out of time, so rotate it by date.
+    order = sorted(by_ticker)
+    random.Random(as_of.toordinal()).shuffle(order)
+
+    stored = skipped = already = suspicious = 0
+    failed_by_ats: dict[str, int] = {}
+    boards_by_ats: dict[str, int] = {}
+    for b in boards:
+        boards_by_ats[b.ats] = boards_by_ats.get(b.ats, 0) + 1
+    unfinished = 0
+    for idx, ticker in enumerate(order):
         if ticker in existing:
+            already += 1
             continue
+        if time.monotonic() - started > budget_seconds:
+            unfinished = sum(1 for t in order[idx:] if t not in existing)
+            break
         detail, total, ok = [], 0, True
-        for b in group:
-            jobs = ats.jobs(b.ats, b.slug)
+        for b in by_ticker[ticker]:
+            jobs, gone = _fetch_board(ats, b)
+            if gone:
+                b.misses = (b.misses or 0) + 1
+                if b.misses >= GONE_AFTER_MISSES:
+                    b.active = False
+                    log.warning("job board %s/%s is gone; no longer collecting", b.ats, b.slug)
+                db.commit()
             if jobs is None:
+                failed_by_ats[b.ats] = failed_by_ats.get(b.ats, 0) + 1
                 ok = False
                 break
+            if b.misses:
+                b.misses = 0
             detail.append({"ats": b.ats, "slug": b.slug, "open": len(jobs)})
             total += len(jobs)
         if not ok:
             skipped += 1
+            continue
+        if total == 0 and previous.get(ticker, ZERO_PLAUSIBLE_PREVIOUS + 1) > ZERO_PLAUSIBLE_PREVIOUS:
+            suspicious += 1
             continue
         db.add(
             JobOpeningSnapshot(
                 ticker=ticker,
                 as_of=as_of,
                 open_count=total,
-                verified=all(b.verified for b in group),
+                verified=all(b.verified for b in by_ticker[ticker]),
                 boards=detail,
                 fetched_at=datetime.now(timezone.utc),
             )
         )
-        db.commit()
-        stored += 1
-    if stored == 0 and skipped >= 10:
-        raise RuntimeError(f"job openings: all {skipped} boards failed to load")
-    return {
+        try:
+            db.commit()
+            stored += 1
+        except IntegrityError:
+            # A manual run overlapped the scheduled one; the first write won.
+            db.rollback()
+            already += 1
+
+    result = {
         "as_of": as_of.isoformat(),
         "boards": len(boards),
         "tickers": len(by_ticker),
         "stored": stored,
         "skipped": skipped,
-        "already_had": len(existing),
+        "suspicious_zero": suspicious,
+        "unfinished": unfinished,
+        "already_had": already,
     }
+    attempted = stored + skipped
+    if attempted >= 10 and skipped / attempted > MAX_SKIPPED_SHARE:
+        raise RuntimeError(f"job openings: {skipped} of {attempted} companies failed to load; {result}")
+    for ats_name, failed in failed_by_ats.items():
+        if boards_by_ats.get(ats_name, 0) >= 5 and failed >= boards_by_ats[ats_name]:
+            raise RuntimeError(f"job openings: every {ats_name} board failed; {result}")
+    return result
 
 
 def coverage(db: Session, today: date | None = None) -> dict:

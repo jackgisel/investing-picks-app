@@ -1271,42 +1271,54 @@ def consensus_snapshot_status(db: Session = Depends(get_db)):
     }
 
 
-def _run_employee_counts_task() -> None:
-    try:
-        from worker.jobs.runner import job_employee_counts_refresh
+def _trigger_job(
+    db: Session,
+    background: BackgroundTasks,
+    job_name: str,
+    timeout_minutes: float,
+    runner_name: str,
+):
+    """Start a worker job in the background unless it is already running."""
+    reap_stale_job_runs(db, job_name=job_name, stale_after=timedelta(minutes=timeout_minutes))
+    running = (
+        db.query(JobRun)
+        .filter(JobRun.job_name == job_name, JobRun.status == "running")
+        .first()
+    )
+    if running is not None:
+        raise HTTPException(
+            status_code=409, detail=f"{job_name} is already running; watch /api/ops/jobs."
+        )
 
-        job_employee_counts_refresh()
-    except Exception:
-        log.exception("Manual employee_counts_refresh failed")
+    def _task() -> None:
+        try:
+            from worker.jobs import runner
+
+            getattr(runner, runner_name)()
+        except Exception:
+            log.exception("Manual %s failed", job_name)
+
+    background.add_task(_task)
+    return {"started": True, "job_name": job_name}
 
 
 @router.post("/employee-counts", dependencies=[Depends(require_ops_key)])
 def trigger_employee_counts(
     background: BackgroundTasks, db: Session = Depends(get_db)
 ):
-    """Start a headcount refresh now — the first load, or after a fix."""
+    """Start a headcount refresh now: the first load, or after a fix."""
     from worker.services.employee_counts import (
         EMPLOYEE_COUNTS_JOB,
         EMPLOYEE_COUNTS_TIMEOUT_MINUTES,
     )
 
-    reap_stale_job_runs(
+    return _trigger_job(
         db,
-        job_name=EMPLOYEE_COUNTS_JOB,
-        stale_after=timedelta(minutes=EMPLOYEE_COUNTS_TIMEOUT_MINUTES),
+        background,
+        EMPLOYEE_COUNTS_JOB,
+        EMPLOYEE_COUNTS_TIMEOUT_MINUTES,
+        "job_employee_counts_refresh",
     )
-    running = (
-        db.query(JobRun)
-        .filter(JobRun.job_name == EMPLOYEE_COUNTS_JOB, JobRun.status == "running")
-        .first()
-    )
-    if running is not None:
-        raise HTTPException(
-            status_code=409,
-            detail="A headcount refresh is already running; watch /api/ops/jobs.",
-        )
-    background.add_task(_run_employee_counts_task)
-    return {"started": True, "job_name": EMPLOYEE_COUNTS_JOB}
 
 
 @router.get("/employee-counts", dependencies=[Depends(require_ops_key)])
@@ -1330,28 +1342,6 @@ def employee_counts_status(db: Session = Depends(get_db)):
         if last
         else None,
     }
-
-
-def _trigger_job(db: Session, background: BackgroundTasks, job_name: str, timeout_minutes: float, runner_name: str):
-    reap_stale_job_runs(db, job_name=job_name, stale_after=timedelta(minutes=timeout_minutes))
-    running = (
-        db.query(JobRun)
-        .filter(JobRun.job_name == job_name, JobRun.status == "running")
-        .first()
-    )
-    if running is not None:
-        raise HTTPException(status_code=409, detail=f"{job_name} is already running; watch /api/ops/jobs.")
-
-    def _task() -> None:
-        try:
-            from worker.jobs import runner
-
-            getattr(runner, runner_name)()
-        except Exception:
-            log.exception("Manual %s failed", job_name)
-
-    background.add_task(_task)
-    return {"started": True, "job_name": job_name}
 
 
 @router.post("/job-openings/{step}", dependencies=[Depends(require_ops_key)])

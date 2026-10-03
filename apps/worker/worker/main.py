@@ -126,6 +126,8 @@ def main():
         CronTrigger(day_of_week="sun", hour=9, minute=0),
         id="job_boards_discover",
         replace_existing=True,
+        misfire_grace_time=6 * 3600,
+        coalesce=True,
     )
     # Weekdays 07:00 ET: today's open-posting count per company. Append-only
     # and unrecoverable, so it runs before anything else that morning.
@@ -134,6 +136,10 @@ def main():
         CronTrigger(day_of_week="mon-fri", hour=7, minute=0),
         id="job_openings_collect",
         replace_existing=True,
+        # A deploy that spans 07:00 must still collect that day when the
+        # worker comes back, not drop it: the history cannot be rebuilt.
+        misfire_grace_time=6 * 3600,
+        coalesce=True,
     )
     scheduler.add_job(
         job_weekly_refresh,

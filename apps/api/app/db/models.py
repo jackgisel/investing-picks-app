@@ -321,6 +321,8 @@ class JobBoard(Base):
     board_name: Mapped[str | None] = mapped_column(String(256), nullable=True)
     verified: Mapped[bool] = mapped_column(Boolean, default=False)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    #: Consecutive "not found" answers; the board is dropped at three.
+    misses: Mapped[int] = mapped_column(Integer, default=0)
     discovered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 

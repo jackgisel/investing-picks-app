@@ -5,6 +5,8 @@ import {
   formatEmployees,
   formatGrowth,
   formatLeverage,
+  formatOpenings,
+  formatOpeningsRate,
   formatPerEmployee,
   growthDomain,
   indexTo100,
@@ -52,6 +54,14 @@ describe("workforce formatting", () => {
       "contracting",
       "hiring_into_decline",
     ]);
+  });
+
+  it("formats open roles and never invents a count", () => {
+    expect(formatOpenings(1234)).toBe("1,234");
+    expect(formatOpenings(null)).toBe("—");
+    expect(formatOpeningsRate(4.26)).toBe("4.3 per 1,000 staff");
+    expect(formatOpeningsRate(31.4)).toBe("31 per 1,000 staff");
+    expect(formatOpeningsRate(undefined)).toBe("—");
   });
 
   it("names shapes and rejects unknown ones", () => {

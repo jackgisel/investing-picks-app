@@ -18,7 +18,7 @@ from statistics import median
 
 from sqlalchemy.orm import Session
 
-from app.db.models import CompanyRevenue, EmployeeCount, Stock
+from app.db.models import CompanyRevenue, EmployeeCount, JobOpeningSnapshot, Stock
 
 #: The screen every public view shares. The web layer mirrors these in
 #: `lib/workforce.ts` and passes them explicitly.
@@ -111,6 +111,55 @@ def _series_by_ticker(db: Session, ticker: str | None = None) -> dict[str, list[
     return out
 
 
+#: Open-role history shown and used for the change figure.
+OPENINGS_WINDOW_DAYS = 400
+#: The snapshot used as "90 days ago" may be this far off the exact date.
+OPENINGS_CHANGE_DAYS = 90
+OPENINGS_CHANGE_SLACK = 14
+
+
+def _openings_by_ticker(db: Session, ticker: str | None = None) -> dict[str, list[tuple[date, int]]]:
+    """Verified open-role counts per ticker, oldest first.
+
+    Only snapshots whose every board is verified: an unverified board might be
+    some other company's, and nothing published may rest on it.
+    """
+    since = date.today() - timedelta(days=OPENINGS_WINDOW_DAYS)
+    q = db.query(
+        JobOpeningSnapshot.ticker, JobOpeningSnapshot.as_of, JobOpeningSnapshot.open_count
+    ).filter(JobOpeningSnapshot.verified == True, JobOpeningSnapshot.as_of >= since)  # noqa: E712
+    if ticker:
+        q = q.filter(JobOpeningSnapshot.ticker == ticker)
+    out: dict[str, list[tuple[date, int]]] = defaultdict(list)
+    for t, as_of, n in q.order_by(JobOpeningSnapshot.as_of).all():
+        out[t].append((as_of, n))
+    return out
+
+
+def openings_fields(series: list[tuple[date, int]] | None, employees: int | None) -> dict:
+    """Latest open roles, per 1,000 staff, and the change over ~90 days.
+
+    The change is None until a snapshot exists about 90 days before the latest;
+    the history simply is not there yet, and a short window must not be
+    dressed up as a trend.
+    """
+    empty = {"openings": None, "openings_as_of": None, "openings_per_1000": None, "openings_change_90d": None}
+    if not series:
+        return empty
+    as_of, count = series[-1]
+    target = as_of - timedelta(days=OPENINGS_CHANGE_DAYS)
+    prior = min(series[:-1], key=lambda s: abs((s[0] - target).days), default=None)
+    change = None
+    if prior and abs((prior[0] - target).days) <= OPENINGS_CHANGE_SLACK and prior[1] > 0:
+        change = count / prior[1] - 1
+    return {
+        "openings": count,
+        "openings_as_of": as_of.isoformat(),
+        "openings_per_1000": (count / employees * 1000) if employees else None,
+        "openings_change_90d": change,
+    }
+
+
 def _growth(now: float | None, then: float | None) -> float | None:
     if not now or not then or then <= 0:
         return None
@@ -186,6 +235,7 @@ def leaderboard(
         .filter(Stock.is_active == True, Stock.is_etf == False)  # noqa: E712
         .all()
     }
+    openings = _openings_by_ticker(db)
     rows: list[dict] = []
     for ticker, pairs in _series_by_ticker(db).items():
         stock = stocks.get(ticker)
@@ -194,6 +244,7 @@ def leaderboard(
         row = _row(stock, pairs)
         if row is None:
             continue
+        row.update(openings_fields(openings.get(ticker), row["employees"]))
         if row["revenue"] < min_revenue or row["employees"] < min_employees:
             continue
         rows.append(row)
@@ -265,12 +316,15 @@ def company_history(db: Session, ticker: str) -> dict | None:
             }
         )
         prev = p
+    snaps = _openings_by_ticker(db, ticker).get(ticker, [])
     return {
         "ticker": ticker,
         "name": stock.name if stock else None,
         "sector": stock.sector if stock else None,
         "industry": stock.industry if stock else None,
         "series": series,
+        "openings": [{"as_of": d.isoformat(), "open_count": n} for d, n in snaps],
+        **{k: v for k, v in openings_fields(snaps, pairs[-1]["employees"]).items() if k != "openings"},
     }
 
 

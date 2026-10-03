@@ -9,7 +9,7 @@ needs enough peers to mean anything.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -298,3 +298,48 @@ def test_api_serves_board_and_history(db):
     hist = client.get("/api/v1/workforce/aaa").json()
     assert [s["employees"] for s in hist["series"]] == [1000, 1100]
     assert client.get("/api/v1/workforce/ZZZ").status_code == 404
+
+
+def _snap(db, ticker, day, n, verified=True):
+    from app.db.models import JobOpeningSnapshot
+
+    db.add(JobOpeningSnapshot(ticker=ticker, as_of=day, open_count=n, verified=verified, boards=[]))
+
+
+def test_openings_come_only_from_verified_snapshots(db):
+    today = date.today()
+    _stock(db, "OK")
+    _stock(db, "UNSURE")
+    _year(db, "OK", 2025, 1000, 1e9)
+    _year(db, "UNSURE", 2025, 1000, 1e9)
+    _snap(db, "OK", today, 50)
+    _snap(db, "UNSURE", today, 999, verified=False)
+    db.commit()
+    rows = {r["ticker"]: r for r in workforce.leaderboard(db, min_revenue=0, min_employees=0)["rows"]}
+    assert rows["OK"]["openings"] == 50 and rows["OK"]["openings_per_1000"] == 50.0
+    assert rows["UNSURE"]["openings"] is None and rows["UNSURE"]["openings_per_1000"] is None
+
+
+def test_openings_change_needs_a_snapshot_about_90_days_back(db):
+    today = date.today()
+    f = workforce.openings_fields
+    assert f([(today, 50)], 1000)["openings_change_90d"] is None  # no history yet
+    series = [(today - timedelta(days=91), 40), (today, 50)]
+    assert round(f(series, 1000)["openings_change_90d"], 3) == 0.25
+    too_old = [(today - timedelta(days=200), 40), (today, 50)]
+    assert f(too_old, 1000)["openings_change_90d"] is None
+    zero_base = [(today - timedelta(days=90), 0), (today, 5)]
+    assert f(zero_base, 1000)["openings_change_90d"] is None
+    assert f(None, 1000)["openings"] is None
+
+
+def test_history_includes_the_openings_series(db):
+    today = date.today()
+    _stock(db, "AAA")
+    _year(db, "AAA", 2025, 1000, 1e9)
+    _snap(db, "AAA", today - timedelta(days=1), 30)
+    _snap(db, "AAA", today, 35)
+    db.commit()
+    hist = workforce.company_history(db, "AAA")
+    assert [o["open_count"] for o in hist["openings"]] == [30, 35]
+    assert hist["openings_per_1000"] == 35.0

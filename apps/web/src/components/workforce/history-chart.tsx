@@ -6,6 +6,8 @@ import {
   fiscalYearShort,
   formatEmployees,
   formatGrowth,
+  formatOpenings,
+  formatOpeningsRate,
   formatPerEmployee,
   indexTo100,
   type WorkforceHistory,
@@ -161,6 +163,30 @@ export function HistoryChart({ history }: { history: WorkforceHistory }) {
           ))}
         </tbody>
       </table>
+
+      <div className="mt-4 border-t border-border pt-3 font-sans text-[13px] text-text-muted">
+        {history.openings.length === 0 ? (
+          <p>
+            Open roles: we have not matched a verified job board for this company yet.
+          </p>
+        ) : (
+          <>
+            <p>
+              Open roles on its job board:{" "}
+              <span className="font-mono text-text">
+                {formatOpenings(history.openings[history.openings.length - 1].open_count)}
+              </span>{" "}
+              ({formatOpeningsRate(history.openings_per_1000)}), as of{" "}
+              {history.openings[history.openings.length - 1].as_of}.
+              {history.openings_change_90d !== null
+                ? ` ${formatGrowth(history.openings_change_90d)} over about 90 days.`
+                : history.openings.length > 1
+                  ? ` Tracking since ${history.openings[0].as_of}; the 90 day change appears once there are three months of history.`
+                  : " Tracking started today, so there is no trend yet."}
+            </p>
+          </>
+        )}
+      </div>
     </div>
   );
 }

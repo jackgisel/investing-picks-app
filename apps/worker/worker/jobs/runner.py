@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 from datetime import date, datetime, timedelta, timezone
@@ -709,7 +710,9 @@ def job_workforce_ic():
     """On demand: do the workforce factors rank forward returns? Read-only."""
 
     def _run(db: Session):
-        return compute_workforce_ic(db)
+        # JSON, not a dict: `_track` stores str(result), and a Python repr
+        # cannot be read back safely (nan, inf) or without eval-like parsing.
+        return json.dumps(compute_workforce_ic(db), default=str, allow_nan=False)
 
     return _track(WORKFORCE_IC_JOB, _run)
 

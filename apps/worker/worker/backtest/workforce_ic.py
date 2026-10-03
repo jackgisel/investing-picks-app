@@ -5,10 +5,12 @@ between a factor and the return that follows, averaged over dates, with a
 t-stat), but asked of the workforce datasets and read straight from the
 database, so it runs against production as well as a dataset copy.
 
-Point-in-time: on a date, a headcount exists only if its `filing_date` is on or
-before it, and where a filing was amended the latest one filed by then wins. The
-revenue beside it is the same fiscal year's, from the same filing. Nothing here
-reads a number before the market could have.
+Point-in-time: a headcount is knowable from the session AFTER its `filing_date`
+(a filing can land after the close, and the month-end close is the entry
+price), and where a filing was amended the latest one known by then wins. The
+revenue beside it is the same fiscal year's and is gated the same way on its
+own `filing_date`, so a pair is only used once both halves were public. Nothing
+here reads a number before the market could have.
 
 Factors (higher = the factor's own direction, not a bet on sign; the IC sign
 says which way it paid):
@@ -27,6 +29,7 @@ horizon overlaps the next date and the t-stat overstates confidence; and under
 from __future__ import annotations
 
 import logging
+import math
 from collections import defaultdict
 from datetime import date, timedelta
 from statistics import mean
@@ -66,45 +69,60 @@ def month_ends(start: date, end: date) -> list[date]:
 
 
 class WorkforceHistory:
-    """Every stored headcount and revenue row, indexed for as-of lookups."""
+    """Every stored headcount and revenue row, paired once and indexed for as-of reads."""
 
     def __init__(self, db: Session):
-        self.hc: dict[str, list[tuple[date, date, int]]] = defaultdict(list)
+        revenue: dict[str, dict[date, tuple[float, str | None, date | None]]] = defaultdict(dict)
+        for t, period, rev, currency, filed in db.query(
+            CompanyRevenue.ticker,
+            CompanyRevenue.period,
+            CompanyRevenue.revenue,
+            CompanyRevenue.currency,
+            CompanyRevenue.filing_date,
+        ).all():
+            revenue[t][period] = (rev, currency, filed)
+
+        # Per ticker, one candidate pair per headcount filing, each stamped with
+        # the first day it was knowable: after both the headcount's filing and
+        # the revenue's. Matching a headcount to its fiscal year's revenue does
+        # not depend on the date, so it is done once here.
+        self.pairs: dict[str, list[tuple[date, date, int, float]]] = defaultdict(list)
         for t, period, filed, n in db.query(
             EmployeeCount.ticker,
             EmployeeCount.period_of_report,
             EmployeeCount.filing_date,
             EmployeeCount.employee_count,
         ).all():
-            self.hc[t].append((filed, period, n))
-        for rows in self.hc.values():
+            years = revenue.get(t)
+            if not years or n <= 0:
+                continue
+            match = min(years, key=lambda p: abs((p - period).days))
+            if abs((match - period).days) > PAIR_TOLERANCE_DAYS:
+                continue
+            rev, currency, rev_filed = years[match]
+            if currency and currency != "USD":
+                continue
+            known_from = max(filed, rev_filed or filed) + timedelta(days=1)
+            self.pairs[t].append((known_from, period, n, rev))
+        for rows in self.pairs.values():
             rows.sort()
-        self.rev: dict[str, dict[date, tuple[float, str | None]]] = defaultdict(dict)
-        for t, period, revenue, currency in db.query(
-            CompanyRevenue.ticker, CompanyRevenue.period, CompanyRevenue.revenue, CompanyRevenue.currency
-        ).all():
-            self.rev[t][period] = (revenue, currency)
+
+    @property
+    def hc(self) -> dict[str, list]:
+        """Tickers that have at least one usable pair."""
+        return self.pairs
 
     def pairs_as_of(self, ticker: str, day: date) -> list[dict]:
         """Paired (employees, revenue) years known on `day`, oldest first."""
-        known: dict[date, int] = {}
-        for filed, period, n in self.hc.get(ticker, []):
-            if filed > day:
-                break  # rows are sorted by filing date: nothing later is knowable
-            known[period] = n  # a later filing of the same period supersedes
-        revenue = self.rev.get(ticker, {})
-        out: list[dict] = []
-        for period, employees in sorted(known.items()):
-            if not revenue or employees <= 0:
-                continue
-            match = min(revenue, key=lambda p: abs((p - period).days))
-            if abs((match - period).days) > PAIR_TOLERANCE_DAYS:
-                continue
-            rev, currency = revenue[match]
-            if currency and currency != "USD":
-                continue
-            out.append({"period": period, "employees": employees, "revenue": rev})
-        return out
+        known: dict[date, tuple[int, float]] = {}
+        for known_from, period, n, rev in self.pairs.get(ticker, []):
+            if known_from > day:
+                break  # sorted by availability: nothing later is knowable yet
+            known[period] = (n, rev)  # a later filing of the same period supersedes
+        return [
+            {"period": period, "employees": n, "revenue": rev}
+            for period, (n, rev) in sorted(known.items())
+        ]
 
 
 def factor_values(pairs: list[dict], day: date) -> dict[str, float] | None:
@@ -125,6 +143,21 @@ def factor_values(pairs: list[dict], day: date) -> dict[str, float] | None:
         rev = latest["revenue"] / prior["revenue"] - 1
         out.update(headcount_growth=hc, revenue_growth=rev, leverage=rev - hc)
     return out
+
+
+def strict_forward(fwd: ForwardReturns, ticker: str, day: date, horizon: int) -> float | None:
+    """Forward return, or None if the price series does not reach the horizon.
+
+    `ForwardReturns.forward` reads the last close on or before the end date, so
+    a name that stopped printing (a delisting) would get a flat, fake return.
+    Dropping it instead is still survivorship-flattering, which the report says,
+    but it is not a fabricated zero.
+    """
+    end = fwd.session_after(day, horizon)
+    series = fwd.series.get(ticker)
+    if end is None or not series or series[0][-1] < end:
+        return None
+    return fwd.forward(ticker, day, horizon)
 
 
 def _industry_rank(values: dict[str, float], industry: dict[str, str | None]) -> dict[str, float]:
@@ -166,7 +199,7 @@ def compute_workforce_ic(
     ics: dict[str, dict[int, list[float]]] = {f: {h: [] for h in horizons} for f in FACTORS}
     spreads: dict[str, dict[int, list[float]]] = {f: {h: [] for h in horizons} for f in FACTORS}
     sizes: dict[str, dict[int, list[int]]] = {f: {h: [] for h in horizons} for f in FACTORS}
-    dates_used = 0
+    used_dates: list[date] = []
     covered: list[int] = []
 
     for day in dates:
@@ -183,7 +216,7 @@ def compute_workforce_ic(
                 raw[ticker] = vals
         if len(raw) < MIN_CROSS_SECTION:
             continue
-        dates_used += 1
+        used_dates.append(day)
         covered.append(len(raw))
         by_factor: dict[str, dict[str, float]] = {
             "headcount_growth": {t: v["headcount_growth"] for t, v in raw.items() if "headcount_growth" in v},
@@ -192,7 +225,7 @@ def compute_workforce_ic(
             "rev_per_employee": _industry_rank({t: v["rev_per_employee"] for t, v in raw.items()}, industry),
         }
         for h in horizons:
-            rets = {t: fwd.forward(t, day, h) for t in raw}
+            rets = {t: strict_forward(fwd, t, day, h) for t in raw}
             for factor, values in by_factor.items():
                 pairs = [(values[t], rets[t]) for t in values if rets.get(t) is not None]
                 if len(pairs) < MIN_CROSS_SECTION:
@@ -222,15 +255,30 @@ def compute_workforce_ic(
                 "q5_minus_q1": mean(spreads[f][h]) if spreads[f][h] else None,
                 "avg_names": mean(sizes[f][h]) if sizes[f][h] else None,
             }
-    return {
-        "dates_used": dates_used,
-        "first_date": dates[0].isoformat() if dates else None,
-        "last_date": dates[-1].isoformat() if dates else None,
+    return sanitize({
+        "dates_used": len(used_dates),
+        "first_date": used_dates[0].isoformat() if used_dates else None,
+        "last_date": used_dates[-1].isoformat() if used_dates else None,
         "avg_names_with_a_factor": round(mean(covered)) if covered else 0,
         "last_price_session": last_session.isoformat(),
         "horizons_trading_days": list(horizons),
         "factors": factors,
-    }
+    })
+
+
+def sanitize(value):
+    """Replace nan / inf with None, recursively, so the result is plain JSON.
+
+    A rank correlation over a degenerate date can come back non-finite, and a
+    non-finite number cannot be stored as JSON or served by the API.
+    """
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    if isinstance(value, dict):
+        return {k: sanitize(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [sanitize(v) for v in value]
+    return value
 
 
 def _pct(x: float | None) -> str:
@@ -272,3 +320,26 @@ def render_markdown(result: dict) -> str:
             )
         lines.append("")
     return "\n".join(lines)
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Run against whatever DATABASE_URL points at and print the report."""
+    import argparse
+    import json
+
+    from app.db.session import SessionLocal
+
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--json", action="store_true", help="print the raw result")
+    args = parser.parse_args(argv)
+    db = SessionLocal()
+    try:
+        result = compute_workforce_ic(db)
+    finally:
+        db.close()
+    print(json.dumps(result, indent=2, default=str) if args.json else render_markdown(result))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

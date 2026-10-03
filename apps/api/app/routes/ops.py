@@ -1359,33 +1359,38 @@ def trigger_workforce_ic(background: BackgroundTasks, db: Session = Depends(get_
 
 @router.get("/workforce-ic", dependencies=[Depends(require_ops_key)])
 def workforce_ic_result(db: Session = Depends(get_db)):
-    """The latest study result, as the table the factor-IC reports use."""
-    import ast
+    """The latest finished study, as the table the factor-IC reports use.
 
-    from worker.backtest.workforce_ic import WORKFORCE_IC_JOB, render_markdown
+    Always the latest successful run, so a new run in progress (or a failed
+    one) does not hide the last good result; `latest_run` says what the most
+    recent attempt did.
+    """
+    import json
 
-    run = (
-        db.query(JobRun)
-        .filter(JobRun.job_name == WORKFORCE_IC_JOB)
-        .order_by(JobRun.started_at.desc())
-        .first()
-    )
-    if run is None:
+    from worker.backtest.workforce_ic import WORKFORCE_IC_JOB, render_markdown, sanitize
+
+    base = db.query(JobRun).filter(JobRun.job_name == WORKFORCE_IC_JOB)
+    latest = base.order_by(JobRun.started_at.desc()).first()
+    if latest is None:
         return {"status": "never_run"}
     out: dict = {
-        "status": run.status,
-        "started_at": run.started_at.isoformat() if run.started_at else None,
+        "latest_run": {
+            "status": latest.status,
+            "started_at": latest.started_at.isoformat() if latest.started_at else None,
+            "error": latest.detail if latest.status == "error" else None,
+        }
     }
-    if run.status == "ok" and run.detail:
-        try:
-            result = ast.literal_eval(run.detail)
-        except (ValueError, SyntaxError):
-            out["error"] = "unreadable result"
-            return out
-        out["result"] = result
-        out["markdown"] = render_markdown(result)
-    elif run.status == "error":
-        out["error"] = run.detail
+    good = base.filter(JobRun.status == "ok").order_by(JobRun.started_at.desc()).first()
+    if good is None or not good.detail:
+        return out
+    try:
+        result = sanitize(json.loads(good.detail))
+    except ValueError:
+        out["error"] = "unreadable result"
+        return out
+    out["result_started_at"] = good.started_at.isoformat() if good.started_at else None
+    out["result"] = result
+    out["markdown"] = render_markdown(result)
     return out
 
 

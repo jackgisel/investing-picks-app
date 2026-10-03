@@ -15,14 +15,19 @@ async function proxy(method: "GET" | "POST") {
     return opsMisconfiguredResponse(e);
   }
 
-  const res = await fetch(`${OPS_API_BASE}/workforce-ic`, {
-    method,
-    headers,
-    cache: "no-store",
-  });
-  // 409 (already running) is an answer, not a proxy failure.
-  const body = await res.json().catch(() => ({ error: "upstream" }));
-  return NextResponse.json(body, { status: res.status });
+  try {
+    const res = await fetch(`${OPS_API_BASE}/workforce-ic`, {
+      method,
+      headers,
+      cache: "no-store",
+      signal: AbortSignal.timeout(15000),
+    });
+    // 409 (already running) is an answer, not a proxy failure.
+    const body = await res.json().catch(() => ({ error: "upstream" }));
+    return NextResponse.json(body, { status: res.status });
+  } catch {
+    return NextResponse.json({ error: "upstream unavailable" }, { status: 502 });
+  }
 }
 
 export async function GET() {

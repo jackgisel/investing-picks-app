@@ -277,7 +277,10 @@ def cached_leaderboard(db: Session, **kwargs) -> dict:
     if hit and now - hit[0] < CACHE_TTL_SECONDS:
         return hit[1]
     result = leaderboard(db, **kwargs)
-    if len(_CACHE) > 64:
-        _CACHE.clear()
-    _CACHE[key] = (now, result)
+    # An empty screen is the state before the data lands (or a transient
+    # failure); holding it for five minutes would hide the first real rows.
+    if result["universe"] > 0:
+        if len(_CACHE) > 64:
+            _CACHE.clear()
+        _CACHE[key] = (now, result)
     return result

@@ -224,6 +224,18 @@ def test_shape_filter_and_counts(db):
         _board(db, shape="nope")
 
 
+def test_an_empty_board_is_not_cached(db):
+    workforce._CACHE.clear()
+    empty = workforce.cached_leaderboard(db, min_revenue=0, min_employees=0, today=TODAY)
+    assert empty["rows"] == []
+    _stock(db, "AAA")
+    _year(db, "AAA", 2025, 1000, 1e9)
+    db.commit()
+    again = workforce.cached_leaderboard(db, min_revenue=0, min_employees=0, today=TODAY)
+    assert [r["ticker"] for r in again["rows"]] == ["AAA"]
+    workforce._CACHE.clear()
+
+
 def test_api_serves_board_and_history(db):
     workforce._CACHE.clear()
     _stock(db, "AAA")

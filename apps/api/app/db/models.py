@@ -479,6 +479,36 @@ class PriceBar(Base):
     close: Mapped[float] = mapped_column(Float)
 
 
+class DeepPriceBar(Base):
+    """Daily closes for factor studies, kept apart from `price_bars`.
+
+    `price_bars` serves the live book and holds ~14 months; mixing a long
+    adjusted history into it would put two price bases side by side for any
+    name that split in between. Each ticker here is written in ONE pass from
+    one fetch (a refetch replaces its rows), so a series always has one basis.
+    The whole table can be dropped without touching anything live.
+    """
+
+    __tablename__ = "price_bars_deep"
+    __table_args__ = (UniqueConstraint("ticker", "date"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ticker: Mapped[str] = mapped_column(String(16), index=True)
+    date: Mapped[date] = mapped_column(Date, index=True)
+    close: Mapped[float] = mapped_column(Float)
+
+
+class DeepPriceCheck(Base):
+    """When a ticker's deep history was last fetched, and how many bars came back."""
+
+    __tablename__ = "price_bars_deep_checks"
+
+    ticker: Mapped[str] = mapped_column(String(16), primary_key=True)
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    bars: Mapped[int] = mapped_column(Integer, default=0)
+    first_bar: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+
 class CompositeScore(Base):
     __tablename__ = "composite_scores"
     # One score per ticker per scoring date. Without this a second scoring run

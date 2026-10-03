@@ -4,7 +4,7 @@ import { opsHeaders, opsMisconfiguredResponse, requireAdmin } from "@/lib/admin"
 
 export const dynamic = "force-dynamic";
 
-export async function POST() {
+async function proxy(method: "GET" | "POST") {
   const guard = await requireAdmin();
   if (!guard.ok) return guard.response;
 
@@ -17,7 +17,7 @@ export async function POST() {
 
   try {
     const res = await fetch(`${OPS_API_BASE}/deep-prices`, {
-      method: "POST",
+      method,
       headers,
       cache: "no-store",
       signal: AbortSignal.timeout(15000),
@@ -28,4 +28,12 @@ export async function POST() {
   } catch {
     return NextResponse.json({ error: "upstream unavailable" }, { status: 502 });
   }
+}
+
+export async function GET() {
+  return proxy("GET");
+}
+
+export async function POST() {
+  return proxy("POST");
 }

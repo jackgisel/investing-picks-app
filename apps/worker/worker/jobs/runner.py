@@ -25,6 +25,11 @@ from worker.backtest.workforce_ic import (
     WORKFORCE_IC_TIMEOUT_MINUTES,
     compute_workforce_ic,
 )
+from worker.services.deep_prices import (
+    DEEP_PRICE_JOB,
+    DEEP_PRICE_TIMEOUT_MINUTES,
+    deep_price_history,
+)
 from worker.services.employee_counts import (
     EMPLOYEE_COUNTS_JOB,
     EMPLOYEE_COUNTS_TIMEOUT_MINUTES,
@@ -711,30 +716,17 @@ def job_job_openings_collect():
     return _track(COLLECT_JOB, _run)
 
 
-#: Five years: enough month-ends for the workforce study to say something, at
-#: roughly 1.4M daily bars for the universe. Trim with
-#: `DELETE FROM price_bars WHERE date < now() - interval '430 days'` if needed.
-DEEP_PRICE_LOOKBACK_DAYS = 1830
-DEEP_PRICE_JOB = "price_history_deep"
-DEEP_PRICE_TIMEOUT_MINUTES = 45.0
-
-
 def job_price_history_deep():
-    """On demand: load five years of daily closes for the whole universe.
+    """On demand: load five years of daily closes for factor studies.
 
-    Separate from `backfill_prices`, which keeps ~14 months for the live
-    momentum factor and runs on a schedule. This one exists so factor studies
-    have a window long enough to mean something; it never runs by itself.
-    Idempotent and resumable: names that already hold the history are skipped.
+    Writes `price_bars_deep`, never the live `price_bars`. Resumable (a ticker
+    commits as it goes) and never scheduled.
     """
 
     def _run(db: Session):
-        deadline = JobDeadline.after(DEEP_PRICE_JOB, DEEP_PRICE_TIMEOUT_MINUTES * 60)
-        fmp = _fmp(deadline)
+        fmp = _fmp()
         try:
-            return backfill_price_history(
-                db, fmp, lookback_days=DEEP_PRICE_LOOKBACK_DAYS, min_bars=1000
-            )
+            return deep_price_history(db, fmp)
         finally:
             fmp.close()
 

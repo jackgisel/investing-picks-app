@@ -1346,12 +1346,35 @@ def employee_counts_status(db: Session = Depends(get_db)):
 
 @router.post("/deep-prices", dependencies=[Depends(require_ops_key)])
 def trigger_deep_prices(background: BackgroundTasks, db: Session = Depends(get_db)):
-    """Load five years of daily closes for the universe, for factor studies."""
-    from worker.jobs.runner import DEEP_PRICE_JOB, DEEP_PRICE_TIMEOUT_MINUTES
+    """Load five years of daily closes into `price_bars_deep`. Resumable."""
+    from worker.services.deep_prices import DEEP_PRICE_JOB, DEEP_PRICE_TIMEOUT_MINUTES
 
     return _trigger_job(
         db, background, DEEP_PRICE_JOB, DEEP_PRICE_TIMEOUT_MINUTES, "job_price_history_deep"
     )
+
+
+@router.get("/deep-prices", dependencies=[Depends(require_ops_key)])
+def deep_prices_status(db: Session = Depends(get_db)):
+    """What the deep price table holds, and how the last run went."""
+    from worker.services.deep_prices import DEEP_PRICE_JOB, coverage
+
+    last = (
+        db.query(JobRun)
+        .filter(JobRun.job_name == DEEP_PRICE_JOB)
+        .order_by(JobRun.started_at.desc())
+        .first()
+    )
+    return {
+        **coverage(db),
+        "last_run": {
+            "status": last.status,
+            "detail": last.detail,
+            "started_at": last.started_at.isoformat() if last.started_at else None,
+        }
+        if last
+        else None,
+    }
 
 
 @router.post("/workforce-ic", dependencies=[Depends(require_ops_key)])

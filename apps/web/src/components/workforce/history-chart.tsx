@@ -3,6 +3,7 @@
 import { useState } from "react";
 import {
   fiscalYearLabel,
+  fiscalYearShort,
   formatEmployees,
   formatGrowth,
   formatPerEmployee,
@@ -23,7 +24,8 @@ const PAD = { top: 16, right: 92, bottom: 28, left: 40 };
  */
 export function HistoryChart({ history }: { history: WorkforceHistory }) {
   const [hover, setHover] = useState<number | null>(null);
-  const pts = history.series;
+  // A point needs a positive headcount and revenue to be indexed at all.
+  const pts = history.series.filter((p) => p.employees > 0 && p.revenue > 0);
 
   if (pts.length < 2) {
     return (
@@ -49,7 +51,8 @@ export function HistoryChart({ history }: { history: WorkforceHistory }) {
   const line = (vs: number[]) =>
     vs.map((v, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
 
-  const ticks = [yMin, (yMin + yMax) / 2, yMax].map((v) => Math.round(v));
+  // Gridlines sit at the real tick values; the labels are rounded for display.
+  const ticks = [yMin, (yMin + yMax) / 2, yMax];
   const last = pts.length - 1;
   // Labels at the line ends; nudge apart if the two finish close together.
   const labelY = (v: number, other: number) => {
@@ -88,18 +91,18 @@ export function HistoryChart({ history }: { history: WorkforceHistory }) {
         onPointerMove={onMove}
         onPointerLeave={() => setHover(null)}
       >
-        {ticks.map((t) => (
-          <g key={t}>
+        {ticks.map((t, i) => (
+          <g key={i}>
             <line x1={PAD.left} x2={W - PAD.right} y1={y(t)} y2={y(t)} stroke="rgb(var(--color-border))" strokeWidth={1} />
             <text x={PAD.left - 8} y={y(t) + 4} textAnchor="end" className="fill-text-dim font-mono" fontSize={11}>
-              {t}
+              {Math.round(t)}
             </text>
           </g>
         ))}
         <line x1={PAD.left} x2={W - PAD.right} y1={y(100)} y2={y(100)} stroke="rgb(var(--color-border-light))" strokeDasharray="3 3" strokeWidth={1} />
         {pts.map((p, i) => (
           <text key={p.period} x={x(i)} y={H - 8} textAnchor="middle" className="fill-text-dim font-mono" fontSize={11}>
-            {fiscalYearLabel(p.period).slice(2)}
+            {fiscalYearShort(p.period)}
           </text>
         ))}
 
@@ -136,7 +139,7 @@ export function HistoryChart({ history }: { history: WorkforceHistory }) {
         </caption>
         <thead>
           <tr className="border-b border-border text-left font-sans text-[11px] uppercase tracking-[0.1em] text-text-dim">
-            <th className="py-1.5 pr-3 font-semibold">Year</th>
+            <th className="py-1.5 pr-3 font-semibold">Year ending</th>
             <th className="py-1.5 pr-3 text-right font-semibold">Employees</th>
             <th className="py-1.5 pr-3 text-right font-semibold">Revenue</th>
             <th className="py-1.5 pr-3 text-right font-semibold">Per employee</th>

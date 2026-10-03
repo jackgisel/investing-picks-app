@@ -757,7 +757,7 @@ def workforce_leaderboard(
     web app decides how much of the list a visitor sees."""
     if order not in workforce.ORDERS:
         raise HTTPException(status_code=422, detail=f"order must be one of {workforce.ORDERS}")
-    return workforce.leaderboard(
+    return workforce.cached_leaderboard(
         db,
         limit=limit,
         min_revenue=min_revenue,

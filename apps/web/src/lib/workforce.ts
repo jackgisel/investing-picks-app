@@ -14,6 +14,9 @@ export const WORKFORCE_ORDERS: ReadonlyArray<{
 /** Rows a visitor sees without a membership. The full board is the paid view. */
 export const FREE_ROWS = 10;
 export const MEMBER_ROWS = 100;
+/** The screen, passed to the API explicitly so the page copy cannot drift from it. */
+export const MIN_REVENUE = 500_000_000;
+export const MIN_EMPLOYEES = 50;
 
 export type WorkforceRow = {
   rank: number;
@@ -76,6 +79,8 @@ export async function getWorkforceBoard(opts: {
   const params = new URLSearchParams({
     order: opts.order,
     limit: String(opts.limit),
+    min_revenue: String(MIN_REVENUE),
+    min_employees: String(MIN_EMPLOYEES),
   });
   if (opts.sector) params.set("sector", opts.sector);
   try {
@@ -94,8 +99,14 @@ export async function getWorkforceBoard(opts: {
 /** `$2.4M` / `$850K` per employee. */
 export function formatPerEmployee(value: number | null | undefined): string {
   if (typeof value !== "number" || !Number.isFinite(value)) return "—";
-  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(value >= 10_000_000 ? 1 : 2)}M`;
-  return `$${Math.round(value / 1000).toLocaleString("en-US")}K`;
+  // Pick the unit from the rounded thousands, so 999,600 reads $1.00M and not
+  // "$1,000K".
+  const thousands = Math.round(value / 1000);
+  if (thousands >= 1000) {
+    return `$${(value / 1_000_000).toFixed(value >= 10_000_000 ? 1 : 2)}M`;
+  }
+  if (thousands < 1) return `$${Math.round(value).toLocaleString("en-US")}`;
+  return `$${thousands.toLocaleString("en-US")}K`;
 }
 
 /** `12,400` below 100K, `1.4M` above. */
@@ -119,9 +130,22 @@ export function formatLeverage(value: number | null | undefined): string {
   return `${pts >= 0 ? "+" : ""}${pts.toFixed(1)} pts`;
 }
 
-/** `FY2025` from a fiscal period end date. */
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/**
+ * `Sep 2025`: the month the fiscal year ended. Companies disagree on what to
+ * call a year that ends in January or February, so the end date is the one
+ * label that matches nobody's convention wrongly.
+ */
 export function fiscalYearLabel(period: string): string {
-  return `FY${period.slice(0, 4)}`;
+  const month = Number(period.slice(5, 7));
+  const name = MONTHS[month - 1];
+  return name ? `${name} ${period.slice(0, 4)}` : period.slice(0, 4);
+}
+
+/** `'25`, for a tight axis. */
+export function fiscalYearShort(period: string): string {
+  return `'${period.slice(2, 4)}`;
 }
 
 /** Index a series to 100 at its first value, so two different units share an axis. */

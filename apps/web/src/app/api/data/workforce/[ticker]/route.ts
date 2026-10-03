@@ -13,7 +13,7 @@ export async function GET(
   if (!gate.ok) return gate.response;
 
   const { ticker } = await params;
-  if (!/^[A-Za-z0-9.-]{1,16}$/.test(ticker)) {
+  if (!/^[A-Za-z0-9][A-Za-z0-9.-]{0,15}$/.test(ticker)) {
     return NextResponse.json({ error: "bad ticker" }, { status: 400 });
   }
   const res = await fetch(

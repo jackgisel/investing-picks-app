@@ -38,6 +38,8 @@ HISTORY_LIMIT = 10
 #: Consecutive per-request access errors that mean the endpoint is off-plan
 #: rather than one symbol being restricted.
 ACCESS_ERROR_LIMIT = 3
+#: Revenue-only requests per run for names that have a headcount but no revenue.
+REVENUE_BACKFILL_LIMIT = 100
 #: This many never-asked names with none returning data is a broken source,
 #: not thin coverage.
 ALL_EMPTY_ALARM = 25
@@ -142,6 +144,49 @@ def store_revenue(db: Session, ticker: str, statements: list[dict]) -> int:
     return len(parsed)
 
 
+def _fetch_revenue(db: Session, fmp: FMPClient, ticker: str) -> int:
+    """Store a ticker's annual revenue. Never aborts the run: revenue is the
+    secondary fetch, and a refusal on one symbol (or an empty statement) only
+    leaves that name for `backfill_revenue`."""
+    try:
+        statements = fmp.income_statement_annual(ticker, limit=HISTORY_LIMIT)
+    except FMPAccessError:
+        log.warning("income-statement refused for %s; leaving it for the backfill", ticker)
+        return 0
+    return store_revenue(db, ticker, statements)
+
+
+def backfill_revenue(
+    db: Session, fmp: FMPClient, universe: list[str], limit: int, started: float, budget: float
+) -> int:
+    """Revenue-only pass for names that have a headcount but no revenue yet.
+
+    One request each and capped per run, so a name whose statements never
+    parse costs a handful of requests a week, not a re-pull of its headcount.
+    """
+    have_headcount = {
+        t
+        for (t,) in db.query(EmployeeCount.ticker)
+        .filter(EmployeeCount.ticker.in_(universe))
+        .distinct()
+        .all()
+    }
+    have_revenue = {
+        t
+        for (t,) in db.query(CompanyRevenue.ticker)
+        .filter(CompanyRevenue.ticker.in_(universe))
+        .distinct()
+        .all()
+    }
+    done = 0
+    for ticker in sorted(have_headcount - have_revenue):
+        if done >= limit or time.monotonic() - started > budget:
+            break
+        _fetch_revenue(db, fmp, ticker)
+        done += 1
+    return done
+
+
 def _record_check(db: Session, ticker: str, rows: int, now: datetime) -> None:
     check = db.get(EmployeeCountCheck, ticker)
     if check is None:
@@ -169,13 +214,6 @@ def tickers_to_check(
         .group_by(EmployeeCount.ticker)
         .all()
     )
-    has_revenue = {
-        t
-        for (t,) in db.query(CompanyRevenue.ticker)
-        .filter(CompanyRevenue.ticker.in_(universe))
-        .distinct()
-        .all()
-    }
     checked = {
         c.ticker: c
         for c in db.query(EmployeeCountCheck)
@@ -199,10 +237,9 @@ def tickers_to_check(
         if filed is None:
             if _age_days(check) >= RECHECK_EMPTY_DAYS:
                 due.append(ticker)
-        elif _age_days(check) >= RECHECK_DUE_DAYS and (
-            (today - filed).days >= REFILE_AFTER_DAYS or ticker not in has_revenue
+        elif (today - filed).days >= REFILE_AFTER_DAYS and (
+            _age_days(check) >= RECHECK_DUE_DAYS
         ):
-            # A new 10-K could exist, or the revenue fetch failed last time.
             due.append(ticker)
     return never + due
 
@@ -274,7 +311,7 @@ def refresh_employee_counts(
         if parsed:
             # The 10-K that carries the headcount also carries the year's
             # revenue; one more request per name that has a headcount.
-            store_revenue(db, ticker, fmp.income_statement_annual(ticker, limit=HISTORY_LIMIT))
+            _fetch_revenue(db, fmp, ticker)
         _record_check(db, ticker, len(parsed), now)
         asked += 1
         if ticker not in checked_before:
@@ -285,6 +322,10 @@ def refresh_employee_counts(
             empty += 1
         if asked % 50 == 0:
             log.info("Employee counts progress: %s/%s", asked, len(queue))
+
+    revenue_backfilled = backfill_revenue(
+        db, fmp, universe, REVENUE_BACKFILL_LIMIT, started, budget
+    )
 
     # Only never-asked names count toward the alarm: a recheck batch of names
     # FMP never had data for is expected to come back empty.
@@ -301,6 +342,7 @@ def refresh_employee_counts(
         "with_data": with_data,
         "empty": empty,
         "errors": errors,
+        "revenue_backfilled": revenue_backfilled,
         "rows_attempted": rows_attempted,
         "remaining": len(queue) - asked,
     }

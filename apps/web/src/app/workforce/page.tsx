@@ -7,6 +7,8 @@ import { formatCompactUsd } from "@/lib/market-cap";
 import {
   FREE_ROWS,
   MEMBER_ROWS,
+  MIN_EMPLOYEES,
+  MIN_REVENUE,
   WORKFORCE_ORDERS,
   formatPerEmployee,
   getWorkforceBoard,
@@ -117,11 +119,18 @@ export default async function WorkforcePage({
         {rows.length === 0 ? (
           <div className="rounded-soft border border-border bg-bg-secondary px-6 py-10">
             <p className="font-sans text-[15px] font-semibold text-text">
-              The first headcount numbers are still being collected.
+              {board === null
+                ? "The board is not loading right now."
+                : sector
+                  ? "No companies in this sector meet the screen."
+                  : "The first headcount numbers are still being collected."}
             </p>
             <p className="mt-1 max-w-[520px] font-sans text-[14px] text-text-muted">
-              Check back shortly. Nothing here is estimated, so the board stays
-              empty until the filings are in.
+              {board === null
+                ? "Try again in a moment."
+                : sector
+                  ? "Pick another sector or clear the filter."
+                  : "Check back shortly. Nothing here is estimated, so the board stays empty until the filings are in."}
             </p>
           </div>
         ) : (
@@ -129,7 +138,8 @@ export default async function WorkforcePage({
             <WorkforceTable rows={rows} entitled={entitled} />
             <p className="mt-4 font-sans text-[12px] leading-relaxed text-text-muted">
               Showing {rows.length} of {board?.universe} companies with at
-              least {formatCompactUsd(500_000_000)} in revenue and 50 employees.
+              least {formatCompactUsd(MIN_REVENUE)} in revenue and{" "}
+              {MIN_EMPLOYEES} employees.
               {board?.median_rev_per_employee
                 ? ` Median revenue per employee: ${formatPerEmployee(board.median_rev_per_employee)}.`
                 : ""}{" "}

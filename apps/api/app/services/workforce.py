@@ -32,16 +32,25 @@ USD = "USD"
 ORDERS = ("rev_per_employee", "leverage", "revenue")
 
 
-def _series_by_ticker(db: Session) -> dict[str, list[dict]]:
-    """Per ticker, paired (headcount, revenue) years, oldest first."""
+def _series_by_ticker(db: Session, ticker: str | None = None) -> dict[str, list[dict]]:
+    """Per ticker, paired (headcount, revenue) years, oldest first.
+
+    `ticker` narrows the read to one company, so a history request does not
+    load the whole universe.
+    """
     headcount: dict[str, dict[date, EmployeeCount]] = defaultdict(dict)
     # One headcount per period: the latest filing that stated it, so an
     # amendment supersedes the original without erasing it from storage.
-    for row in db.query(EmployeeCount).order_by(EmployeeCount.filing_date).all():
+    hc_query = db.query(EmployeeCount).order_by(EmployeeCount.filing_date)
+    rev_query = db.query(CompanyRevenue)
+    if ticker:
+        hc_query = hc_query.filter(EmployeeCount.ticker == ticker)
+        rev_query = rev_query.filter(CompanyRevenue.ticker == ticker)
+    for row in hc_query.all():
         headcount[row.ticker][row.period_of_report] = row
 
     revenue: dict[str, list[CompanyRevenue]] = defaultdict(list)
-    for row in db.query(CompanyRevenue).all():
+    for row in rev_query.all():
         revenue[row.ticker].append(row)
 
     out: dict[str, list[dict]] = {}
@@ -166,6 +175,8 @@ def leaderboard(
 
     universe = len(rows)
     sectors = sorted({r["sector"] for r in rows if r["sector"]})
+    # The screen's own median, before the sector and sort filters narrow it.
+    screen_median = median(r["rev_per_employee"] for r in rows) if rows else None
     if sector:
         rows = [r for r in rows if r["sector"] == sector]
     rows = [r for r in rows if r.get(order) is not None]
@@ -176,9 +187,7 @@ def leaderboard(
     return {
         "order": order,
         "universe": universe,
-        "median_rev_per_employee": (
-            median(r["rev_per_employee"] for r in rows) if rows else None
-        ),
+        "median_rev_per_employee": screen_median,
         "sectors": sectors,
         "count": min(len(rows), limit),
         "rows": rows[:limit],
@@ -188,7 +197,7 @@ def leaderboard(
 def company_history(db: Session, ticker: str) -> dict | None:
     """Every paired year we hold for one company, oldest first."""
     ticker = ticker.upper()
-    pairs = _series_by_ticker(db).get(ticker)
+    pairs = _series_by_ticker(db, ticker).get(ticker)
     if not pairs:
         return None
     stock = db.get(Stock, ticker)
@@ -218,3 +227,28 @@ def company_history(db: Session, ticker: str) -> dict | None:
         "industry": stock.industry if stock else None,
         "series": series,
     }
+
+
+_CACHE: dict[tuple, tuple[float, dict]] = {}
+CACHE_TTL_SECONDS = 300
+
+
+def cached_leaderboard(db: Session, **kwargs) -> dict:
+    """`leaderboard` with a short in-process cache.
+
+    The board is computed from every stored headcount and revenue row, and the
+    route is open to anyone who can reach it, so repeated hits should not each
+    pay for that. The underlying data changes weekly; five minutes is nothing.
+    """
+    import time
+
+    key = tuple(sorted(kwargs.items()))
+    hit = _CACHE.get(key)
+    now = time.monotonic()
+    if hit and now - hit[0] < CACHE_TTL_SECONDS:
+        return hit[1]
+    result = leaderboard(db, **kwargs)
+    if len(_CACHE) > 64:
+        _CACHE.clear()
+    _CACHE[key] = (now, result)
+    return result

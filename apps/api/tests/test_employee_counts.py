@@ -265,11 +265,23 @@ def test_first_revenue_for_a_year_wins(db, universe):
     assert db.query(CompanyRevenue).filter_by(ticker="AAA").one().revenue == 5e9
 
 
-def test_headcount_without_revenue_is_requeued(db, universe):
-    fmp = FakeFMP({"AAA": [_row(filed="2026-02-20")]})
-    refresh_employee_counts(db, fmp, today=TODAY)  # revenue fetch returned nothing
-    db.query(EmployeeCountCheck).update(
-        {"checked_at": datetime.now(timezone.utc) - timedelta(days=20)}
-    )
-    db.commit()
-    assert "AAA" in tickers_to_check(db, universe, TODAY)
+def test_revenue_backfill_fetches_revenue_only_for_names_missing_it(db, universe):
+    fmp = FakeFMP({"AAA": [_row()], "BBB": [_row()]})
+    refresh_employee_counts(db, fmp, today=TODAY)  # revenue came back empty
+    assert db.query(CompanyRevenue).count() == 0
+    fmp.revenue = {"AAA": [_statement()]}
+    fmp.asked.clear()
+    result = refresh_employee_counts(db, fmp, today=TODAY)
+    # Nobody is due for a headcount recheck; revenue alone was retried.
+    assert fmp.asked == [] and result["revenue_backfilled"] == 2
+    assert db.query(CompanyRevenue).filter_by(ticker="AAA").count() == 1
+
+
+def test_refused_income_statement_does_not_abort_the_run(db, universe):
+    class Refusing(FakeFMP):
+        def income_statement_annual(self, ticker, limit=2):
+            raise FMPAccessError("FMP income-statement returned 403")
+
+    result = refresh_employee_counts(db, Refusing({"AAA": [_row()], "BBB": [_row()]}), today=TODAY)
+    assert result["with_data"] == 2
+    assert db.get(EmployeeCountCheck, "BBB") is not None

@@ -162,7 +162,43 @@ def test_order_sector_and_limit(db):
     assert _board(db)["sectors"] == ["Health", "Tech"]
 
 
+def test_median_is_the_screens_not_the_filtered_views(db):
+    _stock(db, "A", sector="Tech")
+    _stock(db, "B", sector="Health")
+    _stock(db, "C", sector="Health")
+    _year(db, "A", 2025, 1000, 1e9)
+    _year(db, "B", 2025, 1000, 3e9)
+    _year(db, "C", 2025, 1000, 5e9)
+    db.commit()
+    full = _board(db)["median_rev_per_employee"]
+    assert _board(db, sector="Tech")["median_rev_per_employee"] == full
+    assert _board(db, order="leverage")["median_rev_per_employee"] == full
+
+
+def test_history_reads_only_the_requested_company(db):
+    _stock(db, "AAA")
+    _stock(db, "BBB")
+    _year(db, "AAA", 2025, 1000, 1e9)
+    _year(db, "BBB", 2025, 2000, 2e9)
+    db.commit()
+    assert workforce._series_by_ticker(db, "AAA").keys() == {"AAA"}
+    assert workforce.company_history(db, "bbb")["series"][0]["employees"] == 2000
+
+
+def test_cached_board_is_reused_within_the_ttl(db):
+    workforce._CACHE.clear()
+    _stock(db, "AAA")
+    _year(db, "AAA", 2025, 1000, 1e9)
+    db.commit()
+    first = workforce.cached_leaderboard(db, min_revenue=0, min_employees=0, today=TODAY)
+    db.query(EmployeeCount).delete()
+    db.commit()
+    assert workforce.cached_leaderboard(db, min_revenue=0, min_employees=0, today=TODAY) is first
+    workforce._CACHE.clear()
+
+
 def test_api_serves_board_and_history(db):
+    workforce._CACHE.clear()
     _stock(db, "AAA")
     _year(db, "AAA", 2024, 1000, 1e9)
     _year(db, "AAA", 2025, 1100, 1.5e9)

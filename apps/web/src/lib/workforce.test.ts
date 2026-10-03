@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   fiscalYearLabel,
+  fiscalYearShort,
   formatEmployees,
   formatGrowth,
   formatLeverage,
@@ -15,6 +16,8 @@ describe("workforce formatting", () => {
     expect(formatPerEmployee(12_300_000)).toBe("$12.3M");
     expect(formatPerEmployee(850_000)).toBe("$850K");
     expect(formatPerEmployee(null)).toBe("—");
+    expect(formatPerEmployee(999_600)).toBe("$1.00M");
+    expect(formatPerEmployee(300)).toBe("$300");
   });
 
   it("formats headcount", () => {
@@ -37,7 +40,9 @@ describe("workforce formatting", () => {
   });
 
   it("labels fiscal years and validates orders", () => {
-    expect(fiscalYearLabel("2025-12-31")).toBe("FY2025");
+    expect(fiscalYearLabel("2025-12-31")).toBe("Dec 2025");
+    expect(fiscalYearLabel("2025-02-01")).toBe("Feb 2025");
+    expect(fiscalYearShort("2025-02-01")).toBe("'25");
     expect(isWorkforceOrder("leverage")).toBe(true);
     expect(isWorkforceOrder("nope")).toBe(false);
   });

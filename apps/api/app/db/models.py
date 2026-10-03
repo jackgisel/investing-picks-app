@@ -291,7 +291,7 @@ class CompanyRevenue(Base):
     __table_args__ = (UniqueConstraint("ticker", "period"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    ticker: Mapped[str] = mapped_column(String(16), index=True)
+    ticker: Mapped[str] = mapped_column(String(16))
     #: Fiscal year end.
     period: Mapped[date] = mapped_column(Date)
     filing_date: Mapped[date | None] = mapped_column(Date, nullable=True)

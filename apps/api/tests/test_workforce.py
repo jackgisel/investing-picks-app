@@ -224,6 +224,24 @@ def test_shape_filter_and_counts(db):
         _board(db, shape="nope")
 
 
+def test_shape_counts_are_within_the_chosen_sector(db):
+    _stock(db, "A", sector="Tech")
+    _stock(db, "B", sector="Health")
+    for t in ("A", "B"):
+        _year(db, t, 2024, 1000, 1e9)
+        _year(db, t, 2025, 900, 1.2e9)  # both leaner
+    db.commit()
+    assert _board(db)["shape_counts"]["leaner"] == 2
+    assert _board(db, sector="Tech")["shape_counts"]["leaner"] == 1
+
+
+def test_shape_names_are_pinned():
+    # The web app's links and labels (lib/workforce.ts) use these exact ids.
+    assert workforce.SHAPES == (
+        "leaner", "efficient_growth", "hiring_ahead", "contracting", "hiring_into_decline"
+    )
+
+
 def test_an_empty_board_is_not_cached(db):
     workforce._CACHE.clear()
     empty = workforce.cached_leaderboard(db, min_revenue=0, min_employees=0, today=TODAY)
@@ -251,7 +269,7 @@ def test_api_serves_board_and_history(db):
     assert board["rows"][0]["ticker"] == "AAA"
     assert client.get("/api/v1/workforce/leaderboard?order=nope").status_code == 422
     assert client.get("/api/v1/workforce/leaderboard?shape=nope").status_code == 422
-    growth = client.get("/api/v1/workforce-growth?min_revenue=0&min_employees=0").json()
+    growth = client.get("/api/v1/workforce-growth").json()
     assert growth["points"][0]["ticker"] == "AAA"
     assert growth["points"][0]["shape"] == "efficient_growth"
     assert set(growth["points"][0]) == {

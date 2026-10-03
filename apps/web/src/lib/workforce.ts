@@ -30,10 +30,10 @@ export const WORKFORCE_SHAPES: ReadonlyArray<{
   label: string;
   blurb: string;
 }> = [
-  { id: "leaner", label: "Leaner", blurb: "Revenue up, headcount down" },
+  { id: "leaner", label: "Leaner", blurb: "Revenue up or flat, headcount down or flat" },
   { id: "efficient_growth", label: "Efficient growth", blurb: "Both up, revenue faster" },
   { id: "hiring_ahead", label: "Hiring ahead", blurb: "Both up, headcount faster" },
-  { id: "contracting", label: "Contracting", blurb: "Revenue down, headcount down" },
+  { id: "contracting", label: "Contracting", blurb: "Revenue down, headcount down or flat" },
   { id: "hiring_into_decline", label: "Hiring into decline", blurb: "Revenue down, headcount up" },
 ];
 
@@ -136,7 +136,10 @@ export async function getWorkforceBoard(opts: {
     });
     if (!res.ok) return null;
     const data = (await res.json()) as WorkforceBoard;
-    return Array.isArray(data?.rows) ? data : null;
+    if (!Array.isArray(data?.rows)) return null;
+    // A response cached before a deploy may predate a field; never let that
+    // reach the page as undefined.
+    return { ...data, shape_counts: data.shape_counts ?? ({} as WorkforceBoard["shape_counts"]) };
   } catch {
     return null;
   }

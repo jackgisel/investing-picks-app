@@ -747,8 +747,8 @@ def get_chart(db: Session = Depends(get_db), window: str | None = Query(None)):
 @router.get("/workforce/leaderboard")
 def workforce_leaderboard(
     limit: int = Query(100, ge=1, le=200),
-    min_revenue: float = Query(500_000_000, ge=0),
-    min_employees: int = Query(50, ge=0),
+    min_revenue: float = Query(workforce.DEFAULT_MIN_REVENUE, ge=0),
+    min_employees: int = Query(workforce.DEFAULT_MIN_EMPLOYEES, ge=0),
     sector: str | None = None,
     order: str = Query("rev_per_employee"),
     shape: str | None = None,
@@ -772,15 +772,13 @@ def workforce_leaderboard(
 
 
 @router.get("/workforce-growth")
-def workforce_growth(
-    min_revenue: float = Query(500_000_000, ge=0),
-    min_employees: int = Query(50, ge=0),
-    db: Session = Depends(get_db),
-):
-    """Every screened company's headcount and revenue growth, for the scatter."""
-    board = workforce.cached_leaderboard(
-        db, limit=2000, min_revenue=min_revenue, min_employees=min_employees, order="leverage"
-    )
+def workforce_growth(db: Session = Depends(get_db)):
+    """Every screened company's headcount and revenue growth, for the scatter.
+
+    Takes no parameters on purpose: the screen is fixed, so there is exactly one
+    cached payload and a caller cannot fill the cache with variants of it.
+    """
+    board = workforce.cached_leaderboard(db, limit=2000, order="leverage")
     keep = ("ticker", "name", "sector", "employees_yoy", "revenue_yoy", "rev_per_employee", "shape")
     return {
         "shape_counts": board["shape_counts"],

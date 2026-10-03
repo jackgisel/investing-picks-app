@@ -11,6 +11,7 @@ import {
   isWorkforceOrder,
   isWorkforceShape,
   shapeLabel,
+  WORKFORCE_SHAPES,
 } from "./workforce";
 
 describe("workforce formatting", () => {
@@ -40,6 +41,17 @@ describe("workforce formatting", () => {
   it("indexes a series to 100 at its first value", () => {
     expect(indexTo100([200, 300, 100])).toEqual([100, 150, 50]);
     expect(indexTo100([0, 5]).every(Number.isNaN)).toBe(true);
+  });
+
+  it("keeps the shape ids the API uses", () => {
+    // Mirrors SHAPES in apps/api/app/services/workforce.py (pinned there too).
+    expect(WORKFORCE_SHAPES.map((s) => s.id)).toEqual([
+      "leaner",
+      "efficient_growth",
+      "hiring_ahead",
+      "contracting",
+      "hiring_into_decline",
+    ]);
   });
 
   it("names shapes and rejects unknown ones", () => {

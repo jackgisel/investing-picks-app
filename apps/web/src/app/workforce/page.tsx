@@ -162,7 +162,7 @@ export default async function WorkforcePage({
                 </Link>
               ))}
             </div>
-            <GrowthScatter shape={shape} />
+            <GrowthScatter shape={shape} sector={sector} />
           </section>
         ) : (
           <section className="mb-10 rounded-soft border border-border bg-bg-secondary p-6">
@@ -182,15 +182,15 @@ export default async function WorkforcePage({
             <p className="font-sans text-[15px] font-semibold text-text">
               {board === null
                 ? "The board is not loading right now."
-                : sector
-                  ? "No companies in this sector meet the screen."
+                : sector || shape
+                  ? "No companies match these filters."
                   : "The first headcount numbers are still being collected."}
             </p>
             <p className="mt-1 max-w-[520px] font-sans text-[14px] text-text-muted">
               {board === null
                 ? "Try again in a moment."
-                : sector
-                  ? "Pick another sector or clear the filter."
+                : sector || shape
+                  ? "Pick another sector or shape, or clear the filters."
                   : "Check back shortly. Nothing here is estimated, so the board stays empty until the filings are in."}
             </p>
           </div>

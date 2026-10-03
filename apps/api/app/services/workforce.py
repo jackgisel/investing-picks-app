@@ -20,6 +20,10 @@ from sqlalchemy.orm import Session
 
 from app.db.models import CompanyRevenue, EmployeeCount, Stock
 
+#: The screen every public view shares. The web layer mirrors these in
+#: `lib/workforce.ts` and passes them explicitly.
+DEFAULT_MIN_REVENUE = 500_000_000
+DEFAULT_MIN_EMPLOYEES = 50
 PAIR_TOLERANCE_DAYS = 45
 #: A prior year is the pair roughly twelve months before the latest one.
 PRIOR_YEAR_WINDOW = (300, 430)
@@ -149,8 +153,8 @@ def leaderboard(
     db: Session,
     *,
     limit: int = 100,
-    min_revenue: float = 500_000_000,
-    min_employees: int = 50,
+    min_revenue: float = DEFAULT_MIN_REVENUE,
+    min_employees: int = DEFAULT_MIN_EMPLOYEES,
     sector: str | None = None,
     order: str = "rev_per_employee",
     shape: str | None = None,
@@ -202,9 +206,10 @@ def leaderboard(
     sectors = sorted({r["sector"] for r in rows if r["sector"]})
     # The screen's own median, before the sector and sort filters narrow it.
     screen_median = median(r["rev_per_employee"] for r in rows) if rows else None
-    shape_counts = {s: sum(1 for r in rows if r["shape"] == s) for s in SHAPES}
     if sector:
         rows = [r for r in rows if r["sector"] == sector]
+    # Counted inside the chosen sector, so a chip's number is what clicking it shows.
+    shape_counts = {s: sum(1 for r in rows if r["shape"] == s) for s in SHAPES}
     if shape:
         rows = [r for r in rows if r["shape"] == shape]
     rows = [r for r in rows if r.get(order) is not None]

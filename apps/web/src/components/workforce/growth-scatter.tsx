@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   formatGrowth,
   formatPerEmployee,
@@ -26,25 +26,40 @@ type State =
  * series, so one color; the selected shape is picked out by dimming the rest,
  * never by repainting dots.
  */
-export function GrowthScatter({ shape }: { shape: WorkforceShape | null }) {
+const NO_POINTS: GrowthPoint[] = [];
+
+export function GrowthScatter({
+  shape,
+  sector,
+}: {
+  shape: WorkforceShape | null;
+  sector: string | null;
+}) {
   const [load, setLoad] = useState<State>({ state: "loading" });
   const [hover, setHover] = useState<GrowthPoint | null>(null);
+  const [attempt, setAttempt] = useState(0);
+
+  const retry = useCallback(() => {
+    setLoad({ state: "loading" });
+    setAttempt((n) => n + 1);
+  }, []);
 
   useEffect(() => {
-    let alive = true;
-    fetch("/api/data/workforce-growth")
+    const ctl = new AbortController();
+    fetch("/api/data/workforce-growth", { signal: ctl.signal })
       .then((r) => {
         if (!r.ok) throw new Error(String(r.status));
         return r.json() as Promise<GrowthPayload>;
       })
-      .then((data) => alive && setLoad({ state: "ready", data }))
-      .catch(() => alive && setLoad({ state: "error" }));
-    return () => {
-      alive = false;
-    };
-  }, []);
+      .then((data) => setLoad({ state: "ready", data }))
+      .catch((e) => {
+        if (e?.name !== "AbortError") setLoad({ state: "error" });
+      });
+    return () => ctl.abort();
+  }, [attempt]);
 
-  const points = load.state === "ready" ? load.data.points : [];
+  // A stable reference while loading, so the memos below do not recompute.
+  const points = load.state === "ready" ? load.data.points : NO_POINTS;
   const [xLo, xHi] = useMemo(() => growthDomain(points.map((p) => p.employees_yoy)), [points]);
   const [yLo, yHi] = useMemo(() => growthDomain(points.map((p) => p.revenue_yoy)), [points]);
 
@@ -54,7 +69,10 @@ export function GrowthScatter({ shape }: { shape: WorkforceShape | null }) {
   if (load.state === "error" || points.length === 0) {
     return (
       <p className="font-sans text-[13px] text-text-muted">
-        The growth chart is not available right now.
+        The growth chart is not available right now.{" "}
+        <button type="button" onClick={retry} className="underline underline-offset-2 hover:text-text">
+          Try again
+        </button>
       </p>
     );
   }
@@ -70,8 +88,9 @@ export function GrowthScatter({ shape }: { shape: WorkforceShape | null }) {
   const dHi = Math.min(xHi, yHi);
 
   const pct = (v: number) => `${Math.round(v * 100)}%`;
-  const xTicks = [xLo, 0, xHi].filter((v, i, a) => a.indexOf(v) === i);
-  const yTicks = [yLo, 0, yHi].filter((v, i, a) => a.indexOf(v) === i);
+  // Label zero always; label an edge only if it is clear of zero's label.
+  const xTicks = [xLo, 0, xHi].filter((v) => v === 0 || Math.abs(x(v) - x(0)) > 34);
+  const yTicks = [yLo, 0, yHi].filter((v) => v === 0 || Math.abs(y(v) - y(0)) > 16);
 
   function onMove(e: React.PointerEvent<SVGSVGElement>) {
     const box = e.currentTarget.getBoundingClientRect();
@@ -89,7 +108,8 @@ export function GrowthScatter({ shape }: { shape: WorkforceShape | null }) {
     setHover(best);
   }
 
-  const dim = (p: GrowthPoint) => shape !== null && p.shape !== shape;
+  const dim = (p: GrowthPoint) =>
+    (shape !== null && p.shape !== shape) || (sector !== null && p.sector !== sector);
 
   return (
     <div>

@@ -19,6 +19,11 @@ from app.db.session import SessionLocal
 from app.services.portfolio import ensure_default_portfolio, run_evaluation
 from app.services.job_runs import reap_stale_job_runs
 from worker.jobs.deadline import JobDeadline, JobDeadlineExceeded
+from worker.services.employee_counts import (
+    EMPLOYEE_COUNTS_JOB,
+    EMPLOYEE_COUNTS_TIMEOUT_MINUTES,
+    refresh_employee_counts,
+)
 from worker.services.fmp import FMPClient
 from worker.services.market_calendar import is_effective_run_day, is_trading_day
 from worker.services.ingest import (
@@ -617,6 +622,27 @@ def job_consensus_snapshot():
             fmp.close()
 
     return _track(CONSENSUS_SNAPSHOT_JOB, _run)
+
+
+def job_employee_counts_refresh():
+    """Weekly: append new 10-K headcounts for the whole universe.
+
+    Resumable, so the first load may take a few runs. An off-plan endpoint or
+    a run of all-empty responses raises, which mails the admins through the
+    normal job-failure sweep.
+    """
+
+    def _run(db: Session):
+        deadline = JobDeadline.after(
+            EMPLOYEE_COUNTS_JOB, EMPLOYEE_COUNTS_TIMEOUT_MINUTES * 60
+        )
+        fmp = _fmp(deadline)
+        try:
+            return refresh_employee_counts(db, fmp)
+        finally:
+            fmp.close()
+
+    return _track(EMPLOYEE_COUNTS_JOB, _run)
 
 
 def job_daily_marks():

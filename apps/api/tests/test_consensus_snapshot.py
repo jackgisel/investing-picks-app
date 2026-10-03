@@ -341,6 +341,9 @@ def test_probe_backtest_endpoints_reports_access_errors():
         def delisted_companies(self, page=0, limit=100):
             return []
 
+        def employee_count_history(self, ticker, limit=10):
+            return [{"employeeCount": 1}]
+
     probes = ProbeFMP().probe_backtest_endpoints()
     assert probes["analyst-estimates"]["ok"] is True
     assert probes["balance-sheet-statement"]["ok"] is False
@@ -348,6 +351,7 @@ def test_probe_backtest_endpoints_reports_access_errors():
     assert probes["historical-market-capitalization"]["ok"] is True
     assert probes["delisted-companies"]["ok"] is False
     assert probes["delisted-companies"]["error"] == "empty"
+    assert probes["historical-employee-count"]["ok"] is True
 
 
 def test_audit_segment_a_counts_pairs_and_evaluation_fridays(db):

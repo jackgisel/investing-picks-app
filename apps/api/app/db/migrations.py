@@ -212,6 +212,21 @@ def _ensure_income_statements(engine: Engine) -> None:
         log.debug("Could not create income_statements; assuming it exists")
 
 
+def _ensure_employee_counts(engine: Engine) -> None:
+    """Create the headcount tables if this database predates them.
+
+    The worker never runs `create_all` and its weekly refresh is the first
+    writer, so it has to be able to make its own tables.
+    """
+    from app.db.models import EmployeeCount, EmployeeCountCheck
+
+    for model in (EmployeeCount, EmployeeCountCheck):
+        try:
+            model.__table__.create(engine, checkfirst=True)
+        except Exception:
+            log.debug("Could not create %s; assuming it exists", model.__tablename__)
+
+
 def _columns(conn, table: str) -> list[dict]:
     from sqlalchemy import inspect
 
@@ -361,5 +376,6 @@ def ensure_schema(engine: Engine) -> None:
     _ensure_stock_news(engine)
     _ensure_consensus_snapshots(engine)
     _ensure_income_statements(engine)
+    _ensure_employee_counts(engine)
     _correct_imported_lots(engine)
     _drop_weekend_rows(engine)

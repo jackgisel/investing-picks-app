@@ -296,8 +296,13 @@ class FMPClient:
         data = self._get("delisted-companies", {"page": page, "limit": limit})
         return data if isinstance(data, list) else []
 
+    def employee_count_history(self, ticker: str, limit: int = 10) -> list[dict]:
+        """Headcount as reported in each 10-K, newest first."""
+        data = self._get("historical-employee-count", {"symbol": ticker, "limit": limit})
+        return data if isinstance(data, list) else []
+
     def probe_backtest_endpoints(self, ticker: str = "AAPL") -> dict:
-        """Cheap live check that Phase 2's extra FMP paths respond on this key.
+        """Cheap live check that the extra FMP paths (backtest Phase 2, headcount) respond on this key.
 
         Returns `{endpoint: {ok, n, error}}`. A 401/402/403 is `ok=False` with
         the status, not an exception — the snapshot job must still complete.
@@ -311,6 +316,9 @@ class FMPClient:
                 ticker
             ),
             "delisted-companies": lambda: self.delisted_companies(page=0, limit=10),
+            "historical-employee-count": lambda: self.employee_count_history(
+                ticker, limit=4
+            ),
         }
         out: dict = {}
         for name, fetch in probes.items():

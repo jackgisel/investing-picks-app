@@ -1271,6 +1271,67 @@ def consensus_snapshot_status(db: Session = Depends(get_db)):
     }
 
 
+def _run_employee_counts_task() -> None:
+    try:
+        from worker.jobs.runner import job_employee_counts_refresh
+
+        job_employee_counts_refresh()
+    except Exception:
+        log.exception("Manual employee_counts_refresh failed")
+
+
+@router.post("/employee-counts", dependencies=[Depends(require_ops_key)])
+def trigger_employee_counts(
+    background: BackgroundTasks, db: Session = Depends(get_db)
+):
+    """Start a headcount refresh now — the first load, or after a fix."""
+    from worker.services.employee_counts import (
+        EMPLOYEE_COUNTS_JOB,
+        EMPLOYEE_COUNTS_TIMEOUT_MINUTES,
+    )
+
+    reap_stale_job_runs(
+        db,
+        job_name=EMPLOYEE_COUNTS_JOB,
+        stale_after=timedelta(minutes=EMPLOYEE_COUNTS_TIMEOUT_MINUTES),
+    )
+    running = (
+        db.query(JobRun)
+        .filter(JobRun.job_name == EMPLOYEE_COUNTS_JOB, JobRun.status == "running")
+        .first()
+    )
+    if running is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="A headcount refresh is already running; watch /api/ops/jobs.",
+        )
+    background.add_task(_run_employee_counts_task)
+    return {"started": True, "job_name": EMPLOYEE_COUNTS_JOB}
+
+
+@router.get("/employee-counts", dependencies=[Depends(require_ops_key)])
+def employee_counts_status(db: Session = Depends(get_db)):
+    """Headcount coverage and freshness — read this after the first run."""
+    from worker.services.employee_counts import EMPLOYEE_COUNTS_JOB, coverage
+
+    last = (
+        db.query(JobRun)
+        .filter(JobRun.job_name == EMPLOYEE_COUNTS_JOB)
+        .order_by(JobRun.started_at.desc())
+        .first()
+    )
+    return {
+        **coverage(db),
+        "last_run": {
+            "status": last.status,
+            "detail": last.detail,
+            "started_at": last.started_at.isoformat() if last.started_at else None,
+        }
+        if last
+        else None,
+    }
+
+
 @router.get("/jobs", dependencies=[Depends(require_ops_key)])
 def list_jobs(db: Session = Depends(get_db), limit: int = 30):
     rows = db.query(JobRun).order_by(JobRun.started_at.desc()).limit(limit).all()

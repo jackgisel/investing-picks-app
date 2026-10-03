@@ -29,6 +29,8 @@ from worker.jobs.runner import (
     job_dca_backfill,
     job_dca_friday,
     job_employee_counts_refresh,
+    job_job_boards_discover,
+    job_job_openings_collect,
     job_extra_buy,
     job_income_statements_refresh,
     job_income_visuals_watch,
@@ -116,6 +118,28 @@ def main():
         CronTrigger(day_of_week="sun", hour=6, minute=0),
         id="employee_counts_refresh",
         replace_existing=True,
+    )
+    # Sunday 09:00, after the headcount job's window: finds each company's
+    # public job board. Slow and polite, so it gets its own morning.
+    scheduler.add_job(
+        job_job_boards_discover,
+        CronTrigger(day_of_week="sun", hour=9, minute=0),
+        id="job_boards_discover",
+        replace_existing=True,
+        misfire_grace_time=6 * 3600,
+        coalesce=True,
+    )
+    # Weekdays 07:00 ET: today's open-posting count per company. Append-only
+    # and unrecoverable, so it runs before anything else that morning.
+    scheduler.add_job(
+        job_job_openings_collect,
+        CronTrigger(day_of_week="mon-fri", hour=7, minute=0),
+        id="job_openings_collect",
+        replace_existing=True,
+        # A deploy that spans 07:00 must still collect that day when the
+        # worker comes back, not drop it: the history cannot be rebuilt.
+        misfire_grace_time=6 * 3600,
+        coalesce=True,
     )
     scheduler.add_job(
         job_weekly_refresh,
@@ -302,6 +326,10 @@ def main():
             "weekly_refresh": job_weekly_refresh,
             # Scheduled Sunday 06:00 ET; on demand for the first load.
             "employee_counts_refresh": job_employee_counts_refresh,
+            # Scheduled (Sun 09:00 / weekdays 07:00 ET); on demand for the
+            # first board discovery and the first collection.
+            "job_boards_discover": job_job_boards_discover,
+            "job_openings_collect": job_job_openings_collect,
             "biweekly_evaluate": job_biweekly_evaluate,
             # Scheduled every 15 min (above); on demand for when you have just
             # shortened the review window and do not want to wait for the tick.

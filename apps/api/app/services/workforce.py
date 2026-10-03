@@ -24,6 +24,11 @@ from app.db.models import CompanyRevenue, EmployeeCount, Stock
 #: `lib/workforce.ts` and passes them explicitly.
 DEFAULT_MIN_REVENUE = 500_000_000
 DEFAULT_MIN_EMPLOYEES = 50
+#: Left out of the default view: their "revenue" is interest and rent, so
+#: revenue per employee is not comparable with a company that sells things (a
+#: mortgage REIT with 54 staff would top every board). Still reachable by
+#: choosing the sector explicitly.
+DEFAULT_EXCLUDED_SECTORS = ("Financial Services", "Real Estate")
 PAIR_TOLERANCE_DAYS = 45
 #: A prior year is the pair roughly twelve months before the latest one.
 PRIOR_YEAR_WINDOW = (300, 430)
@@ -158,6 +163,7 @@ def leaderboard(
     sector: str | None = None,
     order: str = "rev_per_employee",
     shape: str | None = None,
+    exclude_sectors: tuple[str, ...] = DEFAULT_EXCLUDED_SECTORS,
     today: date | None = None,
 ) -> dict:
     """Companies ranked by revenue per employee (or by leverage / revenue).
@@ -202,8 +208,12 @@ def leaderboard(
             below = sum(1 for v in peers if v < r["rev_per_employee"])
             r["industry_pct"] = below / (len(peers) - 1) if len(peers) > 1 else None
 
-    universe = len(rows)
+    # Every sector stays selectable; only the default view drops the excluded ones.
     sectors = sorted({r["sector"] for r in rows if r["sector"]})
+    excluded = () if sector else tuple(s for s in exclude_sectors if s in sectors)
+    if excluded:
+        rows = [r for r in rows if r["sector"] not in excluded]
+    universe = len(rows)
     # The screen's own median, before the sector and sort filters narrow it.
     screen_median = median(r["rev_per_employee"] for r in rows) if rows else None
     if sector:
@@ -222,6 +232,7 @@ def leaderboard(
         "universe": universe,
         "median_rev_per_employee": screen_median,
         "sectors": sectors,
+        "excluded_sectors": list(excluded),
         "shape_counts": shape_counts,
         "count": min(len(rows), limit),
         "rows": rows[:limit],

@@ -1344,6 +1344,16 @@ def employee_counts_status(db: Session = Depends(get_db)):
     }
 
 
+@router.post("/deep-prices", dependencies=[Depends(require_ops_key)])
+def trigger_deep_prices(background: BackgroundTasks, db: Session = Depends(get_db)):
+    """Load five years of daily closes for the universe, for factor studies."""
+    from worker.jobs.runner import DEEP_PRICE_JOB, DEEP_PRICE_TIMEOUT_MINUTES
+
+    return _trigger_job(
+        db, background, DEEP_PRICE_JOB, DEEP_PRICE_TIMEOUT_MINUTES, "job_price_history_deep"
+    )
+
+
 @router.post("/workforce-ic", dependencies=[Depends(require_ops_key)])
 def trigger_workforce_ic(background: BackgroundTasks, db: Session = Depends(get_db)):
     """Run the workforce factor IC study (read-only) in the background."""

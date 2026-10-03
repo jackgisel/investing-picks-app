@@ -106,6 +106,11 @@ def reap_stale_weekly_refreshes() -> int:
         )
         count += reap_stale_job_runs(
             db,
+            job_name=DEEP_PRICE_JOB,
+            stale_after=timedelta(minutes=DEEP_PRICE_TIMEOUT_MINUTES),
+        )
+        count += reap_stale_job_runs(
+            db,
             job_name=WORKFORCE_IC_JOB,
             stale_after=timedelta(minutes=WORKFORCE_IC_TIMEOUT_MINUTES),
         )
@@ -704,6 +709,36 @@ def job_job_openings_collect():
             ats.close()
 
     return _track(COLLECT_JOB, _run)
+
+
+#: Five years: enough month-ends for the workforce study to say something, at
+#: roughly 1.4M daily bars for the universe. Trim with
+#: `DELETE FROM price_bars WHERE date < now() - interval '430 days'` if needed.
+DEEP_PRICE_LOOKBACK_DAYS = 1830
+DEEP_PRICE_JOB = "price_history_deep"
+DEEP_PRICE_TIMEOUT_MINUTES = 45.0
+
+
+def job_price_history_deep():
+    """On demand: load five years of daily closes for the whole universe.
+
+    Separate from `backfill_prices`, which keeps ~14 months for the live
+    momentum factor and runs on a schedule. This one exists so factor studies
+    have a window long enough to mean something; it never runs by itself.
+    Idempotent and resumable: names that already hold the history are skipped.
+    """
+
+    def _run(db: Session):
+        deadline = JobDeadline.after(DEEP_PRICE_JOB, DEEP_PRICE_TIMEOUT_MINUTES * 60)
+        fmp = _fmp(deadline)
+        try:
+            return backfill_price_history(
+                db, fmp, lookback_days=DEEP_PRICE_LOOKBACK_DAYS, min_bars=1000
+            )
+        finally:
+            fmp.close()
+
+    return _track(DEEP_PRICE_JOB, _run)
 
 
 def job_workforce_ic():

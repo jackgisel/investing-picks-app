@@ -218,3 +218,21 @@ def test_backfill_drops_a_non_positive_close(db, portfolio):
 
     backfill_price_history(db, ZeroFMP(), min_bars=20)
     assert db.query(PriceBar).count() == 0
+
+
+def test_deep_price_job_uses_a_five_year_window_and_a_long_series_threshold(monkeypatch):
+    """The deep job must ask for ~5 years and treat anything under 1000 bars as short."""
+    from worker.jobs import runner
+
+    seen = {}
+
+    def fake_backfill(db, fmp, **kwargs):
+        seen.update(kwargs)
+        return {"fetched": 0}
+
+    monkeypatch.setattr(runner, "backfill_price_history", fake_backfill)
+    monkeypatch.setattr(runner, "_fmp", lambda deadline=None: type("F", (), {"close": lambda self: None})())
+    monkeypatch.setattr(runner, "_track", lambda name, fn: fn(None))
+    runner.job_price_history_deep()
+    assert seen == {"lookback_days": runner.DEEP_PRICE_LOOKBACK_DAYS, "min_bars": 1000}
+    assert runner.DEEP_PRICE_LOOKBACK_DAYS > 365 * 4

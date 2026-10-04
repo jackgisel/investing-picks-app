@@ -83,6 +83,7 @@ export const SPARE_CLAIMED: Readonly<Record<string, string>> = {
   "spare-09": "market-cycle-analysis-stock-investors",
   "spare-10": "is-a-stock-research-membership-worth-it",
   "spare-11": "investment-thesis-template",
+  "spare-12": "sector-relative-performance",
 };
 
 function poolPiece(id: string, label: string): ArtPiece {

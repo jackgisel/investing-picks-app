@@ -74,6 +74,7 @@ import earningsRevisionInvesting from "@/content/blog/earnings-revision-investin
 import marketCycleAnalysisStockInvestors from "@/content/blog/market-cycle-analysis-stock-investors";
 import stockResearchMembershipWorthIt from "@/content/blog/is-a-stock-research-membership-worth-it";
 import investmentThesisTemplate from "@/content/blog/investment-thesis-template";
+import sectorRelativePerformance from "@/content/blog/sector-relative-performance";
 
 export const articles: Article[] = [
   howToOutperformSp500,
@@ -104,6 +105,7 @@ export const articles: Article[] = [
   marketCycleAnalysisStockInvestors,
   stockResearchMembershipWorthIt,
   investmentThesisTemplate,
+  sectorRelativePerformance,
 ].sort((a, b) => b.meta.publishedAt.localeCompare(a.meta.publishedAt));
 
 export function getArticleBySlug(slug: string): Article | undefined {

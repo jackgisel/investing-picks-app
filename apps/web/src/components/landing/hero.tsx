@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { HeroCtaButton } from "./hero-cta-button";
 import { HeroOutperformance } from "./hero-outperformance";
 import { HeroPickBubbles } from "./hero-pick-bubbles";
@@ -105,7 +106,15 @@ export function Hero() {
           <HeroOutperformance className="mb-8 hero-reveal hero-reveal-2" />
 
           <div className="hero-reveal hero-reveal-3">
-            <HeroCtaButton />
+            <div className="flex flex-wrap items-center gap-4">
+              <HeroCtaButton />
+              <Link
+                href="/pricing"
+                className="rounded-sm font-sans text-[12px] font-bold uppercase tracking-[0.1em] text-text-muted transition-colors hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2"
+              >
+                See what&apos;s included
+              </Link>
+            </div>
             <PriceLine className="mt-4" />
           </div>
         </div>

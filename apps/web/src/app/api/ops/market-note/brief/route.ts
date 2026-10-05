@@ -3,8 +3,9 @@ import { requireAdmin } from "@/lib/admin";
 import { draftMarketNoteBrief } from "@/lib/market-note-brief";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
-/** Admin-only bridge from the internal scoring snapshot to the editor. */
+/** Admin-only: have the model draft the note from the scoring snapshot and web research. */
 export async function POST() {
   const guard = await requireAdmin();
   if (!guard.ok) return guard.response;

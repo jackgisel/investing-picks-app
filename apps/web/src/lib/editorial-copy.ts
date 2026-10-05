@@ -11,24 +11,6 @@ export function chooseSpotlightHolding(
   return ranked.find((position) => position.ticker !== lastTicker) ?? ranked[0] ?? null;
 }
 
-export function spotlightCopy(args: {
-  ticker: string;
-  pnlPct: number;
-  entryDate: string | null;
-  revenuePct: number | null;
-}): { subject: string; bodyMd: string } {
-  const since = oneDecimalPct(args.pnlPct);
-  const when = args.entryDate ? ` on ${args.entryDate}` : "";
-  const revenue =
-    args.revenuePct === null
-      ? "Revenue growth for the latest reported year is not on file yet."
-      : `Revenue has grown ${oneDecimalPct(args.revenuePct)} over the latest reported year.`;
-  return {
-    subject: `${args.ticker} is ${since} since we bought it`,
-    bodyMd: `${args.ticker} is ${since} since we bought it${when}.\n\n${revenue}\n\nWhy it is the one to talk about this week:\n`,
-  };
-}
-
 export function holdingFromPriorCycle(
   positions: BookPosition[],
   previousFriday: string,

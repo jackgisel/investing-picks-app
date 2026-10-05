@@ -14,9 +14,10 @@ import {
   getEditorialByPeriod,
   type EditorialKind,
 } from "@/lib/editorial-issue";
-import { prepareEditorialIssues } from "@/lib/editorial-send";
+import { draftAnalysisIfEmpty, prepareEditorialIssues } from "@/lib/editorial-send";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 600;
 
 function isKind(value: string | null): value is EditorialKind {
   return value === "market_analysis" || value === "pick_spotlight";
@@ -53,6 +54,8 @@ export async function POST(req: Request) {
   }
   if (body.kind === "pick_spotlight") {
     const prepared = await prepareEditorialIssues();
+    const failure = prepared.errors.find((e) => e.startsWith("spotlight:"));
+    if (failure) return NextResponse.json({ error: failure }, { status: 502 });
     return NextResponse.json({ id: prepared.spotlightId });
   }
   const parts = pacificParts(new Date());
@@ -62,5 +65,13 @@ export async function POST(req: Request) {
     periodKey: next.periodKey,
     subject: `Market analysis — ${next.periodKey}`,
   });
+  try {
+    await draftAnalysisIfEmpty(issue, ymdString(parts));
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Draft failed" },
+      { status: 502 },
+    );
+  }
   return NextResponse.json({ id: issue.id });
 }

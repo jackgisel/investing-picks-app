@@ -202,14 +202,16 @@ def job_weekly_review_publish():
 def job_market_note_prepare():
     """Open the coming week's Market Note row and nag if nothing is ready.
 
-    Runs a couple of days before the Monday send so there is time to write it.
-    The web app decides whether to actually mail the reminder — a nag that
-    fires whether or not the work is done is a nag people filter.
+    Runs a couple of days before the Monday send so there is time to review it.
+    The web app has the model draft the issue (web research takes a few
+    minutes, hence the long timeout) and leaves it unconfirmed. It also decides
+    whether to actually mail the reminder — a nag that fires whether or not
+    the work is done is a nag people filter.
     """
     return _post_to_web_app(
         "/api/internal/market-note/prepare",
         "Market Note prepare",
-        120.0,
+        330.0,
     )
 
 
@@ -230,11 +232,15 @@ def job_market_note_send():
 
 
 def job_editorial_prepare():
-    """Open the next market analysis and Wednesday spotlight if they are not open yet."""
+    """Open the next market analysis and Wednesday spotlight and have the model draft both.
+
+    Drafts are left unconfirmed for review; the send job skips anything a
+    person has not confirmed.
+    """
     return _post_to_web_app(
         "/api/internal/editorial/prepare",
         "Editorial prepare",
-        120.0,
+        630.0,
     )
 
 

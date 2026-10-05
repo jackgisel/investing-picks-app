@@ -4,6 +4,7 @@ import { requireInternalSecret } from "@/lib/internal-auth";
 import { prepareEditorialIssues } from "@/lib/editorial-send";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 600;
 
 export async function POST(req: Request) {
   const guard = requireInternalSecret(req);

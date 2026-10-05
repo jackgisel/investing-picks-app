@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Outfit, IBM_Plex_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "@/styles/globals.css";
 import {
   SITE_NAME,
@@ -28,20 +28,33 @@ const THEME_INIT_SCRIPT = `(function(){try{var s=localStorage.getItem("outpick-t
 // Self-hosted via next/font instead of the old @import from Google Fonts —
 // that was a render-blocking third-party request on every page load and
 // guaranteed a flash of unstyled text on the hero headline. next/font
-// downloads at build time, serves from this origin, and matches fallback
+// serves from this origin and matches fallback
 // metrics to cut layout shift while the real face loads.
 // Variable cuts five separate woff2 preloads down to one Outfit file. IBM Plex
 // Mono is not in the hero LCP region, so skip preloading it on the landing path.
-const outfit = Outfit({
-  subsets: ["latin"],
+// Both faces are local files, not next/font/google: the class name is a hash
+// of the generated CSS, and the server and client compiles each fetch their
+// own CSS from Google. When the two responses differ, <html> gets a class the
+// stylesheet never defines and every page falls back to Times. Checked-in
+// files are deterministic. Latin + Latin Extended subsets of the OFL fonts.
+const outfit = localFont({
+  src: "./fonts/Outfit-Variable.woff2",
+  weight: "100 900",
+  style: "normal",
   variable: "--font-sans",
   display: "swap",
+  fallback: ["sans-serif"],
 });
 
-const ibmPlexMono = IBM_Plex_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+const ibmPlexMono = localFont({
+  src: [
+    { path: "./fonts/IBMPlexMono-Regular.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/IBMPlexMono-Medium.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/IBMPlexMono-SemiBold.woff2", weight: "600", style: "normal" },
+    { path: "./fonts/IBMPlexMono-Bold.woff2", weight: "700", style: "normal" },
+  ],
   variable: "--font-mono",
+  fallback: ["monospace"],
   display: "swap",
   preload: false,
 });

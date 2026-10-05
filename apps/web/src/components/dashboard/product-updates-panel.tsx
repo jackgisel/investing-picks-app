@@ -212,6 +212,25 @@ function Editor({
   const [form, setForm] = useState<ProductUpdate | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [notes, setNotes] = useState("");
+
+  const aiDraft = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/ops/product-updates/draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notes }),
+      });
+      if (!res.ok) throw new Error(await errorMessage(res));
+      return (await res.json()) as { subject: string; bodyMd: string };
+    },
+    onSuccess: (draft) => {
+      setForm((f) => (f ? { ...f, subject: draft.subject, bodyMd: draft.bodyMd } : f));
+      setSaved(false);
+      setError(null);
+    },
+    onError: (e: Error) => setError(e.message),
+  });
 
   const detail = useQuery({
     queryKey: ["ops-product-update", id],
@@ -304,6 +323,23 @@ function Editor({
       </div>
 
       {error && <p className="text-accent-red text-sm">{error}</p>}
+
+      <div>
+        <label className={labelClass}>What changed (rough notes for the AI)</label>
+        <textarea
+          className={`${inputClass} min-h-[80px]`}
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+        />
+        <button
+          type="button"
+          onClick={() => aiDraft.mutate()}
+          disabled={aiDraft.isPending || !notes.trim()}
+          className="btn-outline !py-2 !px-4 !text-[11px] mt-2 disabled:opacity-50"
+        >
+          {aiDraft.isPending ? "Writing…" : "Draft with AI"}
+        </button>
+      </div>
 
       <div>
         <label className={labelClass}>Subject</label>

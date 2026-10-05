@@ -1,3 +1,4 @@
+import { writeShort } from "@/lib/short-copy";
 import { PUBLIC_API_BASE } from "@/lib/api-config";
 import { claimDispatch } from "@/lib/email-dispatch";
 import { sendPerformanceAlertEmail } from "@/lib/email";
@@ -73,6 +74,20 @@ async function apiJson<T>(path: string): Promise<T | null> {
   }
 }
 
+/** The model's wording for an alert's detail, or the template when it cannot be trusted. */
+async function alertDetail(
+  template: string,
+  facts: Record<string, unknown>,
+): Promise<string> {
+  const written = await writeShort({
+    role: "You write the body of a short alert email to subscribers about their portfolio's picks.",
+    ask: "Write two or three plain sentences for the alert body. Say what happened, put it in context from FACTS, and do not tell the reader to act.",
+    facts,
+    maxChars: 600,
+  });
+  return written ?? template;
+}
+
 async function fanOut(
   key: string,
   kind: "milestone" | "drawdown",
@@ -143,10 +158,16 @@ export async function runPerformanceAlerts(): Promise<PerformanceAlertResult> {
     }
 
     const headline = `${ticker} has doubled`;
-    const detail =
+    const templateDetail =
       hit >= 100
         ? `${ticker} is now up ${h.pnl_pct.toFixed(1)}% since we opened the position. It has crossed +${hit}% for the first time.`
         : `${ticker} is up ${h.pnl_pct.toFixed(1)}% since we opened the position, crossing +${hit}% for the first time.`;
+    const detail = await alertDetail(templateDetail, {
+      kind: "milestone",
+      ticker,
+      return_since_opened_pct: Number(h.pnl_pct.toFixed(1)),
+      milestone_pct: hit,
+    });
 
     try {
       const { sent, failed } = await fanOut(
@@ -196,7 +217,16 @@ export async function runPerformanceAlerts(): Promise<PerformanceAlertResult> {
             key,
             "drawdown",
             `The picks are ${drawdown.toFixed(1)}% off their high`,
-            `The picks have fallen ${drawdown.toFixed(1)}% from their high-water mark, crossing the ${band}% mark. Drawdowns are part of the strategy. The published backtest had a maximum drawdown of 27.38%, and we are not changing the process in response to this one.`,
+            await alertDetail(
+              `The picks have fallen ${drawdown.toFixed(1)}% from their high-water mark, crossing the ${band}% mark. Drawdowns are part of the strategy. The published backtest had a maximum drawdown of 27.38%, and we are not changing the process in response to this one.`,
+              {
+                kind: "drawdown",
+                picks_off_high_pct: Number(drawdown.toFixed(1)),
+                band_pct: band,
+                published_backtest_max_drawdown_pct: 27.38,
+                process_change: "none; drawdowns are part of the strategy",
+              },
+            ),
             [
               {
                 label: "Off the high",

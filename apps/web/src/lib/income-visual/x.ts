@@ -1,3 +1,4 @@
+import { withAiRead } from "@/lib/short-copy";
 import {
   countIncomeVisualsToday,
   createThreadDraft,
@@ -127,15 +128,16 @@ export async function queueIncomeVisual(
   }
   const surprise = surpriseFor(visual.statement, payload.earnings);
   const mix = mixFor(visual);
+  const draftFacts = {
+    ...factsFor(visual, theme),
+    ...(surprise ? { surprise } : {}),
+    ...(typeof marketCap === "number" ? { market_cap: marketCap } : {}),
+  };
   const { thread, created } = await createThreadDraft({
     kind: "income_visual",
     dedupeKey: incomeVisualDedupeKey(visual),
-    posts: [incomeVisualPostText(visual, { surprise, mix })],
-    facts: {
-      ...factsFor(visual, theme),
-      ...(surprise ? { surprise } : {}),
-      ...(typeof marketCap === "number" ? { market_cap: marketCap } : {}),
-    },
+    posts: [await withAiRead(incomeVisualPostText(visual, { surprise, mix }), draftFacts)],
+    facts: draftFacts,
   });
   return { ok: true, threadId: thread.id, created };
 }

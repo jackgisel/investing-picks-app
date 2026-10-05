@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import {
   CAMPAIGN_SINGLES,
   CAMPAIGN_THREADS,
@@ -20,11 +24,67 @@ export function CampaignDraftsPanel() {
         </p>
       </header>
 
+      <AiDraft />
+
       <DraftIndex />
 
       <DraftSection title="Singles" drafts={CAMPAIGN_SINGLES} />
       <DraftSection title="Threads" drafts={CAMPAIGN_THREADS} />
     </div>
+  );
+}
+
+function AiDraft() {
+  const [topic, setTopic] = useState("");
+  const [thread, setThread] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const generate = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/ops/campaign-drafts/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topic, thread }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { error?: string; posts?: string[] };
+      if (!res.ok) throw new Error(body.error ?? `Request failed (${res.status})`);
+      return body.posts ?? [];
+    },
+    onSuccess: () => setError(null),
+    onError: (e: Error) => setError(e.message),
+  });
+  const posts = generate.data;
+  return (
+    <section className="data-card space-y-3">
+      <p className="field-label">Draft with AI</p>
+      <input
+        className="w-full rounded border border-border bg-transparent px-3 py-2 font-sans text-sm text-text"
+        placeholder="Topic, e.g. cooling suppliers for data centers"
+        value={topic}
+        onChange={(e) => setTopic(e.target.value)}
+      />
+      <label className="flex items-center gap-2 font-sans text-sm text-text-muted">
+        <input type="checkbox" checked={thread} onChange={(e) => setThread(e.target.checked)} />
+        Thread
+      </label>
+      <button
+        type="button"
+        onClick={() => generate.mutate()}
+        disabled={generate.isPending || !topic.trim()}
+        className="btn-outline !py-2 !px-4 !text-[11px] disabled:opacity-50"
+      >
+        {generate.isPending ? "Researching and writing…" : "Draft"}
+      </button>
+      {error && <p className="text-sm text-accent-red">{error}</p>}
+      {posts && (
+        <ol className="space-y-3 border-t border-border pt-3">
+          {posts.map((post, index) => (
+            <li key={index} className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-text">
+              {post}
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
   );
 }
 

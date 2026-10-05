@@ -60,6 +60,12 @@ describe("hero image preload", () => {
     "utf8",
   );
 
+  it("keeps a quiet pricing link beside the primary CTA", () => {
+    expect(hero).toContain("<HeroCtaButton />");
+    expect(hero).toContain('href="/pricing"');
+    expect(hero).toContain("See what&apos;s included");
+  });
+
   it("preloads only the WebP for the current breakpoint", () => {
     expect(hero).toContain('href="/hero-moon-soft.webp"');
     expect(hero).toContain('media="(max-width: 1023px)"');

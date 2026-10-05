@@ -5,7 +5,7 @@ import {
   refreshIncomeStatement,
   TICKER_PATTERN,
 } from "@/lib/income-visual/server";
-import { incomeVisualConfig, MIN_MARKET_CAP } from "@/lib/income-visual/x";
+import { incomeVisualConfig } from "@/lib/income-visual/x";
 import { xCredentialsFromEnv } from "@/lib/x-client";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +22,7 @@ export async function GET(req: Request) {
   }
   return NextResponse.json({
     ...list,
-    config: { ...incomeVisualConfig(), minMarketCap: MIN_MARKET_CAP },
+    config: incomeVisualConfig(),
     xConfigured: xCredentialsFromEnv() !== null,
   });
 }

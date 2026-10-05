@@ -5,7 +5,12 @@ import {
   type PeriodType,
   type StoredStatement,
 } from "./model";
-import { money, pct, signedPct, signedPp } from "./format";
+import {
+  incomeVisualCaption,
+  type EarningsPrint,
+  type MixRow,
+  type Surprise,
+} from "./graphics";
 
 export type IncomePayload = {
   ticker: string;
@@ -14,6 +19,7 @@ export type IncomePayload = {
   held: boolean;
   period_type: PeriodType;
   statements: StoredStatement[];
+  earnings?: EarningsPrint[];
 };
 
 export type IncomeVisual = {
@@ -47,44 +53,11 @@ export function incomeVisualFrom(
  * No link. A post with a URL costs over ten times one without, and the image
  * already carries the domain.
  */
-export function incomeVisualPostText(visual: IncomeVisual): string {
-  const { payload, statement, flow } = visual;
-  const m = flow.metrics;
-  const withChange = (base: string, change: string | null) =>
-    change === null ? base : `${base} (${change})`;
-
-  const lines = [`$${payload.ticker} ${statement.fiscal_label} income statement`, ""];
-  lines.push(
-    withChange(
-      `Revenue ${money(flow.revenue, flow.currency)}`,
-      m.revenueYoy === null ? null : `${signedPct(m.revenueYoy)} Y/Y`,
-    ),
-  );
-  if (m.grossMargin !== null) {
-    lines.push(
-      withChange(
-        `Gross margin ${pct(m.grossMargin)}`,
-        m.grossMarginPriorPp === null ? null : signedPp(m.grossMarginPriorPp),
-      ),
-    );
-  }
-  if (m.operatingMargin !== null) {
-    lines.push(
-      withChange(
-        `Operating margin ${pct(m.operatingMargin)}`,
-        m.operatingMarginPriorPp === null ? null : signedPp(m.operatingMarginPriorPp),
-      ),
-    );
-  }
-  lines.push(
-    m.netIncome > 0
-      ? withChange(
-          `Net income ${money(m.netIncome, flow.currency)}`,
-          m.netIncomeYoy === null ? null : `${signedPct(m.netIncomeYoy)} Y/Y`,
-        )
-      : `Net loss ${money(-m.netIncome, flow.currency)}`,
-  );
-  return lines.join("\n");
+export function incomeVisualPostText(
+  visual: IncomeVisual,
+  extras?: { surprise?: Surprise | null; mix?: MixRow[] | null },
+): string {
+  return incomeVisualCaption(visual, extras);
 }
 
 export function incomeVisualKey(ticker: string, periodType: PeriodType, period: string): string {

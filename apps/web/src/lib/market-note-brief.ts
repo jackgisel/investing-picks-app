@@ -30,6 +30,12 @@ export type EditorialBrief = {
       earnings_report_date: string | null;
     } | null;
   }[];
+  news?: {
+    ticker: string;
+    headline: string;
+    publisher?: string | null;
+    published_at?: string;
+  }[];
 };
 
 export type MarketNotePreviewDraft = {
@@ -37,6 +43,7 @@ export type MarketNotePreviewDraft = {
   watchlist: MarketNoteWatchItem[];
   sectorsMd: string;
   sentimentMd: string;
+  newsMd: string;
   dates: MarketNoteUpcomingDate[];
   /** Composed markdown, kept so the send pipeline can stay on `body_md`. */
   bodyMd: string;
@@ -77,20 +84,6 @@ function sectorsMarkdown(sectors: EditorialBrief["sectors"]): string {
     .join("\n");
 }
 
-function sentimentFromSectors(sectors: EditorialBrief["sectors"]): string {
-  const rising = sectors.filter((s) => (s.high_rating_change ?? 0) > 0);
-  const falling = sectors.filter((s) => (s.high_rating_change ?? 0) < 0);
-  const excitement =
-    rising.length > 0
-      ? `Breadth is building in ${rising.map((s) => s.sector).join(", ")}, with more names clearing the screen than a week ago.`
-      : "No sector is adding names above the rating threshold this week, so the excitement is not a broadening screen.";
-  const fear =
-    falling.length > 0
-      ? `The fear is ${falling.map((s) => s.sector).join(", ")}, where the screen is losing names. A cheaper multiple with rolling estimates is a trap, not a gift.`
-      : "Nothing in the sector tape is shrinking in a way that looks like a trap forming. The thing to watch is still revisions, not the de-rating itself.";
-  return `${excitement}\n\n${fear}`;
-}
-
 function datesFromWatchlist(
   watchlist: EditorialBrief["watchlist"],
 ): MarketNoteUpcomingDate[] {
@@ -110,31 +103,40 @@ function datesFromWatchlist(
     }));
 }
 
-/** Turn the scoring snapshot into the four Sunday preview fields. */
+function newsMarkdown(news: EditorialBrief["news"]): string {
+  if (!news?.length) return "";
+  return news
+    .slice(0, 8)
+    .map((item) => `- **${item.ticker}**: ${item.headline}`)
+    .join("\n");
+}
+
+/** Turn the scoring snapshot into the Monday note sections. */
 export function previewFromEditorialBrief(
   brief: EditorialBrief,
 ): MarketNotePreviewDraft {
   const watchlist = normalizeWatchlist(
-    brief.watchlist.slice(0, 3).map((stock) => ({
+    brief.watchlist.slice(0, 10).map((stock) => ({
       ticker: stock.ticker,
       name: stock.name,
       note: watchNote(stock),
     })),
   );
   const sectorsMd = sectorsMarkdown(brief.sectors);
-  const sentimentMd = sentimentFromSectors(brief.sectors);
+  const newsMd = newsMarkdown(brief.news);
   const dates = normalizeDates(datesFromWatchlist(brief.watchlist));
   const lede = brief.rating_as_of
-    ? `The latest model screen is dated ${brief.rating_as_of}. Here is where its breadth is building, and three highly rated names outside the current book.`
-    : "Here is where the screen is building, and three highly rated names outside the current book.";
+    ? `The latest model screen is dated ${brief.rating_as_of}. Sector rotation, what is in the news, and the names on the radar. None of them are holdings.`
+    : "Sector rotation, what is in the news, and the names on the radar. None of them are holdings.";
   const bodyMd =
     composeMarketNoteBodyMd({
       watchlist,
       sectorsMd,
-      sentimentMd,
+      sentimentMd: "",
+      newsMd,
       dates,
     }) ?? "";
-  return { lede, watchlist, sectorsMd, sentimentMd, dates, bodyMd };
+  return { lede, watchlist, sectorsMd, sentimentMd: "", newsMd, dates, bodyMd };
 }
 
 /** A reviewable draft block, never an automatic send. */

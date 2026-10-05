@@ -20,11 +20,12 @@ from sqlalchemy.orm import Session
 from app.db.models import IncomeStatement, Stock
 from worker.services.fmp import FMPAccessError, FMPClient
 from worker.services.ingest import held_tickers
+from worker.services.x_themes import theme_tickers
 
 log = logging.getLogger(__name__)
 
-#: Five quarters: the latest plus the same quarter a year earlier for Y/Y.
-QUARTERS = 5
+#: Eight quarters, so an X card can show two years of revenue and margin.
+QUARTERS = 8
 #: Two fiscal years: the latest plus the one before it.
 YEARS = 2
 #: How long after a print to keep looking for its statement. Most land the
@@ -232,6 +233,7 @@ def watch_reporters(db: Session, fmp: FMPClient, today: date | None = None) -> d
         return result
 
     held = held_tickers(db)
+    themes = theme_tickers()
     stocks = (
         db.query(Stock.ticker, Stock.market_cap, Stock.name)
         .filter(
@@ -249,7 +251,7 @@ def watch_reporters(db: Session, fmp: FMPClient, today: date | None = None) -> d
     # one statement, and two drafts of it would be the same post twice.
     by_company: dict[str, str] = {}
     for ticker, _, name in stocks:
-        if not (ticker in held or caps[ticker] >= WATCH_MIN_MARKET_CAP):
+        if not (ticker in held or ticker in themes or caps[ticker] >= WATCH_MIN_MARKET_CAP):
             continue
         key = (name or ticker).strip().lower()
         if key not in by_company or rank(ticker) > rank(by_company[key]):

@@ -1,18 +1,11 @@
-import {
-  autoConfirmDueIncomeVisuals,
-  claimThreadForPosting,
-  listThreadsReadyToPost,
-  recordThreadResult,
-  rejectThread,
-  releaseThreadClaim,
-  type XThread,
-  type XThreadKind,
-} from "@/lib/x-threads-db";
+import { autoConfirmDueIncomeVisuals, autoConfirmDueScheduledPosts, claimThreadForPosting, listThreadsReadyToPost, recordThreadResult, rejectThread, releaseThreadClaim, type XThread, type XThreadKind } from "@/lib/x-threads-db";
 import { incomeVisualConfig, incomeVisualMedia } from "@/lib/income-visual/x";
 import {
   postThread,
+  postingAccount,
   threadUrl,
   xCredentialsFromEnv,
+  type XCredentials,
 } from "@/lib/x-client";
 
 /**
@@ -29,7 +22,8 @@ export type PostThreadsResult = {
   attempted: number;
   posted: number;
   failed: number;
-  skipped?: "no_credentials" | "nothing_confirmed";
+  skipped?: "no_credentials" | "nothing_confirmed" | "wrong_account";
+  error?: string;
   results: {
     threadId: string;
     kind: XThreadKind;
@@ -45,20 +39,21 @@ export type PostThreadsResult = {
  * Split out from the sweep so the ops "post now" button runs the identical
  * path. The claim has to happen before this is called.
  */
-async function postClaimed(thread: XThread, handle: string) {
-  const credentials = xCredentialsFromEnv();
-  if (!credentials) {
-    await releaseThreadClaim(thread.id);
-    return {
-      threadId: thread.id,
-      kind: thread.kind,
-      postedCount: 0,
-      error: "X credentials are not configured",
-    };
-  }
-
+async function postClaimed(
+  thread: XThread,
+  handle: string,
+  credentials: XCredentials,
+) {
   let firstPostMediaIds: string[] | undefined;
-  if (thread.kind === "income_visual") {
+  if (
+    thread.kind === "income_visual" ||
+    thread.kind === "week_roundup" ||
+    thread.kind === "workforce_visual" ||
+    thread.kind === "jobs_visual" ||
+    thread.kind === "headcount_visual" ||
+    thread.kind === "revenue_visual" ||
+    thread.kind === "pick_result"
+  ) {
     const media = await incomeVisualMedia(thread, credentials);
     if (!media.ok) {
       await releaseThreadClaim(thread.id);
@@ -114,8 +109,8 @@ async function postClaimed(thread: XThread, handle: string) {
 export async function postConfirmedThreads(
   limit = 3,
 ): Promise<PostThreadsResult> {
-  const handle = process.env.X_HANDLE ?? "outpick";
-  if (!xCredentialsFromEnv()) {
+  const credentials = xCredentialsFromEnv();
+  if (!credentials) {
     return {
       attempted: 0,
       posted: 0,
@@ -124,9 +119,24 @@ export async function postConfirmedThreads(
       results: [],
     };
   }
+  const account = await postingAccount(credentials);
+  if (!account.ok) {
+    return {
+      attempted: 0,
+      posted: 0,
+      failed: 0,
+      skipped: "wrong_account",
+      error: account.error,
+      results: [],
+    };
+  }
+  const handle = account.username;
 
   const visuals = incomeVisualConfig();
-  if (visuals.autoPost) await autoConfirmDueIncomeVisuals(visuals.reviewHours);
+  if (visuals.autoPost) {
+    await autoConfirmDueScheduledPosts();
+    await autoConfirmDueIncomeVisuals(visuals.reviewHours);
+  }
 
   const ready = await listThreadsReadyToPost(limit);
   if (ready.length === 0) {
@@ -145,7 +155,7 @@ export async function postConfirmedThreads(
     // between the SELECT and here, and losing that race must mean skipping.
     const claimed = await claimThreadForPosting(candidate.id);
     if (!claimed) continue;
-    results.push(await postClaimed(claimed, handle));
+    results.push(await postClaimed(claimed, handle, credentials));
   }
 
   return {
@@ -160,6 +170,11 @@ export async function postConfirmedThreads(
 export async function postThreadNow(
   id: string,
 ): Promise<PostThreadsResult["results"][number] | { error: string }> {
+  const credentials = xCredentialsFromEnv();
+  if (!credentials) return { error: "X credentials are not configured" };
+  const account = await postingAccount(credentials);
+  if (!account.ok) return { error: account.error };
+
   const claimed = await claimThreadForPosting(id);
   if (!claimed) {
     return {
@@ -167,5 +182,5 @@ export async function postThreadNow(
         "Thread is not postable — it must be a confirmed draft that has not been posted",
     };
   }
-  return postClaimed(claimed, process.env.X_HANDLE ?? "outpick");
+  return postClaimed(claimed, account.username, credentials);
 }

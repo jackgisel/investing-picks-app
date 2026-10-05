@@ -3,18 +3,16 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Download, RefreshCw, Send } from "lucide-react";
-import { formatCompactUsd } from "@/lib/market-cap";
 import { incomeVisualUrl } from "@/lib/income-visual/url";
 import type { PeriodType } from "@/lib/income-visual/model";
 import { communicationHref } from "@/lib/communication";
 
 /**
- * Preview and queue the income-statement visuals.
+ * Preview and queue the earnings cards.
  *
- * The worker drafts each big print into the X queue as its statement lands;
- * this page is for looking at them first, pulling any other ticker, and
- * queueing one by hand. Holdings preview here too but cannot be queued — a
- * post about a holding is a post about a pick.
+ * The worker drafts a sankey or a pie when a theme-list company reports.
+ * This page is for looking at them first, pulling any other ticker, and
+ * queueing one by hand. Holdings preview here too but cannot be queued.
  */
 
 type Item = {
@@ -33,7 +31,7 @@ type Payload = {
   recent: Item[];
   held: Item[];
   days: number;
-  config: { autoPost: boolean; reviewHours: number; perDay: number; minMarketCap: number };
+  config: { autoPost: boolean; reviewHours: number; perDay: number };
   xConfigured: boolean;
 };
 
@@ -105,9 +103,9 @@ export function IncomeVisualsPanel() {
         <p className="panel-label mb-2">Income visuals</p>
         <p className="mt-2 max-w-2xl text-sm text-text-muted">
           Income statements drawn as flows, square for X. Every 15 minutes on
-          weekdays the worker checks the earnings calendar; when a company has
-          reported and its statement lands, the visual is drafted into the X
-          queue straight away. Holdings are never posted.
+          weekdays the worker checks the earnings calendar. A print is drafted
+          only when the company is on the theme list (platforms, semiconductors,
+          AI infrastructure, energy and power). Holdings are never posted.
         </p>
       </header>
 
@@ -122,14 +120,13 @@ export function IncomeVisualsPanel() {
                   : "Off: drafts wait for Confirm"}
               </p>
               <p className="font-mono text-xs text-text-muted">
-                Up to {data.config.perDay} a day, companies over{" "}
-                {formatCompactUsd(data.config.minMarketCap)}; a bigger print
+                Up to {data.config.perDay} theme-list names a day; a bigger print
                 replaces the smallest unposted draft.{" "}
                 {data.xConfigured ? "X credentials configured." : "No X credentials on this deployment."}
               </p>
               <p className="font-sans text-xs text-text-dim">
                 Reject a draft in{" "}
-                <a className="underline underline-offset-2" href={communicationHref("x-threads")}>
+                <a className="underline underline-offset-2" href={communicationHref("x")}>
                   X Threads
                 </a>{" "}
                 to stop it.
@@ -206,7 +203,7 @@ export function IncomeVisualsPanel() {
           {queued && (
             <p className="text-sm text-text-muted">
               {queued}{" "}
-              <a className="underline underline-offset-2" href={communicationHref("x-threads")}>
+              <a className="underline underline-offset-2" href={communicationHref("x")}>
                 Review it
               </a>
             </p>

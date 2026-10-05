@@ -23,9 +23,15 @@ export type XThreadKind =
   | "hot_take"
   | "leaderboard"
   | "poll_prompt"
-  // A one-post income statement image. The only kind that confirms itself —
-  // see `autoConfirmDueIncomeVisuals`.
-  | "income_visual";
+  // Public-data graphics. These confirm themselves once the review window
+  // passes — see `autoConfirmDueIncomeVisuals`.
+  | "income_visual"
+  | "week_roundup"
+  | "workforce_visual"
+  | "jobs_visual"
+  | "headcount_visual"
+  | "revenue_visual"
+  | "pick_result";
 export type XThreadStatus = "draft" | "posted" | "failed" | "rejected";
 
 export type XThread = {
@@ -299,13 +305,13 @@ export async function releaseThreadClaim(id: string): Promise<void> {
 /**
  * Confirm the oldest income visual whose review window has run out.
  *
- * The one exception to "nothing posts unconfirmed", and narrow on purpose: an
- * income visual's text and image are both computed from a filed statement with
- * no model in the loop, it makes no claim about our book, and the drafting
+ * The exception to "nothing posts unconfirmed": income visuals, the Friday
+ * comparison, and the workforce card. Each is computed from public filings
+ * with no model in the loop, makes no claim about the book, and the drafting
  * step refuses held names. Rejecting inside the window is the stop.
  *
- * One per call. The posting tick is hourly, so this spaces a morning's
- * drafts an hour apart instead of landing them on the timeline together.
+ * One per call. The posting tick runs every 15 minutes, so a morning's
+ * earnings drafts go out one at a time instead of landing together.
  */
 export async function autoConfirmDueIncomeVisuals(
   reviewHours: number,
@@ -315,7 +321,7 @@ export async function autoConfirmDueIncomeVisuals(
         SET confirmed_at = NOW(), updated_at = NOW()
       WHERE id = (
               SELECT id FROM x_thread
-               WHERE kind = 'income_visual'
+               WHERE kind IN ('income_visual', 'week_roundup', 'workforce_visual')
                  AND status = 'draft'
                  AND confirmed_at IS NULL
                  AND posted_at IS NULL
@@ -330,6 +336,28 @@ export async function autoConfirmDueIncomeVisuals(
     [reviewHours],
   );
   return rows[0] ? String(rows[0].id) : null;
+}
+
+/** Confirm daily graphics and the pick-result post once their clock time has passed. */
+export async function autoConfirmDueScheduledPosts(): Promise<number> {
+  const { rowCount } = await pool.query(
+    `UPDATE x_thread
+        SET confirmed_at = NOW(), updated_at = NOW()
+      WHERE id IN (
+              SELECT id FROM x_thread
+               WHERE kind IN ('jobs_visual', 'headcount_visual', 'revenue_visual', 'pick_result')
+                 AND status = 'draft'
+                 AND confirmed_at IS NULL
+                 AND posted_at IS NULL
+                 AND (facts->>'post_at')::timestamptz <= NOW()
+               ORDER BY (facts->>'post_at')::timestamptz
+               LIMIT 3
+            )
+        AND status = 'draft'
+        AND confirmed_at IS NULL
+        AND posted_at IS NULL`,
+  );
+  return rowCount ?? 0;
 }
 
 /** Start of today's trading day, which is what "per day" means for prints. */

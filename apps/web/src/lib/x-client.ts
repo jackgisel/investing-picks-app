@@ -83,6 +83,70 @@ export type ThreadResult = {
  * posting job rather than failing it, the same way a missing WEB_APP_URL
  * skips the drafting sweep.
  */
+/** Permalink handle when `X_HANDLE` is unset. The brand account, without `@`. */
+export const DEFAULT_X_HANDLE = "outpickxyz";
+
+/** The handle this deployment intends to post as. Env wins; otherwise the brand. */
+export function xHandleFromEnv(): string {
+  const raw = (process.env.X_HANDLE ?? DEFAULT_X_HANDLE).trim().replace(/^@/, "");
+  return raw || DEFAULT_X_HANDLE;
+}
+
+export type PostingAccount =
+  | { ok: true; username: string }
+  | { ok: false; expected: string; actual: string | null; error: string };
+
+/**
+ * Who the access token actually posts as.
+ *
+ * `X_HANDLE` is not sent to X. A token minted for a different login will
+ * publish there anyway, so the only check that means anything is `users/me`.
+ */
+export async function fetchPostingUser(
+  credentials: XCredentials,
+): Promise<{ username: string }> {
+  const url = "https://api.x.com/2/users/me";
+  const res = await fetch(url, {
+    method: "GET",
+    headers: { Authorization: signRequest({ method: "GET", url, credentials }) },
+  });
+  const payload = (await res.json().catch(() => null)) as {
+    data?: { username?: string };
+    detail?: string;
+    title?: string;
+    errors?: { message?: string }[];
+  } | null;
+  const username = payload?.data?.username;
+  if (!res.ok || !username) {
+    throw new Error(`Could not read the posting account: ${errorDetail(payload, res.status)}`);
+  }
+  return { username };
+}
+
+/** Refuse to post when the token's user is not the handle this deployment names. */
+export async function postingAccount(credentials: XCredentials): Promise<PostingAccount> {
+  const expected = xHandleFromEnv();
+  try {
+    const { username } = await fetchPostingUser(credentials);
+    if (username.toLowerCase() !== expected.toLowerCase()) {
+      return {
+        ok: false,
+        expected,
+        actual: username,
+        error: `Token belongs to @${username}. This deployment posts as @${expected}.`,
+      };
+    }
+    return { ok: true, username };
+  } catch (e) {
+    return {
+      ok: false,
+      expected,
+      actual: null,
+      error: e instanceof Error ? e.message : "Could not read the posting account",
+    };
+  }
+}
+
 export function xCredentialsFromEnv(): XCredentials | null {
   const consumerKey = process.env.X_CONSUMER_KEY;
   const consumerSecret = process.env.X_CONSUMER_SECRET;

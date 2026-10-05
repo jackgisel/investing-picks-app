@@ -219,16 +219,22 @@ export function renderMarketNoteIssueEmail(args: {
   banner?: string;
   /** ISO week key (`2026-W35`) — prefers the pre-generated weekly pool art. */
   weekKey?: string;
+  /** Overrides the lilac eyebrow. Defaults to "The Market Note". */
+  eyebrow?: string;
+  /** Overrides the disclaimer under the body. */
+  disclaimer?: string;
 }): string {
   const body = `
-    ${eyebrow("The Market Note", "lilac")}
+    ${eyebrow(args.eyebrow ?? "The Market Note", "lilac")}
     ${heading(args.subject)}
     ${args.lede ? paragraph(escapeHtml(args.lede), 22) : ""}
     ${markdownToEmailHtml(args.bodyMd)}
     ${pillButton(`${args.siteUrl}/pricing`, "See what members get")}
     <p class="dm-dim" style="margin:0;font-family:${FONT_SANS};font-size:13px;color:${TEXT_DIM};line-height:1.6;">
-      This note is market commentary, not investment advice, and never our
-      picks. Those are for members.
+      ${escapeHtml(
+        args.disclaimer ??
+          "This note is market commentary, not investment advice, and never our picks. Those are for members.",
+      )}
     </p>
   `;
 

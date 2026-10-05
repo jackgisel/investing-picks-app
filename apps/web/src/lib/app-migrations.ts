@@ -525,7 +525,9 @@ export async function runAppMigrations() {
       ADD CONSTRAINT x_thread_kind_check
       CHECK (kind IN ('pick', 'weekly_review', 'market', 'spotlight',
                       'sunday_review', 'hot_take', 'leaderboard',
-                      'poll_prompt', 'income_visual'))
+                      'poll_prompt', 'income_visual', 'week_roundup',
+                      'workforce_visual', 'jobs_visual', 'headcount_visual',
+                      'revenue_visual', 'pick_result'))
   `);
   // The ops queue: newest first, drafts before anything else.
   await pool.query(`
@@ -548,7 +550,25 @@ export async function runAppMigrations() {
       ADD COLUMN IF NOT EXISTS watchlist JSONB NOT NULL DEFAULT '[]'::jsonb,
       ADD COLUMN IF NOT EXISTS sectors_md TEXT,
       ADD COLUMN IF NOT EXISTS sentiment_md TEXT,
-      ADD COLUMN IF NOT EXISTS dates JSONB NOT NULL DEFAULT '[]'::jsonb
+      ADD COLUMN IF NOT EXISTS dates JSONB NOT NULL DEFAULT '[]'::jsonb,
+      ADD COLUMN IF NOT EXISTS news_md TEXT
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS editorial_issue (
+      id BIGSERIAL PRIMARY KEY,
+      kind TEXT NOT NULL CHECK (kind IN ('market_analysis', 'pick_spotlight')),
+      period_key TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      body_md TEXT NOT NULL DEFAULT '',
+      ticker TEXT,
+      confirmed_at TIMESTAMPTZ,
+      sent_at TIMESTAMPTZ,
+      recipients INT NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (kind, period_key)
+    )
   `);
 
   /*

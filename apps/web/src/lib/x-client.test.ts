@@ -5,8 +5,10 @@ import {
   countChars,
   estimateCostUsd,
   percentEncode,
+  postingAccount,
   postThread,
   signatureBaseString,
+  xHandleFromEnv,
   signRequest,
   threadUrl,
   uploadImage,
@@ -370,6 +372,47 @@ describe("media", () => {
 
     expect(bodies[0].media).toEqual({ media_ids: ["m1"] });
     expect(bodies[1].media).toBeUndefined();
+  });
+});
+
+describe("posting account", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("defaults the handle to outpickxyz", () => {
+    vi.stubEnv("X_HANDLE", "");
+    expect(xHandleFromEnv()).toBe("outpickxyz");
+    vi.stubEnv("X_HANDLE", "@outpickxyz");
+    expect(xHandleFromEnv()).toBe("outpickxyz");
+  });
+
+  it("refuses a token that belongs to a different user", async () => {
+    vi.stubEnv("X_HANDLE", "outpickxyz");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ data: { username: "someoneelse" } })),
+    );
+    const account = await postingAccount(creds());
+    expect(account.ok).toBe(false);
+    if (!account.ok) {
+      expect(account.actual).toBe("someoneelse");
+      expect(account.expected).toBe("outpickxyz");
+    }
+  });
+
+  it("accepts the user the handle names", async () => {
+    vi.stubEnv("X_HANDLE", "outpickxyz");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        expect(url).toBe("https://api.x.com/2/users/me");
+        return jsonResponse({ data: { username: "OutpickXYZ" } });
+      }),
+    );
+    const account = await postingAccount(creds());
+    expect(account).toEqual({ ok: true, username: "OutpickXYZ" });
   });
 });
 

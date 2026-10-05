@@ -15,7 +15,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.db.models import IncomeStatement, Position, Stock
+from app.db.models import EarningsHistory, IncomeStatement, Position, Stock
+from app.services import workforce
 from app.db.session import get_db
 from app.routes.ops import require_ops_key
 
@@ -44,6 +45,37 @@ def _fiscal_label(row: IncomeStatement) -> str:
     if row.period_type == "annual" or row.fiscal_period == "FY":
         return f"FY{fy}"
     return f"{row.fiscal_period or 'Q?'} FY{fy}"
+
+
+def _num(data: dict, *keys: str) -> float | None:
+    for key in keys:
+        value = data.get(key)
+        if isinstance(value, (int, float)) and value == value:
+            return float(value)
+    return None
+
+
+def _earnings(db: Session, ticker: str) -> list[dict]:
+    rows = (
+        db.query(EarningsHistory)
+        .filter(EarningsHistory.ticker == ticker)
+        .order_by(EarningsHistory.date.desc())
+        .limit(12)
+        .all()
+    )
+    out = []
+    for row in rows:
+        data = row.data or {}
+        out.append(
+            {
+                "date": row.date.isoformat(),
+                "eps_actual": _num(data, "epsActual"),
+                "eps_estimated": _num(data, "epsEstimated", "epsEstimate"),
+                "revenue_actual": _num(data, "revenueActual"),
+                "revenue_estimated": _num(data, "revenueEstimated", "revenueEstimate"),
+            }
+        )
+    return out
 
 
 def _statement(row: IncomeStatement) -> dict:
@@ -117,7 +149,78 @@ def list_income_visuals(
         key=lambda i: -(i["market_cap"] or 0),
     )
     held_items = sorted((i for i in items if i["held"]), key=lambda i: i["ticker"])
-    return {"recent": recent, "held": held_items, "days": days}
+    annual = _recent_filers(db, "annual", held, since)
+    return {"recent": recent, "annual": annual, "held": held_items, "days": days}
+
+
+def _recent_filers(db: Session, period_type: str, held: set[str], since: date) -> list[dict]:
+    """Non-held names whose latest statement of this type was filed since `since`."""
+    latest = (
+        db.query(
+            IncomeStatement.ticker,
+            func.max(IncomeStatement.period).label("period"),
+        )
+        .filter(IncomeStatement.period_type == period_type)
+        .group_by(IncomeStatement.ticker)
+        .subquery()
+    )
+    rows = (
+        db.query(IncomeStatement, Stock)
+        .join(
+            latest,
+            (latest.c.ticker == IncomeStatement.ticker)
+            & (latest.c.period == IncomeStatement.period),
+        )
+        .outerjoin(Stock, Stock.ticker == IncomeStatement.ticker)
+        .filter(IncomeStatement.period_type == period_type)
+        .all()
+    )
+    items = []
+    for st, stock in rows:
+        if st.ticker in held or not st.accepted_date or st.accepted_date < since:
+            continue
+        items.append(
+            {
+                "ticker": st.ticker,
+                "name": stock.name if stock else None,
+                "sector": stock.sector if stock else None,
+                "market_cap": stock.market_cap if stock else None,
+                "period": st.period.isoformat(),
+                "fiscal_label": _fiscal_label(st),
+                "accepted_date": st.accepted_date.isoformat(),
+                "revenue": (st.data or {}).get("revenue"),
+                "held": False,
+            }
+        )
+    items.sort(key=lambda i: -(i["market_cap"] or 0))
+    return items
+
+
+@router.get("/x-workforce")
+def x_workforce(
+    tickers: str = "",
+    db: Session = Depends(get_db),
+):
+    """Workforce rows for an explicit ticker list. The web app passes the theme list."""
+    wanted = []
+    for raw in tickers.split(","):
+        ticker = raw.strip().upper()
+        if ticker and _TICKER.match(ticker):
+            wanted.append(ticker)
+    if not wanted:
+        return {"rows": []}
+    board = workforce.leaderboard(db, limit=len(wanted), only=wanted, exclude_sectors=())
+    keep = (
+        "ticker",
+        "name",
+        "rev_per_employee",
+        "leverage",
+        "openings_per_1000",
+        "openings_change_90d",
+        "employees_yoy",
+        "revenue_yoy",
+    )
+    return {"rows": [{key: row.get(key) for key in keep} for row in board["rows"]]}
 
 
 @router.get("/{ticker}")
@@ -146,6 +249,7 @@ def get_income_statements(
         "held": ticker in _held(db),
         "period_type": period_type,
         "statements": [_statement(r) for r in rows],
+        "earnings": _earnings(db, ticker),
     }
 
 

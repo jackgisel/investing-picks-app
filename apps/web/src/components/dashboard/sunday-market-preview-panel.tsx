@@ -8,7 +8,10 @@ import type { MarketNoteIssue } from "@/lib/market-note-issue";
 import type { MarketNotePreviewDraft } from "@/lib/market-note-brief";
 import {
   emptyWatchlist,
+  filledWatchlist,
   hasMarketNotePreviewContent,
+  MARKET_NOTE_WATCHLIST_MAX,
+  MARKET_NOTE_WATCHLIST_MIN,
   type MarketNoteUpcomingDate,
   type MarketNoteWatchItem,
 } from "@/lib/market-note-preview";
@@ -43,10 +46,9 @@ type SendResult = {
 };
 
 /**
- * Compose and send the Sunday Market Preview (the free weekly Market Note).
+ * Compose and send the Monday market note (the free weekly letter).
  *
- * Four first-class sections, not one markdown blob: the names we are looking
- * at, where sectors are moving, the fear/excitement, and dates ahead.
+ * Sector rotation, names in the news, and 5–10 radar stocks. Never a holding.
  */
 export function SundayMarketPreviewPanel() {
   const qc = useQueryClient();
@@ -82,11 +84,10 @@ export function SundayMarketPreviewPanel() {
   return (
     <div className="space-y-6">
       <header>
-        <p className="panel-label mb-2">Sunday Market Preview</p>
+        <p className="panel-label mb-2">Monday market note</p>
         <p className="font-sans text-sm text-text-muted max-w-xl">
-          The free weekly email, written as four sections: three names we are
-          looking at, where sectors are moving, the fear or excitement, and
-          dates ahead. Never the current portfolio picks.
+          The free Monday email: where sectors are rotating, what is in the
+          news, and 5 to 10 names on the radar. Never a holding.
           {list.data ? (
             <>
               {" "}
@@ -193,6 +194,7 @@ function IssueEditor({
     issue.watchlist.length ? issue.watchlist : emptyWatchlist(),
   );
   const [sectorsMd, setSectorsMd] = useState(issue.sectorsMd ?? "");
+  const [newsMd, setNewsMd] = useState(issue.newsMd ?? "");
   const [sentimentMd, setSentimentMd] = useState(issue.sentimentMd ?? "");
   const [dates, setDates] = useState<MarketNoteUpcomingDate[]>(issue.dates);
   const [legacyBody, setLegacyBody] = useState(issue.bodyMd ?? "");
@@ -203,6 +205,7 @@ function IssueEditor({
       watchlist,
       sectorsMd,
       sentimentMd,
+      newsMd,
       dates,
     });
   const showLegacyBody = Boolean(issue.bodyMd?.trim()) && structuredEmpty;
@@ -212,6 +215,7 @@ function IssueEditor({
     setLede(issue.lede ?? "");
     setWatchlist(issue.watchlist.length ? issue.watchlist : emptyWatchlist());
     setSectorsMd(issue.sectorsMd ?? "");
+    setNewsMd(issue.newsMd ?? "");
     setSentimentMd(issue.sentimentMd ?? "");
     setDates(issue.dates);
     setLegacyBody(issue.bodyMd ?? "");
@@ -228,6 +232,7 @@ function IssueEditor({
           bodyMd: legacyBody,
           watchlist,
           sectorsMd,
+          newsMd,
           sentimentMd,
           dates,
           confirmed,
@@ -270,7 +275,8 @@ function IssueEditor({
       setLede(brief.lede);
       setWatchlist(brief.watchlist);
       setSectorsMd(brief.sectorsMd);
-      setSentimentMd(brief.sentimentMd);
+      setNewsMd(brief.newsMd);
+      setSentimentMd("");
       setDates(brief.dates);
       setSaved(false);
       onError(null);
@@ -325,10 +331,12 @@ function IssueEditor({
       </div>
 
       <fieldset className="space-y-3">
-        <legend className={labelClass}>Top 3 stocks we are looking at</legend>
+        <legend className={labelClass}>
+          Radar ({filledWatchlist(watchlist).length}, need {MARKET_NOTE_WATCHLIST_MIN}–
+          {MARKET_NOTE_WATCHLIST_MAX})
+        </legend>
         <p className="text-xs text-text-dim -mt-1">
-          Names outside the current book. Not recommendations — the screen, not
-          the portfolio.
+          Names outside the book. Not recommendations.
         </p>
         {watchlist.map((item, i) => (
           <div
@@ -389,6 +397,31 @@ function IssueEditor({
             </div>
           </div>
         ))}
+        <div className="flex flex-wrap gap-2">
+          {watchlist.length < MARKET_NOTE_WATCHLIST_MAX && (
+            <button
+              type="button"
+              className="btn-outline !py-2 !px-4 !text-[11px]"
+              onClick={() =>
+                dirty(() =>
+                  setWatchlist([...watchlist, { ticker: "", name: null, note: "" }]),
+                )
+              }
+            >
+              <Plus size={12} />
+              Add a name
+            </button>
+          )}
+          {watchlist.length > MARKET_NOTE_WATCHLIST_MIN && (
+            <button
+              type="button"
+              className="btn-outline !py-2 !px-4 !text-[11px]"
+              onClick={() => dirty(() => setWatchlist(watchlist.slice(0, -1)))}
+            >
+              Remove last
+            </button>
+          )}
+        </div>
       </fieldset>
 
       <div>
@@ -406,15 +439,16 @@ function IssueEditor({
       </div>
 
       <div>
-        <label className={labelClass} htmlFor="smp-sentiment">
-          Fears and excitements
+        <label className={labelClass} htmlFor="smp-news">
+          In the news
         </label>
         <textarea
-          id="smp-sentiment"
+          id="smp-news"
           rows={6}
-          className={inputClass}
-          value={sentimentMd}
-          onChange={(e) => dirty(() => setSentimentMd(e.target.value))}
+          className={`${inputClass} font-mono text-[13px]`}
+          value={newsMd}
+          onChange={(e) => dirty(() => setNewsMd(e.target.value))}
+          placeholder="- **NVDA**: …"
         />
       </div>
 

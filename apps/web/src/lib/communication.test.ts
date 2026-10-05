@@ -1,40 +1,47 @@
 import { describe, expect, it } from "vitest";
 import {
   COMMUNICATION_PATH,
-  COMMUNICATION_TABS,
-  DEFAULT_COMMUNICATION_TAB,
+  COMMUNICATION_PIECES,
   LEGACY_COMMUNICATION_REDIRECTS,
   communicationHref,
   legacyCommunicationRedirect,
-  parseCommunicationTab,
+  parseCommunicationPiece,
 } from "./communication";
 
-describe("parseCommunicationTab", () => {
-  it("keeps a known tab", () => {
-    expect(parseCommunicationTab("sunday-market-preview")).toBe(
-      "sunday-market-preview",
+describe("parseCommunicationPiece", () => {
+  it("opens a known piece", () => {
+    expect(parseCommunicationPiece("monday-market-note", null)).toBe(
+      "monday-market-note",
     );
   });
 
-  it("falls back for missing or unknown values", () => {
-    expect(parseCommunicationTab(null)).toBe(DEFAULT_COMMUNICATION_TAB);
-    expect(parseCommunicationTab("not-a-tab")).toBe(DEFAULT_COMMUNICATION_TAB);
+  it("maps a retired tab onto the piece that replaced it", () => {
+    expect(parseCommunicationPiece(null, "sunday-market-preview")).toBe(
+      "monday-market-note",
+    );
+    expect(parseCommunicationPiece(null, "x-threads")).toBe("x");
+    expect(parseCommunicationPiece(null, "friday-portfolio-review")).toBeNull();
+  });
+
+  it("opens the week desk for a missing or unknown value", () => {
+    expect(parseCommunicationPiece(null, null)).toBeNull();
+    expect(parseCommunicationPiece("not-a-piece", "not-a-tab")).toBeNull();
   });
 });
 
 describe("legacyCommunicationRedirect", () => {
-  it("maps every retired admin comms URL onto a Communication tab", () => {
+  it("maps every retired admin comms URL onto the desk or a piece", () => {
     expect(legacyCommunicationRedirect("/dashboard/dca")).toBe(
       communicationHref("friday-stock-pick"),
     );
     expect(legacyCommunicationRedirect("/dashboard/ops/weekly-review")).toBe(
-      communicationHref("friday-portfolio-review"),
+      COMMUNICATION_PATH,
     );
     expect(legacyCommunicationRedirect("/dashboard/ops/market-note")).toBe(
-      communicationHref("sunday-market-preview"),
+      communicationHref("monday-market-note"),
     );
     expect(legacyCommunicationRedirect("/dashboard/ops/x-threads")).toBe(
-      communicationHref("x-threads"),
+      communicationHref("x"),
     );
     expect(legacyCommunicationRedirect("/dashboard/ops/product-updates")).toBe(
       communicationHref("product-updates"),
@@ -44,27 +51,13 @@ describe("legacyCommunicationRedirect", () => {
   it("leaves unrelated admin pages alone", () => {
     expect(legacyCommunicationRedirect("/dashboard/ops")).toBeNull();
     expect(legacyCommunicationRedirect("/dashboard/ops/book")).toBeNull();
-    expect(legacyCommunicationRedirect("/dashboard/ops/feature-requests")).toBeNull();
   });
 
-  it("covers every legacy comms URL exactly once", () => {
-    const tabs = Object.values(LEGACY_COMMUNICATION_REDIRECTS);
-    expect(new Set(tabs).size).toBe(tabs.length);
-    expect(tabs.every((tab) => COMMUNICATION_TABS.some((item) => item.id === tab))).toBe(
-      true,
-    );
+  it("only points legacy URLs at real pieces", () => {
+    for (const piece of Object.values(LEGACY_COMMUNICATION_REDIRECTS)) {
+      if (piece === null) continue;
+      expect(COMMUNICATION_PIECES.some((item) => item.id === piece)).toBe(true);
+    }
     expect(COMMUNICATION_PATH).toBe("/dashboard/ops/communication");
-  });
-
-  it("includes an Invites tab that has no legacy URL", () => {
-    expect(COMMUNICATION_TABS.map((tab) => tab.id)).toContain("invites");
-    expect(Object.values(LEGACY_COMMUNICATION_REDIRECTS)).not.toContain("invites");
-  });
-
-  it("includes a Campaign drafts tab that has no legacy URL", () => {
-    expect(COMMUNICATION_TABS.map((tab) => tab.id)).toContain("campaign-drafts");
-    expect(Object.values(LEGACY_COMMUNICATION_REDIRECTS)).not.toContain(
-      "campaign-drafts",
-    );
   });
 });

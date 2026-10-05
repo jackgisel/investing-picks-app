@@ -1,14 +1,21 @@
 # X posts
 
-The only thing Outpick posts to X is an income visual: a company's income
-statement drawn as a flow, queued as each company reports. The written thread
-formats (weekly review, market, spotlight, week ahead, hot take, leaderboard,
-question) were removed.
+Outpick posts graphics for a fixed theme list (Big Tech and AI platforms,
+semiconductors, AI infrastructure, energy and power) — see
+`apps/web/src/lib/income-visual/themes.json`. A name not on that list is not
+drafted, and a holding is never posted.
 
-Drafts land in Communication → X Threads
-(`/dashboard/ops/communication?tab=x-threads`). An income visual posts itself
-once its review window passes unless an admin rejects it; see
-`apps/web/src/lib/income-visual/x.ts` for the knobs
+Each weekday drafts three graphics — open roles, headcount, and revenue —
+and posts them at a stable time inside the morning, midday, and afternoon
+windows. When a theme-list company reports, one more card is drafted: the
+income mix when it is stored, otherwise the income-statement flow. On an
+evaluation Friday a pick-result post names one holding from the prior cycle.
+The written thread formats were removed.
+
+Drafts land in Communication → X
+(`/dashboard/ops/communication?piece=x`). A daily graphic posts at its clock
+time unless an admin rejects it. An earnings card posts once its review
+window passes. See `apps/web/src/lib/income-visual/x.ts` for the knobs
 (`X_INCOME_VISUALS_AUTO_POST`, `X_INCOME_VISUAL_REVIEW_HOURS`,
 `X_INCOME_VISUALS_PER_DAY`).
 
@@ -28,11 +35,18 @@ once its review window passes unless an admin rejects it; see
    X_CONSUMER_SECRET=
    X_ACCESS_TOKEN=
    X_ACCESS_TOKEN_SECRET=
-   X_HANDLE=outpick          # no @, used only to build permalinks
+   X_HANDLE=outpickxyz       # no @. Must match the user the access token belongs to.
    ```
 
    With any of the four secrets unset, drafts still queue and posting is
    disabled — the ops page says so, and the job skips rather than failing.
+
+   The access token is the account that posts. Before each run the web app
+   calls `GET /2/users/me` and refuses to post when that username is not
+   `X_HANDLE`. A mismatch is shown on Communication → X Threads. Regenerating
+   the access token while logged into @outpickxyz, then setting the four
+   secrets and `X_HANDLE=outpickxyz` on the web service, is what changes the
+   account. The default handle, when `X_HANDLE` is unset, is `outpickxyz`.
 
 ## Cost
 
@@ -52,7 +66,7 @@ each thread before you confirm it.
 | When (PT) | Job | What it does |
 |---|---|---|
 | Weekdays 03:30 | `income_statements_refresh` | Refreshes statements for every held name |
-| Weekdays 04:00–19:45, every 15 min | `income_visuals_watch` | Drafts a visual for each new print |
-| Hourly, weekdays 07:00–17:00 | `x_thread_post` | Posts whatever is confirmed or past its review window |
+| Weekdays 04:00–19:45, every 15 min | `income_visuals_watch` | Drafts the day's jobs, headcount, and revenue cards, plus a sankey or pie when a theme-list company reports |
+| Weekdays 08:00–18:45, every 15 min | `x_thread_post` | Posts a graphic once its clock time has passed, unless it was rejected |
 
 Run either on demand with `RUN_JOB_ONCE=<job>` on the worker.

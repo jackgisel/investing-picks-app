@@ -18,10 +18,9 @@ import {
  * week edits one issue instead of creating two, and so the dispatch ledger key
  * and the row key are the same string.
  *
- * The Sunday Market Preview editor writes four first-class fields (watchlist,
- * sectors, sentiment, dates). `body_md` is still what gets mailed — composed
- * from those fields on save, or kept as-is for issues written before the
- * sections existed.
+ * The Monday note editor writes the radar, sector rotation, and the news
+ * cycle. `body_md` is still what gets mailed — composed from those fields on
+ * save, or kept as-is for issues written before the sections existed.
  */
 
 export type MarketNoteIssue = {
@@ -33,6 +32,7 @@ export type MarketNoteIssue = {
   watchlist: MarketNoteWatchItem[];
   sectorsMd: string | null;
   sentimentMd: string | null;
+  newsMd: string | null;
   dates: MarketNoteUpcomingDate[];
   confirmedAt: string | null;
   sentAt: string | null;
@@ -50,6 +50,7 @@ type Row = {
   watchlist: unknown;
   sectors_md: string | null;
   sentiment_md: string | null;
+  news_md: string | null;
   dates: unknown;
   confirmed_at: Date | null;
   sent_at: Date | null;
@@ -59,7 +60,7 @@ type Row = {
 };
 
 const COLUMNS = `id, week_key, subject, lede, body_md, watchlist, sectors_md,
-  sentiment_md, dates, confirmed_at, sent_at, recipients, created_at, updated_at`;
+  sentiment_md, news_md, dates, confirmed_at, sent_at, recipients, created_at, updated_at`;
 
 function toIssue(r: Row): MarketNoteIssue {
   return {
@@ -71,6 +72,7 @@ function toIssue(r: Row): MarketNoteIssue {
     watchlist: normalizeWatchlist(r.watchlist),
     sectorsMd: r.sectors_md,
     sentimentMd: r.sentiment_md,
+    newsMd: r.news_md,
     dates: normalizeDates(r.dates),
     confirmedAt: r.confirmed_at ? r.confirmed_at.toISOString() : null,
     sentAt: r.sent_at ? r.sent_at.toISOString() : null,
@@ -139,6 +141,7 @@ export type MarketNoteIssueFields = {
   watchlist: unknown;
   sectorsMd: string | null;
   sentimentMd: string | null;
+  newsMd: string | null;
   dates: unknown;
 };
 
@@ -152,6 +155,7 @@ export function resolvedMarketNoteBodyMd(
       watchlist,
       sectorsMd: fields.sectorsMd,
       sentimentMd: fields.sentimentMd,
+      newsMd: fields.newsMd,
       dates,
     }) ?? (fields.bodyMd?.trim() || null)
   );
@@ -165,17 +169,19 @@ export async function saveIssue(
   const dates = normalizeDates(fields.dates);
   const sectorsMd = fields.sectorsMd?.trim() || null;
   const sentimentMd = fields.sentimentMd?.trim() || null;
+  const newsMd = fields.newsMd?.trim() || null;
   const bodyMd = resolvedMarketNoteBodyMd({
     watchlist,
     sectorsMd,
     sentimentMd,
+    newsMd,
     dates,
     bodyMd: fields.bodyMd,
   });
   const { rows } = await pool.query<Row>(
     `UPDATE market_note_issue
         SET subject = $2, lede = $3, body_md = $4, watchlist = $5::jsonb,
-            sectors_md = $6, sentiment_md = $7, dates = $8::jsonb,
+            sectors_md = $6, sentiment_md = $7, news_md = $8, dates = $9::jsonb,
             updated_at = NOW()
       WHERE id = $1 AND sent_at IS NULL
       RETURNING ${COLUMNS}`,
@@ -187,6 +193,7 @@ export async function saveIssue(
       JSON.stringify(watchlist),
       sectorsMd,
       sentimentMd,
+      newsMd,
       JSON.stringify(dates),
     ],
   );

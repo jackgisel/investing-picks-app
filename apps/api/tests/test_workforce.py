@@ -62,6 +62,16 @@ def _board(db, **kw):
     return workforce.leaderboard(db, today=TODAY, **kw)
 
 
+def test_only_keeps_the_requested_names(db):
+    for t in ("KEEP", "DROP"):
+        _stock(db, t)
+    _year(db, "KEEP", 2025, 100, 2e9)
+    _year(db, "DROP", 2025, 100, 9e9)
+    db.commit()
+    rows = _board(db, only=["KEEP"])["rows"]
+    assert [r["ticker"] for r in rows] == ["KEEP"]
+
+
 def test_ranks_by_revenue_per_employee(db):
     for t in ("LEAN", "FAT"):
         _stock(db, t)

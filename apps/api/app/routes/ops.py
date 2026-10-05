@@ -215,7 +215,7 @@ def editorial_brief(db: Session = Depends(get_db)):
         key=lambda row: (-row["qualified_share_pct"], -row["qualified_companies"], row["sector"])
     )
     candidates.sort(key=lambda row: (-row[0].quant_rating, row[0].ticker))
-    top_candidates = candidates[:3]
+    top_candidates = candidates[:10]
     fundamentals_by_ticker = _latest_fundamentals_by_ticker(
         db, [score.ticker for score, _stock, _sector in top_candidates]
     )

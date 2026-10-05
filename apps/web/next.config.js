@@ -72,29 +72,27 @@ const nextConfig = {
       // Admin communication pages folded into one tabbed surface.
       {
         source: "/dashboard/dca",
-        destination: "/dashboard/ops/communication?tab=friday-stock-pick",
+        destination: "/dashboard/ops/communication?piece=friday-stock-pick",
         permanent: false,
       },
       {
         source: "/dashboard/ops/weekly-review",
-        destination:
-          "/dashboard/ops/communication?tab=friday-portfolio-review",
+        destination: "/dashboard/ops/communication",
         permanent: false,
       },
       {
         source: "/dashboard/ops/market-note",
-        destination:
-          "/dashboard/ops/communication?tab=sunday-market-preview",
+        destination: "/dashboard/ops/communication?piece=monday-market-note",
         permanent: false,
       },
       {
         source: "/dashboard/ops/x-threads",
-        destination: "/dashboard/ops/communication?tab=x-threads",
+        destination: "/dashboard/ops/communication?piece=x",
         permanent: false,
       },
       {
         source: "/dashboard/ops/product-updates",
-        destination: "/dashboard/ops/communication?tab=product-updates",
+        destination: "/dashboard/ops/communication?piece=product-updates",
         permanent: false,
       },
     ];

@@ -1,0 +1,61 @@
+{
+  "themes": {
+    "Platforms": [
+      "AAPL",
+      "MSFT",
+      "GOOGL",
+      "GOOG",
+      "AMZN",
+      "META",
+      "ORCL",
+      "CRM",
+      "NOW",
+      "ADBE",
+      "PLTR",
+      "SNOW"
+    ],
+    "Semiconductors": [
+      "NVDA",
+      "AVGO",
+      "AMD",
+      "TSM",
+      "ASML",
+      "AMAT",
+      "LRCX",
+      "KLAC",
+      "MU",
+      "ARM",
+      "QCOM",
+      "INTC",
+      "MRVL",
+      "SNPS",
+      "CDNS",
+      "SMCI",
+      "ACLS",
+      "ENTG"
+    ],
+    "AI infrastructure": [
+      "VRT",
+      "ETN",
+      "MOD",
+      "POWL",
+      "FIX",
+      "STRL",
+      "GEV",
+      "PWR",
+      "HUBB"
+    ],
+    "Energy and power": [
+      "XOM",
+      "CVX",
+      "COP",
+      "SLB",
+      "VST",
+      "CEG",
+      "TLN",
+      "NEE",
+      "CCJ",
+      "FCX"
+    ]
+  }
+}

@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { ensureMigrations } from "@/lib/auth";
-import { countChars, estimateCostUsd, xCredentialsFromEnv } from "@/lib/x-client";
+import {
+  countChars,
+  estimateCostUsd,
+  postingAccount,
+  xCredentialsFromEnv,
+  xHandleFromEnv,
+} from "@/lib/x-client";
 import { listThreads } from "@/lib/x-threads-db";
 
 export const dynamic = "force-dynamic";
@@ -13,10 +19,13 @@ export async function GET() {
 
   await ensureMigrations();
   const threads = await listThreads();
+  const credentials = xCredentialsFromEnv();
+  const account = credentials ? await postingAccount(credentials) : null;
 
   return NextResponse.json({
-    configured: xCredentialsFromEnv() !== null,
-    handle: process.env.X_HANDLE ?? null,
+    configured: credentials !== null,
+    handle: xHandleFromEnv(),
+    account,
     threads: threads.map((t) => ({
       ...t,
       lengths: t.posts.map(countChars),

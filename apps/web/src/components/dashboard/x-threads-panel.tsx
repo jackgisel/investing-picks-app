@@ -11,6 +11,7 @@ import {
   Send,
   Undo2,
 } from "lucide-react";
+import { X_HANDLE } from "@/lib/constants";
 import { incomeVisualUrl } from "@/lib/income-visual/url";
 
 /**
@@ -34,13 +35,20 @@ type Thread = {
     | "hot_take"
     | "leaderboard"
     | "poll_prompt"
-    | "income_visual";
+    | "income_visual"
+    | "week_roundup"
+    | "workforce_visual"
+    | "jobs_visual"
+    | "headcount_visual"
+    | "revenue_visual"
+    | "pick_result";
   dedupeKey: string;
   posts: string[];
   facts: {
     summary?: string;
     ticker?: string;
     period_type?: "quarter" | "annual";
+    theme?: string;
   };
   status: "draft" | "posted" | "failed" | "rejected";
   confirmedAt: string | null;
@@ -53,9 +61,14 @@ type Thread = {
   estimatedCostUsd: number;
 };
 
+type Account =
+  | { ok: true; username: string }
+  | { ok: false; expected: string; actual: string | null; error: string };
+
 type Payload = {
   configured: boolean;
   handle: string | null;
+  account: Account | null;
   threads: Thread[];
 };
 
@@ -68,8 +81,24 @@ const KIND_LABEL: Record<Thread["kind"], string> = {
   hot_take: "Hot take",
   leaderboard: "Leaderboard",
   poll_prompt: "Question",
-  income_visual: "Income visual",
+  income_visual: "Earnings",
+  week_roundup: "Week of reports",
+  workforce_visual: "Workforce",
+  jobs_visual: "Jobs",
+  headcount_visual: "Headcount",
+  revenue_visual: "Revenue",
+  pick_result: "Pick result",
 };
+
+const AUTO_KINDS = new Set<Thread["kind"]>([
+  "income_visual",
+  "week_roundup",
+  "workforce_visual",
+  "jobs_visual",
+  "headcount_visual",
+  "revenue_visual",
+  "pick_result",
+]);
 
 async function errorMessage(res: Response): Promise<string> {
   // Read as text first. A proxy timeout or a crashed container answers with
@@ -112,9 +141,9 @@ export function XThreadsPanel() {
       <header>
         <p className="panel-label mb-2">X Threads</p>
         <p className="text-text-muted mt-2 text-sm max-w-xl">
-          Income visuals, drafted as each company reports. They post
-          themselves after their review window unless you reject them. A
-          posted thread cannot be un-posted — read it first.
+          Earnings cards for companies on the theme list, plus the day's jobs,
+          headcount, and revenue graphics. They post at their time unless you
+          reject them. A posted thread cannot be un-posted.
         </p>
       </header>
 
@@ -132,6 +161,14 @@ export function XThreadsPanel() {
                   ? "Credentials configured"
                   : "No X credentials on this deployment — posting is disabled"}
             </p>
+            {data?.account && !data.account.ok && (
+              <p className="mt-2 text-sm text-accent-red max-w-xl">{data.account.error}</p>
+            )}
+            {data?.account?.ok && (
+              <p className="mt-1 font-mono text-xs text-text-muted">
+                Token posts as @{data.account.username}
+              </p>
+            )}
           </div>
         </div>
         {page.error && (
@@ -142,7 +179,7 @@ export function XThreadsPanel() {
       {threads.length === 0 && !page.isPending && (
         <div className="data-panel px-4 py-6">
           <p className="text-sm text-text-muted">
-            Nothing queued. Income visuals appear here as companies report.
+            Nothing queued. Theme-list prints appear here as companies report.
           </p>
         </div>
       )}
@@ -151,7 +188,7 @@ export function XThreadsPanel() {
         <ThreadCard
           key={`${thread.id}-${thread.posts.length}-${thread.status}`}
           thread={thread}
-          handle={data?.handle ?? "outpick"}
+          handle={data?.handle ?? X_HANDLE.replace(/^@/, "")}
           onChanged={invalidate}
         />
       ))}
@@ -379,7 +416,7 @@ function StatusBadge({ thread, handle }: { thread: Thread; handle: string }) {
     <span className="font-mono text-[11px] text-text-muted">
       {thread.confirmedAt
         ? "Confirmed — posts on the next tick"
-        : thread.kind === "income_visual"
+        : AUTO_KINDS.has(thread.kind)
           ? "Draft — posts itself after the review window unless rejected"
           : "Draft"}
     </span>

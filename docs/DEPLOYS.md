@@ -10,7 +10,7 @@ Railway project **`outpick`** (`f839a276-d3ef-470d-8d35-d80a561459a3`), environm
 All three Dockerfiles build from the **repository root**, not from their own directory:
 
 - `apps/api/Dockerfile` copies `packages/strategy` *and* `apps/api`
-- `apps/worker/Dockerfile` copies `packages/strategy`, `apps/api`, *and* `apps/worker`
+- `apps/worker/Dockerfile` copies `packages/strategy`, `apps/api`, `apps/worker`, and the X theme list at `apps/web/src/lib/income-visual/themes.json`
 - `apps/web/Dockerfile` copies `apps/web/package.json`, i.e. a root-relative path
 
 So in Railway each service's **Root Directory must stay `/`** (empty). Setting it to

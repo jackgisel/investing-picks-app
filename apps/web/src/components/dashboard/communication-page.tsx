@@ -2,108 +2,68 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
-import { CampaignDraftsPanel } from "@/components/dashboard/campaign-drafts-panel";
-import { FridayPortfolioReviewPanel } from "@/components/dashboard/friday-portfolio-review-panel";
-import { FridayStockPickPanel } from "@/components/dashboard/friday-stock-pick-panel";
+import { CommunicationDesk } from "@/components/dashboard/communication-desk";
+import { EditorialPanel } from "@/components/dashboard/editorial-panel";
+import { FridayPickStatusPanel } from "@/components/dashboard/friday-pick-status-panel";
 import { IncomeVisualsPanel } from "@/components/dashboard/income-visuals-panel";
 import { InvitesPanel } from "@/components/dashboard/invites-panel";
 import { ProductUpdatesPanel } from "@/components/dashboard/product-updates-panel";
 import { SundayMarketPreviewPanel } from "@/components/dashboard/sunday-market-preview-panel";
-import { TabPanel, Tabs } from "@/components/dashboard/tabs";
 import { XThreadsPanel } from "@/components/dashboard/x-threads-panel";
 import {
-  COMMUNICATION_TABS,
-  parseCommunicationTab,
-  type CommunicationTabId,
+  communicationPiece,
+  parseCommunicationPiece,
+  type CommunicationPieceId,
 } from "@/lib/communication";
 
 export function CommunicationPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const tab = parseCommunicationTab(searchParams.get("tab"));
+  const piece = parseCommunicationPiece(
+    searchParams.get("piece"),
+    searchParams.get("tab"),
+  );
 
-  function setTab(next: CommunicationTabId) {
+  function open(next: CommunicationPieceId | null) {
     const params = new URLSearchParams(searchParams.toString());
-    params.set("tab", next);
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    params.delete("tab");
+    if (next) params.set("piece", next);
+    else params.delete("piece");
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
   }
 
+  if (!piece) return <CommunicationDesk onOpen={open} />;
+
+  const meta = communicationPiece(piece);
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="page-title">Communication</h1>
+        <button
+          type="button"
+          onClick={() => open(null)}
+          className="font-sans text-[13px] text-text-dim underline-offset-2 hover:text-text hover:underline"
+        >
+          This week
+        </button>
+        <h1 className="page-title mt-2">{meta.label}</h1>
         <p className="mt-1 max-w-[640px] font-sans text-[13px] leading-relaxed text-text-dim">
-          Friday pick and portfolio review, Sunday market preview, X threads,
-          income visuals, campaign drafts, and product updates. Complimentary
-          invites live here too.
+          {meta.audience} · {meta.when}. {meta.ifYouDont}
         </p>
       </div>
-
-      <div>
-        <Tabs
-          tabs={COMMUNICATION_TABS}
-          value={tab}
-          onChange={setTab}
-          label="Communication"
-        />
-        {tab === "friday-stock-pick" && (
-          <div className="pt-5">
-            <TabPanel id="friday-stock-pick">
-              <FridayStockPickPanel />
-            </TabPanel>
-          </div>
-        )}
-        {tab === "friday-portfolio-review" && (
-          <div className="pt-5">
-            <TabPanel id="friday-portfolio-review">
-              <FridayPortfolioReviewPanel />
-            </TabPanel>
-          </div>
-        )}
-        {tab === "sunday-market-preview" && (
-          <div className="pt-5">
-            <TabPanel id="sunday-market-preview">
-              <SundayMarketPreviewPanel />
-            </TabPanel>
-          </div>
-        )}
-        {tab === "x-threads" && (
-          <div className="pt-5">
-            <TabPanel id="x-threads">
-              <XThreadsPanel />
-            </TabPanel>
-          </div>
-        )}
-        {tab === "income-visuals" && (
-          <div className="pt-5">
-            <TabPanel id="income-visuals">
-              <IncomeVisualsPanel />
-            </TabPanel>
-          </div>
-        )}
-        {tab === "campaign-drafts" && (
-          <div className="pt-5">
-            <TabPanel id="campaign-drafts">
-              <CampaignDraftsPanel />
-            </TabPanel>
-          </div>
-        )}
-        {tab === "product-updates" && (
-          <div className="pt-5">
-            <TabPanel id="product-updates">
-              <ProductUpdatesPanel />
-            </TabPanel>
-          </div>
-        )}
-        {tab === "invites" && (
-          <div className="pt-5">
-            <TabPanel id="invites">
-              <InvitesPanel />
-            </TabPanel>
-          </div>
-        )}
-      </div>
+      {piece === "monday-market-note" && <SundayMarketPreviewPanel />}
+      {piece === "market-analysis" && <EditorialPanel kind="market_analysis" />}
+      {piece === "pick-spotlight" && <EditorialPanel kind="pick_spotlight" />}
+      {piece === "friday-stock-pick" && <FridayPickStatusPanel />}
+      {piece === "x" && (
+        <div className="space-y-8">
+          <XThreadsPanel />
+          <IncomeVisualsPanel />
+        </div>
+      )}
+      {piece === "product-updates" && <ProductUpdatesPanel />}
+      {piece === "invites" && <InvitesPanel />}
     </div>
   );
 }

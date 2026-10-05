@@ -1,56 +1,126 @@
 /**
- * Admin Communication surface: one page, one tab per queue.
+ * Admin Communication surface.
  *
- * The old standalone ops URLs still exist as redirects so bookmarks, ops
- * emails, and magic-link `?next=` values land on the right tab instead of 404.
+ * The page is a week desk. A `?piece=` query opens one editor. Old tab query
+ * values and the retired standalone URLs still land on the right piece.
  */
 
-export const COMMUNICATION_TABS = [
-  { id: "friday-stock-pick", label: "Friday Stock Pick" },
-  { id: "friday-portfolio-review", label: "Friday Portfolio Review" },
-  { id: "sunday-market-preview", label: "Sunday Market Preview" },
-  { id: "x-threads", label: "X Threads" },
-  { id: "income-visuals", label: "Income visuals" },
-  { id: "campaign-drafts", label: "Campaign drafts" },
-  { id: "product-updates", label: "Product Updates" },
-  { id: "invites", label: "Invites" },
+export const COMMUNICATION_PIECES = [
+  {
+    id: "monday-market-note",
+    label: "Monday market note",
+    audience: "Free",
+    when: "Monday 6:00 AM PT",
+    ifYouDont: "If you do not confirm it, Monday's send does not go out.",
+    onCalendar: true,
+  },
+  {
+    id: "market-analysis",
+    label: "Market analysis",
+    audience: "Free",
+    when: "The 1st and the 15th, 8:00 AM PT",
+    ifYouDont: "If you do not confirm it, that half of the month does not go out.",
+    onCalendar: true,
+  },
+  {
+    id: "pick-spotlight",
+    label: "Pick spotlight",
+    audience: "Free",
+    when: "Wednesday 8:00 AM PT",
+    ifYouDont: "If you do not confirm it, Wednesday's letter does not go out.",
+    onCalendar: true,
+  },
+  {
+    id: "friday-stock-pick",
+    label: "Friday stock pick",
+    audience: "Paid",
+    when: "Every other Friday, when the research note is approved",
+    ifYouDont: "If the note is not approved, subscribers are not mailed.",
+    onCalendar: true,
+  },
+  {
+    id: "x",
+    label: "X",
+    audience: "X",
+    when: "Weekdays, three graphics through the day",
+    ifYouDont:
+      "A graphic posts at its time unless you reject it. An earnings chart posts after its review window unless you reject it.",
+    onCalendar: true,
+  },
+  {
+    id: "product-updates",
+    label: "Product updates",
+    audience: "Free",
+    when: "Whenever you send one",
+    ifYouDont: "Nothing goes out until you send it.",
+    onCalendar: false,
+  },
+  {
+    id: "invites",
+    label: "Invites",
+    audience: "Free",
+    when: "Whenever you send one",
+    ifYouDont: "Nothing goes out until you send it.",
+    onCalendar: false,
+  },
 ] as const;
 
-export type CommunicationTabId = (typeof COMMUNICATION_TABS)[number]["id"];
-
-export const DEFAULT_COMMUNICATION_TAB: CommunicationTabId = "friday-stock-pick";
+export type CommunicationPieceId = (typeof COMMUNICATION_PIECES)[number]["id"];
 
 export const COMMUNICATION_PATH = "/dashboard/ops/communication";
 
-/** Old admin URLs → the tab they now live on. */
+const LEGACY_TABS: Record<string, CommunicationPieceId | null> = {
+  "friday-stock-pick": "friday-stock-pick",
+  "friday-portfolio-review": null,
+  "sunday-market-preview": "monday-market-note",
+  "x-threads": "x",
+  "income-visuals": "x",
+  "campaign-drafts": null,
+  "product-updates": "product-updates",
+  invites: "invites",
+};
+
+/** Old admin URLs → the piece they now open. Null opens the week desk. */
 export const LEGACY_COMMUNICATION_REDIRECTS: Readonly<
-  Record<string, CommunicationTabId>
+  Record<string, CommunicationPieceId | null>
 > = {
   "/dashboard/dca": "friday-stock-pick",
-  "/dashboard/ops/weekly-review": "friday-portfolio-review",
-  "/dashboard/ops/market-note": "sunday-market-preview",
-  "/dashboard/ops/x-threads": "x-threads",
+  "/dashboard/ops/weekly-review": null,
+  "/dashboard/ops/market-note": "monday-market-note",
+  "/dashboard/ops/x-threads": "x",
   "/dashboard/ops/product-updates": "product-updates",
 };
 
-export function isCommunicationTabId(value: string): value is CommunicationTabId {
-  return COMMUNICATION_TABS.some((tab) => tab.id === value);
+export function isCommunicationPieceId(value: string): value is CommunicationPieceId {
+  return COMMUNICATION_PIECES.some((piece) => piece.id === value);
 }
 
-export function parseCommunicationTab(
-  raw: string | null | undefined,
-): CommunicationTabId {
-  if (raw && isCommunicationTabId(raw)) return raw;
-  return DEFAULT_COMMUNICATION_TAB;
+export function communicationPiece(id: CommunicationPieceId) {
+  const piece = COMMUNICATION_PIECES.find((item) => item.id === id);
+  if (!piece) throw new Error(`Unknown communication piece ${id}`);
+  return piece;
 }
 
-export function communicationHref(
-  tab: CommunicationTabId = DEFAULT_COMMUNICATION_TAB,
-): string {
-  return `${COMMUNICATION_PATH}?tab=${tab}`;
+/** `piece` wins. An old `tab` value still opens the piece it became. */
+export function parseCommunicationPiece(
+  piece: string | null | undefined,
+  tab: string | null | undefined,
+): CommunicationPieceId | null {
+  if (piece && isCommunicationPieceId(piece)) return piece;
+  if (tab && Object.prototype.hasOwnProperty.call(LEGACY_TABS, tab)) {
+    return LEGACY_TABS[tab];
+  }
+  return null;
+}
+
+export function communicationHref(piece?: CommunicationPieceId | null): string {
+  if (!piece) return COMMUNICATION_PATH;
+  return `${COMMUNICATION_PATH}?piece=${piece}`;
 }
 
 export function legacyCommunicationRedirect(pathname: string): string | null {
-  const tab = LEGACY_COMMUNICATION_REDIRECTS[pathname];
-  return tab ? communicationHref(tab) : null;
+  if (!Object.prototype.hasOwnProperty.call(LEGACY_COMMUNICATION_REDIRECTS, pathname)) {
+    return null;
+  }
+  return communicationHref(LEGACY_COMMUNICATION_REDIRECTS[pathname]);
 }

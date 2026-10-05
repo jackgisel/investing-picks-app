@@ -450,8 +450,13 @@ export async function sendMarketNoteIssueEmail(args: {
   bodyMd: string;
   weekKey?: string;
   banner?: string;
+  eyebrow?: string;
+  disclaimer?: string;
 }): Promise<SendResult> {
   const unsubscribeUrl = marketNoteUnsubscribeUrl(args.token);
+  const disclaimer =
+    args.disclaimer ??
+    "This note is market commentary, not investment advice, and never our picks. Those are for members.";
   const html = renderMarketNoteIssueEmail({
     subject: args.subject,
     lede: args.lede,
@@ -460,8 +465,10 @@ export async function sendMarketNoteIssueEmail(args: {
     siteUrl: SITE_URL,
     weekKey: args.weekKey,
     banner: args.banner,
+    eyebrow: args.eyebrow,
+    disclaimer,
   });
-  const text = `${args.subject}\n\n${args.lede ? args.lede + "\n\n" : ""}${args.bodyMd}\n\nThis note is market commentary, not investment advice, and never our picks. Those are for members.\n\nUnsubscribe any time: ${unsubscribeUrl}`;
+  const text = `${args.subject}\n\n${args.lede ? args.lede + "\n\n" : ""}${args.bodyMd}\n\n${disclaimer}\n\nUnsubscribe any time: ${unsubscribeUrl}`;
 
   return send({
     to: args.to,

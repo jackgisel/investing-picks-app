@@ -188,31 +188,15 @@ def sync_insight_drafts() -> dict:
 
 
 def job_weekly_review_draft():
-    """Ask the web app to draft this week's Friday portfolio review.
-
-    The web app owns the note, the editor and the Anthropic client. A firing
-    that never lands is picked up by the operator's Draft button or the next
-    Friday; failing the worker process over a model timeout would be worse.
-    """
-    return _post_to_web_app(
-        "/api/internal/insights/weekly-review/draft",
-        "Weekly review draft",
-        600.0,
-    )
+    """Retired. The weekly book recap is no longer drafted or mailed."""
+    log.info("weekly_review_draft retired")
+    return {"skipped": "retired"}
 
 
 def job_weekly_review_publish():
-    """Publish the Friday review if an admin confirmed it.
-
-    Unconfirmed drafts are left alone and the web app emails the admins that
-    the week was skipped. The claim lives on the insight row, so a redeploy
-    that fires this twice still mails the list once.
-    """
-    return _post_to_web_app(
-        "/api/internal/insights/weekly-review/publish",
-        "Weekly review publish",
-        300.0,
-    )
+    """Retired. The weekly book recap is no longer drafted or mailed."""
+    log.info("weekly_review_publish retired")
+    return {"skipped": "retired"}
 
 
 def job_market_note_prepare():
@@ -245,12 +229,26 @@ def job_market_note_send():
     )
 
 
-def job_weekly_summary():
-    """Alias for operators who still have RUN_JOB_ONCE=weekly_summary.
+def job_editorial_prepare():
+    """Open the next market analysis and Wednesday spotlight if they are not open yet."""
+    return _post_to_web_app(
+        "/api/internal/editorial/prepare",
+        "Editorial prepare",
+        120.0,
+    )
 
-    The Sunday stats digest is gone. This name now fires the Friday publish
-    path, which no-ops when the week was already sent or never confirmed.
-    """
+
+def job_editorial_send():
+    """Mail a confirmed analysis or spotlight when today is its send day."""
+    return _post_to_web_app(
+        "/api/internal/editorial/send",
+        "Editorial send",
+        600.0,
+    )
+
+
+def job_weekly_summary():
+    """Retired alias. The Friday portfolio review is no longer mailed."""
     return job_weekly_review_publish()
 
 

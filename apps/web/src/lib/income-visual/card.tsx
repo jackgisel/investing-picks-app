@@ -107,12 +107,14 @@ export function IncomeVisualCard({
   statement,
   flow,
   fonts,
+  eyebrow,
 }: {
   ticker: string;
   name: string | null;
   statement: StoredStatement;
   flow: IncomeFlow;
   fonts: CardFonts;
+  eyebrow?: string | null;
 }) {
   const options: LayoutOptions = {
     width: CHART_W,
@@ -212,7 +214,7 @@ export function IncomeVisualCard({
             color: MUTED,
           }}
         >
-          {periodLine(statement)}
+          {[eyebrow, periodLine(statement)].filter(Boolean).join("   ·   ")}
         </div>
       </div>
 

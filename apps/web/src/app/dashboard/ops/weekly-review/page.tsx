@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
-import { communicationHref } from "@/lib/communication";
+import { COMMUNICATION_PATH } from "@/lib/communication";
 
 export default function WeeklyReviewRedirect() {
-  redirect(communicationHref("friday-portfolio-review"));
+  redirect(COMMUNICATION_PATH);
 }

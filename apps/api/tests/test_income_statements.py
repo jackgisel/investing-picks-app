@@ -246,6 +246,25 @@ def test_watch_checks_the_newest_prints_first_within_the_limit(db, portfolio, mo
     assert result["waiting"] == 4
 
 
+def test_theme_list_is_the_names_we_post():
+    from worker.services.x_themes import theme_tickers
+
+    tickers = theme_tickers()
+    assert "NVDA" in tickers and "MOD" in tickers and "VST" in tickers
+    assert "JPM" not in tickers
+
+
+def test_watch_stores_a_theme_name_under_the_cap(db, portfolio, monkeypatch):
+    calendar = _watch_universe(db, portfolio)
+    fmp = WatchFMP(calendar, {"TINY": "2026-10-01"})
+    monkeypatch.setattr(income_statements, "theme_tickers", lambda: frozenset({"TINY"}))
+
+    result = watch_reporters(db, fmp, today=TODAY)
+
+    assert "TINY" in fmp.quarterly_calls
+    assert "TINY" in result["fresh"]
+
+
 def test_api_flags_held_names_and_lists_recent_filers(db, portfolio, client):
     db.add_all(
         [

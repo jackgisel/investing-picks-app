@@ -1,8 +1,8 @@
 /**
- * First-class sections of the Sunday Market Preview (the free Market Note).
+ * First-class sections of the Monday market note.
  *
- * The mailed body is still markdown — `composeMarketNoteBodyMd` is how the four
- * fields become that body — so the send pipeline does not need a second
+ * The mailed body is still markdown — `composeMarketNoteBodyMd` is how the
+ * sections become that body — so the send pipeline does not need a second
  * renderer. Old issues that only have `body_md` still send as they always did.
  */
 
@@ -17,7 +17,11 @@ export type MarketNoteUpcomingDate = {
   label: string;
 };
 
-export const MARKET_NOTE_WATCHLIST_SLOTS = 3;
+export const MARKET_NOTE_WATCHLIST_MIN = 5;
+export const MARKET_NOTE_WATCHLIST_MAX = 10;
+
+/** @deprecated Use MARKET_NOTE_WATCHLIST_MIN. Kept so older imports still compile. */
+export const MARKET_NOTE_WATCHLIST_SLOTS = MARKET_NOTE_WATCHLIST_MIN;
 
 const EMPTY_WATCH: MarketNoteWatchItem = {
   ticker: "",
@@ -36,16 +40,21 @@ function str(value: unknown): string {
 }
 
 export function emptyWatchlist(): MarketNoteWatchItem[] {
-  return Array.from({ length: MARKET_NOTE_WATCHLIST_SLOTS }, () => ({
+  return Array.from({ length: MARKET_NOTE_WATCHLIST_MIN }, () => ({
     ...EMPTY_WATCH,
   }));
+}
+
+export function radarReady(items: MarketNoteWatchItem[]): boolean {
+  const count = filledWatchlist(items).length;
+  return count >= MARKET_NOTE_WATCHLIST_MIN && count <= MARKET_NOTE_WATCHLIST_MAX;
 }
 
 export function normalizeWatchlist(raw: unknown): MarketNoteWatchItem[] {
   const source = Array.isArray(raw) ? raw : [];
   const items: MarketNoteWatchItem[] = [];
   for (const entry of source) {
-    if (items.length >= MARKET_NOTE_WATCHLIST_SLOTS) break;
+    if (items.length >= MARKET_NOTE_WATCHLIST_MAX) break;
     const rec = asRecord(entry);
     const ticker = str(rec?.ticker).trim().toUpperCase();
     if (!ticker && !str(rec?.note).trim() && !str(rec?.name).trim()) continue;
@@ -55,7 +64,7 @@ export function normalizeWatchlist(raw: unknown): MarketNoteWatchItem[] {
       note: str(rec?.note).trim(),
     });
   }
-  while (items.length < MARKET_NOTE_WATCHLIST_SLOTS) {
+  while (items.length < MARKET_NOTE_WATCHLIST_MIN) {
     items.push({ ...EMPTY_WATCH });
   }
   return items;
@@ -82,6 +91,7 @@ export function composeMarketNoteBodyMd(args: {
   watchlist: MarketNoteWatchItem[];
   sectorsMd: string | null | undefined;
   sentimentMd: string | null | undefined;
+  newsMd?: string | null;
   dates: MarketNoteUpcomingDate[];
 }): string | null {
   const sections: string[] = [];
@@ -98,6 +108,11 @@ export function composeMarketNoteBodyMd(args: {
   const sectors = args.sectorsMd?.trim();
   if (sectors) {
     sections.push(`## Where sectors are moving\n\n${sectors}`);
+  }
+
+  const news = args.newsMd?.trim();
+  if (news) {
+    sections.push(`## In the news\n\n${news}`);
   }
 
   const sentiment = args.sentimentMd?.trim();
@@ -122,6 +137,7 @@ export function hasMarketNotePreviewContent(args: {
   watchlist: MarketNoteWatchItem[];
   sectorsMd: string | null | undefined;
   sentimentMd: string | null | undefined;
+  newsMd?: string | null;
   dates: MarketNoteUpcomingDate[];
   bodyMd?: string | null;
 }): boolean {

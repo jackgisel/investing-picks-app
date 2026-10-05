@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { ensureMigrations } from "@/lib/auth";
+import { fetchHeldTickers } from "@/lib/held-tickers";
 import {
   getIssueById,
   saveIssue,
   setConfirmed,
 } from "@/lib/market-note-issue";
+import {
+  filledWatchlist,
+  normalizeWatchlist,
+  radarReady,
+} from "@/lib/market-note-preview";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +46,7 @@ export async function PATCH(
     watchlist?: unknown;
     sectorsMd?: string | null;
     sentimentMd?: string | null;
+    newsMd?: string | null;
     dates?: unknown;
     confirmed?: boolean;
   };
@@ -66,6 +73,7 @@ export async function PATCH(
     body.watchlist !== undefined ||
     body.sectorsMd !== undefined ||
     body.sentimentMd !== undefined ||
+    body.newsMd !== undefined ||
     body.dates !== undefined;
 
   if (touchingContent) {
@@ -75,16 +83,35 @@ export async function PATCH(
         { status: 400 },
       );
     }
+    const watchlist =
+      body.watchlist !== undefined ? body.watchlist : issue.watchlist;
+    const filled = filledWatchlist(normalizeWatchlist(watchlist));
+    if (filled.length > 0) {
+      const held = await fetchHeldTickers();
+      if (!held) {
+        return NextResponse.json(
+          { error: "Could not check the book, so a holding might slip onto the radar." },
+          { status: 503 },
+        );
+      }
+      const hit = filled.find((item) => held.has(item.ticker));
+      if (hit) {
+        return NextResponse.json(
+          { error: `${hit.ticker} is in the book. The radar is names we do not hold.` },
+          { status: 400 },
+        );
+      }
+    }
     const saved = await saveIssue(id, {
       subject: (body.subject ?? issue.subject).trim(),
       lede: (body.lede ?? issue.lede)?.trim() || null,
       bodyMd: body.bodyMd !== undefined ? body.bodyMd : issue.bodyMd,
-      watchlist:
-        body.watchlist !== undefined ? body.watchlist : issue.watchlist,
+      watchlist,
       sectorsMd:
         body.sectorsMd !== undefined ? body.sectorsMd : issue.sectorsMd,
       sentimentMd:
         body.sentimentMd !== undefined ? body.sentimentMd : issue.sentimentMd,
+      newsMd: body.newsMd !== undefined ? body.newsMd : issue.newsMd,
       dates: body.dates !== undefined ? body.dates : issue.dates,
     });
     if (!saved) {
@@ -94,11 +121,11 @@ export async function PATCH(
   }
 
   if (body.confirmed !== undefined) {
-    if (body.confirmed && !issue.bodyMd?.trim()) {
+    if (body.confirmed && (!radarReady(issue.watchlist) || !issue.sectorsMd?.trim())) {
       return NextResponse.json(
         {
           error:
-            "Write the four preview sections before marking it ready.",
+            "The radar needs 5 to 10 names we do not hold, and a sector section, before it can be marked ready.",
         },
         { status: 400 },
       );

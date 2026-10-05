@@ -13,6 +13,7 @@ means the company grew revenue faster than it grew its workforce.
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Collection
 from datetime import date, timedelta
 from statistics import median
 
@@ -234,6 +235,7 @@ def leaderboard(
     shape: str | None = None,
     exclude_sectors: tuple[str, ...] = DEFAULT_EXCLUDED_SECTORS,
     today: date | None = None,
+    only: Collection[str] | None = None,
 ) -> dict:
     """Companies ranked by revenue per employee (or by leverage / revenue).
 
@@ -248,6 +250,10 @@ def leaderboard(
         raise ValueError(f"shape must be one of {SHAPES}")
     today = today or date.today()
     oldest = today - timedelta(days=MAX_PERIOD_AGE_DAYS)
+    only_set = {t.upper() for t in only} if only is not None else None
+    if only_set is not None:
+        exclude_sectors = ()
+        limit = max(limit, len(only_set))
 
     stocks = {
         s.ticker: s
@@ -257,6 +263,8 @@ def leaderboard(
     }
     rows: list[dict] = []
     for ticker, pairs in _series_by_ticker(db).items():
+        if only_set is not None and ticker not in only_set:
+            continue
         stock = stocks.get(ticker)
         if stock is None or pairs[-1]["period"] < oldest:
             continue

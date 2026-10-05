@@ -22,7 +22,9 @@ export type DispatchKind =
   | "performance_alert"
   | "job_failure"
   /** The free weekly Market Note. Keyed by ISO week. */
-  | "market_note";
+  | "market_note"
+  | "market_analysis"
+  | "pick_spotlight";
 
 /**
  * Claim the right to send `kind`/`key`. True exactly once.

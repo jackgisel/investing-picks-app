@@ -28,6 +28,8 @@ from worker.jobs.runner import (
     job_daily_marks,
     job_dca_backfill,
     job_dca_friday,
+    job_editorial_prepare,
+    job_editorial_send,
     job_employee_counts_refresh,
     job_job_boards_discover,
     job_job_openings_collect,
@@ -41,8 +43,6 @@ from worker.jobs.runner import (
     job_news_refresh,
     job_performance_alerts,
     job_weekly_refresh,
-    job_weekly_review_draft,
-    job_weekly_review_publish,
     job_weekly_summary,
     job_macro_refresh,
     job_x_thread_post,
@@ -149,31 +149,18 @@ def main():
         id="weekly_refresh",
         replace_existing=True,
     )
-    # Friday 10:00 PT — draft the weekly portfolio review for admin confirm.
-    # Pacific, not the scheduler's default ET, so the two-hour window before
-    # noon PT does not slide with daylight-saving relative to New York.
+    # The Friday portfolio review is retired. The weekly free letter is the
+    # Wednesday pick spotlight, prepared here and mailed at 08:00 PT on Wednesday.
     scheduler.add_job(
-        job_weekly_review_draft,
-        CronTrigger(
-            day_of_week="fri",
-            hour=10,
-            minute=0,
-            timezone="America/Los_Angeles",
-        ),
-        id="weekly_review_draft",
+        job_editorial_prepare,
+        CronTrigger(day_of_week="mon-fri", hour=10, minute=0, timezone="America/Los_Angeles"),
+        id="editorial_prepare",
         replace_existing=True,
     )
-    # Friday 12:00 PT — publish and email if confirmed; skip and tell the
-    # admins if not. The claim is on the insight row, not this schedule.
     scheduler.add_job(
-        job_weekly_review_publish,
-        CronTrigger(
-            day_of_week="fri",
-            hour=12,
-            minute=0,
-            timezone="America/Los_Angeles",
-        ),
-        id="weekly_review_publish",
+        job_editorial_send,
+        CronTrigger(day_of_week="mon-fri", hour=8, minute=0, timezone="America/Los_Angeles"),
+        id="editorial_send",
         replace_existing=True,
     )
     # Saturday 10:00 PT — open the coming week's Market Note and nag if nothing
@@ -302,16 +289,15 @@ def main():
         id="income_statements_refresh",
         replace_existing=True,
     )
-    # Hourly, weekdays 07:00–17:00 PT. A thread goes out on the first tick
-    # after an admin confirms it, so confirming is the act that publishes and
-    # the schedule is only how long you might wait. Ticks with nothing
-    # confirmed do one indexed query and return.
+    # Every 15 minutes, weekdays 08:00–18:45 PT. Daily graphics confirm
+    # themselves at a minute inside their window, so the tick has to be
+    # finer than the hour.
     scheduler.add_job(
         job_x_thread_post,
         CronTrigger(
             day_of_week="mon-fri",
-            hour="7-17",
-            minute=0,
+            hour="8-18",
+            minute="*/15",
             timezone="America/Los_Angeles",
         ),
         id="x_thread_post",
@@ -343,9 +329,11 @@ def main():
             # Scheduled Friday 10:00 / 12:00 PT. On-demand for a first send
             # or after fixing a draft. weekly_summary is a leftover alias for
             # the noon publish so an old RUN_JOB_ONCE still does something.
-            "weekly_review_draft": job_weekly_review_draft,
-            "weekly_review_publish": job_weekly_review_publish,
+            "weekly_review_draft": job_weekly_summary,
+            "weekly_review_publish": job_weekly_summary,
             "weekly_summary": job_weekly_summary,
+            "editorial_prepare": job_editorial_prepare,
+            "editorial_send": job_editorial_send,
             "market_note_prepare": job_market_note_prepare,
             "market_note_send": job_market_note_send,
             "performance_alerts": job_performance_alerts,

@@ -9,33 +9,32 @@ import {
 import { previewFromEditorialBrief } from "./market-note-brief";
 
 describe("normalizeWatchlist", () => {
-  it("always returns three slots and uppercases tickers", () => {
+  it("pads to five slots and uppercases tickers", () => {
     const items = normalizeWatchlist([
       { ticker: "wdc", name: "Western Digital", note: "Cheap on the de-rating." },
     ]);
-    expect(items).toHaveLength(3);
+    expect(items).toHaveLength(5);
     expect(items[0]).toEqual({
       ticker: "WDC",
       name: "Western Digital",
       note: "Cheap on the de-rating.",
     });
     expect(items[1].ticker).toBe("");
-    expect(items[2].ticker).toBe("");
+    expect(items[4].ticker).toBe("");
   });
 
-  it("caps at three names", () => {
-    const items = normalizeWatchlist([
-      { ticker: "A" },
-      { ticker: "B" },
-      { ticker: "C" },
-      { ticker: "D" },
-    ]);
-    expect(items.map((i) => i.ticker)).toEqual(["A", "B", "C"]);
+  it("caps at ten names", () => {
+    const items = normalizeWatchlist(
+      Array.from({ length: 12 }, (_, i) => ({ ticker: `T${i}` })),
+    );
+    expect(items).toHaveLength(10);
+    expect(items[0].ticker).toBe("T0");
+    expect(items[9].ticker).toBe("T9");
   });
 
   it("treats junk as empty slots", () => {
     expect(normalizeWatchlist(null).every((i) => i.ticker === "")).toBe(true);
-    expect(emptyWatchlist()).toHaveLength(3);
+    expect(emptyWatchlist()).toHaveLength(5);
   });
 });
 
@@ -166,10 +165,15 @@ describe("previewFromEditorialBrief", () => {
 
   it("fills the four first-class fields instead of a single blob", () => {
     const preview = previewFromEditorialBrief(brief);
-    expect(preview.watchlist.map((w) => w.ticker)).toEqual(["WDC", "SOFI", "SEZL"]);
+    expect(preview.watchlist.filter((w) => w.ticker).map((w) => w.ticker)).toEqual([
+      "WDC",
+      "SOFI",
+      "SEZL",
+    ]);
+    expect(preview.watchlist).toHaveLength(5);
     expect(preview.sectorsMd).toContain("Industrials");
-    expect(preview.sentimentMd).toContain("Industrials");
-    expect(preview.sentimentMd).toContain("Software");
+    expect(preview.sentimentMd).toBe("");
+    expect(preview.newsMd).toBe("");
     expect(preview.dates).toEqual([
       { date: "2026-10-02", label: "WDC, SOFI earnings" },
     ]);

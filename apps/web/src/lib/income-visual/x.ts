@@ -7,15 +7,29 @@ import {
   type XThread,
 } from "@/lib/x-threads-db";
 import { uploadImage, type XCredentials } from "@/lib/x-client";
+import { draftDailyGraphics, draftPickResult, rowsFromFacts } from "./cadence-draft";
+import {
+  surpriseFor,
+  type Surprise,
+  type WeekRanks,
+  type WorkforceSelection,
+} from "./graphics";
+import { themeOf } from "./themes";
 import type { PeriodType } from "./model";
 import {
   fetchIncomeList,
   fetchIncomePayload,
+  dailyNodes,
+  incomePostNodes,
   incomeVisualDedupeKey,
   incomeVisualFrom,
   incomeVisualKey,
   incomeVisualPostText,
-  renderIncomeVisualPng,
+  mixFor,
+  pickResultNode,
+  renderSharePng,
+  weekNodes,
+  workforceNodes,
   type IncomeVisual,
 } from "./server";
 
@@ -35,12 +49,12 @@ export type IncomeVisualFacts = {
   period: string;
   fiscal_label: string;
   summary: string;
+  theme?: string;
+  surprise?: Surprise | null;
   /** Set on automatic drafts only; it is what lets a bigger print displace one. */
   market_cap?: number;
 };
 
-/** Below this, a print is not one our audience is waiting on. */
-export const MIN_MARKET_CAP = 5_000_000_000;
 /** How far back a filing still counts as news: today's and yesterday's. */
 const RECENT_DAYS = 2;
 
@@ -59,9 +73,12 @@ export function incomeVisualConfig() {
   };
 }
 
-function factsFor(visual: IncomeVisual): IncomeVisualFacts {
+function factsFor(visual: IncomeVisual, theme: string): IncomeVisualFacts {
   const m = visual.flow.metrics;
-  const parts = [`${visual.payload.name ?? visual.payload.ticker} ${visual.statement.fiscal_label}`];
+  const parts = [
+    theme,
+    `${visual.payload.name ?? visual.payload.ticker} ${visual.statement.fiscal_label}`,
+  ];
   if (m.revenueYoy !== null) parts.push(`revenue ${Math.round(m.revenueYoy * 100)}% Y/Y`);
   return {
     ticker: visual.payload.ticker,
@@ -69,6 +86,7 @@ function factsFor(visual: IncomeVisual): IncomeVisualFacts {
     period_type: visual.statement.period_type,
     period: visual.statement.period,
     fiscal_label: visual.statement.fiscal_label,
+    theme,
     summary: parts.join(", "),
   };
 }
@@ -99,15 +117,25 @@ export async function queueIncomeVisual(
       error: `${ticker} is in the book. Income visuals for holdings stay in the app.`,
     };
   }
+  const theme = themeOf(payload.ticker);
+  if (!theme) {
+    return { ok: false, status: 422, error: `${ticker} is outside the X theme list` };
+  }
   const visual = incomeVisualFrom(payload);
   if (!visual) {
     return { ok: false, status: 422, error: `${ticker}'s latest statement cannot be drawn` };
   }
+  const surprise = surpriseFor(visual.statement, payload.earnings);
+  const mix = mixFor(visual);
   const { thread, created } = await createThreadDraft({
     kind: "income_visual",
     dedupeKey: incomeVisualDedupeKey(visual),
-    posts: [incomeVisualPostText(visual)],
-    facts: { ...factsFor(visual), ...(marketCap ? { market_cap: marketCap } : {}) },
+    posts: [incomeVisualPostText(visual, { surprise, mix })],
+    facts: {
+      ...factsFor(visual, theme),
+      ...(surprise ? { surprise } : {}),
+      ...(typeof marketCap === "number" ? { market_cap: marketCap } : {}),
+    },
   });
   return { ok: true, threadId: thread.id, created };
 }
@@ -140,19 +168,16 @@ export async function draftIncomeVisuals(): Promise<DraftIncomeVisualsResult> {
     cap: perDay,
     alreadyToday,
   };
-  if (perDay <= 0) return result;
-
-  const list = await fetchIncomeList(RECENT_DAYS);
-  if (!list) {
+  const list = perDay > 0 ? await fetchIncomeList(RECENT_DAYS) : null;
+  if (perDay > 0 && !list) {
     result.skipped.push({ ticker: "*", reason: "income statement list unavailable" });
-    return result;
   }
 
   let room = perDay - alreadyToday;
-  // `recent` is largest first, so the first name under the floor ends the loop.
-  for (const item of list.recent) {
+  // Largest first. Quarters take the slots; a fiscal year only fills what is left.
+  for (const item of list?.recent ?? []) {
+    if (!themeOf(item.ticker)) continue;
     const marketCap = item.market_cap ?? 0;
-    if (marketCap < MIN_MARKET_CAP) break;
     if (await getThreadByKey("income_visual", incomeVisualKey(item.ticker, "quarter", item.period))) {
       continue;
     }
@@ -181,6 +206,29 @@ export async function draftIncomeVisuals(): Promise<DraftIncomeVisualsResult> {
       room -= 1;
     }
   }
+
+  if (room > 0) {
+    for (const item of list?.annual ?? []) {
+      if (room <= 0) break;
+      if (!themeOf(item.ticker)) continue;
+      if (await getThreadByKey("income_visual", incomeVisualKey(item.ticker, "annual", item.period))) {
+        continue;
+      }
+      const queued = await queueIncomeVisual(item.ticker, "annual", item.market_cap ?? undefined);
+      if (!queued.ok) {
+        result.skipped.push({ ticker: item.ticker, reason: queued.error });
+        continue;
+      }
+      if (!queued.created) continue;
+      result.drafted.push(item.ticker);
+      room -= 1;
+    }
+  }
+
+  const daily = await draftDailyGraphics();
+  const pick = await draftPickResult();
+  result.drafted.push(...daily);
+  if (pick) result.drafted.push(pick);
   return result;
 }
 
@@ -199,6 +247,12 @@ export async function incomeVisualMedia(
   thread: XThread,
   credentials: XCredentials,
 ): Promise<MediaOutcome> {
+  if (thread.kind === "jobs_visual" || thread.kind === "headcount_visual" || thread.kind === "revenue_visual") {
+    return dailyMedia(thread, credentials);
+  }
+  if (thread.kind === "pick_result") return pickMedia(thread, credentials);
+  if (thread.kind === "week_roundup") return weekMedia(thread, credentials);
+  if (thread.kind === "workforce_visual") return workforceMedia(thread, credentials);
   const facts = thread.facts as Partial<IncomeVisualFacts>;
   if (!facts.ticker || !facts.period) {
     return { ok: false, error: "Draft is missing its ticker or period", reject: true };
@@ -212,9 +266,109 @@ export async function incomeVisualMedia(
   if (!visual) {
     return { ok: false, error: `No drawable statement for ${facts.period}`, reject: true };
   }
+  const surprise = storedSurprise(facts.surprise);
+  const eyebrow = facts.theme ?? themeOf(payload.ticker) ?? "Earnings";
   try {
-    const png = await renderIncomeVisualPng(visual);
-    return { ok: true, mediaIds: [await uploadImage(credentials, png)] };
+    return {
+      ok: true,
+      mediaIds: await uploadNodes(
+        credentials,
+        incomePostNodes(visual, { eyebrow, surprise, mix: mixFor(visual) }),
+      ),
+    };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e), reject: false };
+  }
+}
+
+function storedSurprise(value: unknown): Surprise | null {
+  if (!value || typeof value !== "object") return null;
+  const row = value as Partial<Surprise>;
+  const eps = typeof row.eps === "number" ? row.eps : null;
+  const revenue = typeof row.revenue === "number" ? row.revenue : null;
+  return eps === null && revenue === null ? null : { eps, revenue };
+}
+
+async function uploadNodes(
+  credentials: XCredentials,
+  nodes: Parameters<typeof renderSharePng>[0][],
+): Promise<string[]> {
+  const ids: string[] = [];
+  for (const node of nodes) ids.push(await uploadImage(credentials, await renderSharePng(node)));
+  return ids;
+}
+
+async function heldTickers(): Promise<Set<string> | null> {
+  const list = await fetchIncomeList(1);
+  return list ? new Set(list.held.map((item) => item.ticker)) : null;
+}
+
+async function dailyMedia(thread: XThread, credentials: XCredentials): Promise<MediaOutcome> {
+  const graphic = thread.facts.graphic;
+  if (graphic !== "jobs" && graphic !== "headcount" && graphic !== "revenue") {
+    return { ok: false, error: "Daily card is missing its graphic", reject: true };
+  }
+  const rows = rowsFromFacts(thread.facts.rows);
+  if (!rows) return { ok: false, error: "Daily card is missing its rows", reject: true };
+  const held = await heldTickers();
+  if (!held) return { ok: false, error: "Could not re-check the book", reject: false };
+  const hit = tickersOf(thread.facts).find((ticker) => held.has(ticker));
+  if (hit) return { ok: false, error: `${hit} entered the book; not posting`, reject: true };
+  try {
+    return { ok: true, mediaIds: await uploadNodes(credentials, dailyNodes(graphic, rows)) };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e), reject: false };
+  }
+}
+
+async function pickMedia(thread: XThread, credentials: XCredentials): Promise<MediaOutcome> {
+  const ticker = typeof thread.facts.ticker === "string" ? thread.facts.ticker : null;
+  const returnLabel = typeof thread.facts.return_label === "string" ? thread.facts.return_label : null;
+  const revenueLabel = typeof thread.facts.revenue_label === "string" ? thread.facts.revenue_label : null;
+  if (!ticker || !returnLabel || !revenueLabel) {
+    return { ok: false, error: "Pick result is missing its figures", reject: true };
+  }
+  try {
+    return {
+      ok: true,
+      mediaIds: await uploadNodes(credentials, [pickResultNode({ ticker, returnLabel, revenueLabel })]),
+    };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e), reject: false };
+  }
+}
+
+function tickersOf(facts: Record<string, unknown>): string[] {
+  return Array.isArray(facts.tickers) ? facts.tickers.filter((t): t is string => typeof t === "string") : [];
+}
+
+async function weekMedia(thread: XThread, credentials: XCredentials): Promise<MediaOutcome> {
+  const ranks = thread.facts.ranks as WeekRanks | undefined;
+  if (!ranks || !Array.isArray(ranks.revenue) || ranks.revenue.length < 4) {
+    return { ok: false, error: "Week card is missing its rankings", reject: true };
+  }
+  const held = await heldTickers();
+  if (!held) return { ok: false, error: "Could not re-check the book", reject: false };
+  const hit = tickersOf(thread.facts).find((ticker) => held.has(ticker));
+  if (hit) return { ok: false, error: `${hit} entered the book; not posting`, reject: true };
+  try {
+    return { ok: true, mediaIds: await uploadNodes(credentials, weekNodes(ranks)) };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e), reject: false };
+  }
+}
+
+async function workforceMedia(thread: XThread, credentials: XCredentials): Promise<MediaOutcome> {
+  const selection = thread.facts.selection as WorkforceSelection | undefined;
+  if (!selection || !Array.isArray(selection.productivity) || selection.productivity.length < 4) {
+    return { ok: false, error: "Workforce card is missing its rows", reject: true };
+  }
+  const held = await heldTickers();
+  if (!held) return { ok: false, error: "Could not re-check the book", reject: false };
+  const hit = tickersOf(thread.facts).find((ticker) => held.has(ticker));
+  if (hit) return { ok: false, error: `${hit} entered the book; not posting`, reject: true };
+  try {
+    return { ok: true, mediaIds: await uploadNodes(credentials, workforceNodes(selection)) };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e), reject: false };
   }

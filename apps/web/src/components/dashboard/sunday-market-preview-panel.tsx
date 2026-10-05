@@ -267,9 +267,23 @@ function IssueEditor({
 
   const insertBrief = useMutation({
     mutationFn: async () => {
+      // Starts a background job (the edge would cut one long request off), then polls.
       const res = await fetch("/api/ops/market-note/brief", { method: "POST" });
       if (!res.ok) throw new Error(await errorMessage(res));
-      return (await res.json()) as MarketNotePreviewDraft & { subject?: string };
+      const deadline = Date.now() + 10 * 60 * 1000;
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 5000));
+        const poll = await fetch("/api/ops/market-note/brief", { cache: "no-store" });
+        if (!poll.ok) throw new Error(await errorMessage(poll));
+        const job = (await poll.json()) as
+          | { state: "idle" | "running" }
+          | { state: "done"; result: MarketNotePreviewDraft & { subject?: string } }
+          | { state: "error"; error: string };
+        if (job.state === "done") return job.result;
+        if (job.state === "error") throw new Error(job.error);
+        if (job.state === "idle") throw new Error("The draft job was lost (the server restarted). Try again.");
+      }
+      throw new Error("The draft is taking too long. Check back and try again.");
     },
     onSuccess: (brief) => {
       if (brief.subject) setSubject(brief.subject);

@@ -41,8 +41,15 @@ export function EditorialPanel({ kind }: { kind: EditorialKind }) {
     queryFn: async () => {
       const res = await fetch(`/api/ops/editorial?kind=${kind}`, { cache: "no-store" });
       if (!res.ok) throw new Error(await errorMessage(res));
-      return res.json() as Promise<{ issue: EditorialIssue; subscribers: number }>;
+      return res.json() as Promise<{
+        issue: EditorialIssue;
+        subscribers: number;
+        drafting: boolean;
+        draftError: string | null;
+      }>;
     },
+    // The model writes in the background; keep checking until it lands.
+    refetchInterval: (query) => (query.state.data?.drafting ? 5000 : false),
   });
 
   const prepare = useMutation({
@@ -67,6 +74,12 @@ export function EditorialPanel({ kind }: { kind: EditorialKind }) {
     <div className="space-y-4">
       <p className="max-w-xl font-sans text-sm text-text-muted">{copy.blurb}</p>
       {error && <p className="text-sm text-accent-red">{error}</p>}
+      {page.data?.draftError && (
+        <p className="text-sm text-accent-red">AI draft failed: {page.data.draftError}</p>
+      )}
+      {page.data?.drafting && (
+        <p className="text-sm text-text-muted">The AI is researching and writing. This takes a few minutes.</p>
+      )}
       {page.isPending ? (
         <div className="data-card text-sm text-text-muted">Loading…</div>
       ) : issue ? (

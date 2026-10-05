@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { draftCampaign } from "@/lib/ai-drafts";
+import { jobStatus, startJob } from "@/lib/background-job";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 300;
 
-/** Admin-only: research a topic and draft X copy to review. Posts and schedules nothing. */
+const KEY = "campaign-draft";
+
+/** Admin-only: research a topic and draft X copy to review. Posts and schedules nothing. Poll GET. */
 export async function POST(req: Request) {
   const guard = await requireAdmin();
   if (!guard.ok) return guard.response;
@@ -14,12 +16,12 @@ export async function POST(req: Request) {
   if (!topic) {
     return NextResponse.json({ error: "Give it a topic." }, { status: 400 });
   }
-  try {
-    return NextResponse.json(await draftCampaign(topic, Boolean(body.thread)));
-  } catch (e) {
-    return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Draft failed" },
-      { status: 502 },
-    );
-  }
+  const started = startJob(KEY, () => draftCampaign(topic, Boolean(body.thread)));
+  return NextResponse.json({ started }, { status: 202 });
+}
+
+export async function GET() {
+  const guard = await requireAdmin();
+  if (!guard.ok) return guard.response;
+  return NextResponse.json(jobStatus(KEY));
 }

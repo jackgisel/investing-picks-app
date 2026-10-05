@@ -45,9 +45,22 @@ function AiDraft() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ topic, thread }),
       });
-      const body = (await res.json().catch(() => ({}))) as { error?: string; posts?: string[] };
-      if (!res.ok) throw new Error(body.error ?? `Request failed (${res.status})`);
-      return body.posts ?? [];
+      const started = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(started.error ?? `Request failed (${res.status})`);
+      const deadline = Date.now() + 10 * 60 * 1000;
+      while (Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 5000));
+        const poll = await fetch("/api/ops/campaign-drafts/generate", { cache: "no-store" });
+        if (!poll.ok) throw new Error(`Request failed (${poll.status})`);
+        const job = (await poll.json()) as
+          | { state: "idle" | "running" }
+          | { state: "done"; result: { posts: string[] } }
+          | { state: "error"; error: string };
+        if (job.state === "done") return job.result.posts;
+        if (job.state === "error") throw new Error(job.error);
+        if (job.state === "idle") throw new Error("The draft job was lost. Try again.");
+      }
+      throw new Error("The draft is taking too long. Try again.");
     },
     onSuccess: () => setError(null),
     onError: (e: Error) => setError(e.message),

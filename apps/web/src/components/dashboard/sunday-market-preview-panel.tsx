@@ -269,14 +269,15 @@ function IssueEditor({
     mutationFn: async () => {
       const res = await fetch("/api/ops/market-note/brief", { method: "POST" });
       if (!res.ok) throw new Error(await errorMessage(res));
-      return (await res.json()) as MarketNotePreviewDraft;
+      return (await res.json()) as MarketNotePreviewDraft & { subject?: string };
     },
     onSuccess: (brief) => {
+      if (brief.subject) setSubject(brief.subject);
       setLede(brief.lede);
       setWatchlist(brief.watchlist);
       setSectorsMd(brief.sectorsMd);
       setNewsMd(brief.newsMd);
-      setSentimentMd("");
+      setSentimentMd(brief.sentimentMd);
       setDates(brief.dates);
       setSaved(false);
       onError(null);
@@ -539,7 +540,7 @@ function IssueEditor({
           disabled={insertBrief.isPending || save.isPending}
           className="btn-outline !py-2 !px-4 !text-[11px] disabled:opacity-50"
         >
-          {insertBrief.isPending ? "Loading screen…" : "Insert model brief"}
+          {insertBrief.isPending ? "Researching and writing…" : "Redraft with AI"}
         </button>
         <button
           type="button"

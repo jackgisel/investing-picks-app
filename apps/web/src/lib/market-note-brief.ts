@@ -139,8 +139,7 @@ export function previewFromEditorialBrief(
   return { lede, watchlist, sectorsMd, sentimentMd: "", newsMd, dates, bodyMd };
 }
 
-/** A reviewable draft block, never an automatic send. */
-export async function draftMarketNoteBrief(): Promise<MarketNotePreviewDraft> {
+export async function fetchEditorialBrief(): Promise<EditorialBrief> {
   const key = process.env.OPS_API_KEY;
   if (!key) throw new Error("OPS_API_KEY is not configured");
   const res = await fetch(`${OPS_API_BASE}/editorial-brief`, {
@@ -152,5 +151,16 @@ export async function draftMarketNoteBrief(): Promise<MarketNotePreviewDraft> {
   if (!brief.rating_as_of) {
     throw new Error("The scoring system has no current snapshot");
   }
-  return previewFromEditorialBrief(brief);
+  return brief;
+}
+
+/**
+ * The model-written draft, built from the snapshot plus web research. A
+ * reviewable block for the editor, never an automatic send.
+ */
+export async function draftMarketNoteBrief(): Promise<
+  MarketNotePreviewDraft & { subject: string }
+> {
+  const { generateMarketNoteDraft } = await import("@/lib/market-note-ai");
+  return generateMarketNoteDraft(await fetchEditorialBrief());
 }

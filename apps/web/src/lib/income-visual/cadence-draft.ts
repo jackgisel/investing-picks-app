@@ -1,3 +1,4 @@
+import { withAiRead } from "@/lib/short-copy";
 import {
   dailyGraphicPlan,
   isEvaluationFriday,
@@ -47,17 +48,18 @@ export async function draftDailyGraphics(now = new Date()): Promise<string[]> {
     if (await getThreadByKey(kind, ymd)) continue;
     const selected = dailyGraphicRows(eligible, slot.kind);
     if (!selected) continue;
+    const facts = {
+      summary: `${slot.kind} ${ymd}`,
+      post_at: slot.postAt.toISOString(),
+      graphic: slot.kind,
+      rows: selected,
+      tickers: selected.map((row) => row.ticker),
+    };
     const { created } = await createThreadDraft({
       kind,
       dedupeKey: ymd,
-      posts: [dailyPostText(slot.kind, selected)],
-      facts: {
-        summary: `${slot.kind} ${ymd}`,
-        post_at: slot.postAt.toISOString(),
-        graphic: slot.kind,
-        rows: selected,
-        tickers: selected.map((row) => row.ticker),
-      },
+      posts: [await withAiRead(dailyPostText(slot.kind, selected), { rows: selected })],
+      facts,
     });
     if (created) drafted.push(slot.kind);
   }

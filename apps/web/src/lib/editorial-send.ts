@@ -1,4 +1,5 @@
 import {
+  addDays,
   isoWeekKeyFromYmd,
   nextAnalysisSend,
   nextWednesday,
@@ -7,7 +8,8 @@ import {
 } from "@/lib/comm-calendar";
 import { claimDispatch, releaseDispatch } from "@/lib/email-dispatch";
 import { sendMarketNoteIssueEmail } from "@/lib/email";
-import { chooseSpotlightHolding, spotlightCopy } from "@/lib/editorial-copy";
+import { generateAnalysisDraft, generateSpotlightDraft } from "@/lib/editorial-ai";
+import { chooseSpotlightHolding } from "@/lib/editorial-copy";
 import {
   claimEditorialForSend,
   ensureEditorialIssue,
@@ -22,10 +24,25 @@ import { fetchBookPositions } from "@/lib/held-tickers";
 import { listActiveSubscribers } from "@/lib/market-note";
 import { fetchThemeWorkforce } from "@/lib/income-visual/server";
 
+/** The analysis is drafted this many days before it sends, so its research is fresh. */
+const ANALYSIS_DRAFT_LEAD_DAYS = 3;
+
+const pct = (ratio: unknown): number | null =>
+  typeof ratio === "number" ? Math.round(ratio * 1000) / 10 : null;
+
+/**
+ * Open the next analysis and spotlight, and have the model write each one.
+ * Drafts are left unconfirmed; `mailIssue` refuses anything a person has not
+ * confirmed. A failed draft is reported, never thrown, so one letter cannot
+ * block the other.
+ */
 export async function prepareEditorialIssues(now = new Date()): Promise<{
   analysisId: string;
   spotlightId: string;
   ticker: string | null;
+  analysisDrafted: boolean;
+  spotlightDrafted: boolean;
+  errors: string[];
 }> {
   const parts = pacificParts(now);
   const analysis = nextAnalysisSend(parts);
@@ -43,37 +60,69 @@ export async function prepareEditorialIssues(now = new Date()): Promise<{
     subject: `Pick spotlight — ${weekKey}`,
   });
 
+  const errors: string[] = [];
+  const today = ymdString(parts);
+
+  let analysisDrafted = false;
+  const analysisDue =
+    ymdString(analysis.when) <= ymdString(addDays(parts, ANALYSIS_DRAFT_LEAD_DAYS));
+  if (analysisDue) {
+    try {
+      analysisDrafted = await draftAnalysisIfEmpty(analysisIssue, today);
+    } catch (e) {
+      errors.push(`analysis: ${e instanceof Error ? e.message : "draft failed"}`);
+    }
+  }
+
   let ticker = spotlightIssue.ticker;
+  let spotlightDrafted = false;
   if (!spotlightIssue.sentAt && !spotlightIssue.bodyMd.trim()) {
-    const filled = await fillSpotlight(spotlightIssue.id);
-    ticker = filled?.ticker ?? ticker;
+    try {
+      const filled = await fillSpotlight(spotlightIssue.id, today);
+      ticker = filled?.ticker ?? ticker;
+      spotlightDrafted = Boolean(filled);
+    } catch (e) {
+      errors.push(`spotlight: ${e instanceof Error ? e.message : "draft failed"}`);
+    }
   }
   return {
     analysisId: analysisIssue.id,
     spotlightId: spotlightIssue.id,
     ticker,
+    analysisDrafted,
+    spotlightDrafted,
+    errors,
   };
 }
 
-async function fillSpotlight(id: string): Promise<EditorialIssue | null> {
+/** Have the model write the analysis when the row is still blank. Throws on failure. */
+export async function draftAnalysisIfEmpty(
+  issue: EditorialIssue,
+  today: string,
+): Promise<boolean> {
+  if (issue.sentAt || issue.bodyMd.trim()) return false;
+  const draft = await generateAnalysisDraft(issue.periodKey, today);
+  return Boolean(await saveEditorialIssue(issue.id, { ...draft, ticker: null }));
+}
+
+async function fillSpotlight(id: string, today: string): Promise<EditorialIssue | null> {
   const positions = await fetchBookPositions();
   if (!positions) return null;
   const last = await latestSpotlightTicker();
   const chosen = chooseSpotlightHolding(positions, last);
   if (!chosen || chosen.pnlPct === null) return null;
   const rows = await fetchThemeWorkforce([chosen.ticker]);
-  const revenue = rows?.find((row) => row.ticker === chosen.ticker)?.revenue_yoy;
-  const copy = spotlightCopy({
+  const row = rows?.find((r) => r.ticker === chosen.ticker);
+  const draft = await generateSpotlightDraft({
     ticker: chosen.ticker,
     pnlPct: chosen.pnlPct,
     entryDate: chosen.entryDate,
-    revenuePct: typeof revenue === "number" ? revenue * 100 : null,
+    revenuePct: pct(row?.revenue_yoy),
+    employeesPct: pct(row?.employees_yoy),
+    openingsChange90d: pct(row?.openings_change_90d),
+    today,
   });
-  return saveEditorialIssue(id, {
-    subject: copy.subject,
-    bodyMd: copy.bodyMd,
-    ticker: chosen.ticker,
-  });
+  return saveEditorialIssue(id, { ...draft, ticker: chosen.ticker });
 }
 
 export type EditorialSendResult = {

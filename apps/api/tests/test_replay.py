@@ -60,7 +60,7 @@ def _bar(db, ticker, as_of, close):
 
 
 def _params():
-    return RUN118_PARAMS.with_overrides(position_size_usd=1_000.0, cash_reserve_buys=0)
+    return RUN118_PARAMS.with_overrides(position_size_usd=1_000.0)
 
 
 def _ops_client(db):

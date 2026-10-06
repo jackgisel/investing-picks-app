@@ -29,6 +29,7 @@ from app.db.models import (
     EarningsHistory,
     Evaluation,
     Portfolio,
+    PortfolioContribution,
     PortfolioSnapshot,
     Position,
     PriceBar,
@@ -57,7 +58,7 @@ def params_from_portfolio(portfolio: Portfolio) -> StrategyParams:
     return StrategyParams(buy_criteria=criteria, **flat)
 
 
-def _position_to_state(p: Position) -> PositionState:
+def _position_to_state(p: Position, last_scored: date | None = None) -> PositionState:
     """Adapt a DB Position to the (frozen-ish) strategy PositionState.
 
     `packages/strategy` still expresses "house money" as `initial_investment <= 0`
@@ -76,6 +77,7 @@ def _position_to_state(p: Position) -> PositionState:
             entry_date=p.entry_date,
             initial_investment=0.0,
             sector=p.sector,
+            last_scored=last_scored,
         )
     return PositionState(
         ticker=p.ticker,
@@ -85,16 +87,37 @@ def _position_to_state(p: Position) -> PositionState:
         entry_date=p.entry_date,
         initial_investment=p.initial_investment,
         sector=p.sector,
+        last_scored=last_scored,
     )
+
+
+def last_scored_dates(
+    db: Session, tickers: list[str] | set[str], as_of: date | None = None
+) -> dict[str, date]:
+    """Most recent `composite_scores.as_of` per ticker, on or before `as_of`.
+
+    Feeds `PositionState.last_scored`, which the unrated exit reads: a holding
+    with no score in the current run is sold once its last score is older than
+    `max_unrated_days`. Any row counts, carried-forward ones included, because
+    the rule asks "when did this name last have a rating", not "a fresh one".
+    """
+    tickers = list(tickers)
+    if not tickers:
+        return {}
+    q = db.query(CompositeScore.ticker, func.max(CompositeScore.as_of)).filter(
+        CompositeScore.ticker.in_(tickers)
+    )
+    if as_of is not None:
+        q = q.filter(CompositeScore.as_of <= as_of)
+    return {ticker: last for ticker, last in q.group_by(CompositeScore.ticker).all() if last}
 
 
 def load_portfolio_state(
     db: Session, portfolio: Portfolio, as_of: date | None = None
 ) -> PortfolioState:
-    positions = {
-        p.ticker: _position_to_state(p)
-        for p in db.query(Position).filter(Position.portfolio_id == portfolio.id).all()
-    }
+    rows = db.query(Position).filter(Position.portfolio_id == portfolio.id).all()
+    scored = last_scored_dates(db, [p.ticker for p in rows], as_of)
+    positions = {p.ticker: _position_to_state(p, scored.get(p.ticker)) for p in rows}
     return PortfolioState(
         cash=portfolio.cash,
         positions=positions,
@@ -127,8 +150,9 @@ def initial_capital(db: Session, portfolio: Portfolio) -> float | None:
          chart off — so the headline number agrees with the chart's last point.
       3. Configured seed cash.
 
-    There are no external deposits or withdrawals in this book, so equity over
-    starting equity is a true time-weighted return.
+    The book takes deposits when a pick costs more than the cash on hand
+    (`apply_signals(fund_shortfall=True)`); those are not in this number. See
+    `contributed_capital` for the base that includes them.
     """
     declared = getattr(portfolio, "initial_capital", None)
     if isinstance(declared, (int, float)) and declared > 0:
@@ -230,6 +254,55 @@ def exit_basis(trades: list[Trade]) -> dict[int, dict]:
     return out
 
 
+def contributed_capital(db: Session, portfolio: Portfolio, through: date | None = None) -> float:
+    """Deposits made into the book on or before `through` (all of them when None).
+
+    The book assumes a pick is always funded: when a buy costs more than the
+    cash on hand, the executor records the shortfall as a contribution rather
+    than shrinking the pick. Return math has to count that money as capital
+    put in, not as a gain.
+    """
+    q = db.query(func.coalesce(func.sum(PortfolioContribution.amount), 0.0)).filter(
+        PortfolioContribution.portfolio_id == portfolio.id
+    )
+    if through is not None:
+        q = q.filter(PortfolioContribution.date <= through)
+    return float(q.scalar() or 0.0)
+
+
+def contributions_by_date(db: Session, portfolio_id: int) -> dict[date, float]:
+    """Every deposit into the book, keyed by date."""
+    rows = (
+        db.query(PortfolioContribution.date, PortfolioContribution.amount)
+        .filter(PortfolioContribution.portfolio_id == portfolio_id)
+        .all()
+    )
+    return {d: float(a or 0.0) for d, a in rows}
+
+
+def record_contribution(
+    db: Session, portfolio: Portfolio, when: date, amount: float
+) -> PortfolioContribution:
+    """Add `amount` to the day's contribution row (one row per portfolio and day)."""
+    row = (
+        db.query(PortfolioContribution)
+        .filter(
+            PortfolioContribution.portfolio_id == portfolio.id,
+            PortfolioContribution.date == when,
+        )
+        .one_or_none()
+    )
+    if row is None:
+        row = PortfolioContribution(portfolio_id=portfolio.id, date=when, amount=0.0)
+        db.add(row)
+        # Two funded buys in one evaluation share the day's row. Flush so the
+        # second lookup sees the first insert instead of violating the
+        # (portfolio, date) unique constraint.
+        db.flush()
+    row.amount = (row.amount or 0.0) + amount
+    return row
+
+
 def picks_return(db: Session, portfolio: Portfolio) -> dict[str, float | int | None]:
     """Cumulative return on capital actually deployed into picks.
 
@@ -303,7 +376,12 @@ def picks_return_pct(db: Session, portfolio: Portfolio) -> float | None:
 def total_return_pct(db: Session, portfolio: Portfolio) -> float | None:
     """Percent return of the whole book since inception.
 
-    (cash + market value of holdings) / initial capital - 1.
+    (cash + market value of holdings) / (initial capital + deposits) - 1.
+
+    Deposits are the shortfalls the executor funded so a pick could be bought
+    at full size. Counting them in the base, and not timing them, makes this a
+    plain money-in / money-out figure rather than a time-weighted return; the
+    picks series on /performance is the time-weighted one.
 
     This counts cash and every realized gain or loss, because sale proceeds land
     in cash. The old formula divided current market value by the cost basis of
@@ -315,6 +393,7 @@ def total_return_pct(db: Session, portfolio: Portfolio) -> float | None:
     base = initial_capital(db, portfolio)
     if not base or base <= 0:
         return None
+    base += contributed_capital(db, portfolio)
     _cash, _invested, equity = portfolio_equity(db, portfolio)
     return round((equity / base - 1) * 100, 2)
 
@@ -556,8 +635,17 @@ def apply_signals(
     signals: list[Signal],
     evaluation: Evaluation,
     as_of: date | None = None,
+    *,
+    fund_shortfall: bool = False,
 ) -> list[Trade]:
-    """Simulate fills at current_price marks."""
+    """Simulate fills at current_price marks.
+
+    `fund_shortfall` is the live book's rule: a pick is always funded. When a
+    buy costs more than the cash on hand the shortfall is deposited and
+    recorded as a `PortfolioContribution` dated on the fill, and the pick fills
+    at full size. Off (the DCA sample books), a buy is clamped to cash as
+    before, since those books are sized to their own weekly deposit.
+    """
     trades: list[Trade] = []
     fill_date = as_of or date.today()
     fill_ts = datetime(fill_date.year, fill_date.month, fill_date.day, 20, 0, tzinfo=timezone.utc)
@@ -648,8 +736,20 @@ def apply_signals(
             shares = target / price
             notional = shares * price
             if notional > portfolio.cash:
-                shares = portfolio.cash / price
-                notional = shares * price
+                if fund_shortfall:
+                    shortfall = notional - portfolio.cash
+                    record_contribution(db, portfolio, fill_date, shortfall)
+                    portfolio.cash += shortfall
+                    log.info(
+                        "Funded %s %s: deposited %.2f so the pick fills at %.2f",
+                        sig.action.value,
+                        sig.ticker,
+                        shortfall,
+                        notional,
+                    )
+                else:
+                    shares = portfolio.cash / price
+                    notional = shares * price
             if shares <= 0 or notional <= 0:
                 continue
 
@@ -804,7 +904,11 @@ def run_evaluation(
     )
 
     if not dry_run and signals:
-        apply_signals(db, portfolio, signals, ev)
+        # The live book funds its picks; the DCA sample books are sized to
+        # their own weekly deposit and never run through here.
+        apply_signals(
+            db, portfolio, signals, ev, fund_shortfall=(portfolio.kind or "live") == "live"
+        )
 
     db.commit()
     db.refresh(ev)

@@ -19,6 +19,7 @@ from outpick_strategy import (
     RUN118_PARAMS,
     ScoreSnapshot,
     evaluate,
+    rank_candidates,
     evaluate_sells_only,
     grade_meets_minimum,
     percentile_to_grade,
@@ -145,23 +146,24 @@ def test_a_position_being_fully_exited_is_not_also_trimmed():
     assert len(selling) == 1, f"two exit instructions for one ticker: {selling}"
 
 
-def test_buy_is_not_authorised_against_double_counted_sale_proceeds():
-    """Cash freed by a sale must be counted once, not once per selling signal.
+def test_a_buy_is_published_regardless_of_realisable_cash():
+    """run119: the book assumes funding, so cash never gates the add.
 
-    Real failure: X is worth $2,000 and is both TRIMmed (176 sh = $1,760) and
-    FULL_SELLd. sim_cash reads $3,760 against a $3,000 target notional, so a BUY
-    is issued. Only $2,000 ever arrives, and apply_signals silently under-fills
-    the new position to two thirds of its intended size.
+    Run 118 simulated the cash freed by pending sells and refused a buy it could
+    not fund. That was cash management, which this book does not do: the
+    executor funds the pick and records the deposit. X is fully exited here and
+    NEW is bought at the full target notional with $0 of cash.
     """
     pos = position("X", shares=200, avg_cost=20, price=10, initial_investment=4_000)
     portfolio = PortfolioState(cash=0, positions={"X": pos}, as_of=TODAY)
-    params = RUN118_PARAMS.with_overrides(position_size_usd=3_000.0, cash_reserve_buys=0)
+    params = RUN118_PARAMS.with_overrides(position_size_usd=3_000.0)
     scores = {"X": score("X", 2.0), "NEW": score("NEW", 4.8, sector="Energy")}
 
     signals = evaluate(portfolio, scores, ["NEW"], params)
 
     buys = [s for s in signals if s.action == Action.BUY]
-    assert buys == [], "bought $3,000 of NEW with $2,000 of realisable cash"
+    assert [b.ticker for b in buys] == ["NEW"]
+    assert buys[0].metadata["target_notional"] == 3_000.0
 
 
 # ---------------------------------------------------------------------------
@@ -191,40 +193,30 @@ def test_a_trimmed_name_is_not_conviction_added_in_the_same_evaluation():
 
 
 # ---------------------------------------------------------------------------
-# BUG-S4 — DOUBLE_BUY has no minimum-funding floor
+# Funded book — neither path has a cash floor
 # ---------------------------------------------------------------------------
 
 
-def test_conviction_add_needs_the_same_cash_floor_as_a_first_buy():
-    """A conviction add must not be published when there is no cash to fund it.
+def test_neither_buy_path_has_a_cash_floor():
+    """A $10 book publishes a $3,000 conviction add and a $3,000 first buy.
 
-    Real failure: $10 cash plus a $10 recycle trim = $20 available against a
-    $3,000 target notional, and the engine still emits DOUBLE_BUY with
-    target_notional=$3,000. The identical situation on a *new* name is correctly
-    rejected by the 0.5x floor.
+    Run 118 refused both below half the target notional (and, before BUG-S4,
+    only the first buy). run119 has no funding gate on either path.
     """
     positions = {
         "CONV": position("CONV", shares=10, avg_cost=50, price=100, initial_investment=500),
-        "TINY": position("TINY", shares=1, avg_cost=10, price=10, initial_investment=10,
-                         sector="Health"),
     }
     portfolio = PortfolioState(cash=10, positions=positions, as_of=TODAY)
-    params = RUN118_PARAMS.with_overrides(
-        position_size_usd=3_000.0, cash_reserve_buys=0, position_cap_normal=1.0
-    )
-    scores = {"CONV": score("CONV", 4.6), "TINY": score("TINY", 3.0, sector="Health")}
+    params = RUN118_PARAMS.with_overrides(position_size_usd=3_000.0, position_cap_normal=1.0)
+    scores = {"CONV": score("CONV", 4.6)}
+    adds = [s for s in evaluate(portfolio, scores, ["CONV"], params) if s.action == Action.DOUBLE_BUY]
+    assert [a.ticker for a in adds] == ["CONV"]
+    assert adds[0].metadata["target_notional"] == 3_000.0
 
-    signals = evaluate(portfolio, scores, ["CONV"], params)
-
-    assert [s for s in signals if s.action == Action.DOUBLE_BUY] == []
-
-
-def test_a_first_buy_does_enforce_the_half_notional_floor():
-    """Pins the asymmetry BUG-S4 is measured against, so a fix cannot delete it."""
-    portfolio = PortfolioState(cash=1_400, positions={}, as_of=TODAY)
-    params = RUN118_PARAMS.with_overrides(position_size_usd=3_000.0, cash_reserve_buys=0)
-    signals = evaluate(portfolio, {"NEW": score("NEW", 4.8)}, ["NEW"], params)
-    assert [s for s in signals if s.action == Action.BUY] == []
+    portfolio = PortfolioState(cash=10, positions={}, as_of=TODAY)
+    buys = [s for s in evaluate(portfolio, {"NEW": score("NEW", 4.8)}, ["NEW"], params)
+            if s.action == Action.BUY]
+    assert [b.ticker for b in buys] == ["NEW"]
 
 
 # ---------------------------------------------------------------------------
@@ -320,8 +312,9 @@ def test_small_max_positions_does_not_forbid_every_buy():
     assert [s.ticker for s in signals if s.action == Action.BUY] == ["NEW"]
 
 
-def test_sector_cap_boundary_at_the_default_fifty_slot_book():
-    """int(50 * 0.30) == 15: the 15th tech name is allowed, the 16th is not."""
+def test_sector_cap_boundary_at_the_fifty_slot_book():
+    """max_positions basis: int(50 * 0.30) == 15, the 15th tech name is allowed, the 16th is not."""
+    params = RUN118_PARAMS.with_overrides(sector_cap_basis="max_positions")
 
     def book(n_tech: int):
         positions, scores = {}, {}
@@ -334,12 +327,44 @@ def test_sector_cap_boundary_at_the_default_fifty_slot_book():
         return PortfolioState(cash=500_000, positions=positions, as_of=TODAY), scores
 
     pf14, sc14 = book(14)
-    assert [s.ticker for s in evaluate(pf14, sc14, ["NEWT"], RUN118_PARAMS)
+    assert [s.ticker for s in evaluate(pf14, sc14, ["NEWT"], params)
             if s.action == Action.BUY] == ["NEWT"]
 
     pf15, sc15 = book(15)
-    assert [s for s in evaluate(pf15, sc15, ["NEWT"], RUN118_PARAMS)
+    assert [s for s in evaluate(pf15, sc15, ["NEWT"], params)
             if s.action == Action.BUY] == []
+
+
+def test_sector_cap_held_basis_is_the_default_and_binds_on_a_young_book():
+    """run119 sizes the cap to the book: int((held + 1) * 0.30), floor 1.
+
+    Eight names held: cap = int(9 * 0.30) = 2. A third Tech name is refused;
+    on the Run 118 basis (15 of 50 slots) it would have been bought.
+    """
+    assert RUN118_PARAMS.sector_cap_basis == "held"
+
+    def book(n_tech: int, n_other: int):
+        positions, scores = {}, {}
+        for i in range(n_tech):
+            t = f"TECH{i}"
+            positions[t] = position(t, sector="Technology")
+            scores[t] = score(t, 4.0)
+        for i in range(n_other):
+            t = f"OTH{i}"
+            positions[t] = position(t, sector=f"S{i}")
+            scores[t] = score(t, 4.0, sector=f"S{i}")
+        scores["NEWT"] = score("NEWT", 4.8, sector="Technology")
+        return PortfolioState(cash=500_000, positions=positions, as_of=TODAY), scores
+
+    pf, sc = book(1, 7)
+    assert [s.ticker for s in evaluate(pf, sc, ["NEWT"], RUN118_PARAMS)
+            if s.action == Action.BUY] == ["NEWT"]
+    pf, sc = book(2, 6)
+    assert [s for s in evaluate(pf, sc, ["NEWT"], RUN118_PARAMS)
+            if s.action == Action.BUY] == []
+    old = RUN118_PARAMS.with_overrides(sector_cap_basis="max_positions")
+    assert [s.ticker for s in evaluate(pf, sc, ["NEWT"], old)
+            if s.action == Action.BUY] == ["NEWT"]
 
 
 # ---------------------------------------------------------------------------
@@ -424,98 +449,41 @@ def test_drawdown_breaker_is_off_by_default_and_never_blocks_buys():
 
 
 # ---------------------------------------------------------------------------
-# BUG-S10 — which name gets recycled is not reproducible
+# BUG-S10 — buy ranking ties resolved by dict insertion order
 # ---------------------------------------------------------------------------
 
 
-def _recycle_book(order: tuple[str, str]) -> tuple[PortfolioState, dict]:
-    positions: dict[str, PositionState] = {}
-    for t in order:
-        positions[t] = position(t, sector="Healthcare")
-    for i in range(8):
-        t = f"F{i}"
-        positions[t] = position(t, sector="Utilities")
-    portfolio = PortfolioState(cash=500, positions=positions, as_of=TODAY)
-    scores = {t: score(t, 4.2, sector=positions[t].sector) for t in positions}
-    for t in order:
-        scores[t] = score(t, 3.0, sector="Healthcare")
-    scores["NEW"] = score("NEW", 4.8, sector="Energy")
-    return portfolio, scores
+def test_buy_ranking_is_reproducible_when_ratings_tie():
+    """Equal ratings order by ticker, whatever order the scores dict has.
 
-
-def test_recycle_choice_is_reproducible_when_ratings_tie():
-    """Two identically-weak holdings must not resolve by dict insertion order.
-
-    Real failure: AAA and ZZZ both at QR 3.0 with identical size. Whichever the
-    caller's positions dict happens to list first is the one sold. The same book
-    loaded by a different query ordering produces a different trade, so a
-    backtest and the live book can diverge on identical inputs.
+    Run 118 fixed this for the recycle trim and left the buy path on a plain
+    stable sort, so two universes that differ only in query order could buy
+    different names. Stored ratings are rounded to three decimals; ties are
+    routine.
     """
-    pf_a, sc_a = _recycle_book(("AAA", "ZZZ"))
-    pf_b, sc_b = _recycle_book(("ZZZ", "AAA"))
-
-    picked_a = [s.ticker for s in evaluate(pf_a, sc_a, ["NEW"], RUN118_PARAMS)
-                if s.action == Action.RECYCLE_TRIM]
-    picked_b = [s.ticker for s in evaluate(pf_b, sc_b, ["NEW"], RUN118_PARAMS)
-                if s.action == Action.RECYCLE_TRIM]
-
-    assert picked_a == picked_b == ["AAA"], (picked_a, picked_b)
+    tie = {t: score(t, 4.5, sector=sec) for t, sec in (("ZZZ", "Energy"), ("AAA", "Health"))}
+    rev = dict(reversed(list(tie.items())))
+    assert rank_candidates(tie) == rank_candidates(rev) == ["AAA", "ZZZ"]
+    portfolio = PortfolioState(cash=10_000, positions={}, as_of=TODAY)
+    bought = [s.ticker for s in evaluate(portfolio, rev, rank_candidates(rev), RUN118_PARAMS)
+              if s.action == Action.BUY]
+    assert bought == ["AAA"]
 
 
-def test_recycle_prefers_the_strictly_weakest_name():
-    """Untied ratings must always pick the lowest — the part that does work."""
-    positions = {
-        "MID": position("MID", sector="Healthcare"),
-        "WEAKEST": position("WEAKEST", sector="Healthcare"),
-    }
+def test_run119_never_emits_a_recycle_trim():
+    """A weak holding is not sold to fund the add; the add is funded."""
+    positions = {"WEAK": position("WEAK", sector="Healthcare")}
     for i in range(8):
         positions[f"F{i}"] = position(f"F{i}", sector="Utilities")
-    portfolio = PortfolioState(cash=500, positions=positions, as_of=TODAY)
+    portfolio = PortfolioState(cash=0, positions=positions, as_of=TODAY)
     scores = {t: score(t, 4.2, sector=positions[t].sector) for t in positions}
-    scores["MID"] = score("MID", 3.9, sector="Healthcare")
-    scores["WEAKEST"] = score("WEAKEST", 2.6, sector="Healthcare")
+    scores["WEAK"] = score("WEAK", 2.0, scores["WEAK"].sector)
     scores["NEW"] = score("NEW", 4.8, sector="Energy")
-
-    picked = [s.ticker for s in evaluate(portfolio, scores, ["NEW"], RUN118_PARAMS)
-              if s.action == Action.RECYCLE_TRIM]
-    assert picked == ["WEAKEST"]
-
-
-def test_recycle_boundary_at_weak_signal_threshold():
-    """QR exactly 4.0 is not weak; 3.99 is. The recycle bar equals the buy bar."""
-
-    def picked(weak_qr: float):
-        positions = {"CAND": position("CAND", sector="Healthcare")}
-        for i in range(8):
-            positions[f"F{i}"] = position(f"F{i}", sector="Utilities")
-        portfolio = PortfolioState(cash=500, positions=positions, as_of=TODAY)
-        scores = {t: score(t, 4.2, sector=positions[t].sector) for t in positions}
-        scores["CAND"] = score("CAND", weak_qr, sector="Healthcare")
-        scores["NEW"] = score("NEW", 4.8, sector="Energy")
-        return [s.ticker for s in evaluate(portfolio, scores, ["NEW"], RUN118_PARAMS)
-                if s.action == Action.RECYCLE_TRIM]
-
-    assert picked(4.0) == []
-    assert picked(3.99) == ["CAND"]
-
-
-def test_recycle_never_sells_more_shares_than_are_held():
-    """min(pos.shares, ...) is the only thing between a trim and a naked short."""
-    positions = {"TINY": position("TINY", shares=1, avg_cost=10, price=10,
-                                  initial_investment=10, sector="Healthcare")}
-    for i in range(3):
-        positions[f"F{i}"] = position(f"F{i}", shares=100, avg_cost=10, price=10,
-                                      initial_investment=1_000, sector=f"S{i}")
-    portfolio = PortfolioState(cash=1_800, positions=positions, as_of=TODAY)
-    params = RUN118_PARAMS.with_overrides(position_size_usd=3_000.0, cash_reserve_buys=0,
-                                          position_cap_normal=1.0)
-    scores = {t: score(t, 4.2, sector=positions[t].sector) for t in positions}
-    scores["TINY"] = score("TINY", 3.0, sector="Healthcare")
-    scores["NEW"] = score("NEW", 4.8, sector="Energy")
-
-    for s in evaluate(portfolio, scores, ["NEW"], params):
-        if s.action == Action.RECYCLE_TRIM:
-            assert s.sell_shares <= portfolio.positions[s.ticker].shares
+    signals = evaluate(portfolio, scores, ["NEW"], RUN118_PARAMS)
+    assert not any(s.action == Action.RECYCLE_TRIM for s in signals)
+    assert [s.ticker for s in signals if s.action == Action.BUY] == ["NEW"]
+    # WEAK at 2.0 is a hold removal, which is a rating rule, not a funding one.
+    assert [s.ticker for s in signals if s.action == Action.FULL_SELL] == ["WEAK"]
 
 
 # ---------------------------------------------------------------------------
@@ -743,8 +711,9 @@ def test_a_holding_that_trips_several_exit_rules_is_sold_exactly_once():
     signals = solo(position("D", avg_cost=50, price=10, days_held=900), 1.2)
     assert len(signals) == 1
     assert signals[0].action == Action.FULL_SELL
-    # Some exit rule owns the signal; exactly one does.
-    assert rule_ids(signals) & {"strong_sell", "underwater_stop", "hold_removal"}
+    # Some exit rule owns the signal; exactly one does. run119 adds the
+    # max-loss stop, which is checked first.
+    assert rule_ids(signals) & {"max_loss_stop", "strong_sell", "underwater_stop", "hold_removal"}
 
 
 def test_min_holding_days_boundary_is_inclusive_of_the_minimum():
@@ -777,16 +746,50 @@ def test_min_holding_days_is_skipped_when_entry_date_is_unknown():
                                                   as_of=TODAY)] == [Action.FULL_SELL]
 
 
-def test_an_unscoreable_holding_can_never_be_exited():
-    """CHARACTERISES the known fail-silent in _removal_signals.
+def test_an_unscoreable_holding_exits_on_price_or_on_time():
+    """run119 closes the fail-silent Run 118 characterised here.
 
-    DARK is down 98%, held six years, and has no score. `if not score: continue`
-    means no rule — strong sell, underwater stop, hold removal — can ever reach
-    it. The only exit left is the weight cap, and only while it is overweight.
+    DARK is down 98%, held six years, and has no score. Run 118's
+    `if not score: continue` meant no rule could ever reach it. Now the
+    max-loss stop fires on price alone, and a holding that is merely unrated
+    (not down) exits once it has gone `max_unrated_days` without a score.
     """
     pos = position("DARK", shares=100, avg_cost=50, price=1, days_held=2_400)
     portfolio = PortfolioState(cash=1_000_000, positions={"DARK": pos}, as_of=TODAY)
+    signals = evaluate(portfolio, {}, [], RUN118_PARAMS)
+    assert [s.action for s in signals] == [Action.FULL_SELL]
+    assert rule_ids(signals) == {"max_loss_stop"}
+
+    flat = position("GHOST", shares=100, avg_cost=50, price=49, days_held=100)
+    flat.last_scored = TODAY - timedelta(days=22)
+    portfolio = PortfolioState(cash=1_000_000, positions={"GHOST": flat}, as_of=TODAY)
+    signals = evaluate(portfolio, {}, [], RUN118_PARAMS)
+    assert rule_ids(signals) == {"unrated_exit"}
+
+    recent = position("GHOST", shares=100, avg_cost=50, price=49, days_held=100)
+    recent.last_scored = TODAY - timedelta(days=21)
+    portfolio = PortfolioState(cash=1_000_000, positions={"GHOST": recent}, as_of=TODAY)
     assert evaluate(portfolio, {}, [], RUN118_PARAMS) == []
+
+    # Never scored: counts from entry.
+    never = position("NEW", shares=100, avg_cost=50, price=49, days_held=22)
+    portfolio = PortfolioState(cash=1_000_000, positions={"NEW": never}, as_of=TODAY)
+    assert rule_ids(evaluate(portfolio, {}, [], RUN118_PARAMS)) == {"unrated_exit"}
+    off = RUN118_PARAMS.with_overrides(max_unrated_days=0)
+    assert evaluate(portfolio, {}, [], off) == []
+
+
+def test_max_loss_stop_boundary_and_house_money_exemption():
+    """-40% exactly fires; -39.9% holds; a rating of 4.9 does not save it."""
+    assert rule_ids(solo(position("L", avg_cost=100, price=60), 4.9)) == {"max_loss_stop"}
+    assert solo(position("L", avg_cost=100, price=60.1), 4.9) == []
+    house = PositionState(ticker="H", shares=100, avg_cost=0.0, current_price=1.0,
+                          entry_date=TODAY - timedelta(days=500), initial_investment=0.0)
+    portfolio = PortfolioState(cash=1_000_000, positions={"H": house}, as_of=TODAY)
+    assert evaluate(portfolio, {"H": score("H", 4.0)}, [], RUN118_PARAMS) == []
+    off = RUN118_PARAMS.with_overrides(max_loss_pct=None)
+    pf = PortfolioState(cash=1_000_000, positions={"L": position("L", avg_cost=100, price=10)}, as_of=TODAY)
+    assert evaluate(pf, {"L": score("L", 4.0)}, [], off) == []
 
 
 # ---------------------------------------------------------------------------
@@ -1018,41 +1021,14 @@ def test_qr_velocity_is_off_by_default_and_strict_at_its_threshold():
 # ---------------------------------------------------------------------------
 
 
-def test_cash_reserve_is_denominated_in_buys_not_dollars_or_percent():
-    """cash_reserve_buys=2 must mean 2 x target_notional held back.
-
-    Reading it as dollars ($2) or a fraction (2%) would change the buy gate by
-    orders of magnitude. Pins the unit at its single consumer.
-    """
-    equity = 100_000.0
-    params = RUN118_PARAMS
-    target = params.target_notional(equity)
-    assert target == pytest.approx(3_500.0)
-
-    # Cash just under target + 2*target: the engine must look for a recycle.
-    positions = {"WEAK": position("WEAK", shares=1_000, avg_cost=50, price=50,
-                                  initial_investment=50_000, sector="Tech")}
-    for i in range(8):
-        positions[f"H{i}"] = position(f"H{i}", sector=f"S{i}")
-    portfolio = PortfolioState(cash=10_000, positions=positions, as_of=TODAY)
-    scores = {t: score(t, 4.2, sector=positions[t].sector) for t in positions}
-    scores["WEAK"] = score("WEAK", 3.0, sector="Tech")
-    scores["NEW"] = score("NEW", 4.8, sector="Energy")
-    p = params.with_overrides(position_cap_normal=1.0)
-
-    recycles = [s for s in evaluate(portfolio, scores, ["NEW"], p)
-                if s.action == Action.RECYCLE_TRIM]
-    shortfall = p.target_notional(portfolio.equity) * (1 + p.cash_reserve_buys) - portfolio.cash
-    assert recycles[0].sell_shares * 50 == pytest.approx(shortfall * 1.1)
-
-
 def test_sector_concentration_is_a_count_of_names_not_a_share_of_capital():
     """CHARACTERISES the unit of sector_concentration inside the engine.
 
-    0.30 means int(max_positions * 0.30) = 15 *names*, checked against a count
-    of held tickers. It is not a 30% weight limit: 15 equal-weight names in one
-    sector is 30% of the book only if the book is full. This value is published
-    in PUBLIC_FIELDS, so its unit is part of the risk contract.
+    0.30 means int(basis * 0.30) *names*, checked against a count of held
+    tickers. It is not a 30% weight limit: 15 equal-weight names in one sector
+    is 30% of the book only if the book is full. This value is published in
+    PUBLIC_FIELDS, so its unit is part of the risk contract. Pinned to the
+    max_positions basis so the two-name book does not hit the held-basis cap.
     """
     positions, scores = {}, {}
     # Two tech names carrying 90% of the capital: no cap fires, because the cap
@@ -1065,7 +1041,7 @@ def test_sector_concentration_is_a_count_of_names_not_a_share_of_capital():
     scores["BIG"] = score("BIG", 4.2)
     scores["NEWT"] = score("NEWT", 4.8, sector="Technology")
     portfolio = PortfolioState(cash=1_000_000, positions=positions, as_of=TODAY)
-    params = RUN118_PARAMS.with_overrides(position_cap_normal=1.0)
+    params = RUN118_PARAMS.with_overrides(position_cap_normal=1.0, sector_cap_basis="max_positions")
 
     assert [s.ticker for s in evaluate(portfolio, scores, ["NEWT"], params)
             if s.action == Action.BUY] == ["NEWT"]
@@ -1128,7 +1104,8 @@ def test_momentum_penalty_can_drive_a_rating_to_the_floor_not_below():
     """
     weak = {k: 5.0 for k in
             ("valuation", "growth", "profitability", "momentum", "revisions")}
-    composite, _ = composite_from_factor_pcts(weak, RUN118_PARAMS, momentum_12m=-0.5)
+    run118 = RUN118_PARAMS.with_overrides(momentum_penalty=20.0)
+    composite, _ = composite_from_factor_pcts(weak, run118, momentum_12m=-0.5)
     assert composite < 0
     assert quant_rating_from_composite(composite) == 1.0
     assert quant_rating_from_composite(1_000.0) == 5.0

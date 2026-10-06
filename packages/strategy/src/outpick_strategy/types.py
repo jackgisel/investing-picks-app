@@ -14,6 +14,9 @@ class Action(str, Enum):
     FULL_SELL = "full_sell"
     PARTIAL_SELL = "partial_sell"
     TRIM = "trim"
+    # Run 118's cash-management trim: sell the weakest holding to fund a buy.
+    # run119 never emits it (the book assumes funding), but ledger rows and
+    # the web's action labels still carry the value for history.
     RECYCLE_TRIM = "recycle_trim"
     # Records a decision NOT to act — currently an exit suppressed by
     # min_holding_days. `apply_signals` dispatches on an explicit allow-list of
@@ -82,6 +85,11 @@ class PositionState:
     entry_date: date | None = None
     initial_investment: float | None = None  # <= 0 means house money
     sector: str | None = None
+    # Date of the most recent composite score this holding has, or None when
+    # it has never been scored. Read only by the unrated exit
+    # (`max_unrated_days`); callers that do not track it leave it None and the
+    # rule then counts from `entry_date`.
+    last_scored: date | None = None
 
     @property
     def market_value(self) -> float:

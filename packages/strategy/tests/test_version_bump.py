@@ -22,7 +22,7 @@ def test_changelog_covers_current_version():
         f"{_CHANGELOG} must have a '## {label}' section. Bump version_label "
         "and add the changelog entry in the same PR."
     )
-    assert "run119" in text
+    assert "run120" in text
     assert "version_label" in text
     assert "max_adds_per_evaluation" in text
 

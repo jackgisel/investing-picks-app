@@ -1,4 +1,4 @@
-# Canonical Run 118 backtest. Measures the shipped engine at $1,000 per pick
+# Canonical run119 backtest. Measures the shipped engine at $1,000 per pick
 # over the real-data window (Segment A top-400 vintages until Segment B `full`
 # Fridays exist). Return metrics stay gated at n_evaluations >= 24.
 #
@@ -22,7 +22,7 @@ slippage_bps = 0
 
 # Include every labelled Friday; the report never silently mixes scopes.
 universe_scope = "all"
-params_version_label = "run118"
+params_version_label = "run119"
 
 [sensitivity]
 fill_price = "next_close"

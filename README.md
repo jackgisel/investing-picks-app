@@ -8,12 +8,12 @@ Virtual portfolio engine (Python) + member UI (Next.js). **No Alpaca** — the b
 apps/web      Next.js member + ops UI (BetterAuth, Stripe Billing)
 apps/api      FastAPI — /api/v1 (public) + /api/ops (ledger)
 apps/worker   APScheduler jobs (FMP ingest, score, evaluate)
-packages/strategy  Pure Run 118 rules (shared live/backtest)
+packages/strategy  Pure strategy rules, run119 (shared live/backtest)
 ```
 
 ## Hard rule
 
-Live evaluation and backtest must call `outpick_strategy.evaluate(...)`. Params default to **Run 118** (1 buy/eval, active recycling, house money uncapped, 270d underwater).
+Live evaluation and backtest must call `outpick_strategy.evaluate(...)`. Params default to **run119** (1 buy/eval, every pick funded, no recycling, house money uncapped, 270d underwater, 40% max-loss stop).
 
 ## Quick start (local)
 

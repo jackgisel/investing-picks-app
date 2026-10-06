@@ -97,7 +97,7 @@ def summary_markdown(report: dict) -> str:
         )
     if report["status"] == "baseline_stale":
         lines.append(
-            "Strategy or dataset changed. Regenerate `backtests/baselines/run118.json` "
+            "Strategy or dataset changed. Regenerate `backtests/baselines/run119.json` "
             "in this PR (`UPDATE_BASELINE=1`)."
         )
         lines.append("")

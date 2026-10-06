@@ -29,7 +29,7 @@ from typing import Iterable, Sequence
 
 from sqlalchemy.orm import Session
 
-from app.db.models import PortfolioSnapshot, Position, PriceBar, Stock
+from app.db.models import PortfolioContribution, PortfolioSnapshot, Position, PriceBar, Stock
 
 log = logging.getLogger(__name__)
 
@@ -143,10 +143,11 @@ def book_period_returns(
 ) -> tuple[Anchors, dict[str, dict]]:
     """Whole-book equity return and SPY, per period.
 
-    `total_value` is cash + holdings on a book that takes no deposits or
-    withdrawals, so a plain end/start ratio IS the period return — no
-    flow adjustment is needed or wanted here. (The DCA books DO take weekly
-    contributions; they are not portfolio 1 and must not be measured this way.)
+    `total_value` is cash + holdings. The book deposits cash whenever a pick
+    costs more than it holds (`apply_signals(fund_shortfall=True)`), so a
+    deposit inside the period is backed out of the end value before the
+    ratio is taken: money put in is not a return. Deposits on the anchor date
+    itself are already in the anchor's close-of-day value and are left alone.
     """
     snaps = (
         db.query(PortfolioSnapshot)
@@ -162,11 +163,16 @@ def book_period_returns(
     for period in PERIODS:
         anchor_date = anchors.anchor_for(period)
         anchor = by_date.get(anchor_date) if anchor_date else None
+        flows = (
+            _contributions_between(db, portfolio_id, anchor_date, anchors.latest)
+            if anchor_date and anchors.latest
+            else 0.0
+        )
         out[period] = {
             "from_date": anchor_date.isoformat() if anchor_date else None,
             "book_return_pct": _pct(
                 anchor.total_value if anchor else None,
-                latest.total_value if latest else None,
+                (latest.total_value - flows) if latest else None,
             ),
             "spy_return_pct": _pct(
                 anchor.spy_value if anchor else None,
@@ -174,6 +180,24 @@ def book_period_returns(
             ),
         }
     return anchors, out
+
+
+def _contributions_between(
+    db: Session, portfolio_id: int, after: date, through: date
+) -> float:
+    """Deposits dated in (after, through]."""
+    from sqlalchemy import func
+
+    total = (
+        db.query(func.coalesce(func.sum(PortfolioContribution.amount), 0.0))
+        .filter(
+            PortfolioContribution.portfolio_id == portfolio_id,
+            PortfolioContribution.date > after,
+            PortfolioContribution.date <= through,
+        )
+        .scalar()
+    )
+    return float(total or 0.0)
 
 
 def _stocks_by_ticker(db: Session, tickers: Iterable[str]) -> dict[str, Stock]:

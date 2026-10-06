@@ -148,13 +148,6 @@ def run_extra_buy(
     price = stock.last_price if stock else None
     if not price or price <= 0:
         raise ExtraBuyRefused(f"{ticker} has no mark to fill at. Refresh marks first.")
-    if state.cash < target:
-        # apply_signals would quietly fill whatever cash exists. An under-sized
-        # second pick is not what anyone asked for, so stop here instead.
-        raise ExtraBuyRefused(
-            f"Cash ${state.cash:,.2f} is short of the ${target:,.2f} target size."
-        )
-
     score = entry.score
     signal = Signal(
         action=Action.BUY,
@@ -199,7 +192,9 @@ def run_extra_buy(
         return result
 
     persist_signal(db, ev.id, signal)
-    trades = apply_signals(db, portfolio, [signal], ev, as_of=as_of)
+    # The live book funds its picks: a shortfall is deposited, not a reason
+    # to refuse or to under-size the second pick.
+    trades = apply_signals(db, portfolio, [signal], ev, as_of=as_of, fund_shortfall=True)
     if not trades:
         db.rollback()
         raise ExtraBuyRefused(f"{ticker} did not fill; nothing was written.")

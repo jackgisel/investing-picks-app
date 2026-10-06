@@ -1,4 +1,4 @@
-"""Characterisation snapshot of `evaluate()` under RUN118_PARAMS.
+"""Characterisation snapshot of `evaluate()` under the shipped defaults.
 
 This is not a rule test. It freezes the *entire* signal list the engine emits
 for two fixed synthetic books and compares it against a checked-in JSON file.
@@ -10,7 +10,7 @@ Regenerate deliberately with:
 
     UPDATE_GOLDEN=1 python -m pytest packages/strategy/tests/test_golden_evaluate.py
 
-and review the resulting diff in `golden/run118_evaluate.json` line by line.
+and review the resulting diff in `golden/<version_label>_evaluate.json` line by line.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ from outpick_strategy import (
     evaluate_sells_only,
 )
 
-GOLDEN_PATH = Path(__file__).parent / "golden" / "run118_evaluate.json"
+GOLDEN_PATH = Path(__file__).parent / "golden" / f"{RUN118_PARAMS.version_label}_evaluate.json"
 AS_OF = date(2026, 7, 17)  # a 3rd Friday
 
 SECTORS = [
@@ -76,6 +76,7 @@ def _pos(
     days_held: int,
     initial_investment: float | None,
     sector: str | None,
+    last_scored: int | None = None,
 ) -> PositionState:
     return PositionState(
         ticker=ticker,
@@ -85,6 +86,7 @@ def _pos(
         entry_date=AS_OF - timedelta(days=days_held),
         initial_investment=initial_investment,
         sector=sector,
+        last_scored=AS_OF - timedelta(days=last_scored) if last_scored else None,
     )
 
 
@@ -99,7 +101,8 @@ def _mixed_book() -> tuple[PortfolioState, dict[str, ScoreSnapshot]]:
     scores["SINK"] = ScoreSnapshot("SINK", 2.8, "C", "C", "C", "D", "C", "Energy")
     scores["WEAK"] = ScoreSnapshot("WEAK", 3.6, "B", "B", "B", "B", "B", "Technology")
     scores["MEH"] = ScoreSnapshot("MEH", 2.3, "C", "C", "C", "C", "C", "Financial Services")
-    # "GHOST" is held but has no score row: must be skipped by every sell rule.
+    scores["CRASH"] = ScoreSnapshot("CRASH", 4.1, "B", "B", "B", "C", "B+", "Technology")
+    # "GHOST" and "LOST" are held with no score row.
 
     positions = {
         # Winners Circle: +150%, QR below hold, still holds original stake.
@@ -108,16 +111,20 @@ def _mixed_book() -> tuple[PortfolioState, dict[str, ScoreSnapshot]]:
         "HOUSE": _pos("HOUSE", 40, 0, 90, 600, 0, "Energy"),
         # Over the 15% weight cap, good rating: TRIM only.
         "BIG": _pos("BIG", 200, 100, 150, 200, 20_000, "Healthcare"),
-        # Strong sell.
-        "DEAD": _pos("DEAD", 300, 30, 12, 120, 9_000, "Industrials"),
+        # Strong sell (down 33%, inside the max-loss stop).
+        "DEAD": _pos("DEAD", 300, 30, 20, 120, 9_000, "Industrials"),
         # Underwater > 270d with QR < 3.0.
         "SINK": _pos("SINK", 150, 60, 42, 300, 9_000, "Energy"),
-        # Weak (QR < 4) recycle candidate, healthy P&L.
+        # QR < 4 but healthy P&L: held, never trimmed (run118 recycled it).
         "WEAK": _pos("WEAK", 50, 80, 88, 90, 4_000, "Technology"),
         # Plain hold removal, small loss, not a winner.
         "MEH": _pos("MEH", 100, 40, 36, 150, 4_000, "Financial Services"),
-        # Unscored holding.
-        "GHOST": _pos("GHOST", 10, 500, 480, 30, 5_000, "Utilities"),
+        # Unscored holding, scored 10 days ago: inside max_unrated_days, skipped.
+        "GHOST": _pos("GHOST", 10, 500, 480, 30, 5_000, "Utilities", last_scored=10),
+        # Unscored for 40 days: the unrated exit fires.
+        "LOST": _pos("LOST", 10, 200, 190, 90, 2_000, "Utilities", last_scored=40),
+        # Down 55% with a fine rating: max-loss stop fires, rating ignored.
+        "CRASH": _pos("CRASH", 100, 100, 45, 60, 10_000, "Technology"),
     }
     portfolio = PortfolioState(
         cash=60_000.0,
@@ -129,11 +136,12 @@ def _mixed_book() -> tuple[PortfolioState, dict[str, ScoreSnapshot]]:
 
 
 def _deployed_book() -> tuple[PortfolioState, dict[str, ScoreSnapshot]]:
-    """Fully invested book with almost no cash: buys must be funded by recycling.
+    """Fully invested book with almost no cash: the add is still published.
 
     The top-ranked name (U00) is already held and up more than 30%, so the one
-    add this evaluation is a conviction DOUBLE_BUY, paid for by trimming the
-    weakest QR < 4.0 holding.
+    add this evaluation is a conviction DOUBLE_BUY. run118 paid for it by
+    trimming the weakest QR < 4.0 holding; run119 assumes funding and emits
+    no trim.
     """
     scores = _universe()
     positions: dict[str, PositionState] = {}
@@ -246,7 +254,8 @@ def test_golden_scenarios_cover_every_rule():
         "strong_sell",
         "hold_removal",
         "winners_circle",
-        "active_recycling",
+        "max_loss_stop",
+        "unrated_exit",
         "max_adds_per_evaluation",
         "double_buy",
         "min_quant_rating",
@@ -262,9 +271,9 @@ def test_golden_scenarios_cover_every_rule():
         "full_sell",
         "partial_sell",
         "trim",
-        "recycle_trim",
     } <= actions, actions
-    # The unscored holding must appear nowhere.
+    assert "recycle_trim" not in actions, "run119 never recycles"
+    # The recently-unscored holding must appear nowhere.
     assert not any(
         s["ticker"] == "GHOST" for scenario in snapshot.values() if isinstance(scenario, list) for s in scenario
     )

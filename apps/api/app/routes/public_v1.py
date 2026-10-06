@@ -42,6 +42,7 @@ from app.services.portfolio import (
     picks_return,
     portfolio_equity,
     total_return_pct,
+    contributions_by_date,
 )
 
 log = logging.getLogger(__name__)
@@ -278,7 +279,7 @@ def get_strategy(db: Session = Depends(get_db)):
         return {
             "strategy": {
                 "name": "AP Strategy",
-                "description": "Run 118 growth + revisions with conviction adds and active recycling",
+                "description": "Growth + revisions with conviction adds, a max-loss stop and no cash management",
                 "evaluation_frequency": "biweekly",
                 "max_positions": 50,
             },
@@ -338,7 +339,7 @@ def get_strategy(db: Session = Depends(get_db)):
         # Legacy Outpick shape
         "strategy": {
             "name": portfolio.name,
-            "description": "Run 118 growth + revisions with conviction adds and active recycling",
+            "description": "Growth + revisions with conviction adds, a max-loss stop and no cash management",
             "evaluation_frequency": params.eval_frequency,
             "max_positions": params.max_positions,
         },
@@ -631,9 +632,16 @@ def get_performance(
         )
         base = None
     spy_base = snaps[0].spy_value
+    # Deposits made after the first snapshot are capital put in, not return.
+    # Each point is measured against the base plus every deposit through that
+    # date, the same money-in basis `total_return_pct` uses.
+    deposits = contributions_by_date(db, portfolio_id=1) if base else {}
     series = []
+    put_in = 0.0
     for s in snaps:
-        ret = (s.total_value / base - 1) * 100 if base else None
+        if base:
+            put_in = sum(a for d, a in deposits.items() if snaps[0].date < d <= s.date)
+        ret = (s.total_value / (base + put_in) - 1) * 100 if base else None
         spy_ret = None
         if s.spy_value and spy_base:
             spy_ret = (s.spy_value / spy_base - 1) * 100

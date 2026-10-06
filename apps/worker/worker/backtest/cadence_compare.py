@@ -709,7 +709,7 @@ def run_cadence_compare(
                 f"{cfg.dataset_sha256[:12]}. "
                 "It started from the current bucket object, then this run "
                 "added off-cycle scores and SPY bars locally. "
-                "backtests/run118.toml was not rewritten",
+                "backtests/run119.toml was not rewritten",
             )
         return report
     finally:

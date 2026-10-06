@@ -63,6 +63,7 @@ from outpick_strategy.cadence import evaluation_fridays_between
 
 from app.db.models import CompositeScore, Delisting, Portfolio, PriceBar, Trade
 from app.services.portfolio import (
+    last_scored_dates,
     CORRECTION_ACTIONS,
     SHARE_EPSILON,
     _position_to_state,
@@ -111,6 +112,7 @@ class ReplayPosition:
     initial_investment: float | None = None
     is_house_money: bool = False
     sector: str | None = None
+    last_scored: date | None = None
 
     @property
     def market_value(self) -> float:
@@ -123,6 +125,9 @@ class ReplayBook:
     positions: dict[str, ReplayPosition] = field(default_factory=dict)
     peak_equity: float | None = None
     is_drawdown_halted: bool = False
+    # Cash deposited so a pick could fill at full size (the live book's
+    # `fund_shortfall` rule). Capital put in, never return.
+    contributed: float = 0.0
 
     @property
     def invested(self) -> float:
@@ -135,7 +140,7 @@ class ReplayBook:
     def to_state(self, as_of: date) -> PortfolioState:
         return PortfolioState(
             cash=self.cash,
-            positions={t: _position_to_state(p) for t, p in self.positions.items()},
+            positions={t: _position_to_state(p, p.last_scored) for t, p in self.positions.items()},
             peak_equity=self.peak_equity,
             is_drawdown_halted=self.is_drawdown_halted,
             as_of=as_of,
@@ -146,6 +151,7 @@ class ReplayBook:
             "cash": round(self.cash, 2),
             "invested": round(self.invested, 2),
             "equity": round(self.equity, 2),
+            "contributed": round(self.contributed, 2),
             "position_count": len(self.positions),
             "positions": {
                 t: {
@@ -187,12 +193,14 @@ class ReplayTrade:
     price: float
     notional: float
     reason: str
+    # Cash deposited to fill this buy at full size (0 when cash covered it).
+    funded: float = 0.0
 
     def to_dict(self) -> dict:
         d = asdict(self)
         d["eval_date"] = self.eval_date.isoformat()
         d["fill_date"] = self.fill_date.isoformat()
-        for k in ("shares", "price", "notional"):
+        for k in ("shares", "price", "notional", "funded"):
             d[k] = round(d[k], 6)
         return d
 
@@ -697,6 +705,8 @@ def _run_one(
     scores = load_scores_as_of(db, as_of)
     if not scores:
         warnings.append(f"{as_of}: no composite scores on or before this date")
+    for ticker, last in last_scored_dates(db, list(book.positions), as_of).items():
+        book.positions[ticker].last_scored = last
     ranked = ranked_candidates(scores, params)
     state = book.to_state(as_of)
     signals = evaluate(
@@ -791,18 +801,26 @@ def _fill(
             price = fill.buy_price(close)
             shares = target / price
             notional = shares * price
+            funded = 0.0
             if notional > book.cash:
-                shares = book.cash / price
-                notional = shares * price
+                # The book assumes a pick is always funded: deposit the
+                # shortfall rather than shrink the pick, exactly as
+                # `apply_signals(fund_shortfall=True)` does live.
+                funded = notional - book.cash
+                book.cash += funded
+                book.contributed += funded
                 skipped.append(
-                    f"{sig.ticker}: {sig.action.value} clamped to cash "
-                    f"({notional:.2f} of {target:.2f})"
+                    f"{sig.ticker}: {sig.action.value} funded {funded:.2f} "
+                    f"of {notional:.2f} by deposit"
                 )
             if shares <= 0 or notional <= 0:
                 continue
             book.cash -= notional
             trades.append(
-                ReplayTrade(eval_date, fill_date, sig.ticker, "buy", sig.action.value, shares, price, notional, sig.reason)
+                ReplayTrade(
+                    eval_date, fill_date, sig.ticker, "buy", sig.action.value,
+                    shares, price, notional, sig.reason, funded=funded,
+                )
             )
             if pos is not None:
                 new_shares = pos.shares + shares
@@ -846,6 +864,7 @@ def _equity_curve(
     first = evaluations[0].before
     holdings: dict[str, float] = {t: p["shares"] for t, p in first["positions"].items()}
     cash = first["cash"]
+    contributed = float(first.get("contributed") or 0.0)
     fills_by_date: dict[date, list[ReplayTrade]] = defaultdict(list)
     for ev in evaluations:
         for t in ev.trades:
@@ -862,6 +881,8 @@ def _equity_curve(
             continue
         for t in fills_by_date.get(d, []):
             if t.side == "buy":
+                cash += t.funded
+                contributed += t.funded
                 cash -= t.notional
                 holdings[t.ticker] = holdings.get(t.ticker, 0.0) + t.shares
             else:
@@ -881,6 +902,10 @@ def _equity_curve(
                 "cash": round(cash, 2),
                 "invested": round(invested, 2),
                 "equity": round(cash + invested, 2),
+                # Equity less every deposit so far: what the return metrics
+                # read, so money put in never counts as a gain.
+                "contributed": round(contributed, 2),
+                "net_equity": round(cash + invested - contributed, 2),
                 "position_count": len(holdings),
             }
         )
@@ -912,6 +937,8 @@ def _equity_curve(
             continue
         for t in fills_by_date.get(d, []):
             if t.side == "buy":
+                cash += t.funded
+                contributed += t.funded
                 cash -= t.notional
                 holdings[t.ticker] = holdings.get(t.ticker, 0.0) + t.shares
             else:
@@ -931,6 +958,10 @@ def _equity_curve(
                 "cash": round(cash, 2),
                 "invested": round(invested, 2),
                 "equity": round(cash + invested, 2),
+                # Equity less every deposit so far: what the return metrics
+                # read, so money put in never counts as a gain.
+                "contributed": round(contributed, 2),
+                "net_equity": round(cash + invested - contributed, 2),
                 "position_count": len(holdings),
             }
         )

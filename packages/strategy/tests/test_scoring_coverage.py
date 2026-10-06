@@ -69,13 +69,16 @@ def test_z_filter_still_precedes_the_coverage_check():
     assert composite is None
 
 
-def test_momentum_penalty_applies_only_with_full_coverage():
-    """The penalty has never fired in production; make its trigger explicit."""
+def test_momentum_penalty_is_off_by_default_and_a_step_when_set():
+    """run119 ships momentum_penalty = 0: a negative 12m return is no cliff."""
     clean, _ = composite_from_factor_pcts(pcts(), RUN118_PARAMS, momentum_12m=0.1)
-    penalised, _ = composite_from_factor_pcts(pcts(), RUN118_PARAMS, momentum_12m=-0.1)
-
+    negative, _ = composite_from_factor_pcts(pcts(), RUN118_PARAMS, momentum_12m=-0.1)
     assert clean == pytest.approx(60.0)
-    assert penalised == pytest.approx(60.0 - RUN118_PARAMS.momentum_penalty)
+    assert negative == pytest.approx(60.0)
+
+    run118 = RUN118_PARAMS.with_overrides(momentum_penalty=20.0)
+    penalised, _ = composite_from_factor_pcts(pcts(), run118, momentum_12m=-0.1)
+    assert penalised == pytest.approx(40.0)
     # Worth ~0.8 of a quant rating — enough to cross hold_removal_rating.
     assert quant_rating_from_composite(clean) - quant_rating_from_composite(
         penalised
@@ -203,7 +206,7 @@ def test_public_params_never_leak_the_model():
         "strong_sell_rating",
         "hold_removal_rating",
         "underwater_qr_threshold",
-        "weak_signal_threshold",
+        "max_loss_pct",
         "position_size_pct",
         "position_size_usd",
     ]

@@ -56,7 +56,7 @@ describe("art pool", () => {
 
   it("exposes spare covers for future blog posts", () => {
     const next = nextSpareCover();
-    expect(next).toEqual({ id: "spare-14", src: "/art/pool/spare-14.png" });
+    expect(next).toEqual({ id: "spare-15", src: "/art/pool/spare-15.png" });
   });
 
   it("keeps unused spare-09+ prints unclaimed", () => {
@@ -90,6 +90,9 @@ describe("art pool", () => {
     expect(SPARE_CLAIMED["spare-11"]).toBe("investment-thesis-template");
     expect(SPARE_CLAIMED["spare-12"]).toBe("sector-relative-performance");
     expect(SPARE_CLAIMED["spare-13"]).toBe("how-to-calculate-intrinsic-value");
+    expect(SPARE_CLAIMED["spare-14"]).toBe(
+      "how-to-analyze-competitive-advantage",
+    );
     for (const spare of fresh) {
       if (
         spare.id !== "spare-07" &&
@@ -98,7 +101,8 @@ describe("art pool", () => {
         spare.id !== "spare-10" &&
         spare.id !== "spare-11" &&
         spare.id !== "spare-12" &&
-        spare.id !== "spare-13"
+        spare.id !== "spare-13" &&
+        spare.id !== "spare-14"
       ) {
         expect(SPARE_CLAIMED[spare.id]).toBeUndefined();
       }
@@ -113,6 +117,6 @@ describe("art pool", () => {
     const status = poolStatus(new Date("2026-08-22T12:00:00Z"));
     expect(status.weeksReady).toBe(13);
     expect(status.weeksRemaining).toBeGreaterThanOrEqual(13);
-    expect(status.sparesFree).toBe(5);
+    expect(status.sparesFree).toBe(4);
   });
 });

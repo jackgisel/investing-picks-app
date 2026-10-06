@@ -52,7 +52,7 @@ https://claude.ai/artifact/WZknmjZ665eXcSgRqgocgh
 | `RUN118_PARAMS.version_hash()` | `53fc98d51518` (run118 was `3dae13a76007`) |
 | Canonical size | unchanged: `$1,000` per pick, `max_adds_per_evaluation=1`, `$50k` starting cash in the backtest |
 | Golden | `packages/strategy/tests/golden/run119_evaluate.json` |
-| Baseline | `backtests/baselines/run119.json` — **not yet generated**: the pinned dataset is not local. Run the `test` workflow with `update_baseline=true` after merge and commit the artifact |
+| Baseline | `backtests/baselines/run119.json` — the CI `backtest-run119` artifact from the pinned dataset (3 Fridays, 2026-08-07 → 09-04). Buys FIX, GOOG, LLY, the same as run118: no stop, funding or sector-cap case arises in that window, and the pinned tape keeps its materialised run118 scores (the scoring switches only apply on a re-score) |
 | Local replay | `backtests/experiments/run119-cadence-compare.md` (cadence dataset, 4 evaluations) |
 | Factor IC | `backtests/experiments/factor-ic-run119-live.md`, `factor-ic-run119-hist.md` |
 

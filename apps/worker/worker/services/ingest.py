@@ -61,11 +61,19 @@ PERIOD_MATCH_TOLERANCE_DAYS = 14
 # unscored on the first evaluation Friday they become eligible.
 SNAPSHOT_MARKET_CAP_FLOOR = 250_000_000
 SNAPSHOT_SHARE_PRICE_FLOOR = 4.0
-SNAPSHOT_SCREENER_LIMIT = 1200
-CONSENSUS_SNAPSHOT_TIMEOUT_MINUTES = 20.0
+SNAPSHOT_SCREENER_LIMIT = 10_000
+# One analyst-estimates call per name. The full US universe at the $250M floor
+# is a few thousand names, ~15 minutes at 280 req/min; this leaves room for a
+# slow upstream and still finishes well before daily_marks at 18:30.
+CONSENSUS_SNAPSHOT_TIMEOUT_MINUTES = 45.0
 CONSENSUS_SNAPSHOT_JOB = "consensus_snapshot"
 CONSENSUS_SNAPSHOT_GAP_JOB = "consensus_snapshot_gap"
 _ET = ZoneInfo("America/New_York")
+
+# The live universe is every US common stock that clears the $300M / $5 floors,
+# not a top-N by size. The screener's own filters do the cutting; this limit
+# only has to sit above the number of names that pass them.
+UNIVERSE_SCREENER_LIMIT = 10_000
 
 
 def held_tickers(db: Session) -> set[str]:
@@ -624,7 +632,9 @@ def snapshot_consensus(
     }
 
 
-def refresh_universe(db: Session, fmp: FMPClient, limit: int = 800) -> int:
+def refresh_universe(
+    db: Session, fmp: FMPClient, limit: int = UNIVERSE_SCREENER_LIMIT
+) -> int:
     params = RUN118_PARAMS
     rows = fmp.stock_screener(min_market_cap=params.min_universe_market_cap, limit=limit)
     count = 0
@@ -1194,28 +1204,50 @@ def compute_ttm_growth(rows: list[dict]) -> dict:
     return out
 
 
-def refresh_fundamentals(db: Session, fmp: FMPClient, max_tickers: int = 400) -> int:
-    # Held positions are ALWAYS refreshed, whatever their size. Ranking by market
-    # cap alone dropped 7 of 8 real holdings outside the cut, and an unscored
+def refresh_fundamentals(
+    db: Session, fmp: FMPClient, max_tickers: int | None = None
+) -> int:
+    """Refresh fundamentals for the whole active universe.
+
+    Order is held names first, then stalest first (never-refreshed names
+    before anything), then largest first. The full universe is ~7 FMP calls a
+    name, over an hour at the plan rate, so a run can be cut off by the job
+    deadline or a redeploy. Rows commit every 25 names, and stalest-first means
+    the next run resumes with the names this one never reached instead of
+    starting over at the top of the market-cap list.
+    """
+    # Held positions are ALWAYS refreshed, whatever their size. An unscored
     # holding is invisible to `_removal_signals` (it skips any position with no
     # score) — the book would silently stop being evaluated for sells. Every
     # book, not just the live one: the DCA sample needs scores to fire exits.
     held = held_tickers(db)
-    # NULLS LAST matters: Postgres sorts NULL first on DESC, so unpriced shells
-    # would otherwise consume the budget ahead of the largest real companies.
-    ranked = (
-        db.query(Stock)
-        .filter(Stock.is_active == True)  # noqa: E712
-        .order_by(Stock.market_cap.desc().nullslast())
-        .limit(max_tickers)
+    latest = dict(
+        db.query(
+            Fundamentals.ticker,
+            func.max(Fundamentals.as_of, type_=Fundamentals.as_of.type),
+        )
+        .group_by(Fundamentals.ticker)
         .all()
     )
-    stocks = list(ranked)
-    seen = {s.ticker for s in stocks}
-    for ticker in sorted(held - seen):
-        stock = db.get(Stock, ticker)
-        if stock is not None:
-            stocks.append(stock)
+    universe = (
+        db.query(Stock)
+        .filter(Stock.is_active == True, Stock.is_etf == False)  # noqa: E712
+        .all()
+    )
+    universe.sort(
+        key=lambda s: (
+            latest.get(s.ticker) or date.min,
+            # NULL caps last: unpriced shells must not jump the queue.
+            -(s.market_cap or 0),
+            s.ticker,
+        )
+    )
+    held_stocks = [
+        stock for t in sorted(held) if (stock := db.get(Stock, t)) is not None
+    ]
+    stocks = held_stocks + [s for s in universe if s.ticker not in held]
+    if max_tickers is not None:
+        stocks = stocks[: max(max_tickers, len(held_stocks))]
     as_of = date.today()
     n = 0
     revisions_available = 0

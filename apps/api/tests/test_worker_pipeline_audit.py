@@ -1121,3 +1121,54 @@ def test_the_z_score_filter_is_passed_explicitly_rather_than_omitted(db):
     assert all(kwargs["z_score"] is Z_SCORE_UNAVAILABLE for kwargs in seen)
     # Documents the consequence rather than hiding it: nothing is rejected.
     assert Z_SCORE_UNAVAILABLE is None
+
+
+# ---------------------------------------------------------------------------
+# Full universe — every active name, held first, then stalest first
+# ---------------------------------------------------------------------------
+
+
+class _OrderRecordingFMP(FundamentalsFMP):
+    def __init__(self):
+        super().__init__()
+        self.order: list[str] = []
+
+    def key_metrics_ttm(self, ticker):
+        self.order.append(ticker)
+        return super().key_metrics_ttm(ticker)
+
+    def price_target_consensus(self, ticker):
+        return None
+
+
+def test_fundamentals_refresh_covers_the_whole_universe_stalest_first(db, portfolio):
+    """No top-N by size: the live model scores every name that clears the floors.
+
+    A full run is over an hour of FMP calls and can be cut off. Held names go
+    first so sells are never evaluated on a stale rating, then names with no
+    fundamentals, then the oldest snapshot, so a cut-off run resumes where it
+    stopped. ETFs are never refreshed unless held.
+    """
+    from tests.conftest import make_position
+
+    for i in range(450):
+        _stock(db, f"S{i:03d}", cap=1e12 - i * 1e9)
+    _stock(db, "SMALL", cap=4e8)
+    _stock(db, "HELD", cap=3e8)
+    _stock(db, "SPYX", cap=9e12, is_etf=True)
+    db.add(Fundamentals(ticker="S000", as_of=TODAY - timedelta(days=3), data={"x": 1}))
+    db.add(Fundamentals(ticker="S001", as_of=TODAY - timedelta(days=10), data={"x": 1}))
+    db.commit()
+    make_position(db, portfolio, "HELD", 1, 10.0, 10.0)
+
+    fmp = _OrderRecordingFMP()
+    n = refresh_fundamentals(db, fmp)
+
+    assert n == 452
+    assert "SPYX" not in fmp.order
+    assert fmp.order[0] == "HELD"
+    # Never-refreshed names before any stored snapshot, largest first.
+    assert fmp.order[1] == "S002"
+    assert fmp.order.index("SMALL") < fmp.order.index("S001")
+    # Then oldest snapshot first.
+    assert fmp.order[-2:] == ["S001", "S000"]

@@ -76,6 +76,7 @@ import stockResearchMembershipWorthIt from "@/content/blog/is-a-stock-research-m
 import investmentThesisTemplate from "@/content/blog/investment-thesis-template";
 import sectorRelativePerformance from "@/content/blog/sector-relative-performance";
 import howToCalculateIntrinsicValue from "@/content/blog/how-to-calculate-intrinsic-value";
+import howToAnalyzeCompetitiveAdvantage from "@/content/blog/how-to-analyze-competitive-advantage";
 
 export const articles: Article[] = [
   howToOutperformSp500,
@@ -108,6 +109,7 @@ export const articles: Article[] = [
   investmentThesisTemplate,
   sectorRelativePerformance,
   howToCalculateIntrinsicValue,
+  howToAnalyzeCompetitiveAdvantage,
 ].sort((a, b) => b.meta.publishedAt.localeCompare(a.meta.publishedAt));
 
 export function getArticleBySlug(slug: string): Article | undefined {

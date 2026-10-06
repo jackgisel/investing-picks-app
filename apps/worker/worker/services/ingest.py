@@ -61,7 +61,7 @@ PERIOD_MATCH_TOLERANCE_DAYS = 14
 # unscored on the first evaluation Friday they become eligible.
 SNAPSHOT_MARKET_CAP_FLOOR = 250_000_000
 SNAPSHOT_SHARE_PRICE_FLOOR = 4.0
-SNAPSHOT_SCREENER_LIMIT = 10_000
+SNAPSHOT_SCREENER_LIMIT = 5_000
 # One analyst-estimates call per name. The full US universe at the $250M floor
 # is a few thousand names, ~15 minutes at 280 req/min; this leaves room for a
 # slow upstream and still finishes well before daily_marks at 18:30.
@@ -70,10 +70,12 @@ CONSENSUS_SNAPSHOT_JOB = "consensus_snapshot"
 CONSENSUS_SNAPSHOT_GAP_JOB = "consensus_snapshot_gap"
 _ET = ZoneInfo("America/New_York")
 
-# The live universe is every US common stock that clears the $300M / $5 floors,
-# not a top-N by size. The screener's own filters do the cutting; this limit
-# only has to sit above the number of names that pass them.
-UNIVERSE_SCREENER_LIMIT = 10_000
+# The live universe is every US operating company on NYSE / Nasdaq / NYSE
+# American that clears the $300M / $5 floors, not a top-N by size. The
+# screener's filters do the cutting; this per-exchange limit is a ceiling
+# that only has to sit above the number of names that pass them, and the
+# client warns when a response fills it.
+UNIVERSE_SCREENER_LIMIT = 5_000
 
 
 def held_tickers(db: Session) -> set[str]:

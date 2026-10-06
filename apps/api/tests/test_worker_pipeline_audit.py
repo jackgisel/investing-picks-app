@@ -1172,3 +1172,31 @@ def test_fundamentals_refresh_covers_the_whole_universe_stalest_first(db, portfo
     assert fmp.order.index("SMALL") < fmp.order.index("S001")
     # Then oldest snapshot first.
     assert fmp.order[-2:] == ["S001", "S000"]
+
+
+def test_screener_keeps_to_national_exchanges_and_excludes_funds(caplog):
+    """OTC listings and closed-end funds are not businesses to rank.
+
+    One call per exchange, funds and ETFs filtered upstream, duplicates
+    collapsed, and a response that fills the limit is logged as truncated.
+    """
+    from worker.services.fmp import SCREENER_EXCHANGES, FMPClient
+
+    calls: list[dict] = []
+    client = FMPClient("key")
+
+    def fake_get(path, params=None):
+        calls.append(params)
+        if params["exchange"] == "NYSE":
+            return [{"symbol": "AAA"}, {"symbol": "BBB"}]
+        return [{"symbol": "BBB"}]
+
+    client._get = fake_get
+    rows = client.stock_screener(limit=2)
+    client.close()
+
+    assert [c["exchange"] for c in calls] == list(SCREENER_EXCHANGES)
+    assert "OTC" not in SCREENER_EXCHANGES
+    assert all(c["isFund"] == "false" and c["isEtf"] == "false" for c in calls)
+    assert [r["symbol"] for r in rows] == ["AAA", "BBB"]
+    assert "truncated" in caplog.text

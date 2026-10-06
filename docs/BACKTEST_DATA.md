@@ -5,7 +5,8 @@ Source of truth for the real-data backtest window. Strategy rules stay in
 hold** and **which FMP endpoints the current key can read**.
 
 Locked decisions: FMP only, own snapshots going forward, full eligible universe
-for scoring in the backtest (not the live top-400 cap), canonical
+for scoring in the backtest and, since 2026-10-06, live (the top-400 cap is
+gone; see below), canonical
 `position_size_usd=1000`, no proxy for revisions, max spend $100. Fill
 assumption for later phases: same-close 0 bps canonical. Delisted price holes:
 log-and-drop with a count. Return metrics gated on ≥ 24 evaluations.
@@ -15,7 +16,14 @@ log-and-drop with a count. Return metrics gated on ≥ 24 evaluations.
 | Segment | Dates | Universe with a revisions pair | Evaluation Fridays |
 |---|---|---|---|
 | A. Live snapshots already in Postgres | first `fundamentals.as_of` carrying `epsEstimateAvg` → Phase 1 ship date | top-400-by-cap + held names, weekly (Saturday) | labelled `top400_live` |
-| B. Full-universe snapshots | Phase 1 ship date + 5 days → forever | full eligible universe (~800–1,200 names), daily | labelled `full` |
+| B. Full-universe snapshots | Phase 1 ship date + 5 days → forever | full eligible universe, daily (capped at the 1,200-name screener limit until 2026-10-06, uncapped after) | labelled `full` |
+
+Live scoring widened on 2026-10-06: `refresh_universe` and the consensus
+snapshot no longer cap the screener, and `refresh_fundamentals` refreshes
+every active name (held first, then stalest first). Live fundamentals rows
+before that date are the top-400 set; rows after it are the full universe.
+Names new to the snapshot need a vintage at least 5 days old before the
+revisions factor exists, so they stay unscored for their first week.
 
 Lead-in for the other factors (12 months of bars, 8+ quarters of statements)
 is pulled from FMP history in Phase 2 and does not shorten this window.

@@ -50,6 +50,10 @@ class FMPAccessError(RuntimeError):
     """
 
 
+#: Where the live universe lists. OTC names are excluded on purpose.
+SCREENER_EXCHANGES: tuple[str, ...] = ("NYSE", "NASDAQ", "AMEX")
+
+
 class FMPClient:
     def __init__(
         self,
@@ -154,18 +158,44 @@ class FMPClient:
     def stock_screener(
         self, min_market_cap: float = 300_000_000, limit: int = 1000
     ) -> list[dict]:
-        data = self._get(
-            "company-screener",
-            {
-                "marketCapMoreThan": int(min_market_cap),
-                "volumeMoreThan": 50_000,
-                "isEtf": "false",
-                "isActivelyTrading": "true",
-                "country": "US",
-                "limit": limit,
-            },
-        )
-        return data if isinstance(data, list) else []
+        """US-domiciled operating companies on the three national exchanges.
+
+        One call per exchange: OTC listings are out, and so are ETFs and
+        closed-end funds, which would otherwise be ranked as if they were
+        businesses. `limit` is per exchange and is a ceiling, not a target;
+        a response that fills it was cut off, so say so.
+        """
+        rows: list[dict] = []
+        seen: set[str] = set()
+        for exchange in SCREENER_EXCHANGES:
+            data = self._get(
+                "company-screener",
+                {
+                    "marketCapMoreThan": int(min_market_cap),
+                    "volumeMoreThan": 50_000,
+                    "isEtf": "false",
+                    "isFund": "false",
+                    "isActivelyTrading": "true",
+                    "country": "US",
+                    "exchange": exchange,
+                    "limit": limit,
+                },
+            )
+            if not isinstance(data, list):
+                continue
+            if len(data) >= limit:
+                log.warning(
+                    "FMP screener returned the full %s rows for %s; the list "
+                    "is truncated and the universe is missing names",
+                    limit,
+                    exchange,
+                )
+            for row in data:
+                symbol = row.get("symbol")
+                if symbol and symbol not in seen:
+                    seen.add(symbol)
+                    rows.append(row)
+        return rows
 
     def profile(self, ticker: str) -> dict | None:
         return self._first(self._get("profile", {"symbol": ticker}))

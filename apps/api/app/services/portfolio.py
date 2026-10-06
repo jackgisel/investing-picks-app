@@ -41,20 +41,63 @@ from app.db.models import (
 log = logging.getLogger(__name__)
 
 
+#: Keys in `params_json` that name the model rather than tune it. The label
+#: and hash come from the code that is running; a stored copy of either is a
+#: record of when the row was written, not an instruction.
+_MODEL_IDENTITY_KEYS = frozenset({"version_label"})
+
+#: What each superseded version's defaults were, for the fields a later version
+#: changed. A row that carries `version_label = "run118"` is a snapshot of
+#: run118's defaults, so a value equal to run118's default there is the default
+#: and not an override; only a value that differs from it is a real one.
+_PRIOR_DEFAULTS: dict[str, dict[str, object]] = {
+    "run118": {
+        "momentum_penalty": 20.0,
+        "valuation_penalize_losses": False,
+        "sector_cap_basis": "max_positions",
+    },
+}
+
+
 def params_from_portfolio(portfolio: Portfolio) -> StrategyParams:
+    """The shipped defaults with the book's real overrides on top.
+
+    `params_json` should hold live-only overrides (a fixed `position_size_usd`,
+    a research switch under shadow). `ensure_default_portfolio` used to write a
+    full `RUN118_PARAMS.to_dict()` snapshot on creation, and that row then
+    pinned the live book to run118's book rules and label through the run119
+    deploy while the worker scored on run119's defaults.
+
+    A value is applied only if it differs from the current default AND, when
+    the row is a snapshot of an older version, from that version's default. The
+    stored `version_label` is never read.
+    """
     raw = portfolio.params_json or {}
     if not raw:
         return RUN118_PARAMS
-    buy = raw.get("buy_criteria") or {}
+    defaults = RUN118_PARAMS
+    stored_label = raw.get("version_label")
+    prior = (
+        _PRIOR_DEFAULTS.get(stored_label, {})
+        if stored_label != defaults.version_label
+        else {}
+    )
+    buy_raw = raw.get("buy_criteria") or {}
     criteria = BuyCriteria(
-        min_quant_rating=buy.get("min_quant_rating", 4.0),
-        min_revisions_grade=buy.get("min_revisions_grade", "B+"),
-        min_growth_grade=buy.get("min_growth_grade", "B"),
-        min_profitability_grade=buy.get("min_profitability_grade", "D"),
-        min_valuation_grade=buy.get("min_valuation_grade", "C-"),
+        **{
+            f.name: buy_raw.get(f.name, getattr(defaults.buy_criteria, f.name))
+            for f in fields(BuyCriteria)
+        }
     )
     known = {f.name for f in fields(StrategyParams) if f.name != "buy_criteria"}
-    flat = {k: v for k, v in raw.items() if k in known}
+    flat = {
+        k: v
+        for k, v in raw.items()
+        if k in known
+        and k not in _MODEL_IDENTITY_KEYS
+        and v != getattr(defaults, k)
+        and not (k in prior and v == prior[k])
+    }
     return StrategyParams(buy_criteria=criteria, **flat)
 
 
@@ -1094,7 +1137,9 @@ def ensure_default_portfolio(db: Session, initial_cash: float = 100_000.0) -> Po
             name="AP Strategy",
             cash=initial_cash,
             peak_equity=initial_cash,
-            params_json=RUN118_PARAMS.to_dict(),
+            # Overrides only. A snapshot of the defaults here pins the book to
+            # whatever version created the row; see params_from_portfolio.
+            params_json={},
             kind="live",
         )
         db.add(portfolio)

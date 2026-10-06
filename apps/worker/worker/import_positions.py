@@ -26,7 +26,7 @@ from app.config import get_settings
 from app.db.models import Position
 from app.db.session import Base, SessionLocal, engine
 from app.services.portfolio import ensure_default_portfolio
-from outpick_strategy import RUN118_PARAMS
+
 
 
 def main():
@@ -42,7 +42,6 @@ def main():
     db = SessionLocal()
     try:
         portfolio = ensure_default_portfolio(db, get_settings().initial_cash)
-        portfolio.params_json = RUN118_PARAMS.to_dict()
         if args.reset_cash or "cash" in data:
             portfolio.cash = float(data.get("cash", portfolio.cash))
 

@@ -5,12 +5,12 @@
     python -m worker.backtest membership --dataset datasets/dataset-v1.sqlite
     python -m worker.backtest score --dataset datasets/dataset-v1.sqlite
     python -m worker.backtest parity --dataset datasets/dataset-v1.sqlite
-    python -m worker.backtest run --config backtests/run118.toml --out /tmp/result.json
+    python -m worker.backtest run --config backtests/run119.toml --out /tmp/result.json
     python -m worker.backtest report /tmp/result.json
-    python -m worker.backtest compare /tmp/result.json backtests/baselines/run118.json
-    python -m worker.backtest compare /tmp/result.json backtests/baselines/run118.json --sweep
-    python -m worker.backtest cadence-compare --config backtests/run118.toml
-    python -m worker.backtest walk-forward --config backtests/run118.toml
+    python -m worker.backtest compare /tmp/result.json backtests/baselines/run119.json
+    python -m worker.backtest compare /tmp/result.json backtests/baselines/run119.json --sweep
+    python -m worker.backtest cadence-compare --config backtests/run119.toml
+    python -m worker.backtest walk-forward --config backtests/run119.toml
     python -m worker.backtest hash --dataset datasets/dataset-v1.sqlite
     python -m worker.backtest upload --dataset datasets/dataset-v1.sqlite
     python -m worker.backtest download --dataset datasets/dataset-v1.sqlite
@@ -198,7 +198,7 @@ def cmd_compare(ns) -> dict:
     update = ns.update_baseline or os.environ.get("UPDATE_BASELINE") == "1"
     report = compare_results(current, baseline, update_baseline=update)
     if ns.sweep:
-        cfg_path = ns.config or "backtests/run118.toml"
+        cfg_path = ns.config or "backtests/run119.toml"
         cfg = load_config(cfg_path, dataset_override=ns.dataset)
         if not ns.skip_hash:
             verify_dataset(cfg)
@@ -430,7 +430,7 @@ def main(argv: list[str] | None = None) -> int:
         "cadence-compare",
         help="Replay 1st/3rd Fridays against every Friday on a copy of the dataset",
     )
-    cadence.add_argument("--config", default="backtests/run118.toml")
+    cadence.add_argument("--config", default="backtests/run119.toml")
     cadence.add_argument("--dataset", default=None)
     cadence.add_argument("--copy", default=None, help="Working sqlite. Defaults to datasets/dataset-cadence.sqlite")
     cadence.add_argument("--out-dir", default=None, help="Defaults to backtests/experiments")
@@ -444,7 +444,7 @@ def main(argv: list[str] | None = None) -> int:
         "walk-forward",
         help="Extend the dataset from live Postgres, score new Fridays, check engine drift",
     )
-    wf.add_argument("--config", default="backtests/run118.toml")
+    wf.add_argument("--config", default="backtests/run119.toml")
     wf.add_argument("--dataset", default=None)
     wf.add_argument("--from-url", default=os.environ.get("DATABASE_URL"))
     wf.add_argument("--manifest", default="datasets/manifest.json")

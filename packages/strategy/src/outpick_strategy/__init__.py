@@ -1,6 +1,6 @@
 """Pure strategy package — no I/O. Live and backtest must call evaluate()."""
 
-from outpick_strategy.params import RESEARCH_SWITCH_NEUTRAL, StrategyParams, RUN118_PARAMS
+from outpick_strategy.params import DEFAULT_PARAMS, RESEARCH_SWITCH_NEUTRAL, StrategyParams, RUN118_PARAMS
 from outpick_strategy.types import (
     Action,
     PortfolioState,
@@ -32,6 +32,7 @@ from outpick_strategy.grades import (
 __all__ = [
     "StrategyParams",
     "RUN118_PARAMS",
+    "DEFAULT_PARAMS",
     "RESEARCH_SWITCH_NEUTRAL",
     "Action",
     "PortfolioState",

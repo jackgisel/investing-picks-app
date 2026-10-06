@@ -36,7 +36,10 @@ def test_params_run118_defaults():
     assert p.max_adds_per_evaluation == 1
     assert p.position_cap_house_money == 1.0
     assert p.max_underwater_days == 270
-    assert p.weak_signal_threshold == 4.0
+    assert p.max_loss_pct == -0.40
+    assert p.max_unrated_days == 21
+    assert p.momentum_penalty == 0.0
+    assert p.version_label == "run119"
     assert p.enable_qr_velocity is False
     assert p.version_hash()
 
@@ -149,20 +152,9 @@ def test_house_money_uncapped():
     assert trims == []
 
 
-def test_active_recycling_when_cash_short():
-    """Weak position trimmed to fund a new buy when cash is insufficient."""
-    # Diversified book so WEAK is under the 15% weight cap but cash is tight
-    positions = {
-        "WEAK": PositionState(
-            ticker="WEAK",
-            shares=100,
-            avg_cost=50,
-            current_price=50,
-            entry_date=date.today() - timedelta(days=60),
-            initial_investment=5_000,
-            sector="Technology",
-        ),
-    }
+def test_a_buy_is_not_gated_on_cash():
+    """run119: the book assumes funding. A cash-poor book still gets its add."""
+    positions = {}
     for i in range(8):
         t = f"HOLD{i}"
         positions[t] = PositionState(
@@ -174,22 +166,15 @@ def test_active_recycling_when_cash_short():
             initial_investment=5_000,
             sector="Healthcare" if i % 2 == 0 else "Financials",
         )
-    # equity ≈ 500 + 9*5000 = 45500; WEAK weight ~11%; need ~3.5%+reserve ≈ 4778, cash only 500
-    portfolio = PortfolioState(cash=500, positions=positions, as_of=date.today())
-    scores = {
-        "WEAK": _score("WEAK", 3.0, sector="Technology"),
-        "NEW": _score("NEW", 4.6, sector="Energy"),
-    }
+    portfolio = PortfolioState(cash=0, positions=positions, as_of=date.today())
+    scores = {"NEW": _score("NEW", 4.6, sector="Energy")}
     for t, pos in positions.items():
-        if t != "WEAK":
-            scores[t] = _score(t, 4.2, sector=pos.sector or "Healthcare")
+        scores[t] = _score(t, 4.2, sector=pos.sector or "Healthcare")
     signals = evaluate(portfolio, scores, ["NEW"], RUN118_PARAMS)
-    recycle = [s for s in signals if s.action == Action.RECYCLE_TRIM]
-    buys = [s for s in signals if s.action == Action.BUY]
-    assert len(recycle) == 1
-    assert recycle[0].ticker == "WEAK"
-    assert len(buys) == 1
-    assert buys[0].ticker == "NEW"
+    assert [s.ticker for s in signals if s.action == Action.BUY] == ["NEW"]
+    assert not any(s.action == Action.RECYCLE_TRIM for s in signals)
+    buy = next(s for s in signals if s.action == Action.BUY)
+    assert buy.metadata["target_notional"] == RUN118_PARAMS.target_notional(portfolio.equity)
 
 
 def test_daily_sell_pass_off_by_default():

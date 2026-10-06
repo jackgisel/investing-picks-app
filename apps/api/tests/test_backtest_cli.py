@@ -39,7 +39,7 @@ params_version_label = "run118"
 fill_price = "next_close"
 slippage_bps = 10
 """
-    path = tmp_path / "run118.toml"
+    path = tmp_path / "run119.toml"
     path.write_text(text)
     return path
 
@@ -231,7 +231,7 @@ def test_cli_run_report_compare_roundtrip(tmp_path):
 def test_shipped_toml_is_canonical():
     from worker.backtest.config import repo_root
 
-    cfg = load_config(repo_root() / "backtests/run118.toml")
+    cfg = load_config(repo_root() / "backtests/run119.toml")
     assert cfg.position_size_usd == 1000
     assert cfg.max_adds_per_evaluation == 1
     assert cfg.initial_cash == 50_000
@@ -311,7 +311,7 @@ def test_workflow_declares_the_backtest_job():
     text = (repo_root() / ".github/workflows/test.yml").read_text()
     assert "name: backtest" in text
     assert "scripts/backtest-ci.sh" in text
-    assert "backtests/baselines/run118.json" in text
+    assert "backtests/baselines/run119.json" in text
     assert "cron: \"0 8 * * *\"" in text
     assert "run-backtest" in text
     assert "actions/cache@v4" in text

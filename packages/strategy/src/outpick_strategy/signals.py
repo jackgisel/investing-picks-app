@@ -101,12 +101,15 @@ def rank_candidates(
     more back), so a name that spiked on one scoring run does not jump a name
     that has held its rating. A name with no prior ranks on today's rating.
 
-    With the switch off this is exactly the Run 118 order, including its
-    stable-sort handling of ties.
+    Ties break on ticker. Run 118 sorted on the rating alone, which left equal
+    ratings in dict insertion order: stored ratings are rounded to three
+    decimals, so ties happen, and the same universe loaded by a different query
+    order then bought a different name. Run 118's recycle trim had the same bug
+    and the same fix; the buy path now matches.
     """
     params = params or StrategyParams()
     if not params.rank_smoothing:
-        return sorted(scores.keys(), key=lambda t: scores[t].quant_rating, reverse=True)
+        return sorted(scores.keys(), key=lambda t: (-scores[t].quant_rating, t))
 
     def key(t: str) -> tuple[float, str]:
         s = scores[t]
@@ -259,11 +262,79 @@ def _removal_signals(
 
     for pos in portfolio.positions.values():
         score = scores.get(pos.ticker)
+        gain = pos.gain_pct
+
+        # Price-based stop. Checked before anything that needs a score, so a
+        # name that is both unrated and down past the floor still exits. House
+        # money reports gain 0 and is never caught here, correctly: nothing of
+        # the original stake is at risk.
+        if (
+            params.max_loss_pct is not None
+            and pos.avg_cost
+            and pos.avg_cost > 0
+            and not pos.is_house_money
+            and gain <= params.max_loss_pct
+        ):
+            signals.append(
+                Signal(
+                    action=Action.FULL_SELL,
+                    ticker=pos.ticker,
+                    reason=f"Max-loss stop ({gain * 100:.0f}%)",
+                    score=score,
+                    rules=[
+                        RuleCheck(
+                            rule_id="max_loss_stop",
+                            passed=True,
+                            inputs={"gain_pct": round(gain, 4)},
+                            threshold={"max_loss_pct": params.max_loss_pct},
+                            message="Exit on price alone; the rating is not consulted",
+                        )
+                    ],
+                )
+            )
+            continue
+
         if not score:
+            # No rating, so no rating rule can run. Run 118 skipped the name
+            # forever and logged an incident. Exit once it has been unrated for
+            # longer than `max_unrated_days`, counting from the last score it
+            # had, or from entry when it never had one.
+            if params.max_unrated_days:
+                since = pos.last_scored or pos.entry_date
+                if since is not None:
+                    unrated_days = (as_of - since).days
+                    if unrated_days > params.max_unrated_days:
+                        signals.append(
+                            Signal(
+                                action=Action.FULL_SELL,
+                                ticker=pos.ticker,
+                                reason=f"Unrated for {unrated_days}d",
+                                rules=[
+                                    RuleCheck(
+                                        rule_id="unrated_exit",
+                                        passed=True,
+                                        inputs={
+                                            "unrated_days": unrated_days,
+                                            "last_scored": (
+                                                pos.last_scored.isoformat()
+                                                if pos.last_scored
+                                                else None
+                                            ),
+                                        },
+                                        threshold={
+                                            "max_unrated_days": params.max_unrated_days
+                                        },
+                                        message=(
+                                            "No composite score; the rating rules "
+                                            "cannot judge this holding"
+                                        ),
+                                    )
+                                ],
+                            )
+                        )
             continue
 
         qr = score.quant_rating
-        gain = pos.gain_pct
         is_winner = gain >= params.winner_threshold
 
         # Optional QR velocity
@@ -500,70 +571,6 @@ def _drawdown_halted(
     ]
 
 
-def _plan_recycle_trims(
-    portfolio: PortfolioState,
-    scores: dict[str, ScoreSnapshot],
-    shortfall: float,
-    params: StrategyParams,
-    already_exiting: set[str],
-) -> list[Signal]:
-    """Trim weakest non–house-money QR < weak_signal_threshold to fund a buy."""
-    if shortfall <= 0:
-        return []
-
-    candidates: list[tuple[str, float, float]] = []
-    for ticker, pos in portfolio.positions.items():
-        if ticker in already_exiting:
-            continue
-        if pos.is_house_money:
-            continue
-        score = scores.get(ticker)
-        if not score or score.quant_rating >= params.weak_signal_threshold:
-            continue
-        if pos.current_price <= 0:
-            continue
-        candidates.append((ticker, score.quant_rating, pos.current_price))
-
-    if not candidates:
-        return []
-
-    # Ticker breaks the tie. Sorting on quant_rating alone left equally-weak
-    # names in `portfolio.positions` insertion order, so the same book loaded by
-    # a different query ordering recycled a different holding — the live book and
-    # a backtest can then diverge on identical inputs, which is fatal to any
-    # reproducibility claim.
-    candidates.sort(key=lambda x: (x[1], x[0]))
-    ticker, qr, price = candidates[0]
-    pos = portfolio.positions[ticker]
-    trim_amount = shortfall * 1.1
-    trim_shares = min(pos.shares, trim_amount / price)
-    if trim_shares <= 0.01:
-        return []
-
-    return [
-        Signal(
-            action=Action.RECYCLE_TRIM,
-            ticker=ticker,
-            sell_shares=trim_shares,
-            reason=f"Trim weakest (QR {qr:.1f}) to fund new buy",
-            score=scores.get(ticker),
-            rules=[
-                RuleCheck(
-                    rule_id="active_recycling",
-                    passed=True,
-                    inputs={
-                        "qr": qr,
-                        "shortfall": round(shortfall, 2),
-                        "trim_shares": round(trim_shares, 4),
-                    },
-                    threshold={"weak_signal_threshold": params.weak_signal_threshold},
-                    message="Core Run 118 alpha: recycle weak names into new picks",
-                )
-            ],
-        )
-    ]
-
-
 def _buy_signals(
     portfolio: PortfolioState,
     scores: dict[str, ScoreSnapshot],
@@ -574,6 +581,15 @@ def _buy_signals(
     as_of: date,
     return_series: dict[str, dict[date, float]] | None = None,
 ) -> list[Signal]:
+    """The one add per evaluation, with no cash gate.
+
+    run119 assumes a pick is always funded. Run 118 simulated cash freed by the
+    pending sells, held back a two-pick reserve, trimmed the weakest holding to
+    cover any shortfall and refused a buy below half the target notional. All
+    of that was cash management, which this book does not do: the executor
+    funds whatever the pick costs and records the deposit. The buy is sized by
+    `target_notional` and gated on the model and the book's shape only.
+    """
     signals: list[Signal] = []
     max_buys = params.max_adds_per_evaluation
 
@@ -588,7 +604,7 @@ def _buy_signals(
     already_trimmed = {
         s.ticker
         for s in prior_signals
-        if s.action in (Action.TRIM, Action.RECYCLE_TRIM, Action.PARTIAL_SELL)
+        if s.action in (Action.TRIM, Action.PARTIAL_SELL)
     }
     held = set(portfolio.positions.keys()) - exiting
     # A full book no longer returns early here. `max_positions` caps how many
@@ -598,31 +614,7 @@ def _buy_signals(
     # a genuinely new name is gated now, inside the loop, against the live count.
 
     buys = 0
-    equity = portfolio.equity
-    target_notional = params.target_notional(equity)
-    reserve = params.cash_reserve_buys * target_notional
-    # Simulate cash freed by pending sells / weight trims.
-    #
-    # Accumulate per ticker and cap at that position's market value. One holding
-    # can appear in more than one selling signal — a weight TRIM alongside a
-    # Winners-Circle PARTIAL_SELL — and adding each signal's proceeds
-    # independently invents cash the book will never have. The executor cannot
-    # overdraw, so the damage is silent: it truncates the buy to whatever cash
-    # actually exists, and an entry that was meant to be one equal-weighted
-    # `position_size_usd` slug enters at an arbitrary size with nothing in the
-    # signal or the ledger recording that it was under-filled.
-    freed: dict[str, float] = {}
-    for s in prior_signals:
-        pos = portfolio.positions.get(s.ticker)
-        if not pos:
-            continue
-        if s.action == Action.FULL_SELL:
-            freed[s.ticker] = freed.get(s.ticker, 0.0) + pos.market_value
-        elif s.sell_shares:
-            freed[s.ticker] = freed.get(s.ticker, 0.0) + s.sell_shares * pos.current_price
-    sim_cash = portfolio.cash + sum(
-        min(proceeds, portfolio.positions[t].market_value) for t, proceeds in freed.items()
-    )
+    target_notional = params.target_notional(portfolio.equity)
 
     for ticker in ranked_tickers:
         if buys >= max_buys:
@@ -648,34 +640,10 @@ def _buy_signals(
             # cap has already ruled the position too large; buying it straight
             # back is churn against the rule that just fired, and a subscriber
             # mirroring the book by hand sees "Trim BIG" and "Add to BIG" side by
-            # side. `already_trimmed` was collected but only consulted when
-            # picking recycle candidates.
+            # side.
             if ticker in already_trimmed:
                 continue
             if pos.gain_pct < params.double_buy_min_gain:
-                continue
-            shortfall = max(0.0, target_notional + reserve - sim_cash)
-            if shortfall > 0:
-                recycle = _plan_recycle_trims(
-                    portfolio,
-                    scores,
-                    shortfall,
-                    params,
-                    exiting | already_trimmed | {ticker},
-                )
-                if not recycle and sim_cash < target_notional:
-                    continue
-                for r in recycle:
-                    sim_cash += (r.sell_shares or 0) * portfolio.positions[r.ticker].current_price
-                    signals.append(r)
-                    already_trimmed.add(r.ticker)
-
-            # Same minimum-funding floor as a first buy. Without it the conviction
-            # add was published whenever *any* recycle trim could be planned, no
-            # matter how small: $10 of cash plus a $10 trim authorised a $3,000
-            # add, which the executor then filled at whatever cash existed. The
-            # identical position on a new name was already being rejected here.
-            if sim_cash < target_notional * 0.5:
                 continue
 
             signals.append(
@@ -689,16 +657,12 @@ def _buy_signals(
                     ),
                     score=score,
                     rules=[
-                        # Built here rather than shared with the BUY path: the
-                        # module-level rule object was frozen at attempted=0, so
-                        # every conviction add's audit row claimed no buy had
-                        # been attempted on the evaluation that emitted it.
                         RuleCheck(
                             rule_id="max_adds_per_evaluation",
                             passed=True,
                             inputs={"limit": max_buys, "attempted": buys + 1},
                             threshold={"max_adds_per_evaluation": max_buys},
-                            message="Exactly 1 buy per eval (Run 118) — no adaptive filler",
+                            message="Exactly 1 buy per eval — no adaptive filler",
                         ),
                         RuleCheck(
                             rule_id="double_buy",
@@ -712,7 +676,6 @@ def _buy_signals(
                 )
             )
             buys += 1
-            sim_cash -= target_notional
             continue
 
         # A new name needs a free slot; counted live, because a buy earlier in
@@ -725,25 +688,6 @@ def _buy_signals(
         ):
             continue
         if _correlation_block(ticker, held, params, return_series) is not None:
-            continue
-
-        shortfall = max(0.0, target_notional + reserve - sim_cash)
-        if shortfall > 0:
-            recycle = _plan_recycle_trims(
-                portfolio,
-                scores,
-                shortfall,
-                params,
-                exiting | already_trimmed | {ticker},
-            )
-            if not recycle and sim_cash < target_notional:
-                continue
-            for r in recycle:
-                sim_cash += (r.sell_shares or 0) * portfolio.positions[r.ticker].current_price
-                signals.append(r)
-                already_trimmed.add(r.ticker)
-
-        if sim_cash < target_notional * 0.5:
             continue
 
         signals.append(
@@ -762,7 +706,7 @@ def _buy_signals(
                         passed=True,
                         inputs={"limit": max_buys, "attempted": buys + 1},
                         threshold={"max_adds_per_evaluation": max_buys},
-                        message="Exactly 1 buy per eval (Run 118) — no adaptive filler",
+                        message="Exactly 1 buy per eval — no adaptive filler",
                     ),
                     *criteria_checks,
                 ],
@@ -771,7 +715,6 @@ def _buy_signals(
         )
         held.add(ticker)
         buys += 1
-        sim_cash -= target_notional
 
     return signals
 
@@ -784,7 +727,7 @@ def evaluate(
     as_of: date | None = None,
     return_series: dict[str, dict[date, float]] | None = None,
 ) -> list[Signal]:
-    """Full biweekly evaluation: trims → removals → (optional) buys with recycling.
+    """Full biweekly evaluation: trims → removals → the one add.
 
     `return_series` is daily returns by ticker and date, read only by the
     `max_pair_correlation` switch. Callers build it when that switch is on.
@@ -967,13 +910,12 @@ def _buy_session_state(
     scores: dict[str, ScoreSnapshot],
     params: StrategyParams,
     as_of: date,
-) -> tuple[list[Signal], bool, set[str], set[str], float, float]:
-    """Cash, held set, and exit list `_buy_signals` starts from.
+) -> tuple[list[Signal], bool, set[str], set[str]]:
+    """Held set and exit list `_buy_signals` starts from.
 
     Same prior-signal construction as `evaluate()`: weight trims reconciled
-    against removals, then proceeds from those exits added to cash. The
-    explainer has to see that book, not the pre-eval one, or a name funded by
-    a pending sell would look unfundable.
+    against removals. The explainer has to see that book, not the pre-eval
+    one, or a name whose slot is freed by a pending sell would look blocked.
     """
     prior = _reconcile_exits(
         _weight_trim_signals(portfolio, params),
@@ -984,53 +926,10 @@ def _buy_session_state(
     already_trimmed = {
         s.ticker
         for s in prior
-        if s.action in (Action.TRIM, Action.RECYCLE_TRIM, Action.PARTIAL_SELL)
+        if s.action in (Action.TRIM, Action.PARTIAL_SELL)
     }
     held = set(portfolio.positions.keys()) - exiting
-    target_notional = params.target_notional(portfolio.equity)
-    freed: dict[str, float] = {}
-    for s in prior:
-        pos = portfolio.positions.get(s.ticker)
-        if not pos:
-            continue
-        if s.action == Action.FULL_SELL:
-            freed[s.ticker] = freed.get(s.ticker, 0.0) + pos.market_value
-        elif s.sell_shares:
-            freed[s.ticker] = freed.get(s.ticker, 0.0) + s.sell_shares * pos.current_price
-    sim_cash = portfolio.cash + sum(
-        min(proceeds, portfolio.positions[t].market_value) for t, proceeds in freed.items()
-    )
-    return prior, halted, held, already_trimmed, sim_cash, target_notional
-
-
-def _funding_blocked(
-    ticker: str,
-    portfolio: PortfolioState,
-    scores: dict[str, ScoreSnapshot],
-    params: StrategyParams,
-    sim_cash: float,
-    target_notional: float,
-    exiting: set[str],
-    already_trimmed: set[str],
-) -> bool:
-    """True when `_buy_signals` would `continue` for insufficient cash."""
-    reserve = params.cash_reserve_buys * target_notional
-    cash = sim_cash
-    shortfall = max(0.0, target_notional + reserve - cash)
-    if shortfall > 0:
-        recycle = _plan_recycle_trims(
-            portfolio,
-            scores,
-            shortfall,
-            params,
-            exiting | already_trimmed | {ticker},
-        )
-        if recycle:
-            for r in recycle:
-                cash += (r.sell_shares or 0) * portfolio.positions[r.ticker].current_price
-        elif cash < target_notional:
-            return True
-    return cash < target_notional * 0.5
+    return prior, halted, held, already_trimmed
 
 
 def _book_gate(
@@ -1041,9 +940,6 @@ def _book_gate(
     params: StrategyParams,
     held: set[str],
     already_trimmed: set[str],
-    sim_cash: float,
-    target_notional: float,
-    exiting: set[str],
     as_of: date,
     return_series: dict[str, dict[date, float]] | None = None,
 ) -> tuple[str | None, str]:
@@ -1072,10 +968,6 @@ def _book_gate(
                     f"{params.double_buy_min_gain:.0%} conviction-add minimum"
                 ),
             )
-        if _funding_blocked(
-            ticker, portfolio, scores, params, sim_cash, target_notional, exiting, already_trimmed
-        ):
-            return "insufficient_cash", "Not enough cash for a conviction add, even after recycle"
         return None, ""
 
     if len(held) >= params.max_positions:
@@ -1088,10 +980,6 @@ def _book_gate(
     corr = _correlation_block(ticker, held, params, return_series)
     if corr is not None:
         return "max_pair_correlation", corr.message
-    if _funding_blocked(
-        ticker, portfolio, scores, params, sim_cash, target_notional, exiting, already_trimmed
-    ):
-        return "insufficient_cash", "Not enough cash for a new name, even after recycle"
     return None, ""
 
 
@@ -1125,10 +1013,9 @@ def explain_buy_queue(
     selected_ticker = chosen.ticker if chosen else None
     selected_action = chosen.action.value if chosen else None
 
-    _prior, halted, held, already_trimmed, sim_cash, target_notional = _buy_session_state(
+    _prior, halted, held, already_trimmed = _buy_session_state(
         portfolio, scores, params, as_of
     )
-    exiting = {s.ticker for s in _prior if s.action == Action.FULL_SELL}
 
     candidates: list[BuyQueueEntry] = []
     near_misses: list[BuyQueueEntry] = []
@@ -1197,9 +1084,6 @@ def explain_buy_queue(
             params,
             held,
             already_trimmed,
-            sim_cash,
-            target_notional,
-            exiting,
             as_of,
             return_series,
         )

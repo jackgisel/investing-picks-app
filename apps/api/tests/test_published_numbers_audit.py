@@ -642,8 +642,8 @@ def test_a_failed_evaluation_leaves_no_partial_book(db, portfolio, monkeypatch):
 
     real_apply = pf.apply_signals
 
-    def _explode(db_, portfolio_, signals, evaluation):
-        real_apply(db_, portfolio_, signals, evaluation)
+    def _explode(db_, portfolio_, signals, evaluation, **kw):
+        real_apply(db_, portfolio_, signals, evaluation, **kw)
         raise RuntimeError("process died mid-evaluation")
 
     monkeypatch.setattr(pf, "apply_signals", _explode)

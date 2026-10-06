@@ -65,10 +65,10 @@ def test_every_research_field_has_a_neutral_value_equal_to_its_default():
         assert defaults[name] == neutral, name
 
 
-def test_neutral_switches_do_not_move_the_run118_hash():
-    # The pre-switch hash of the shipped defaults. Adding a research field must
-    # not relabel the model that is running.
-    assert RUN118_PARAMS.version_hash() == "3dae13a76007"
+def test_neutral_switches_do_not_move_the_shipped_hash():
+    # The hash of the shipped defaults. Adding a research field must not
+    # relabel the model that is running. run118 was 3dae13a76007.
+    assert RUN118_PARAMS.version_hash() == "53fc98d51518"
 
 
 def test_a_switch_that_is_on_changes_the_hash():
@@ -178,8 +178,8 @@ def test_held_basis_caps_a_young_book_by_its_own_size():
     scores["T3"] = _score("T3", 4.6, sector="Technology")
     scores["H1"] = _score("H1", 4.5, sector="Healthcare")
     ranked = rank_candidates(scores)
-    # max_positions basis: 15 per sector, so a third Tech name is fine.
-    assert _bought(evaluate(_book(held), scores, ranked, RUN118_PARAMS, AS_OF)) == "T3"
-    # held basis: int(4 x 0.30) = 1 per sector; Tech already has 2.
-    params = RUN118_PARAMS.with_overrides(sector_cap_basis="held")
-    assert _bought(evaluate(_book(held), scores, ranked, params, AS_OF)) == "H1"
+    # max_positions basis (Run 118): 15 per sector, so a third Tech name is fine.
+    params = RUN118_PARAMS.with_overrides(sector_cap_basis="max_positions")
+    assert _bought(evaluate(_book(held), scores, ranked, params, AS_OF)) == "T3"
+    # held basis (run119 default): int(4 x 0.30) = 1 per sector; Tech has 2.
+    assert _bought(evaluate(_book(held), scores, ranked, RUN118_PARAMS, AS_OF)) == "H1"

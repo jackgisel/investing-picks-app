@@ -196,8 +196,8 @@ def risk_return_metrics(
             "reason": "equity_curve_too_short",
         }
 
-    first = equity_curve[0]["equity"]
-    last = equity_curve[-1]["equity"]
+    first = _eq(equity_curve[0])
+    last = _eq(equity_curve[-1])
     start_d = date.fromisoformat(equity_curve[0]["date"])
     end_d = date.fromisoformat(equity_curve[-1]["date"])
     days = max(1, (end_d - start_d).days)
@@ -505,9 +505,9 @@ def research_window_metrics(
     equity_ann = (
         equity_stdev * math.sqrt(TRADING_DAYS_PER_YEAR) if equity_stdev is not None else None
     )
-    first_eq = float(equity_curve[0]["equity"]) if equity_curve else None
+    first_eq = _eq(equity_curve[0]) if equity_curve else None
     last_point = equity_curve[-1] if equity_curve else None
-    last_eq = float(last_point["equity"]) if last_point else None
+    last_eq = _eq(last_point) if last_point else None
     ending_invested = float(last_point["invested"]) if last_point else None
     ending_cash = float(last_point["cash"]) if last_point else None
     equity_return = (
@@ -618,11 +618,21 @@ def _spy_matched_pnl(
     }
 
 
+def _eq(point: dict) -> float:
+    """Equity net of deposits when the curve carries it, else raw equity.
+
+    Replay funds a buy the cash cannot cover and records the deposit on the
+    curve as `net_equity`; a return measured on raw equity would count that
+    deposit as a gain.
+    """
+    return float(point.get("net_equity", point["equity"]))
+
+
 def _daily_returns(curve: list[dict]) -> list[float]:
     out: list[float] = []
     prev = None
     for point in curve:
-        eq = point["equity"]
+        eq = _eq(point)
         if prev and prev > 0:
             out.append(eq / prev - 1.0)
         prev = eq
@@ -641,7 +651,7 @@ def _max_drawdown(curve: list[dict]) -> float:
     peak = None
     worst = 0.0
     for point in curve:
-        eq = point["equity"]
+        eq = _eq(point)
         if peak is None or eq > peak:
             peak = eq
         if peak and peak > 0:

@@ -46,7 +46,7 @@ slippage_bps = 0
 universe_scope = "all"
 params_version_label = "run118"
 """
-    path = tmp_path / "run118.toml"
+    path = tmp_path / "run119.toml"
     path.write_text(text)
     return path
 
@@ -233,8 +233,8 @@ def test_walk_forward_exports_and_pins_when_window_already_scored(tmp_path):
     assert result["engine_drift"]["skipped"] is True
     assert manifest.exists()
     assert result["exported"]["consensus_snapshots"] >= 1
-    assert '"end = "2026-09-04"' in (tmp_path / "run118.toml").read_text() or (
-        'end = "2026-09-04"' in (tmp_path / "run118.toml").read_text()
+    assert '"end = "2026-09-04"' in (tmp_path / "run119.toml").read_text() or (
+        'end = "2026-09-04"' in (tmp_path / "run119.toml").read_text()
     )
 
 

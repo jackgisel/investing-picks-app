@@ -24,7 +24,6 @@ SWEEP_FIELDS: tuple[str, ...] = (
     "strong_sell_rating",
     "sector_concentration",
     "winner_threshold",
-    "weak_signal_threshold",
     "double_buy_min_gain",
     "underwater_qr_threshold",
 )

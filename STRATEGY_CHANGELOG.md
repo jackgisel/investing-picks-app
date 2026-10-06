@@ -15,7 +15,7 @@ Any change to:
 
 **must** in the same PR:
 
-1. Bump `version_label` (`run118` → `run119` → …). That changes `version_hash()`.
+1. Bump `version_label` (`run119` → `run120` → …). That changes `version_hash()`.
 2. Regenerate `packages/strategy/tests/golden/<label>_evaluate.json` (`UPDATE_GOLDEN=1`).
 3. Regenerate `backtests/baselines/<label>.json` from the pinned dataset (`UPDATE_BASELINE=1`).
 4. Add a section below with the decision-diff vs the previous version and the PR link.
@@ -36,6 +36,64 @@ Until the holdout gate, promote with decision-diff plus two live shadow cycles
 
 Robustness: `python -m worker.backtest compare RESULT BASELINE --sweep` perturbs
 numeric thresholds ±10% (never `max_adds_per_evaluation` or `position_size_usd`).
+
+## run119 — funded book, price stop, held-basis sector cap
+
+The book no longer does cash management. Every pick is assumed funded: the
+executor deposits whatever a buy costs beyond the cash on hand and records it
+as a `PortfolioContribution`, and the engine has no cash gate at all. A
+price-based stop and an unrated exit close the two holes where Run 118 could
+hold a name forever. Review page with before/after figures:
+https://claude.ai/artifact/WZknmjZ665eXcSgRqgocgh
+
+| | |
+|---|---|
+| `version_label` | `run119` |
+| `RUN118_PARAMS.version_hash()` | `53fc98d51518` (run118 was `3dae13a76007`) |
+| Canonical size | unchanged: `$1,000` per pick, `max_adds_per_evaluation=1`, `$50k` starting cash in the backtest |
+| Golden | `packages/strategy/tests/golden/run119_evaluate.json` |
+| Baseline | `backtests/baselines/run119.json` — the CI `backtest-run119` artifact from the pinned dataset (3 Fridays, 2026-08-07 → 09-04). Buys FIX, GOOG, LLY, the same as run118: no stop, funding or sector-cap case arises in that window, and the pinned tape keeps its materialised run118 scores (the scoring switches only apply on a re-score) |
+| Local replay | `backtests/experiments/run119-cadence-compare.md` (cadence dataset, 4 evaluations) |
+| Factor IC | `backtests/experiments/factor-ic-run119-live.md`, `factor-ic-run119-hist.md` |
+
+### Decision diff vs run118
+
+| Change | Where | Effect on the 4-Friday replay |
+|---|---|---|
+| No cash reserve, no recycle trim, no half-notional funding floor; `cash_reserve_buys` and `weak_signal_threshold` removed; `Action.RECYCLE_TRIM` kept for ledger history, never emitted | `signals.py` `_buy_signals`, `explain_buy_queue` | none (cash never ran out) |
+| Executor funds a shortfall instead of clamping the buy; deposit recorded per fill date | `apply_signals(fund_shortfall=True)` on the live book; replay `_run_one` | none (no shortfall) |
+| `max_loss_pct = -0.40`: full exit on price alone, before any rating rule, scored or not; house money exempt | `_removal_signals` `max_loss_stop` | none fired |
+| `max_unrated_days = 21`: a holding with no score for longer than this (from its last score, or from entry) is exited | `_removal_signals` `unrated_exit`; `PositionState.last_scored` fed by `last_scored_dates` | none fired |
+| `sector_cap_basis = "held"` (promoted): cap = `int((held + 1) × 0.30)`, floor 1 | `_would_exceed_sector_cap` | **Sep 18: SNDK skipped (ALAB holds the one Technology slot), TPR bought** |
+| `momentum_penalty` 20 → 0 | `scoring.py` | no pick changed; gate-pass set ±1 name |
+| `valuation_penalize_losses = True` (promoted) | worker `scoring.py` | no pick changed |
+| Buy ranking ties break on ticker | `rank_candidates` | none (no exact ties) |
+| Whole-book return counts deposits as capital: `total_return_pct` = equity / (initial + deposits) − 1; `/performance` series and period returns back deposits out | `portfolio.py`, `public_v1.py`, `period_returns.py` | reporting only |
+
+End holdings: run118 `ALAB, FIX, LLY, SNDK` → run119 `ALAB, FIX, LLY, TPR` on the
+same re-derived tape. The committed `backtests/baselines/run118.json` bought
+GOOG on Aug 21; that was the tape before the nightly re-derive moved it, not
+the strategy.
+
+### What the IC data says about the weights (not shipped)
+
+A reweight toward what `factor_ic` supports (`weight_valuation` 0.25,
+`weight_growth` 0.30, `weight_profitability` 0) buys a different name on every
+Friday and shows a larger gate-pass and top-pick excess on both windows, on 2 to
+8 Fridays. That is direction, not evidence. It stays an override until the
+replay has 24 evaluations. Valuation is still the only factor with a positive IC
+at every horizon (t +2.6 at 20 sessions on the live window, +3.5 on the
+31-Friday window); growth and momentum are negative at 10 and 20 sessions.
+
+### Operational notes
+
+- The held-basis cap binds hard on a young book: one name per sector with four
+  held, two with eight. Expect the Friday pick to skip the top-ranked name when
+  its sector is taken; the ops buy queue shows `sector_cap` on it.
+- The first live evaluation after deploy will deposit cash if the book holds
+  less than `$1,000`. `GET /api/v1/strategy` `total_return_pct` then measures
+  against initial capital plus deposits.
+- `extra_buy` no longer refuses on cash.
 
 ## Research switches and live parity (strategy run118 unchanged)
 
@@ -89,13 +147,13 @@ Sell rules read the copied row, so they evaluate that last rating. Sell threshol
 | `revisions_eps_scaling` (`"price"`) | `"pct"` | `factor_ic` |
 | `revision_min_lookback_days` | 0 | `factor_ic` |
 | `revisions_fy2_blend` | False | `factor_ic` (needs FY2 snapshots) |
-| `valuation_penalize_losses` | False | `factor_ic` |
+| `valuation_penalize_losses` | False — **promoted to True in run119** | `factor_ic` |
 | `growth_drop_net_income` | False | `factor_ic` |
 | `weight_surprise` (SUE factor from `earnings_history`) | 0.0 | `factor_ic` |
 | `rank_smoothing` | False | `compare --sweep` |
 | `earnings_blackout_days` | 0 | `compare --sweep` |
 | `max_pair_correlation` / `correlation_lookback_days` | None / 90 | `compare --sweep` |
-| `sector_cap_basis` (`"held"`) | `"max_positions"` | `compare --sweep` |
+| `sector_cap_basis` (`"held"`) | `"max_positions"` — **promoted to `"held"` in run119** | `compare --sweep` |
 
 `momentum_penalty` (the round-2 handoff) is an existing field and is included
 in the `factor_ic` standard set at 0.

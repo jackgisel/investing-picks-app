@@ -92,7 +92,6 @@ const BLOCKED_LABEL: Record<string, string> = {
   max_adds: "One add taken",
   sector_cap: "Sector cap",
   no_slot: "No slot",
-  insufficient_cash: "Cash",
   already_held: "Already held",
   conviction_add_gain: "Held",
   already_trimmed: "Trimmed",

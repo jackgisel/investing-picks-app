@@ -1,4 +1,4 @@
-"""Single source of truth for Run 118 strategy parameters."""
+"""Single source of truth for the strategy parameters (run119)."""
 
 from __future__ import annotations
 
@@ -18,7 +18,13 @@ class BuyCriteria:
 
 @dataclass(frozen=True)
 class StrategyParams:
-    """Frozen Run 118 defaults. Optional live-only flags default OFF."""
+    """Frozen run119 defaults. Optional live-only flags default OFF.
+
+    run119 is Run 118 with the cash-management rules removed and a price-based
+    exit added. The book assumes funding is always available for a pick, so
+    there is no cash reserve, no recycle trim and no funding floor on a buy.
+    See STRATEGY_CHANGELOG.md.
+    """
 
     # Factor weights
     weight_valuation: float = 0.05
@@ -29,7 +35,12 @@ class StrategyParams:
 
     # Scoring filters
     z_score_floor: float = 1.8
-    momentum_penalty: float = 20.0
+    # run118 subtracted 20 composite points from any name with a negative 12m
+    # return, after momentum had already entered the weighted average. That was
+    # a cliff at zero (two names 0.2% apart landed 0.8 QR apart) and the one
+    # absolute rule in a sector-relative model. run119 sets it to 0; momentum
+    # still counts through `weight_momentum`.
+    momentum_penalty: float = 0.0
     min_universe_market_cap: float = 300_000_000
     min_share_price: float = 5.0
 
@@ -55,7 +66,6 @@ class StrategyParams:
     # None restores percent-of-equity sizing.
     position_size_usd: float | None = None
     max_adds_per_evaluation: int = 1  # Exactly 1 — no adaptive filler
-    cash_reserve_buys: int = 2
     sector_concentration: float = 0.30
     eval_frequency: str = "biweekly"
 
@@ -77,11 +87,20 @@ class StrategyParams:
     winner_threshold: float = 0.60
     max_underwater_days: int = 270  # Run 118
     underwater_qr_threshold: float = 3.0
+    # Price-based stop. Run 118 had none: every exit keyed on the quant rating,
+    # so a name down 60% with a rating of 3.2 was held indefinitely. Fires on
+    # `gain_pct <= max_loss_pct` regardless of rating, and regardless of
+    # whether the holding has a score at all. None disables it.
+    max_loss_pct: float | None = -0.40
+    # A holding with no composite score is skipped by every rating rule. Run
+    # 118 logged that as an incident and did nothing. run119 exits a holding
+    # whose last score is older than this many days (or that has never been
+    # scored and has been held that long). 0 disables it.
+    max_unrated_days: int = 21
 
-    # Conviction & recycling
+    # Conviction adds
     allow_double_buy: bool = True
     double_buy_min_gain: float = 0.30
-    weak_signal_threshold: float = 4.0  # Active recycling
 
     # Optional live-only experiments (OFF until backtested)
     enable_qr_velocity: bool = False
@@ -111,10 +130,11 @@ class StrategyParams:
     revision_min_lookback_days: int = 0
     # Blend next-fiscal-year revisions into the factor when available.
     revisions_fy2_blend: bool = False
-    # Loss-makers carry no P/E or PEG. Missing reads as "not measured", so a
-    # loss-maker is valued on sales and book alone. True ranks it worst on
-    # P/E and PEG instead.
-    valuation_penalize_losses: bool = False
+    # Loss-makers carry no P/E or PEG. False reads missing as "not measured",
+    # so a loss-maker is valued on sales and book alone and outscores a
+    # profitable name that is merely expensive. run119 ranks it worst on P/E
+    # and PEG instead (promoted from a research switch).
+    valuation_penalize_losses: bool = True
     # EPS growth and net-income growth are close to the same number, so
     # earnings carry two thirds of the growth factor. True drops net income.
     growth_drop_net_income: bool = False
@@ -132,14 +152,15 @@ class StrategyParams:
     max_pair_correlation: float | None = None
     correlation_lookback_days: int = 90
     # "max_positions": sector cap = sector_concentration x max_positions
-    # (Run 118; 15 names, so it does not bind on a young book).
-    # "held": sector_concentration x (names held + 1), floor 1.
-    sector_cap_basis: str = "max_positions"
+    # (Run 118; 15 names, so it never bound on a young book).
+    # "held": sector_concentration x (names held + 1), floor 1. run119 default
+    # (promoted from a research switch).
+    sector_cap_basis: str = "held"
 
     # Any change to these defaults, signals.py, or scoring.py MUST bump this
-    # label (run118 → run119 …), regenerate the golden snapshot and backtest
+    # label (run119 → run120 …), regenerate the golden snapshot and backtest
     # baseline in the same PR, and add a STRATEGY_CHANGELOG.md entry.
-    version_label: str = "run118"
+    version_label: str = "run119"
 
     def target_notional(self, equity: float) -> float:
         """Dollars to deploy on one entry."""
@@ -218,14 +239,16 @@ RESEARCH_SWITCH_NEUTRAL: dict[str, object] = {
     "revisions_eps_scaling": "pct",
     "revision_min_lookback_days": 0,
     "revisions_fy2_blend": False,
-    "valuation_penalize_losses": False,
     "growth_drop_net_income": False,
     "weight_surprise": 0.0,
     "rank_smoothing": False,
     "earnings_blackout_days": 0,
     "max_pair_correlation": None,
     "correlation_lookback_days": 90,
-    "sector_cap_basis": "max_positions",
 }
 
-RUN118_PARAMS = StrategyParams()
+# The shipped defaults. The name is historical: every caller imports
+# RUN118_PARAMS, and the label inside it (`version_label`) is what identifies
+# the model, not the constant's name.
+DEFAULT_PARAMS = StrategyParams()
+RUN118_PARAMS = DEFAULT_PARAMS

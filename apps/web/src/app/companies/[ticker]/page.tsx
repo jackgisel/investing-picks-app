@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound, permanentRedirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { HistoryChart } from "@/components/workforce/history-chart";
 import { YearBars } from "@/components/companies/year-bars";
-import { MarketNoteSignup } from "@/components/marketing/market-note-signup";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { HScroll } from "@/components/ui/h-scroll";
 import {
@@ -35,6 +34,14 @@ type Params = { ticker: string };
 
 // Headcount changes once a year per company; a day is plenty fresh.
 export const revalidate = 86400;
+
+// Nothing is pre-rendered at build (the API may not be reachable from the
+// builder), but returning a list at all makes each page cached on first hit
+// instead of rendered per request. A thousand-page crawl then costs the API
+// one render per company per day.
+export async function generateStaticParams(): Promise<Params[]> {
+  return [];
+}
 
 async function load(raw: string) {
   const ticker = normalizeTicker(raw);
@@ -91,8 +98,8 @@ export default async function CompanyPage({
   params: Promise<Params>;
 }) {
   const { ticker: raw } = await params;
-  // One URL per company: /companies/aapl, never /companies/AAPL.
-  if (raw !== raw.toLowerCase()) permanentRedirect(companyPath(raw));
+  // Uppercase URLs are redirected to lowercase in middleware, before the
+  // cache. A redirect thrown here would be cached as the page itself.
   const data = await load(raw);
   if (!data) notFound();
   const { company, history, companies } = data;
@@ -252,7 +259,12 @@ export default async function CompanyPage({
               Both lines start at 100 in the first year we hold, so you can see
               which one grew faster.
             </p>
-            <HistoryChart history={history} />
+            {/* The chart carries its own year table, wider than a phone. */}
+            <HScroll innerClassName="pr-7">
+              <div className="min-w-[560px]">
+                <HistoryChart history={history} />
+              </div>
+            </HScroll>
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -376,7 +388,22 @@ export default async function CompanyPage({
               Enter the challenge
             </Link>
           </div>
-          <MarketNoteSignup source={`company:${company.ticker}`} variant="panel" />
+          <div className="soft-card">
+            <p className="section-label section-label-mint">More data</p>
+            <h2 className="font-sans text-[22px] font-bold tracking-tight">
+              Compare {company.ticker} with the rest of the market
+            </h2>
+            <p className="mt-2 font-sans text-[14px] leading-relaxed text-text-muted">
+              See who earns the most per employee, who is hiring, and who is
+              cutting, across every company we track.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Link href="/workforce" className="btn-outline">Leaderboard</Link>
+              {company.sector && (
+                <Link href={sectorPath(company.sector)} className="btn-outline">{company.sector}</Link>
+              )}
+            </div>
+          </div>
         </div>
       </section>
 

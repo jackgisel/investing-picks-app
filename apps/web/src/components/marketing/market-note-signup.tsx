@@ -10,7 +10,7 @@ type Status = "idle" | "working" | "done" | "error";
 type Variant = "inline" | "panel";
 
 /**
- * The only free thing on the site.
+ * The free weekly email, and the one ask on most public pages.
  *
  * `source` is stored with the address so we can tell which placement actually
  * converts — hero, blog footer, or the standalone panel — rather than guessing.

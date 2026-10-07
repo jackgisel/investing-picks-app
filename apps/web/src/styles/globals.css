@@ -230,6 +230,10 @@
   /* Horizontal scroller with a right-edge fade so leftover columns are
      obviously there. Inner `.h-scroll` is the overflowing child. */
   .h-scroll {
+    /* A positioned scroller, so absolutely positioned children (an .sr-only
+       column header, say) are clipped by it. Without this they escaped the
+       scroll box and widened the whole page on phones. */
+    position: relative;
     overflow-x: auto;
     overscroll-behavior-x: contain;
     -webkit-overflow-scrolling: touch;

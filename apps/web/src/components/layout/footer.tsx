@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { OutpickWordmark } from "@/components/ui/outpick-logo";
-import { SOCIAL_LINKS } from "@/lib/constants";
+import { MarketNoteSignup } from "@/components/marketing/market-note-signup";
+import { BLOG_CATEGORIES, categoryPath } from "@/lib/blog-taxonomy";
+import { sectorPath } from "@/lib/companies";
+import { SOCIAL_LINKS, SUPPORT_EMAIL } from "@/lib/constants";
+import { ALL_TOOL_LINKS, NAV_SECTIONS, type NavLink } from "@/lib/site-nav";
 
 // Brand marks inline — lucide has no X logo, and its YouTube glyph is an outline.
 function YouTubeIcon() {
@@ -24,14 +28,57 @@ const SOCIALS = [
   { href: SOCIAL_LINKS.x, label: "Outpick on X", Icon: XIcon },
 ];
 
+/** FMP's sector names. Linked here so every sector page is one hop from any page. */
+const FOOTER_SECTORS = ["Technology", "Healthcare", "Financial Services", "Industrials", "Consumer Cyclical"];
+
+const outpick = NAV_SECTIONS.find((s) => s.id === "outpick")!;
+
+const COLUMNS: { title: string; links: NavLink[] }[] = [
+  {
+    title: "Research",
+    links: [
+      ...BLOG_CATEGORIES.map((c) => ({ label: c.title, href: categoryPath(c) })),
+      { label: "All articles", href: "/blog" },
+    ],
+  },
+  {
+    title: "Free tools",
+    links: [...ALL_TOOL_LINKS, { label: "All tools", href: "/tools" }],
+  },
+  {
+    title: "Data",
+    links: [
+      { label: "Company directory", href: "/companies" },
+      { label: "Revenue per employee", href: "/workforce" },
+      ...FOOTER_SECTORS.map((s) => ({ label: s, href: sectorPath(s) })),
+    ],
+  },
+  {
+    title: "Outpick",
+    links: outpick.groups.flatMap((g) => g.links),
+  },
+];
+
+const linkClass =
+  "font-sans text-[14px] text-text-muted hover:text-text transition-colors";
+
+function ColumnTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mb-4 flex items-center gap-2.5 font-sans text-[11px] font-bold uppercase tracking-[0.16em]">
+      <span aria-hidden className="h-1 w-5 shrink-0 rounded-full bg-border-strong" />
+      {children}
+    </p>
+  );
+}
+
 export function Footer() {
   return (
     <footer className="border-t border-border bg-bg">
       <div className="container-op py-14">
-        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-10">
+        <div className="grid grid-cols-1 gap-10 border-b border-border pb-12 lg:grid-cols-[1fr_minmax(0,560px)] lg:items-end">
           <div>
             <OutpickWordmark />
-            <p className="mt-4 font-sans text-[13px] text-text-muted max-w-xs leading-relaxed">
+            <p className="mt-4 max-w-xs font-sans text-[14px] leading-relaxed text-text-muted">
               Intentional investing beyond the index.
             </p>
             <ul className="mt-5 flex items-center gap-2.5">
@@ -43,7 +90,7 @@ export function Footer() {
                     rel="noopener noreferrer"
                     aria-label={label}
                     title={label}
-                    className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-text-muted hover:text-text hover:border-border-strong transition-colors"
+                    className="flex h-9 w-9 items-center justify-center rounded-full border border-border text-text-muted transition-colors hover:border-border-strong hover:text-text"
                   >
                     <Icon />
                   </a>
@@ -51,134 +98,48 @@ export function Footer() {
               ))}
             </ul>
           </div>
-
-          <div className="grid grid-cols-2 gap-10 sm:gap-16">
-            <div>
-              <p className="font-sans text-[11px] font-bold tracking-[0.16em] uppercase mb-4 flex items-center gap-2.5">
-                <span
-                  aria-hidden
-                  className="h-1 w-5 rounded-full bg-border-strong shrink-0"
-                />
-                Links
-              </p>
-              <ul className="space-y-2.5">
-                <li>
-                  <Link
-                    href="/strategy"
-                    className="font-sans text-[13px] font-semibold tracking-[0.08em] uppercase text-text-muted hover:text-text transition-colors"
-                  >
-                    How we invest
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/tools"
-                    className="font-sans text-[13px] font-semibold tracking-[0.08em] uppercase text-text-muted hover:text-text transition-colors"
-                  >
-                    Tools
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/blog"
-                    className="font-sans text-[13px] font-semibold tracking-[0.08em] uppercase text-text-muted hover:text-text transition-colors"
-                  >
-                    Blog
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/market-note"
-                    className="font-sans text-[13px] font-semibold tracking-[0.08em] uppercase text-text-muted hover:text-text transition-colors"
-                  >
-                    Market Note
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/pricing"
-                    className="font-sans text-[13px] font-semibold tracking-[0.08em] uppercase text-text-muted hover:text-text transition-colors"
-                  >
-                    Pricing
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/track-record"
-                    className="font-sans text-[13px] font-semibold tracking-[0.08em] uppercase text-text-muted hover:text-text transition-colors"
-                  >
-                    Track record
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/workforce"
-                    className="font-sans text-[13px] font-semibold tracking-[0.08em] uppercase text-text-muted hover:text-text transition-colors"
-                  >
-                    Workforce data
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/faq"
-                    className="font-sans text-[13px] font-semibold tracking-[0.08em] uppercase text-text-muted hover:text-text transition-colors"
-                  >
-                    FAQ
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/what-we-are-not"
-                    className="font-sans text-[13px] font-semibold tracking-[0.08em] uppercase text-text-muted hover:text-text transition-colors"
-                  >
-                    What we are not
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <p className="font-sans text-[11px] font-bold tracking-[0.16em] uppercase mb-4 flex items-center gap-2.5">
-                <span
-                  aria-hidden
-                  className="h-1 w-5 rounded-full bg-border-strong shrink-0"
-                />
-                Legal
-              </p>
-              <ul className="space-y-2.5">
-                <li>
-                  <Link
-                    href="/terms"
-                    className="font-sans text-[13px] font-semibold tracking-[0.08em] uppercase text-text-muted hover:text-text transition-colors"
-                  >
-                    Terms
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/privacy"
-                    className="font-sans text-[13px] font-semibold tracking-[0.08em] uppercase text-text-muted hover:text-text transition-colors"
-                  >
-                    Privacy
-                  </Link>
-                </li>
-                <li>
-                  <a
-                    href="mailto:hello@outpick.xyz"
-                    className="font-sans text-[13px] font-semibold tracking-[0.08em] uppercase text-text-muted hover:text-text transition-colors"
-                  >
-                    Contact
-                  </a>
-                </li>
-              </ul>
-            </div>
-          </div>
+          <MarketNoteSignup source="footer" variant="panel" />
         </div>
 
-        <div className="mt-12 pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3">
+        <nav
+          aria-label="Footer"
+          className="grid grid-cols-2 gap-x-8 gap-y-10 pt-12 sm:grid-cols-3 lg:grid-cols-5"
+        >
+          {COLUMNS.map((col) => (
+            <div key={col.title}>
+              <ColumnTitle>{col.title}</ColumnTitle>
+              <ul className="space-y-2.5">
+                {col.links.map((l) => (
+                  <li key={l.href}>
+                    <Link href={l.href} className={linkClass}>
+                      {l.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+          <div>
+            <ColumnTitle>Legal</ColumnTitle>
+            <ul className="space-y-2.5">
+              <li>
+                <Link href="/terms" className={linkClass}>Terms</Link>
+              </li>
+              <li>
+                <Link href="/privacy" className={linkClass}>Privacy</Link>
+              </li>
+              <li>
+                <a href={`mailto:${SUPPORT_EMAIL}`} className={linkClass}>Contact</a>
+              </li>
+            </ul>
+          </div>
+        </nav>
+
+        <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-border pt-6 sm:flex-row">
           <span className="font-sans text-[12px] text-text-dim">
-            © {new Date().getFullYear()} Outpick
+            © {new Date().getFullYear()} Outpick. Research, not personal advice.
           </span>
-          <span className="font-sans text-[11px] font-bold tracking-[0.2em] uppercase text-text-dim">
+          <span className="font-sans text-[11px] font-bold uppercase tracking-[0.2em] text-text-dim">
             Research. Pick. Track.
           </span>
         </div>

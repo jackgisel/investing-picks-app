@@ -56,9 +56,9 @@ export function buildToolMetadata(
 
 export function buildToolsIndexMetadata(): Metadata {
   const path = "/tools";
-  const title = "Free investing worksheets and calculators";
+  const title = "Free investing tools, calculators and a stock picking game";
   const description =
-    "Six free public tools from Outpick: portfolio weights, profit margins, cash flow, downside risk, intrinsic value, and competitive advantage. Arithmetic only, no login on the math.";
+    "Free tools from Outpick: a ten year Beat the S&P 500 challenge, intrinsic value and free cash flow worksheets, margin and moat checks, downside risk, and portfolio weight math.";
   const image = toolShareImageUrl(path);
 
   return {

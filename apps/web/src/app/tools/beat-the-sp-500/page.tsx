@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BoardTable } from "@/components/challenge/board-table";
 import { EntryCta } from "@/components/challenge/entry-cta";
-import { MarketNoteSignup } from "@/components/marketing/market-note-signup";
 import { ensureMigrations } from "@/lib/auth";
 import {
   getBoard,
@@ -321,8 +320,8 @@ export default async function ChallengePage({
       </section>
 
       <section className="border-b border-border">
-        <div className="container-op py-12 grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div className="soft-card">
+        <div className="container-op py-12">
+          <div className="soft-card max-w-[760px]">
             <p className="section-label">Do your homework</p>
             <h2 className="font-sans text-[22px] font-bold tracking-tight">
               Research before you lock it in
@@ -336,7 +335,6 @@ export default async function ChallengePage({
               <Link href="/tools" className="btn-outline">All free tools</Link>
             </div>
           </div>
-          <MarketNoteSignup source="challenge" variant="panel" />
         </div>
       </section>
 

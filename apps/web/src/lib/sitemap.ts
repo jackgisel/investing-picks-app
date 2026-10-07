@@ -7,6 +7,7 @@ import { SITE_URL } from "@/lib/constants";
  */
 export const PUBLIC_TOOL_PATHS = [
   "/tools",
+  "/tools/beat-the-sp-500",
   "/tools/concentrated-portfolio-calculator",
   "/tools/profit-margin-calculator",
   "/tools/free-cash-flow-worksheet",
@@ -21,6 +22,7 @@ export const PUBLIC_STATIC_PATHS = [
   "/pricing",
   "/track-record",
   "/workforce",
+  "/companies",
   "/strategy",
   ...PUBLIC_TOOL_PATHS,
   "/faq",
@@ -73,8 +75,10 @@ const STATIC_META: Record<
   "/pricing": { changeFrequency: "monthly", priority: 0.9 },
   "/track-record": { changeFrequency: "daily", priority: 0.9 },
   "/workforce": { changeFrequency: "weekly", priority: 0.8 },
+  "/companies": { changeFrequency: "weekly", priority: 0.8 },
   "/strategy": { changeFrequency: "monthly", priority: 0.8 },
   "/tools": { changeFrequency: "monthly", priority: 0.75 },
+  "/tools/beat-the-sp-500": { changeFrequency: "daily", priority: 0.8 },
   "/tools/concentrated-portfolio-calculator": {
     changeFrequency: "monthly",
     priority: 0.7,
@@ -216,6 +220,68 @@ export async function loadPublicSampleRoutes(): Promise<SitemapSample[]> {
       [],
     );
     return samples.map((s) => ({ slug: s.slug, updatedAt: s.updatedAt }));
+  } catch {
+    return [];
+  }
+}
+
+export type SitemapExtra = Omit<SitemapEntry, "url"> & { path: string };
+
+/**
+ * Category and sub-category pages that have at least one post. An empty
+ * sub-category is noindex on its own page, so it stays out of here too.
+ */
+export function blogTopicRoutes(
+  articles: ReadonlyArray<{ category: string; subcategory: string }>,
+  categories: ReadonlyArray<{
+    name: string;
+    slug: string;
+    subcategories: ReadonlyArray<{ slug: string }>;
+  }>,
+): SitemapExtra[] {
+  return categories.flatMap((c) => {
+    const inCategory = articles.filter((a) => a.category === c.name);
+    if (inCategory.length === 0) return [];
+    return [
+      { path: `/blog/category/${c.slug}`, changeFrequency: "weekly" as const, priority: 0.7 },
+      ...c.subcategories
+        .filter((s) => inCategory.some((a) => a.subcategory === s.slug))
+        .map((s) => ({
+          path: `/blog/category/${c.slug}/${s.slug}`,
+          changeFrequency: "weekly" as const,
+          priority: 0.6,
+        })),
+    ];
+  });
+}
+
+const DIRECTORY_QUERY_MS = 4000;
+
+/** Every company page and sector page. Empty, never an error, when the API is down. */
+export async function loadCompanyRoutes(): Promise<SitemapExtra[]> {
+  try {
+    const { getCompanyDirectory, sectorSlug } = await import("@/lib/companies");
+    const directory = await withTimeout(getCompanyDirectory(), DIRECTORY_QUERY_MS, null);
+    if (!directory) return [];
+    const sectors = new Set<string>();
+    const companies: SitemapExtra[] = directory.companies.map((c) => {
+      if (c.sector && !c.stale) sectors.add(c.sector);
+      const lastModified = toSitemapDate(c.filing_date);
+      return {
+        path: `/companies/${c.ticker.toLowerCase()}`,
+        changeFrequency: "monthly" as const,
+        priority: c.stale ? 0.3 : 0.6,
+        ...(lastModified ? { lastModified } : {}),
+      };
+    });
+    return [
+      ...[...sectors].map((s) => ({
+        path: `/companies/sector/${sectorSlug(s)}`,
+        changeFrequency: "weekly" as const,
+        priority: 0.6,
+      })),
+      ...companies,
+    ];
   } catch {
     return [];
   }

@@ -56,7 +56,7 @@ describe("art pool", () => {
 
   it("exposes spare covers for future blog posts", () => {
     const next = nextSpareCover();
-    expect(next).toEqual({ id: "spare-15", src: "/art/pool/spare-15.png" });
+    expect(next).toEqual({ id: "spare-16", src: "/art/pool/spare-16.png" });
   });
 
   it("keeps unused spare-09+ prints unclaimed", () => {
@@ -93,6 +93,7 @@ describe("art pool", () => {
     expect(SPARE_CLAIMED["spare-14"]).toBe(
       "how-to-analyze-competitive-advantage",
     );
+    expect(SPARE_CLAIMED["spare-15"]).toBe("free-cash-flow-stock-analysis");
     for (const spare of fresh) {
       if (
         spare.id !== "spare-07" &&
@@ -102,7 +103,8 @@ describe("art pool", () => {
         spare.id !== "spare-11" &&
         spare.id !== "spare-12" &&
         spare.id !== "spare-13" &&
-        spare.id !== "spare-14"
+        spare.id !== "spare-14" &&
+        spare.id !== "spare-15"
       ) {
         expect(SPARE_CLAIMED[spare.id]).toBeUndefined();
       }
@@ -117,7 +119,7 @@ describe("art pool", () => {
     const status = poolStatus(new Date("2026-08-22T12:00:00Z"));
     expect(status.weeksReady).toBe(13);
     expect(status.weeksRemaining).toBeGreaterThanOrEqual(13);
-    expect(status.sparesFree).toBe(54);
+    expect(status.sparesFree).toBe(53);
   });
 
   it("registers spare-19 through spare-68 as unclaimed 1280-wide prints", () => {

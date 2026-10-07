@@ -28,6 +28,7 @@ const article: Article = {
     ],
     publishedAt: "2026-10-07",
     category: "Education",
+    subcategory: "valuation",
     tags: [
       "free cash flow",
       "earnings quality",

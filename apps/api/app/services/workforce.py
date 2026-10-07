@@ -363,6 +363,74 @@ def company_history(db: Session, ticker: str) -> dict | None:
     }
 
 
+def company_directory(db: Session, today: date | None = None) -> dict:
+    """Every active company we hold at least one paired year for.
+
+    Feeds the public company pages and their sitemap, so unlike the leaderboard
+    it applies no revenue or headcount floor: a 60-person company still has a
+    true answer to "how many employees does it have". `stale` marks a latest
+    year older than the leaderboard accepts, so a page can say so rather than
+    present an old number as current.
+    """
+    today = today or date.today()
+    oldest = today - timedelta(days=MAX_PERIOD_AGE_DAYS)
+    stocks = {
+        s.ticker: s
+        for s in db.query(Stock)
+        .filter(Stock.is_active == True, Stock.is_etf == False)  # noqa: E712
+        .all()
+    }
+    rows: list[dict] = []
+    for ticker, pairs in _series_by_ticker(db).items():
+        stock = stocks.get(ticker)
+        if stock is None:
+            continue
+        row = _row(stock, pairs)
+        if row is None:
+            continue
+        rows.append(
+            {
+                k: row[k]
+                for k in (
+                    "ticker",
+                    "name",
+                    "sector",
+                    "industry",
+                    "market_cap",
+                    "period",
+                    "filing_date",
+                    "employees",
+                    "revenue",
+                    "rev_per_employee",
+                    "employees_yoy",
+                    "revenue_yoy",
+                    "shape",
+                )
+            }
+            | {"years": len(pairs), "stale": pairs[-1]["period"] < oldest}
+        )
+    rows.sort(key=lambda r: r["ticker"])
+    return {"as_of": today.isoformat(), "count": len(rows), "companies": rows}
+
+
+_DIRECTORY_CACHE: tuple[float, dict] | None = None
+DIRECTORY_TTL_SECONDS = 3600
+
+
+def cached_directory(db: Session) -> dict:
+    """`company_directory`, held for an hour. Headcount changes weekly at most."""
+    import time
+
+    global _DIRECTORY_CACHE
+    now = time.monotonic()
+    if _DIRECTORY_CACHE and now - _DIRECTORY_CACHE[0] < DIRECTORY_TTL_SECONDS:
+        return _DIRECTORY_CACHE[1]
+    result = company_directory(db)
+    if result["count"] > 0:
+        _DIRECTORY_CACHE = (now, result)
+    return result
+
+
 _CACHE: dict[tuple, tuple[float, dict]] = {}
 CACHE_TTL_SECONDS = 300
 

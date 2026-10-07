@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CompanySearch } from "@/components/companies/company-search";
 import { GrowthScatter } from "@/components/workforce/growth-scatter";
 import { WorkforceTable } from "@/components/workforce/workforce-table";
 import { PillButton } from "@/components/ui/pill-button";
@@ -80,6 +81,7 @@ export default async function WorkforcePage({
             see which businesses do more with fewer people, and which are
             growing sales faster than they hire.
           </p>
+          <CompanySearch className="mt-8" />
         </div>
       </div>
 
@@ -196,7 +198,7 @@ export default async function WorkforcePage({
           </div>
         ) : (
           <>
-            <WorkforceTable rows={rows} entitled={entitled} />
+            <WorkforceTable rows={rows} />
             <p className="mt-4 font-sans text-[12px] leading-relaxed text-text-muted">
               Showing {rows.length} of {board?.universe} companies with at
               least {formatCompactUsd(MIN_REVENUE)} in revenue and{" "}
@@ -219,11 +221,16 @@ export default async function WorkforcePage({
         {!entitled && (
           <div className="mt-10 rounded-soft border border-border-strong bg-bg-secondary p-6 sm:p-8">
             <p className="font-sans text-[18px] font-bold tracking-tight text-text">
-              See the full board and the history behind each name.
+              See the whole board, by sector and by growth shape.
             </p>
             <p className="mt-2 max-w-[560px] font-sans text-[14px] leading-relaxed text-text-muted">
-              Members get the top {MEMBER_ROWS}, sector filters, and a year by
-              year chart of headcount against revenue for every company.
+              Members get the top {MEMBER_ROWS}, sector filters, and the chart
+              that sorts every company by how its revenue grew against its
+              headcount. Any single company&apos;s history is free on its{" "}
+              <Link href="/companies" className="underline underline-offset-2">
+                company page
+              </Link>
+              .
             </p>
             <div className="mt-5 flex flex-wrap gap-3">
               <PillButton href="/subscribe" arrow>

@@ -378,3 +378,35 @@ def test_openings_follow_the_injected_today(db):
     db.commit()
     row = workforce.leaderboard(db, min_revenue=0, min_employees=0, today=old + timedelta(days=2))["rows"][0]
     assert row["openings"] == 40
+
+
+def test_directory_lists_every_company_without_the_board_floor(db):
+    _stock(db, "BIG")
+    _stock(db, "TINY")
+    _stock(db, "OLD")
+    _year(db, "BIG", 2024, 1000, 9e9)
+    _year(db, "BIG", 2025, 1100, 10e9)
+    _year(db, "TINY", 2025, 12, 3e6)
+    _year(db, "OLD", 2020, 500, 1e9)
+    db.commit()
+    out = workforce.company_directory(db, today=TODAY)
+    by = {c["ticker"]: c for c in out["companies"]}
+    assert set(by) == {"BIG", "TINY", "OLD"}
+    assert by["BIG"]["years"] == 2
+    assert abs(by["BIG"]["employees_yoy"] - 0.1) < 1e-9
+    assert by["TINY"]["stale"] is False
+    assert by["OLD"]["stale"] is True
+    assert [c["ticker"] for c in out["companies"]] == ["BIG", "OLD", "TINY"]
+
+
+def test_directory_route_is_not_read_as_a_ticker(db):
+    _stock(db, "AAA")
+    _year(db, "AAA", 2025, 10, 1e8)
+    db.commit()
+    app = FastAPI()
+    app.include_router(public_v1.router)
+    app.dependency_overrides[get_db] = lambda: db
+    workforce._DIRECTORY_CACHE = None
+    out = TestClient(app).get("/api/v1/workforce/directory").json()
+    assert out["companies"][0]["ticker"] == "AAA"
+    workforce._DIRECTORY_CACHE = None

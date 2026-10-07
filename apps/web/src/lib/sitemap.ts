@@ -154,6 +154,11 @@ export function buildSitemapEntries(input: {
   now?: Date;
   articles: SitemapArticle[];
   samples?: SitemapSample[];
+  /**
+   * Generated pages: blog topics, company data pages. Paths, not URLs, so the
+   * caller cannot point one at another host.
+   */
+  extra?: Array<Omit<SitemapEntry, "url"> & { path: string }>;
 }): SitemapEntry[] {
   const siteUrl = (input.siteUrl ?? SITE_URL).replace(/\/$/, "");
   const now = input.now ?? new Date();
@@ -187,7 +192,12 @@ export function buildSitemapEntries(input: {
     return [entry];
   });
 
-  return [...staticRoutes, ...blogRoutes, ...sampleRoutes].filter(
+  const extraRoutes: SitemapEntry[] = (input.extra ?? []).map(({ path, ...rest }) => ({
+    url: `${siteUrl}${path}`,
+    ...rest,
+  }));
+
+  return [...staticRoutes, ...blogRoutes, ...sampleRoutes, ...extraRoutes].filter(
     (entry) => !isExcludedSitemapPath(entry.url),
   );
 }

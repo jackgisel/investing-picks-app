@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { Fragment, useState } from "react";
-import { ChevronDown, Lock } from "lucide-react";
+import { ChevronDown } from "lucide-react";
+import { companyPath } from "@/lib/companies";
 import { HScroll } from "@/components/ui/h-scroll";
 import { formatCompactUsd } from "@/lib/market-cap";
 import { cn } from "@/lib/utils";
@@ -29,13 +30,7 @@ function growthTone(value: number | null) {
   return value >= 0 ? "text-text" : "text-text-muted";
 }
 
-export function WorkforceTable({
-  rows,
-  entitled,
-}: {
-  rows: WorkforceRow[];
-  entitled: boolean;
-}) {
+export function WorkforceTable({ rows }: { rows: WorkforceRow[] }) {
   const [open, setOpen] = useState<string | null>(null);
   const [panels, setPanels] = useState<Record<string, Panel>>({});
 
@@ -45,7 +40,7 @@ export function WorkforceTable({
       return;
     }
     setOpen(ticker);
-    if (!entitled || panels[ticker]?.state === "ready") return;
+    if (panels[ticker]?.state === "ready") return;
     setPanels((p) => ({ ...p, [ticker]: { state: "loading" } }));
     try {
       const res = await fetch(`/api/data/workforce/${encodeURIComponent(ticker)}`);
@@ -89,7 +84,12 @@ export function WorkforceTable({
                 <tr className="border-b border-border/70">
                   <td className="py-3 px-3 text-text-dim">{r.rank}</td>
                   <td className="py-3 px-3">
-                    <div className="font-semibold text-text">{r.ticker}</div>
+                    <Link
+                      href={companyPath(r.ticker)}
+                      className="font-semibold text-text underline-offset-2 hover:underline"
+                    >
+                      {r.ticker}
+                    </Link>
                     <div className="max-w-[240px] truncate font-sans text-[12px] text-text-muted">
                       {r.name ?? r.industry ?? ""}
                     </div>
@@ -127,28 +127,20 @@ export function WorkforceTable({
                       aria-label={`${isOpen ? "Hide" : "Show"} ${r.ticker} history`}
                       className="inline-flex h-8 w-8 items-center justify-center rounded-full text-text-muted transition-colors hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text"
                     >
-                      {entitled ? (
-                        <ChevronDown className={cn("h-4 w-4 transition-transform", isOpen && "rotate-180")} />
-                      ) : (
-                        <Lock className="h-3.5 w-3.5" />
-                      )}
+                      <ChevronDown className={cn("h-4 w-4 transition-transform", isOpen && "rotate-180")} />
                     </button>
                   </td>
                 </tr>
                 {isOpen && (
                   <tr className="border-b border-border/70 bg-bg-secondary">
                     <td colSpan={11} className="px-4 py-5 sm:px-6">
-                      {!entitled ? (
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <p className="max-w-[520px] font-sans text-[14px] text-text-muted">
-                            Year by year headcount and revenue, with the chart, is for members.
-                          </p>
-                          <Link href="/subscribe" className="btn-outline">
-                            See membership
+                      {panel?.state === "ready" ? (
+                        <div className="space-y-4">
+                          <HistoryChart history={panel.history} />
+                          <Link href={companyPath(r.ticker)} className="btn-outline">
+                            {r.ticker} company page
                           </Link>
                         </div>
-                      ) : panel?.state === "ready" ? (
-                        <HistoryChart history={panel.history} />
                       ) : panel?.state === "error" ? (
                         <p className="font-sans text-[13px] text-text-muted">
                           Could not load the history. Try again in a moment.

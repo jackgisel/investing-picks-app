@@ -794,6 +794,15 @@ def workforce_growth(db: Session = Depends(get_db)):
     }
 
 
+@router.get("/workforce/directory")
+def workforce_directory(db: Session = Depends(get_db)):
+    """Every company with a stated headcount, for the public company pages.
+
+    Declared before `/workforce/{ticker}` so "directory" is not read as a ticker.
+    """
+    return workforce.cached_directory(db)
+
+
 @router.get("/workforce/{ticker}")
 def workforce_company(ticker: str, db: Session = Depends(get_db)):
     """One company's headcount and revenue by fiscal year."""

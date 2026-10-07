@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * One-off personal plain-text mail from email@outpick.xyz, via Resend.
+ * One-off personal plain-text mail from hello@outpick.xyz, via Resend.
  *
  * Product mail lives in src/lib/email.ts and is unchanged by this script.
  * This is a local CLI only: no route, no cron, no UI.
@@ -19,16 +19,17 @@
  *   JSON     { "to": "...", "subject": "...", "body": "..." }
  *   Markdown --- frontmatter with to / subject; the rest is the body
  *
- * From is always "Jack, Outpick" <email@outpick.xyz> with Reply-To
- * email@outpick.xyz. One recipient per invocation.
+ * From is always "Jack, Outpick" <hello@outpick.xyz> with Reply-To
+ * hello@outpick.xyz. Product mail still sends from email@. One recipient
+ * per invocation.
  */
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const FROM_ADDRESS = '"Jack, Outpick" <email@outpick.xyz>';
-export const REPLY_TO = "email@outpick.xyz";
-export const FROM_EMAIL = "email@outpick.xyz";
+export const FROM_ADDRESS = '"Jack, Outpick" <hello@outpick.xyz>';
+export const REPLY_TO = "hello@outpick.xyz";
+export const FROM_EMAIL = "hello@outpick.xyz";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 

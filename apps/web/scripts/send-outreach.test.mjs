@@ -141,6 +141,8 @@ check("buildPayload pins from and reply-to, plain text only", () => {
     subject: "Hello",
     body: "Hi.",
   });
+  assert.equal(FROM_ADDRESS, '"Jack, Outpick" <hello@outpick.xyz>');
+  assert.equal(REPLY_TO, "hello@outpick.xyz");
   assert.equal(payload.from, FROM_ADDRESS);
   assert.equal(payload.replyTo, REPLY_TO);
   assert.equal(payload.to, "recipient@example.com");
@@ -200,7 +202,8 @@ await checkAsync("dry-run prints the payload and does not call send", async () =
   assert.match(out, /Subject: Hello/);
   assert.match(out, /Hi there\./);
   assert.match(out, /Jack, Outpick/);
-  assert.match(out, /Reply-To: email@outpick\.xyz/);
+  assert.match(out, /From: "Jack, Outpick" <hello@outpick\.xyz>/);
+  assert.match(out, /Reply-To: hello@outpick\.xyz/);
   assert.doesNotMatch(out, /Sent\./);
 });
 

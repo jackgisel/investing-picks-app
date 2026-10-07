@@ -9,9 +9,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "check": "vitest run && node scripts/test-constants.mjs && node scripts/test-api-error.mjs && node scripts/optimize-art.mjs --check",
+    "check": "vitest run && node scripts/test-constants.mjs && node scripts/test-api-error.mjs && node scripts/optimize-art.mjs --check && node scripts/send-outreach.test.mjs",
     "art": "node scripts/optimize-art.mjs",
     "draft:blog": "node scripts/draft-blog.mjs",
+    "outreach": "node scripts/send-outreach.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },

@@ -15,8 +15,15 @@ function loadPublic(rel: string): Promise<Buffer> {
   return readFile(join(process.cwd(), "public", rel));
 }
 
-/** Dark 1200×630 share card naming the tool. No tickers, targets, or returns. */
-export async function renderToolShareImage(title: string) {
+/**
+ * Dark 1200×630 share card. Tools pass only a title: no tickers, targets, or
+ * returns. The challenge passes its own subtitle (a player's game result).
+ */
+export async function renderToolShareImage(
+  title: string,
+  subtitle = "Free public worksheet. Arithmetic only.",
+  footer = "outpick.xyz/tools",
+) {
   const [medium, bold] = await Promise.all([
     loadPublic("fonts/outfit-500.ttf"),
     loadPublic("fonts/outfit-800.ttf"),
@@ -87,7 +94,7 @@ export async function renderToolShareImage(title: string) {
               lineHeight: 1.35,
             }}
           >
-            Free public worksheet. Arithmetic only.
+            {subtitle}
           </div>
         </div>
 
@@ -101,7 +108,7 @@ export async function renderToolShareImage(title: string) {
             textTransform: "uppercase",
           }}
         >
-          outpick.xyz/tools
+          {footer}
         </div>
       </div>
     ),

@@ -252,6 +252,24 @@ class FMPClient:
             return data["historical"]
         return None
 
+    def dividend_adjusted_series(
+        self, ticker: str, from_date: date | None = None
+    ) -> list[dict] | None:
+        """Daily closes adjusted for splits AND dividends, or None on failure.
+
+        Rows carry `adjClose`. Raises `FMPAccessError` when the endpoint is
+        not on the plan, so a caller can fall back to `historical_price_series`.
+        """
+        data = self._get(
+            "historical-price-eod/dividend-adjusted",
+            {"symbol": ticker, "from": from_date.isoformat() if from_date else None},
+        )
+        if isinstance(data, list):
+            return data
+        if isinstance(data, dict) and isinstance(data.get("historical"), list):
+            return data["historical"]
+        return None
+
     def income_statement_quarterly(self, ticker: str, limit: int = 8) -> list[dict]:
         """Recent quarters, newest first, for deriving TTM growth.
 

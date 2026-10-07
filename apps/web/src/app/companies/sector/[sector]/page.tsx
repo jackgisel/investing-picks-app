@@ -175,7 +175,7 @@ export default async function SectorPage({
               </Link>
             ))}
           </div>
-          <HScroll>
+          <HScroll innerClassName="pr-7">
             <table className="w-full min-w-[820px] border-collapse">
               <thead>
                 <tr className="border-b border-border-strong text-left">

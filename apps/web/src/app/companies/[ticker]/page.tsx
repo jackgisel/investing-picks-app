@@ -286,7 +286,7 @@ export default async function CompanyPage({
               The closest {stats.basis === "sector" ? "sector" : "industry"} peers by
               revenue, from {stats.label}.
             </p>
-            <HScroll>
+            <HScroll innerClassName="pr-7">
               <table className="w-full min-w-[640px] border-collapse">
                 <thead>
                   <tr className="border-b border-border-strong text-left">

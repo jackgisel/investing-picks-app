@@ -17,6 +17,8 @@ export function isSafeCallbackPath(path: string): boolean {
     : "";
   if (pathname === "/subscribe") return isSafeSignupOnlySearch(search);
   if (pathname === "/welcome") return isSafeWelcomeSearch(search);
+  // Sign in from the challenge builder and land back on it, draft intact.
+  if (pathname === "/tools/beat-the-sp-500/enter") return isSafeSignupOnlySearch(search);
   return pathname === "/dashboard" || pathname.startsWith("/dashboard/");
 }
 

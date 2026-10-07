@@ -29,6 +29,7 @@ const article: Article = {
     ],
     publishedAt: "2026-10-06",
     category: "Education",
+    subcategory: "valuation",
     tags: [
       "competitive advantage",
       "economic moat",

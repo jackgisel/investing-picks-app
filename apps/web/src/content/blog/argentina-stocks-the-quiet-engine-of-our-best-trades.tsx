@@ -33,6 +33,7 @@ const article: Article = {
     ],
     publishedAt: "2026-06-03",
     category: "Markets",
+    subcategory: "sectors-and-themes",
     tags: ["argentina", "emerging markets", "contrarian"],
     readingTime: 8,
     author: "Outpick Research",

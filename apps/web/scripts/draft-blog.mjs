@@ -12,6 +12,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { writeFileSync, existsSync } from "node:fs";
 import { z } from "zod";
+import taxonomy from "../src/content/blog-taxonomy.json" with { type: "json" };
 
 const MODEL = "claude-opus-5-5";
 const args = Object.fromEntries(
@@ -33,12 +34,25 @@ const RULES = `## House writing rules
 - No opening throat-clearing and no closing summary that restates the article.
 - American spelling.`;
 
+// One flat list of "Category/subcategory" pairs, so the model cannot pair a
+// sub-category with the wrong parent. lib/blog.ts rejects a bad pair at build.
+const FILINGS = taxonomy.categories.flatMap((c) =>
+  c.subcategories.map((s) => `${c.name}/${s.slug}`),
+);
+const FILING_GUIDE = taxonomy.categories
+  .map(
+    (c) =>
+      `${c.name}: ${c.description}\n` +
+      c.subcategories.map((s) => `  - ${c.name}/${s.slug}: ${s.description}`).join("\n"),
+  )
+  .join("\n");
+
 const Schema = z.object({
   slug: z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/),
   title: z.string().min(20).max(90),
   description: z.string().min(100).max(170),
   keywords: z.array(z.string()).min(4).max(8),
-  category: z.enum(["Strategy", "Education", "Performance", "Research", "Markets"]),
+  filing: z.enum(FILINGS),
   tags: z.array(z.string()).min(3).max(6),
   readingTime: z.number().int().min(3).max(15),
   lede: z.string().min(120),
@@ -90,6 +104,8 @@ const response = await client.messages.parse({
 - Educational, never advice. No price targets, no urgency, no promises about returns.
 - Do not mention Outpick returns or performance numbers.
 - slug is kebab-case, derived from the title.
+- filing is the one "Category/subcategory" the post belongs under. Pick the closest:
+${FILING_GUIDE}
 
 ${RULES}`,
   messages: [
@@ -98,6 +114,7 @@ ${RULES}`,
 });
 const d = response.parsed_output;
 if (!d) throw new Error(`No draft (stop_reason: ${response.stop_reason})`);
+const [category, subcategory] = d.filing.split("/");
 
 const all = JSON.stringify(d);
 if (/[—–]|--/.test(all)) throw new Error("Draft contains a dash. Rerun.");
@@ -127,7 +144,8 @@ const article: Article = {
     keyword: ${j(args.keyword)},
     keywords: ${j([args.keyword, ...d.keywords.filter((k) => k !== args.keyword)])},
     publishedAt: ${j(today)},
-    category: ${j(d.category)},
+    category: ${j(category)},
+    subcategory: ${j(subcategory)},
     tags: ${j(d.tags)},
     readingTime: ${d.readingTime},
     author: "Outpick Research",

@@ -1,11 +1,18 @@
 import Link from "next/link";
 import { ReactNode } from "react";
-import { ArrowLeft } from "lucide-react";
 import type { ArticleMeta, Article } from "@/lib/blog";
 import { artForArticle } from "@/lib/art";
 import { ArtMasthead } from "@/components/art/art-masthead";
 import { ArticleCard } from "./article-card";
-import { CategoryTag, type PastelTone } from "@/components/ui/category-tag";
+import { CategoryTag } from "@/components/ui/category-tag";
+import { Breadcrumbs, type Crumb } from "@/components/ui/breadcrumbs";
+import {
+  categoryPath,
+  categoryTone,
+  getCategoryByName,
+  getSubcategory,
+  subcategoryPath,
+} from "@/lib/blog-taxonomy";
 import { MarketNoteSignup } from "@/components/marketing/market-note-signup";
 import { CommentThread } from "@/components/comments/comment-thread";
 
@@ -19,13 +26,6 @@ function formatDate(iso: string): string {
   });
 }
 
-const CATEGORY_TONES: Record<string, PastelTone> = {
-  Strategy: "yellow",
-  Education: "lilac",
-  Research: "peach",
-  Markets: "cyan",
-  Portfolio: "mint",
-};
 
 export function PostLayout({
   meta,
@@ -37,24 +37,32 @@ export function PostLayout({
   children: ReactNode;
 }) {
   const art = artForArticle(meta);
+  const category = getCategoryByName(meta.category);
+  const sub = getSubcategory(category, meta.subcategory);
+  const crumbs: Crumb[] = [{ label: "Blog", href: "/blog" }];
+  if (category) crumbs.push({ label: category.name, href: categoryPath(category) });
+  if (category && sub) crumbs.push({ label: sub.name, href: subcategoryPath(category, sub) });
+  crumbs.push({ label: meta.title, href: `/blog/${meta.slug}` });
 
   return (
     <article>
       <header className="relative border-b border-border overflow-hidden">
         <ArtMasthead art={art} size="md" priority className="-mb-10 sm:-mb-14" />
         <div className="relative container-op pt-4 pb-16">
-          <Link
-            href="/blog"
-            className="inline-flex items-center gap-2 font-sans text-[12px] font-bold tracking-[0.1em] uppercase text-text-dim hover:text-text transition-colors mb-10"
-          >
-            <ArrowLeft size={12} />
-            All articles
-          </Link>
+          <Breadcrumbs items={crumbs} className="mb-10 max-w-[760px]" />
 
           <div className="flex flex-wrap items-center gap-3 mb-6">
-            <CategoryTag tone={CATEGORY_TONES[meta.category] ?? "peach"}>
-              {meta.category}
-            </CategoryTag>
+            {category && sub ? (
+              <Link href={subcategoryPath(category, sub)} className="press">
+                <CategoryTag tone={categoryTone(meta.category)}>
+                  {sub.name}
+                </CategoryTag>
+              </Link>
+            ) : (
+              <CategoryTag tone={categoryTone(meta.category)}>
+                {meta.category}
+              </CategoryTag>
+            )}
             <span className="font-sans text-[13px] text-text-dim">
               {formatDate(meta.publishedAt)} · {meta.readingTime} min read
             </span>
@@ -118,6 +126,14 @@ export function PostLayout({
                 <ArticleCard key={a.meta.slug} meta={a.meta} compact />
               ))}
             </div>
+            {category && sub && (
+              <Link
+                href={subcategoryPath(category, sub)}
+                className="btn-outline mt-10"
+              >
+                Everything in {sub.name}
+              </Link>
+            )}
           </div>
         </section>
       )}

@@ -30,6 +30,7 @@ const article: Article = {
     ],
     publishedAt: "2026-10-02",
     category: "Research",
+    subcategory: "signals-and-cycles",
     tags: [
       "market cycles",
       "stock research",

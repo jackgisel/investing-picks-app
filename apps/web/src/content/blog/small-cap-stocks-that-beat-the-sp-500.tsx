@@ -32,6 +32,7 @@ const article: Article = {
     ],
     publishedAt: "2026-02-25",
     category: "Research",
+    subcategory: "finding-winners",
     tags: ["small cap", "research", "growth"],
     readingTime: 8,
     author: "Outpick Research",

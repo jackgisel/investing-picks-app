@@ -34,6 +34,7 @@ const article: Article = {
     ],
     publishedAt: "2026-09-19",
     category: "Education",
+    subcategory: "research-process",
     tags: ["strategy", "long-term investing", "process"],
     readingTime: 8,
     author: "Outpick Research",

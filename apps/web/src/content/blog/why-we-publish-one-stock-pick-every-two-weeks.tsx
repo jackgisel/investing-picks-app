@@ -30,6 +30,7 @@ const article: Article = {
     ],
     publishedAt: "2026-07-09",
     category: "Strategy",
+    subcategory: "our-process",
     tags: ["cadence", "process", "biweekly"],
     readingTime: 7,
     author: "Outpick Research",

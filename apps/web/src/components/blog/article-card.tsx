@@ -2,7 +2,12 @@ import Link from "next/link";
 import type { ArticleMeta } from "@/lib/blog";
 import { artForArticle } from "@/lib/art";
 import { ArtThumb } from "@/components/art/art-masthead";
-import { CategoryTag, type PastelTone } from "@/components/ui/category-tag";
+import { CategoryTag } from "@/components/ui/category-tag";
+import {
+  categoryTone as toneFor,
+  getCategoryByName,
+  getSubcategory,
+} from "@/lib/blog-taxonomy";
 
 function formatDate(iso: string): string {
   const d = new Date(iso + "T12:00:00Z");
@@ -14,16 +19,11 @@ function formatDate(iso: string): string {
   });
 }
 
-const CATEGORY_TONES: Record<string, PastelTone> = {
-  Strategy: "yellow",
-  Education: "lilac",
-  Research: "peach",
-  Markets: "cyan",
-  Portfolio: "mint",
-};
-
-function toneFor(category: string): PastelTone {
-  return CATEGORY_TONES[category] ?? "peach";
+function subcategoryName(meta: ArticleMeta): string | null {
+  return (
+    getSubcategory(getCategoryByName(meta.category), meta.subcategory)?.name ??
+    null
+  );
 }
 
 export function ArticleCard({
@@ -52,6 +52,7 @@ export function ArticleCard({
           <div className="flex flex-wrap items-center gap-3 mb-5">
             <CategoryTag tone={toneFor(meta.category)}>{meta.category}</CategoryTag>
             <span className="font-sans text-[12px] text-text-dim">
+              {subcategoryName(meta) ? `${subcategoryName(meta)} · ` : ""}
               {formatDate(meta.publishedAt)} · {meta.readingTime} min read
             </span>
           </div>
@@ -80,8 +81,8 @@ export function ArticleCard({
           <CategoryTag tone={toneFor(meta.category)} className="!text-[10px] !px-3 !py-1.5">
             {meta.category}
           </CategoryTag>
-          <span className="font-sans text-[11px] text-text-dim">
-            {meta.readingTime} min
+          <span className="font-sans text-[11px] text-text-dim truncate">
+            {subcategoryName(meta) ?? `${meta.readingTime} min`}
           </span>
         </div>
         <h3
@@ -95,7 +96,7 @@ export function ArticleCard({
           {meta.description}
         </p>
         <p className="mt-5 font-sans text-[12px] text-text-dim">
-          {formatDate(meta.publishedAt)}
+          {formatDate(meta.publishedAt)} · {meta.readingTime} min read
         </p>
       </div>
     </Link>

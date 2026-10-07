@@ -1,4 +1,5 @@
 import type { ComponentType } from "react";
+import { filingErrors } from "@/lib/blog-taxonomy";
 
 export type ArticleCategory =
   | "Strategy"
@@ -24,6 +25,12 @@ export type ArticleMeta = {
   updatedAt?: string;
   /** Display category */
   category: ArticleCategory;
+  /**
+   * Sub-category slug, one of the category's entries in
+   * `content/blog-taxonomy.json`. Checked at module load; a wrong value fails
+   * the build.
+   */
+  subcategory: string;
   /** Free-form tags shown on cards */
   tags: string[];
   /** Reading time in minutes (calculated by writer at ~220 wpm) */
@@ -112,6 +119,24 @@ export const articles: Article[] = [
   howToAnalyzeCompetitiveAdvantage,
 ].sort((a, b) => b.meta.publishedAt.localeCompare(a.meta.publishedAt));
 
+// Fail the build, not the page, when a post is filed somewhere that has no
+// category page to list it.
+const misfiled = articles.flatMap((a) => filingErrors(a.meta));
+if (misfiled.length > 0) {
+  throw new Error(`Blog posts with an invalid category:\n${misfiled.join("\n")}`);
+}
+
+export function getArticlesInCategory(
+  categoryName: string,
+  subcategorySlug?: string,
+): Article[] {
+  return articles.filter(
+    (a) =>
+      a.meta.category === categoryName &&
+      (!subcategorySlug || a.meta.subcategory === subcategorySlug),
+  );
+}
+
 export function getArticleBySlug(slug: string): Article | undefined {
   return articles.find((a) => a.meta.slug === slug);
 }
@@ -123,12 +148,18 @@ export function getRelatedArticles(
   const current = getArticleBySlug(currentSlug);
   if (!current) return articles.slice(0, limit);
 
-  // Score by category match (+3) and tag overlap (+1 each)
+  // Score by category match (+3), same sub-category (+3 more) and tag overlap (+1 each)
   const scored = articles
     .filter((a) => a.meta.slug !== currentSlug)
     .map((a) => {
       let score = 0;
       if (a.meta.category === current.meta.category) score += 3;
+      if (
+        a.meta.category === current.meta.category &&
+        a.meta.subcategory === current.meta.subcategory
+      ) {
+        score += 3;
+      }
       const overlap = a.meta.tags.filter((t) =>
         current.meta.tags.includes(t),
       ).length;

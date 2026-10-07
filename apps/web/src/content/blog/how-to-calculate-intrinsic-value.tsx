@@ -31,6 +31,7 @@ const article: Article = {
     ],
     publishedAt: "2026-10-05",
     category: "Education",
+    subcategory: "valuation",
     tags: [
       "intrinsic value",
       "valuation",

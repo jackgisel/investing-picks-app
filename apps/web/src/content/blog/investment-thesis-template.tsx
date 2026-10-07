@@ -32,6 +32,7 @@ const article: Article = {
     ],
     publishedAt: "2026-10-03",
     category: "Education",
+    subcategory: "research-process",
     tags: ["investment thesis", "stock research", "underwriting", "process"],
     readingTime: 7,
     author: "Outpick Research",

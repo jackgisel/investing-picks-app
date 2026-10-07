@@ -30,6 +30,7 @@ const article: Article = {
     ],
     publishedAt: "2026-09-30",
     category: "Research",
+    subcategory: "company-research",
     tags: [
       "stock research",
       "underwriting",

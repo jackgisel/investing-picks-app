@@ -32,6 +32,7 @@ const article: Article = {
     ],
     publishedAt: "2026-03-10",
     category: "Education",
+    subcategory: "portfolio-construction",
     tags: ["portfolio construction", "diversification", "concentration"],
     readingTime: 8,
     author: "Outpick Research",

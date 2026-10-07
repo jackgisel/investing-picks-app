@@ -32,6 +32,7 @@ const article: Article = {
     ],
     publishedAt: "2026-06-17",
     category: "Education",
+    subcategory: "metrics-and-backtesting",
     tags: ["backtesting", "walk-forward", "methodology"],
     readingTime: 7,
     author: "Outpick Research",

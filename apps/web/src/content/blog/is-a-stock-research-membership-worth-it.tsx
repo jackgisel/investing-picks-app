@@ -32,6 +32,7 @@ const article: Article = {
     ],
     publishedAt: "2026-09-28",
     category: "Education",
+    subcategory: "choosing-a-service",
     tags: ["membership", "research", "buyer guide"],
     readingTime: 6,
     author: "Outpick Research",

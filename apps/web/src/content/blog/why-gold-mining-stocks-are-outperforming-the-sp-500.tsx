@@ -33,6 +33,7 @@ const article: Article = {
     ],
     publishedAt: "2026-05-20",
     category: "Markets",
+    subcategory: "sectors-and-themes",
     tags: ["gold", "miners", "macro"],
     readingTime: 8,
     author: "Outpick Research",

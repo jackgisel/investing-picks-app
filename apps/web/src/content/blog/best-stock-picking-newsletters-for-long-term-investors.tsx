@@ -32,6 +32,7 @@ const article: Article = {
     ],
     publishedAt: "2026-02-11",
     category: "Education",
+    subcategory: "choosing-a-service",
     tags: ["stock picking", "newsletters", "buyer guide"],
     readingTime: 8,
     author: "Outpick Research",

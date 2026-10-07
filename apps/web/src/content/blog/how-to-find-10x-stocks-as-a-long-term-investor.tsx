@@ -32,6 +32,7 @@ const article: Article = {
     ],
     publishedAt: "2026-05-06",
     category: "Research",
+    subcategory: "finding-winners",
     tags: ["10x", "growth", "asymmetric upside"],
     readingTime: 8,
     author: "Outpick Research",

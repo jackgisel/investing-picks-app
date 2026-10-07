@@ -28,6 +28,7 @@ const article: Article = {
     ],
     publishedAt: "2026-09-29",
     category: "Education",
+    subcategory: "research-process",
     tags: ["long-term investing", "research", "process", "thesis"],
     readingTime: 8,
     author: "Outpick Research",

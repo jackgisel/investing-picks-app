@@ -8,7 +8,8 @@ import {
   subcategoryPath,
 } from "@/lib/blog-taxonomy";
 import { getCompanyDirectory } from "@/lib/companies";
-import { NAV_SECTIONS, ALL_TOOL_LINKS } from "@/lib/site-nav";
+import { hasPublishedSampleResearch } from "@/lib/public-samples";
+import { NAV_SECTIONS, ALL_TOOL_LINKS, SAMPLE_RESEARCH_HREF } from "@/lib/site-nav";
 import { searchSite, type SearchCorpus } from "@/lib/site-search";
 
 /** Public site search for the nav palette and the company finder. */
@@ -53,10 +54,16 @@ export async function GET(request: Request) {
   if (q.trim().length === 0 || q.length > 80) {
     return NextResponse.json({ results: [] });
   }
-  const directory = await getCompanyDirectory();
+  const [directory, hasSampleResearch] = await Promise.all([
+    getCompanyDirectory(),
+    hasPublishedSampleResearch(),
+  ]);
+  const documents = hasSampleResearch
+    ? DOCUMENTS
+    : DOCUMENTS.filter((d) => d.href !== SAMPLE_RESEARCH_HREF);
   const results = searchSite(q, {
     companies: directory?.companies ?? [],
-    documents: DOCUMENTS,
+    documents,
   });
   return NextResponse.json(
     { results },

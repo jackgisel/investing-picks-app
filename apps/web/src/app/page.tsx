@@ -8,6 +8,7 @@ import { Philosophy } from "@/components/landing/philosophy";
 import { WhatWeAreNot } from "@/components/landing/what-we-are-not";
 import { Pricing } from "@/components/landing/pricing";
 import { Disclaimer } from "@/components/landing/disclaimer";
+import { hasPublishedSampleResearch } from "@/lib/public-samples";
 
 // Hoist the mobile hero plate ahead of the rest of the document so it can race
 // fewer font and script bytes on the landing LCP path.
@@ -18,7 +19,8 @@ preload("/hero-moon-soft.webp", { as: "image", fetchPriority: "high" });
 // else.
 export const revalidate = 3600;
 
-export default function HomePage() {
+export default async function HomePage() {
+  const hasSampleResearch = await hasPublishedSampleResearch();
   return (
     <>
       <Hero />
@@ -29,7 +31,7 @@ export default function HomePage() {
       {/* Live proof before any argument about method. Replaced the simulated
           backtest table that used to sit further down. */}
       <LivePicks />
-      <WhatHow />
+      <WhatHow hasSampleResearch={hasSampleResearch} />
       {/* Two complete notes, published in the open — the claim in WhatHow that
           we write up every open and every close, made checkable. */}
       <SampleResearch />

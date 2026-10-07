@@ -13,6 +13,7 @@ import {
 import { Navbar, type NavArticle } from "@/components/layout/navbar";
 import { articles } from "@/lib/blog";
 import { Footer } from "@/components/layout/footer";
+import { hasPublishedSampleResearch } from "@/lib/public-samples";
 import { MarketingFooter, MarketingOnly } from "@/components/layout/app-chrome";
 import { CookieBanner } from "@/components/layout/cookie-banner";
 import { DataFastScript } from "@/components/layout/datafast-script";
@@ -154,11 +155,12 @@ const NAV_LATEST: NavArticle[] = articles.slice(0, 3).map((a) => ({
   detail: `${a.meta.readingTime} min read`,
 }));
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const hasSampleResearch = await hasPublishedSampleResearch();
   return (
     <html
       lang="en"
@@ -183,11 +185,11 @@ export default function RootLayout({
         <ThemeProvider>
           <QueryProvider>
             <MarketingOnly>
-              <Navbar latest={NAV_LATEST} />
+              <Navbar latest={NAV_LATEST} hasSampleResearch={hasSampleResearch} />
             </MarketingOnly>
             <main>{children}</main>
             <MarketingFooter>
-              <Footer />
+              <Footer hasSampleResearch={hasSampleResearch} />
             </MarketingFooter>
             <CookieBanner />
             <DataFastScript />

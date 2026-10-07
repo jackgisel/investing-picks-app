@@ -4,7 +4,7 @@ import { MarketNoteSignup } from "@/components/marketing/market-note-signup";
 import { BLOG_CATEGORIES, categoryPath } from "@/lib/blog-taxonomy";
 import { sectorPath } from "@/lib/companies";
 import { SOCIAL_LINKS, SUPPORT_EMAIL } from "@/lib/constants";
-import { ALL_TOOL_LINKS, NAV_SECTIONS, type NavLink } from "@/lib/site-nav";
+import { ALL_TOOL_LINKS, navSections, type NavLink } from "@/lib/site-nav";
 
 // Brand marks inline — lucide has no X logo, and its YouTube glyph is an outline.
 function YouTubeIcon() {
@@ -31,33 +31,34 @@ const SOCIALS = [
 /** FMP's sector names. Linked here so every sector page is one hop from any page. */
 const FOOTER_SECTORS = ["Technology", "Healthcare", "Financial Services", "Industrials", "Consumer Cyclical"];
 
-const outpick = NAV_SECTIONS.find((s) => s.id === "outpick")!;
-
-const COLUMNS: { title: string; links: NavLink[] }[] = [
-  {
-    title: "Research",
-    links: [
-      ...BLOG_CATEGORIES.map((c) => ({ label: c.title, href: categoryPath(c) })),
-      { label: "All articles", href: "/blog" },
-    ],
-  },
-  {
-    title: "Free tools",
-    links: [...ALL_TOOL_LINKS, { label: "All tools", href: "/tools" }],
-  },
-  {
-    title: "Data",
-    links: [
-      { label: "Company directory", href: "/companies" },
-      { label: "Revenue per employee", href: "/workforce" },
-      ...FOOTER_SECTORS.map((s) => ({ label: s, href: sectorPath(s) })),
-    ],
-  },
-  {
-    title: "Outpick",
-    links: outpick.groups.flatMap((g) => g.links),
-  },
-];
+function footerColumns(hasSampleResearch: boolean): { title: string; links: NavLink[] }[] {
+  const outpick = navSections({ hasSampleResearch }).find((s) => s.id === "outpick")!;
+  return [
+    {
+      title: "Research",
+      links: [
+        ...BLOG_CATEGORIES.map((c) => ({ label: c.title, href: categoryPath(c) })),
+        { label: "All articles", href: "/blog" },
+      ],
+    },
+    {
+      title: "Free tools",
+      links: [...ALL_TOOL_LINKS, { label: "All tools", href: "/tools" }],
+    },
+    {
+      title: "Data",
+      links: [
+        { label: "Company directory", href: "/companies" },
+        { label: "Revenue per employee", href: "/workforce" },
+        ...FOOTER_SECTORS.map((s) => ({ label: s, href: sectorPath(s) })),
+      ],
+    },
+    {
+      title: "Outpick",
+      links: outpick.groups.flatMap((g) => g.links),
+    },
+  ];
+}
 
 const linkClass =
   "font-sans text-[14px] text-text-muted hover:text-text transition-colors";
@@ -71,7 +72,8 @@ function ColumnTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function Footer() {
+export function Footer({ hasSampleResearch = false }: { hasSampleResearch?: boolean }) {
+  const columns = footerColumns(hasSampleResearch);
   return (
     <footer className="border-t border-border bg-bg">
       <div className="container-op py-14">
@@ -105,7 +107,7 @@ export function Footer() {
           aria-label="Footer"
           className="grid grid-cols-2 gap-x-8 gap-y-10 pt-12 sm:grid-cols-3 lg:grid-cols-5"
         >
-          {COLUMNS.map((col) => (
+          {columns.map((col) => (
             <div key={col.title}>
               <ColumnTitle>{col.title}</ColumnTitle>
               <ul className="space-y-2.5">

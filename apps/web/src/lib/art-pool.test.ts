@@ -119,6 +119,29 @@ describe("art pool", () => {
     const status = poolStatus(new Date("2026-08-22T12:00:00Z"));
     expect(status.weeksReady).toBe(13);
     expect(status.weeksRemaining).toBeGreaterThanOrEqual(13);
-    expect(status.sparesFree).toBe(3);
+    expect(status.sparesFree).toBe(53);
+  });
+
+  it("registers spare-19 through spare-68 as unclaimed 1280-wide prints", () => {
+    const batch = SPARE_POOL.filter((s) => {
+      const n = Number(s.id.replace("spare-", ""));
+      return n >= 19 && n <= 68;
+    });
+    expect(batch).toHaveLength(50);
+    expect(batch.map((s) => s.id)).toEqual(
+      Array.from({ length: 50 }, (_, i) => `spare-${String(i + 19).padStart(2, "0")}`),
+    );
+    expect(new Set(batch.map((s) => s.ink)).size).toBe(50);
+    const priorInks = new Set(
+      SPARE_POOL.filter((s) => Number(s.id.replace("spare-", "")) <= 18).map((s) => s.ink),
+    );
+    for (const spare of batch) {
+      expect(SPARE_CLAIMED[spare.id]).toBeUndefined();
+      expect(priorInks.has(spare.ink)).toBe(false);
+      expect(spare.ink).toMatch(/^#[0-9A-F]{6}$/);
+      expect(spare.src).toBe(`/art/pool/${spare.id}.png`);
+      expect(spare.width).toBe(1280);
+      expect(spare.label.length).toBeGreaterThan(0);
+    }
   });
 });

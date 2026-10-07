@@ -137,6 +137,8 @@ export const SPARE_CLAIMED: Readonly<Record<string, string>> = {
   "spare-13": "how-to-calculate-intrinsic-value",
   "spare-14": "how-to-analyze-competitive-advantage",
   "spare-15": "free-cash-flow-stock-analysis",
+  "spare-16": "should-you-average-down-on-a-losing-stock",
+  "spare-17": "what-percentage-of-portfolio-should-be-individual-stocks",
 };
 
 function poolPiece(id: string, label: string): ArtPiece {

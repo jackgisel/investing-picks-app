@@ -586,39 +586,6 @@ export async function runAppMigrations() {
       invited_by TEXT
     )
   `);
-  /**
-   * Beat the S&P challenge. One entry per user per calendar quarter, locked
-   * once submitted. `submitted_on` is the New York calendar date of the
-   * submission; scoring starts at the first close after it, read from the
-   * worker-owned `challenge_price`. `hidden` takes an entry off the public
-   * board (abusive display name) without deleting the user's picks.
-   */
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS challenge_entry (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-      display_name TEXT NOT NULL,
-      cohort TEXT NOT NULL,
-      submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      submitted_on DATE NOT NULL,
-      hidden BOOLEAN NOT NULL DEFAULT FALSE,
-      UNIQUE (user_id, cohort)
-    )
-  `);
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS challenge_pick (
-      entry_id TEXT NOT NULL REFERENCES challenge_entry(id) ON DELETE CASCADE,
-      ticker TEXT NOT NULL,
-      PRIMARY KEY (entry_id, ticker)
-    )
-  `);
-  await pool.query(
-    `CREATE INDEX IF NOT EXISTS challenge_pick_ticker_idx ON challenge_pick (ticker)`,
-  );
-  await pool.query(
-    `CREATE INDEX IF NOT EXISTS challenge_entry_cohort_idx ON challenge_entry (cohort)`,
-  );
-
   await correctSezlAddNote();
   await seedBootstrapMembershipInvites();
 }

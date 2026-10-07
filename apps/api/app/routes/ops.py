@@ -2111,3 +2111,93 @@ def add_facts(ticker: str, add_date: str, db: Session = Depends(get_db)):
 @router.get("/health")
 def ops_health():
     return {"ok": True}
+
+
+class ChallengeEntryIn(BaseModel):
+    user_id: str = Field(min_length=1, max_length=64)
+    display_name: str = Field(min_length=1, max_length=60)
+    tickers: list[str] = Field(max_length=60)
+
+
+@router.post("/challenge/entries", dependencies=[Depends(require_ops_key)])
+def create_challenge_entry(body: ChallengeEntryIn, db: Session = Depends(get_db)):
+    """Lock in an entry for a signed-in web user. The web app authenticates
+    the user; this route trusts the user id it is given, hence the ops key."""
+    from fastapi.responses import JSONResponse
+
+    from app.services import challenge
+
+    try:
+        out = challenge.create_entry(
+            db, user_id=body.user_id, display_name=body.display_name, tickers=body.tickers
+        )
+    except challenge.EntryError as e:
+        return JSONResponse(
+            status_code=422,
+            content={"error": str(e), "code": e.code, "tickers": e.tickers},
+        )
+    if "existing_id" in out:
+        return JSONResponse(status_code=409, content=out)
+    return JSONResponse(status_code=201, content=out)
+
+
+@router.get("/challenge/users/{user_id}/entries", dependencies=[Depends(require_ops_key)])
+def challenge_user_entries(user_id: str, db: Session = Depends(get_db)):
+    from app.services import challenge
+
+    return {"entries": challenge.user_entries(db, user_id)}
+
+
+class ChallengeHiddenIn(BaseModel):
+    hidden: bool
+
+
+@router.post("/challenge/entries/{entry_id}/hidden", dependencies=[Depends(require_ops_key)])
+def hide_challenge_entry(entry_id: str, body: ChallengeHiddenIn, db: Session = Depends(get_db)):
+    """Take an entry off the public board (or put it back). Picks are kept."""
+    from app.services import challenge
+
+    if not challenge.set_hidden(db, entry_id, body.hidden):
+        raise HTTPException(status_code=404, detail="No such entry")
+    return {"id": entry_id, "hidden": body.hidden}
+
+
+#: A close older than this is not "the latest price" for a calculator.
+TOOL_PRICE_MAX_AGE_DAYS = 7
+
+
+@router.get("/tools/snapshot/{ticker}", dependencies=[Depends(require_ops_key)])
+def tool_snapshot(ticker: str, db: Session = Depends(get_db)):
+    """The latest fundamentals row and close for one ticker, for the public
+    calculators. Behind the ops key because `data` is the whole vendor row; the
+    web app whitelists the few fields each tool may show."""
+    from datetime import date as _date
+
+    from app.db.models import Fundamentals, PriceBar, Stock
+
+    t = ticker.strip().upper()
+    stock = db.get(Stock, t)
+    f = (
+        db.query(Fundamentals)
+        .filter(Fundamentals.ticker == t)
+        .order_by(Fundamentals.as_of.desc())
+        .first()
+    )
+    bar = (
+        db.query(PriceBar)
+        .filter(PriceBar.ticker == t)
+        .order_by(PriceBar.date.desc())
+        .first()
+    )
+    price = None
+    if bar and (_date.today() - bar.date).days <= TOOL_PRICE_MAX_AGE_DAYS:
+        price = {"close": bar.close, "date": bar.date.isoformat()}
+    return {
+        "ticker": t,
+        "name": stock.name if stock else None,
+        "sector": stock.sector if stock else None,
+        "industry": stock.industry if stock else None,
+        "as_of": f.as_of.isoformat() if f else None,
+        "data": f.data if f else None,
+        "price": price,
+    }

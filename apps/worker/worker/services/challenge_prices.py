@@ -1,7 +1,8 @@
 """Adjusted closes for every ticker in a Beat the S&P challenge entry.
 
-The web app owns the entries (`challenge_entry`, `challenge_pick`) and scores
-them on read from `challenge_price`, which this job fills. Entries run for ten
+Entries live in `challenge_entry` / `challenge_pick`, and
+`app/services/challenge.py` scores them on read from `challenge_price`, which
+this job fills. Entries run for ten
 years, so a split or a dividend will restate a ticker's history many times.
 Each run fetches the ticker's whole series from the earliest entry that holds
 it; if the vendor's numbers for dates we already store have changed, the
@@ -20,10 +21,10 @@ import logging
 import time
 from datetime import date, datetime, timedelta, timezone
 
-from sqlalchemy import inspect, text
+from sqlalchemy import func, inspect
 from sqlalchemy.orm import Session
 
-from app.db.models import ChallengePrice, ChallengePriceCheck
+from app.db.models import ChallengeEntry, ChallengePick, ChallengePrice, ChallengePriceCheck
 from worker.services.fmp import FMPAccessError, FMPClient
 from worker.services.ingest import first_present, today_et
 
@@ -48,28 +49,20 @@ PRICE = "price"
 
 
 def entries_exist(db: Session) -> bool:
-    """The web app creates the entry tables; before its first boot they are absent."""
+    """False on a database that has not been migrated since the challenge shipped."""
     insp = inspect(db.get_bind())
     return insp.has_table("challenge_entry") and insp.has_table("challenge_pick")
 
 
 def tickers_needed(db: Session) -> dict[str, date]:
     """Each ticker held by any entry, with the earliest submission holding it."""
-    rows = db.execute(
-        text(
-            """
-            SELECT p.ticker, MIN(e.submitted_on)
-            FROM challenge_pick p
-            JOIN challenge_entry e ON e.id = p.entry_id
-            GROUP BY p.ticker
-            """
-        )
-    ).all()
-    out: dict[str, date] = {}
-    for ticker, first in rows:
-        if isinstance(first, str):
-            first = date.fromisoformat(first[:10])
-        out[str(ticker).upper()] = first
+    rows = (
+        db.query(ChallengePick.ticker, func.min(ChallengeEntry.submitted_on))
+        .join(ChallengeEntry, ChallengeEntry.id == ChallengePick.entry_id)
+        .group_by(ChallengePick.ticker)
+        .all()
+    )
+    out: dict[str, date] = {str(t).upper(): first for t, first in rows}
     if out:
         out[BENCHMARK] = min([*out.values(), out.get(BENCHMARK, date.max)])
     return out

@@ -11,11 +11,17 @@ a "class" on the board.
 
 | Piece | Where |
 |---|---|
-| Rules and scoring math (pure, tested) | `apps/web/src/lib/challenge/rules.ts` |
-| Reads and writes | `apps/web/src/lib/challenge/db.ts` |
-| Entry tables `challenge_entry`, `challenge_pick` | web `runAppMigrations` |
-| Price tables `challenge_price`, `challenge_price_checks` | API `ensure_schema` |
+| Entries, eligibility, scoring | `apps/api/app/services/challenge.py` |
+| Public reads | `GET /api/v1/challenge/{stocks,board,entries/{id}}` |
+| Writes for a signed-in user (ops key) | `/api/ops/challenge/entries`, `/users/{id}/entries`, `/entries/{id}/hidden` |
+| Web client and shape checks | `apps/web/src/lib/challenge/{db,rules}.ts` |
+| All four tables | API `ensure_schema` (the API database) |
 | Nightly prices | worker `challenge_prices`, weekdays 20:30 ET |
+
+Everything is in the API's database because the universe (`stocks`) and the
+prices live there and production's web database is a separate one. The web app
+signs the user in and passes their id to the ops routes; there is no foreign
+key across the two databases.
 
 Eligible stocks: `stocks` rows that are active, not ETFs, and at least $300M in
 market value.
@@ -39,8 +45,8 @@ stored.
 - Run the prices now: `POST /api/ops/challenge-prices` (resumable within a day;
   today's bar is kept only after 16:30 ET). Status is in `job_runs`.
 - Hide an entry from the board (abusive name): `POST
-  /api/ops/challenge/{id}` with `{"hidden": true}` as an admin. The entry and
-  its picks are kept.
+  /api/ops/challenge/{id}` on the web app with `{"hidden": true}` as an admin
+  (it calls the API's `/entries/{id}/hidden`). The entry and its picks are kept.
 
 ## Before the first real entry
 

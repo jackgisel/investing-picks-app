@@ -50,9 +50,12 @@ async function load(raw: string) {
     getCompanyDirectory(),
     getCompanyHistory(ticker),
   ]);
-  const company = directory?.companies.find((c) => c.ticker === ticker);
+  // An outage throws rather than returning null: this page is cached for a
+  // day, and a cached 404 would hide a real company until it expired.
+  if (!directory) throw new Error("company directory unavailable");
+  const company = directory.companies.find((c) => c.ticker === ticker);
   if (!company || !history || history.series.length === 0) return null;
-  return { ticker, company, history, companies: directory!.companies };
+  return { ticker, company, history, companies: directory.companies };
 }
 
 function longDate(iso: string): string {
@@ -76,7 +79,7 @@ export async function generateMetadata({
   params: Promise<Params>;
 }): Promise<Metadata> {
   const { ticker: raw } = await params;
-  const data = await load(raw);
+  const data = await load(raw).catch(() => null);
   if (!data) return { robots: { index: false, follow: true } };
   const { company } = data;
   const name = displayName(company);

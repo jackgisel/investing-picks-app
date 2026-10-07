@@ -509,11 +509,42 @@ class DeepPriceCheck(Base):
     first_bar: Mapped[date | None] = mapped_column(Date, nullable=True)
 
 
+class ChallengeEntry(Base):
+    """One Beat the S&P 500 challenge entry. Locked once written.
+
+    `user_id` is the web app's BetterAuth user id. It lives in the web
+    database, so there is no foreign key; the web app is the only writer and
+    passes it through the ops API. `submitted_on` is the New York calendar date
+    of submission; scoring starts at the first SPY close after it. `hidden`
+    takes an entry off the public board without deleting it.
+    """
+
+    __tablename__ = "challenge_entry"
+    __table_args__ = (UniqueConstraint("user_id", "cohort"),)
+
+    id: Mapped[str] = mapped_column(String(16), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(64), index=True)
+    display_name: Mapped[str] = mapped_column(String(40))
+    cohort: Mapped[str] = mapped_column(String(8), index=True)
+    submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    submitted_on: Mapped[date] = mapped_column(Date)
+    hidden: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class ChallengePick(Base):
+    __tablename__ = "challenge_pick"
+
+    entry_id: Mapped[str] = mapped_column(
+        ForeignKey("challenge_entry.id", ondelete="CASCADE"), primary_key=True
+    )
+    ticker: Mapped[str] = mapped_column(String(16), primary_key=True, index=True)
+
+
 class ChallengePrice(Base):
     """Adjusted daily closes for every ticker in a Beat the S&P challenge entry.
 
-    Written by the worker's `challenge_prices` job, read by the web app, which
-    owns the entries themselves (`challenge_entry`, `challenge_pick`). Kept out
+    Written by the worker's `challenge_prices` job and read by
+    `app/services/challenge.py`, which scores the entries on read. Kept out
     of `price_bars` for the same reason as `price_bars_deep`: entries are held
     for ten years, so a split or dividend restates history, and this table
     replaces a ticker's whole series when that happens instead of mixing two

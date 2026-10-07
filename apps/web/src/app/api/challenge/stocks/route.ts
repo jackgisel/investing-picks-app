@@ -9,7 +9,7 @@ export async function GET(request: Request) {
     const results = await searchEligible(q);
     return NextResponse.json(
       { results },
-      { headers: { "Cache-Control": "public, max-age=300" } },
+      { headers: { "Cache-Control": "public, max-age=300, s-maxage=3600" } },
     );
   } catch (e) {
     console.error("challenge stock search failed:", e);

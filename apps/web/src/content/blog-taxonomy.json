@@ -48,6 +48,11 @@
           "slug": "our-process",
           "name": "How Outpick works",
           "description": "Why we pick on a schedule, and the rules behind each pick."
+        },
+        {
+          "slug": "position-sizing",
+          "name": "Position sizing",
+          "description": "How much of a portfolio to put in single stocks, how big one holding should get, and when adding to a loser makes sense."
         }
       ]
     },

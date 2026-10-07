@@ -34,6 +34,7 @@ const article: Article = {
     ],
     publishedAt: "2026-10-07",
     category: "Strategy",
+    subcategory: "position-sizing",
     tags: [
       "position sizing",
       "risk management",

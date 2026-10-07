@@ -33,6 +33,7 @@ const article: Article = {
     ],
     publishedAt: "2026-10-07",
     category: "Strategy",
+    subcategory: "position-sizing",
     tags: [
       "portfolio construction",
       "position sizing",

@@ -81,21 +81,22 @@ export async function getCompanyDirectory(): Promise<CompanyDirectory | null> {
   }
 }
 
-/** One company's year by year series, or null when we hold none. */
+/**
+ * One company's year by year series, or null when we hold none (a 404).
+ * Any other failure throws, so a cached page never records an outage as
+ * "this company does not exist".
+ */
 export async function getCompanyHistory(
   ticker: string,
 ): Promise<WorkforceHistory | null> {
-  try {
-    const res = await fetch(
-      `${PUBLIC_API_BASE}/workforce/${encodeURIComponent(ticker)}`,
-      { next: { revalidate: 3600 }, signal: AbortSignal.timeout(6000) },
-    );
-    if (!res.ok) return null;
-    const data = (await res.json()) as WorkforceHistory;
-    return Array.isArray(data?.series) ? data : null;
-  } catch {
-    return null;
-  }
+  const res = await fetch(
+    `${PUBLIC_API_BASE}/workforce/${encodeURIComponent(ticker)}`,
+    { next: { revalidate: 3600 }, signal: AbortSignal.timeout(6000) },
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`workforce history returned ${res.status}`);
+  const data = (await res.json()) as WorkforceHistory;
+  return Array.isArray(data?.series) ? data : null;
 }
 
 export function median(values: number[]): number | null {

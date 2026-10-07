@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { ensureMigrations } from "@/lib/auth";
 import { getUserEntries } from "@/lib/challenge/db";
 import { cohortFor, entryPath, nyDate } from "@/lib/challenge/rules";
 import { getServerUser } from "@/lib/server-session";
@@ -10,8 +9,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const user = await getServerUser();
   if (!user) return NextResponse.json({ signedIn: false });
-  await ensureMigrations();
-  const entries = await getUserEntries(user.id);
+  const entries = await getUserEntries(user.id).catch(() => []);
   const cohort = cohortFor(nyDate(new Date()));
   const current = entries.find((e) => e.cohort === cohort);
   return NextResponse.json(

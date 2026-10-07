@@ -5,9 +5,8 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 
 import pytest
-from sqlalchemy import text
 
-from app.db.models import ChallengePrice, ChallengePriceCheck
+from app.db.models import ChallengeEntry, ChallengePick, ChallengePrice, ChallengePriceCheck
 from worker.services import challenge_prices as cp
 from worker.services.fmp import FMPAccessError
 
@@ -18,25 +17,21 @@ EARLIER = datetime(2026, 10, 2, 23, 0, tzinfo=timezone.utc)
 
 
 def _entry_tables(db):
-    db.execute(
-        text(
-            "CREATE TABLE challenge_entry (id TEXT PRIMARY KEY, submitted_on DATE NOT NULL)"
-        )
-    )
-    db.execute(text("CREATE TABLE challenge_pick (entry_id TEXT, ticker TEXT)"))
-    db.commit()
+    """The schema already has them; kept so each test reads as a setup step."""
 
 
 def _enter(db, entry_id, submitted_on, tickers):
-    db.execute(
-        text("INSERT INTO challenge_entry (id, submitted_on) VALUES (:i, :d)"),
-        {"i": entry_id, "d": submitted_on.isoformat()},
-    )
-    for t in tickers:
-        db.execute(
-            text("INSERT INTO challenge_pick (entry_id, ticker) VALUES (:i, :t)"),
-            {"i": entry_id, "t": t},
+    db.add(
+        ChallengeEntry(
+            id=entry_id,
+            user_id=f"u-{entry_id}",
+            display_name="Tester",
+            cohort="2026-Q4",
+            submitted_at=datetime(2026, 10, 1, tzinfo=timezone.utc),
+            submitted_on=submitted_on,
         )
+    )
+    db.add_all(ChallengePick(entry_id=entry_id, ticker=t) for t in tickers)
     db.commit()
 
 
@@ -69,10 +64,6 @@ def _stored(db, ticker):
         .order_by(ChallengePrice.date)
         .all()
     }
-
-
-def test_skips_until_the_web_app_has_made_its_tables(db):
-    assert cp.challenge_prices(db, FakeFMP({}), today=TODAY) == {"skipped": "no entry tables yet"}
 
 
 def test_skips_when_nobody_has_entered(db):

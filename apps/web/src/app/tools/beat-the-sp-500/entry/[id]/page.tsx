@@ -5,8 +5,7 @@ import { EntryChart } from "@/components/challenge/entry-chart";
 import { ShareEntry } from "@/components/challenge/share-entry";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { HScroll } from "@/components/ui/h-scroll";
-import { ensureMigrations } from "@/lib/auth";
-import { getBoard, getEntry, getEntrySeries } from "@/lib/challenge/db";
+import { getBoard, getEntry } from "@/lib/challenge/db";
 import {
   annualized,
   CHALLENGE_PATH,
@@ -46,10 +45,7 @@ function tone(v: number | null) {
 }
 
 async function load(id: string) {
-  await ensureMigrations();
-  const entry = await getEntry(id);
-  if (!entry || entry.hidden) return null;
-  return entry;
+  return getEntry(id);
 }
 
 export async function generateMetadata({
@@ -94,12 +90,8 @@ export default async function EntryPage({
   const excess = ret !== null && spyRet !== null ? ret - spyRet : null;
   const days = started ? daysBetween(entry.start_date!, entry.as_of!) : 0;
 
-  const [series, board] = started
-    ? await Promise.all([
-        getEntrySeries(entry.id, entry.start_date!),
-        getBoard({ cohort: entry.cohort }),
-      ])
-    : [[], null];
+  const series = entry.series;
+  const board = started ? await getBoard({ cohort: entry.cohort }).catch(() => null) : null;
   const ranked = board?.rows.filter((r) => r.excess !== null) ?? [];
   const rank = ranked.findIndex((r) => r.id === entry.id) + 1;
 

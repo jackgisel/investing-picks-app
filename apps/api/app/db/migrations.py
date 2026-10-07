@@ -250,10 +250,15 @@ def _ensure_deep_prices(engine: Engine) -> None:
 
 
 def _ensure_challenge_prices(engine: Engine) -> None:
-    """Create the Beat the S&P price tables if this database predates them."""
-    from app.db.models import ChallengePrice, ChallengePriceCheck
+    """Create the Beat the S&P tables if this database predates them."""
+    from app.db.models import (
+        ChallengeEntry,
+        ChallengePick,
+        ChallengePrice,
+        ChallengePriceCheck,
+    )
 
-    for model in (ChallengePrice, ChallengePriceCheck):
+    for model in (ChallengeEntry, ChallengePick, ChallengePrice, ChallengePriceCheck):
         try:
             model.__table__.create(engine, checkfirst=True)
         except Exception:

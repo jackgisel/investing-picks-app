@@ -17,7 +17,10 @@ import {
   MIN_REVENUE,
 } from "@/lib/workforce";
 
-export const revalidate = 3600;
+// Rendered per request: built at deploy time, this page baked in "not loading"
+// because the builder cannot reach the API. The directory fetch itself is
+// still cached for an hour, so this costs one cheap render, not an API call.
+export const dynamic = "force-dynamic";
 
 const TITLE = "Public company employee counts and revenue per employee";
 const DESCRIPTION =

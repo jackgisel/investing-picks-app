@@ -9,9 +9,11 @@ import {
   loadPublicSampleRoutes,
 } from "@/lib/sitemap";
 
-// Cached for an hour so a slow sample-note lookup cannot run on every crawl.
-// force-dynamic would re-query Postgres on each Googlebot hit.
-export const revalidate = 3600;
+// Rendered per request. A cached sitemap is built at deploy time, when the
+// API is unreachable, and shipped without a single company page for an hour.
+// The company directory fetch is cached for an hour on its own, and the
+// sample-note query is one indexed read with a 2.5s cap.
+export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

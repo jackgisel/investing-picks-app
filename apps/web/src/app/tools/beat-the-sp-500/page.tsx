@@ -2,14 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BoardTable } from "@/components/challenge/board-table";
 import { EntryCta } from "@/components/challenge/entry-cta";
-import { ensureMigrations } from "@/lib/auth";
-import {
-  getBoard,
-  getPopularPicks,
-  listCohorts,
-  type Board,
-  type PopularPick,
-} from "@/lib/challenge/db";
+import { getBoard, type Board } from "@/lib/challenge/db";
 import {
   CHALLENGE_PATH,
   cohortFor,
@@ -21,7 +14,6 @@ import {
   MIN_PICKS,
   nyDate,
 } from "@/lib/challenge/rules";
-import { median } from "@/lib/companies";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -76,19 +68,9 @@ const FAQ: { q: string; a: string }[] = [
   },
 ];
 
-async function load(cohort: string | null): Promise<{
-  board: Board;
-  cohorts: string[];
-  popular: PopularPick[];
-} | null> {
+async function load(cohort: string | null): Promise<Board | null> {
   try {
-    await ensureMigrations();
-    const [board, cohorts, popular] = await Promise.all([
-      getBoard({ cohort }),
-      listCohorts(),
-      getPopularPicks(),
-    ]);
-    return { board, cohorts, popular };
+    return await getBoard({ cohort });
   } catch (e) {
     console.error("challenge board failed to load:", e);
     return null;
@@ -114,10 +96,8 @@ export default async function ChallengePage({
   const data = await load(cohort);
   const thisClass = cohortFor(nyDate(new Date()));
 
-  const rows = data?.board.rows ?? [];
-  const scored = rows.filter((r) => r.excess !== null);
-  const beating = scored.filter((r) => (r.excess ?? 0) > 0).length;
-  const medianExcess = median(scored.map((r) => r.excess ?? NaN));
+  const rows = data?.rows ?? [];
+  const stats = data?.stats;
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -155,12 +135,12 @@ export default async function ChallengePage({
 
           <dl className="mt-12 grid max-w-[720px] grid-cols-2 gap-6 sm:grid-cols-4">
             {[
-              { label: "Entries", value: rows.length.toLocaleString("en-US") },
+              { label: "Entries", value: (stats?.entries ?? 0).toLocaleString("en-US") },
               {
                 label: "Beating the S&P",
-                value: scored.length ? `${Math.round((beating / scored.length) * 100)}%` : "—",
+                value: stats?.scored ? `${Math.round((stats.beating / stats.scored) * 100)}%` : "—",
               },
-              { label: "Median vs S&P", value: formatPts(medianExcess) },
+              { label: "Median vs S&P", value: formatPts(stats?.median_excess) },
               { label: "Open class", value: cohortLabel(thisClass) },
             ].map((s) => (
               <div key={s.label}>
@@ -182,10 +162,10 @@ export default async function ChallengePage({
               <p className="mt-1 max-w-[620px] font-sans text-[14px] text-text-muted">
                 Ranked by how far each portfolio is ahead of the S&amp;P 500 over the
                 same days.
-                {data?.board.as_of ? ` Prices as of the close on ${longDate(data.board.as_of)}.` : ""}
-                {data?.board.basis === "total_return"
+                {data?.as_of ? ` Prices as of the close on ${longDate(data.as_of)}.` : ""}
+                {data?.basis === "total_return"
                   ? " Both sides include dividends."
-                  : data?.board.basis === "price"
+                  : data?.basis === "price"
                     ? " Both sides are price only, without dividends."
                     : ""}
               </p>

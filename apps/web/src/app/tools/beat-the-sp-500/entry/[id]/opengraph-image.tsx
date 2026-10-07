@@ -15,7 +15,7 @@ export const revalidate = 3600;
 export default async function Image({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const entry = await getEntry(id).catch(() => null);
-  if (!entry || entry.hidden) {
+  if (!entry) {
     return renderToolShareImage("Can your picks beat the S&P 500?", "A free ten year stock picking game.", "outpick.xyz/tools/beat-the-sp-500");
   }
   const started = entry.start_date && entry.spy_start && entry.spy_last;

@@ -33,7 +33,7 @@ from app.services.benchmarks import (
     window_open,
     window_start,
 )
-from app.services import workforce
+from app.services import challenge, workforce
 from app.services.period_returns import period_returns_payload
 from app.services.track_record import monthly_returns, pick_scorecard
 from app.services.portfolio import (
@@ -809,4 +809,25 @@ def workforce_company(ticker: str, db: Session = Depends(get_db)):
     out = workforce.company_history(db, ticker)
     if out is None:
         raise HTTPException(status_code=404, detail="No headcount on file")
+    return out
+
+
+@router.get("/challenge/stocks")
+def challenge_stocks(q: str = Query("", max_length=40), db: Session = Depends(get_db)):
+    """Ticker and name search over the stocks a challenge entry may hold."""
+    return {"results": challenge.search_eligible(db, q)}
+
+
+@router.get("/challenge/board")
+def challenge_board(cohort: str | None = Query(None, pattern=r"^\d{4}-Q[1-4]$"), db: Session = Depends(get_db)):
+    """The public leaderboard. Carries no user ids."""
+    return challenge.board(db, cohort)
+
+
+@router.get("/challenge/entries/{entry_id}")
+def challenge_entry(entry_id: str, db: Session = Depends(get_db)):
+    """One public entry with its picks and daily series. 404 if hidden."""
+    out = challenge.entry_detail(db, entry_id)
+    if out is None:
+        raise HTTPException(status_code=404, detail="No such entry")
     return out

@@ -33,6 +33,7 @@ const article: Article = {
     ],
     publishedAt: "2026-07-25",
     category: "Markets",
+    subcategory: "macro",
     tags: ["inflation", "Fed", "fiscal", "macro"],
     readingTime: 11,
     author: "Outpick Research",

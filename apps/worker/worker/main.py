@@ -24,6 +24,7 @@ from worker.jobs.runner import (
     job_backfill_prices,
     job_backfill_snapshots,
     job_biweekly_evaluate,
+    job_challenge_prices,
     job_consensus_snapshot,
     job_daily_marks,
     job_dca_backfill,
@@ -231,6 +232,15 @@ def main():
         job_dca_friday,
         CronTrigger(day_of_week="mon-fri", hour=18, minute=45),
         id="dca_friday",
+        replace_existing=True,
+    )
+
+    # Weekdays 20:30 ET: Beat the S&P challenge closes. After every other
+    # price job, so its FMP client never overlaps theirs and doubles the rate.
+    scheduler.add_job(
+        job_challenge_prices,
+        CronTrigger(day_of_week="mon-fri", hour=20, minute=30),
+        id="challenge_prices",
         replace_existing=True,
     )
 

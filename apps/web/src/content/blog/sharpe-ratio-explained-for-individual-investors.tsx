@@ -33,6 +33,7 @@ const article: Article = {
     ],
     publishedAt: "2026-04-08",
     category: "Education",
+    subcategory: "metrics-and-backtesting",
     tags: ["sharpe ratio", "risk-adjusted return", "metrics"],
     readingTime: 7,
     author: "Outpick Research",

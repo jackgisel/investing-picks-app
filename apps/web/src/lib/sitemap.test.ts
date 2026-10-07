@@ -88,8 +88,10 @@ describe("buildSitemapEntries", () => {
       "/pricing",
       "/track-record",
       "/workforce",
+      "/companies",
       "/strategy",
       "/tools",
+      "/tools/beat-the-sp-500",
       "/tools/concentrated-portfolio-calculator",
       "/tools/profit-margin-calculator",
       "/tools/free-cash-flow-worksheet",
@@ -166,5 +168,32 @@ describe("withTimeout", () => {
     await expect(
       withTimeout(Promise.reject(new Error("db down")), 50, "fallback"),
     ).resolves.toBe("fallback");
+  });
+});
+
+describe("generated routes", () => {
+  it("lists a blog topic only when something is filed under it", async () => {
+    const { blogTopicRoutes } = await import("./sitemap");
+    const routes = blogTopicRoutes(
+      [{ category: "Education", subcategory: "valuation" }],
+      [
+        { name: "Education", slug: "education", subcategories: [{ slug: "valuation" }, { slug: "empty" }] },
+        { name: "Markets", slug: "markets", subcategories: [{ slug: "macro" }] },
+      ],
+    );
+    expect(routes.map((r) => r.path)).toEqual([
+      "/blog/category/education",
+      "/blog/category/education/valuation",
+    ]);
+  });
+
+  it("turns extra paths into same-site URLs", async () => {
+    const { buildSitemapEntries } = await import("./sitemap");
+    const entries = buildSitemapEntries({
+      siteUrl: "https://outpick.xyz",
+      articles: [],
+      extra: [{ path: "/companies/aapl", priority: 0.6 }],
+    });
+    expect(entries.map((e) => e.url)).toContain("https://outpick.xyz/companies/aapl");
   });
 });

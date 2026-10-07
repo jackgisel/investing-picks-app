@@ -35,6 +35,7 @@ const article: Article = {
     ],
     publishedAt: "2026-09-23",
     category: "Education",
+    subcategory: "portfolio-construction",
     tags: ["s&p 500", "index investing", "risk", "portfolio construction"],
     readingTime: 8,
     author: "Outpick Research",

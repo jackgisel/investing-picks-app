@@ -21,6 +21,15 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // One URL per company page: /companies/aapl, never /companies/AAPL. Done
+  // here rather than in the page because the page is cached, and a cached
+  // redirect would be served for the lowercase URL too.
+  if (pathname.startsWith("/companies/") && pathname !== pathname.toLowerCase()) {
+    const url = request.nextUrl.clone();
+    url.pathname = pathname.toLowerCase();
+    return NextResponse.redirect(url, 308);
+  }
+
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-pathname", pathname);
 
@@ -40,5 +49,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard", "/dashboard/:path*", "/api/ops/:path*"],
+  matcher: ["/dashboard", "/dashboard/:path*", "/api/ops/:path*", "/companies/:path*"],
 };

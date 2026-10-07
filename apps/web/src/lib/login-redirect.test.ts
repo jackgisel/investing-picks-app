@@ -48,6 +48,18 @@ describe("isSafeCallbackPath", () => {
   });
 });
 
+describe("challenge return path", () => {
+  it("returns a challenge sign-in to the builder", () => {
+    expect(isSafeCallbackPath("/tools/beat-the-sp-500/enter")).toBe(true);
+    expect(isSafeCallbackPath("/tools/beat-the-sp-500/enter?signup=1")).toBe(true);
+  });
+
+  it("does not open the rest of /tools as a redirect target", () => {
+    expect(isSafeCallbackPath("/tools/beat-the-sp-500/enter?next=//evil.com")).toBe(false);
+    expect(isSafeCallbackPath("/tools/other")).toBe(false);
+  });
+});
+
 describe("resolveCallbackPath", () => {
   it("falls back to subscribe", () => {
     expect(resolveCallbackPath(null)).toBe("/subscribe");

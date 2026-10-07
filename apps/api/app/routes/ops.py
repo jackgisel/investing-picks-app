@@ -1377,6 +1377,19 @@ def deep_prices_status(db: Session = Depends(get_db)):
     }
 
 
+@router.post("/challenge-prices", dependencies=[Depends(require_ops_key)])
+def trigger_challenge_prices(background: BackgroundTasks, db: Session = Depends(get_db)):
+    """Refresh Beat the S&P challenge closes now. Resumable within a day."""
+    from worker.services.challenge_prices import (
+        CHALLENGE_PRICE_JOB,
+        CHALLENGE_PRICE_TIMEOUT_MINUTES,
+    )
+
+    return _trigger_job(
+        db, background, CHALLENGE_PRICE_JOB, CHALLENGE_PRICE_TIMEOUT_MINUTES, "job_challenge_prices"
+    )
+
+
 @router.post("/workforce-ic", dependencies=[Depends(require_ops_key)])
 def trigger_workforce_ic(background: BackgroundTasks, db: Session = Depends(get_db)):
     """Run the workforce factor IC study (read-only) in the background."""

@@ -10,7 +10,8 @@ import {
   SOCIAL_LINKS,
   X_HANDLE,
 } from "@/lib/constants";
-import { Navbar } from "@/components/layout/navbar";
+import { Navbar, type NavArticle } from "@/components/layout/navbar";
+import { articles } from "@/lib/blog";
 import { Footer } from "@/components/layout/footer";
 import { MarketingFooter, MarketingOnly } from "@/components/layout/app-chrome";
 import { CookieBanner } from "@/components/layout/cookie-banner";
@@ -145,6 +146,14 @@ export const metadata: Metadata = {
   },
 };
 
+// Built once per server boot from the static post list. Only the three plain
+// objects reach the client nav, never the post modules themselves.
+const NAV_LATEST: NavArticle[] = articles.slice(0, 3).map((a) => ({
+  title: a.meta.title,
+  href: `/blog/${a.meta.slug}`,
+  detail: `${a.meta.readingTime} min read`,
+}));
+
 export default function RootLayout({
   children,
 }: {
@@ -174,7 +183,7 @@ export default function RootLayout({
         <ThemeProvider>
           <QueryProvider>
             <MarketingOnly>
-              <Navbar />
+              <Navbar latest={NAV_LATEST} />
             </MarketingOnly>
             <main>{children}</main>
             <MarketingFooter>

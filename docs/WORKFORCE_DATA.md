@@ -9,7 +9,7 @@ until the factor IC study (Phase 5) says it should.
 | # | Ships | Reviewable after deploy by |
 |---|---|---|
 | 1 | Headcount ingest from FMP 10-K extracts | `GET /api/ops/employee-counts` |
-| 2 | Public leaderboard (revenue per employee); history and chart paywalled | the page |
+| 2 | Public leaderboard (revenue per employee) and a public page per company | the page |
 | 3 | Job-openings collector (free ATS feeds), append-only | `GET /api/ops/job-openings` |
 | 4 | Growth/decline views: revenue shape vs headcount vs openings | the page |
 | 5 | Factor IC study through `worker/backtest/factor_ic.py` | `backtests/experiments/` |
@@ -56,10 +56,15 @@ forward of Phase 2 if the clock matters more than the page.
   year earlier. Leverage = revenue growth minus headcount growth. In-industry
   percentile needs 5 peers. USD reporters only; $500M revenue and 50 employees
   floor (`MIN_REVENUE` / `MIN_EMPLOYEES` in `apps/web/src/lib/workforce.ts`).
-- Public `/workforce`: top 10 for everyone, top 100 + sector filter + per
-  company history chart for members (`requireSubscriber` on
-  `/api/data/workforce/[ticker]`). The FastAPI routes are open like the rest of
-  `/api/v1`; the web layer is the paywall.
+- Public `/workforce`: top 10 for everyone; top 100, sector and shape filters
+  and the growth scatter for members. The per company history is public.
+- Public company pages: `/companies` (search, sectors, ranked lists),
+  `/companies/sector/[sector]` and `/companies/[ticker]` (lowercase; middleware
+  308s uppercase). They read `GET /api/v1/workforce/directory` (every active
+  company with a paired year, no revenue floor, `stale` past 800 days, cached
+  an hour) and `GET /api/v1/workforce/{ticker}`. Peer ranks are computed in
+  `apps/web/src/lib/companies.ts`: industry first, the sector when the industry
+  has fewer than four names. Every company and sector page is in the sitemap.
 
 ## Phase 3: job openings
 

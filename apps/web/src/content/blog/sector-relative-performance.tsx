@@ -31,6 +31,7 @@ const article: Article = {
     ],
     publishedAt: "2026-10-04",
     category: "Education",
+    subcategory: "metrics-and-backtesting",
     tags: [
       "sector relative performance",
       "stock research",

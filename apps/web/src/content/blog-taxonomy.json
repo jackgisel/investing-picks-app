@@ -1,0 +1,109 @@
+{
+  "categories": [
+    {
+      "name": "Education",
+      "slug": "education",
+      "title": "Investing education",
+      "description": "How to value a business, size a portfolio, and read research without getting fooled by it.",
+      "subcategories": [
+        {
+          "slug": "valuation",
+          "name": "Valuation",
+          "description": "Intrinsic value, moats, and what a business is worth before you look at the price."
+        },
+        {
+          "slug": "portfolio-construction",
+          "name": "Portfolio construction",
+          "description": "How many stocks to own, how much to put in each, and what the index is really holding."
+        },
+        {
+          "slug": "metrics-and-backtesting",
+          "name": "Metrics and backtesting",
+          "description": "Sharpe, alpha, beta, and how to tell a real backtest from a curve fit."
+        },
+        {
+          "slug": "research-process",
+          "name": "Research process",
+          "description": "Writing a thesis, reading someone else's, and knowing when to sell."
+        },
+        {
+          "slug": "choosing-a-service",
+          "name": "Choosing a research service",
+          "description": "What paid newsletters and memberships cost, and how to judge one before you pay."
+        }
+      ]
+    },
+    {
+      "name": "Strategy",
+      "slug": "strategy",
+      "title": "Strategy",
+      "description": "What it takes to beat the S&P 500 as a long-term investor, and how our process tries to do it.",
+      "subcategories": [
+        {
+          "slug": "beating-the-index",
+          "name": "Beating the index",
+          "description": "The honest odds of outperforming the S&P 500, and the habits that move them."
+        },
+        {
+          "slug": "our-process",
+          "name": "How Outpick works",
+          "description": "Why we pick on a schedule, and the rules behind each pick."
+        }
+      ]
+    },
+    {
+      "name": "Research",
+      "slug": "research",
+      "title": "Research",
+      "description": "Company work, screens, and the signals we test before trusting them.",
+      "subcategories": [
+        {
+          "slug": "company-research",
+          "name": "Company research",
+          "description": "Single company write-ups and the valuation work behind them."
+        },
+        {
+          "slug": "finding-winners",
+          "name": "Finding winners",
+          "description": "Where long-run multibaggers tend to come from, and what they looked like early."
+        },
+        {
+          "slug": "signals-and-cycles",
+          "name": "Signals and cycles",
+          "description": "Earnings revisions, market cycles, and other inputs we measure before we use."
+        }
+      ]
+    },
+    {
+      "name": "Markets",
+      "slug": "markets",
+      "title": "Markets",
+      "description": "Macro, sectors, and themes that move the stocks we follow.",
+      "subcategories": [
+        {
+          "slug": "macro",
+          "name": "Macro",
+          "description": "Inflation, rates, and policy, written for stock pickers."
+        },
+        {
+          "slug": "sectors-and-themes",
+          "name": "Sectors and themes",
+          "description": "Gold miners, emerging markets, and other corners of the market doing something unusual."
+        }
+      ]
+    },
+    {
+      "name": "Performance",
+      "slug": "performance",
+      "title": "Performance",
+      "description": "How our live book is doing, written up in full, losers included.",
+      "subcategories": [
+        {
+          "slug": "live-portfolio",
+          "name": "Live portfolio",
+          "description": "Reviews of the real money portfolio, with every trade on the record."
+        }
+      ]
+    }
+  ]
+}

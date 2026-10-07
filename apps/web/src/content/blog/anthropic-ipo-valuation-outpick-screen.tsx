@@ -40,6 +40,7 @@ const article: Article = {
     ],
     publishedAt: "2026-09-29",
     category: "Research",
+    subcategory: "company-research",
     tags: ["anthropic", "ipo", "valuation", "research"],
     readingTime: 10,
     author: "Outpick Research",

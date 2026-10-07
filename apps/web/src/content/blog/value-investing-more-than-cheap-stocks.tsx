@@ -29,6 +29,7 @@ const article: Article = {
     ],
     publishedAt: "2026-09-28",
     category: "Education",
+    subcategory: "valuation",
     tags: ["value investing", "research", "process", "long-term investing"],
     readingTime: 7,
     author: "Outpick Research",

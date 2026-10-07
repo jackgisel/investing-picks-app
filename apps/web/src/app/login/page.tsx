@@ -20,6 +20,21 @@ function resolveCallbackURL(): string {
   );
 }
 
+/**
+ * What the link does after it signs you in. Most sign-ins come from the
+ * membership flow, but a challenge entry or a dashboard bounce is not a
+ * checkout, and saying "payment page" there would scare off a free signup.
+ */
+function nextStepCopy(callback: string): string {
+  if (callback.startsWith("/tools/beat-the-sp-500")) {
+    return "The link signs you in and brings you straight back to your portfolio, picks intact. It is free, and there is nothing to pay.";
+  }
+  if (callback.startsWith("/dashboard")) {
+    return "The link signs you in and takes you back to the page you were on.";
+  }
+  return "The link signs you in, opens your membership payment page, and returns you to a short tour once Stripe confirms the subscription.";
+}
+
 function LoginShell({ children }: { children: ReactNode }) {
   return (
     <div className="relative min-h-[calc(100dvh-var(--nav-h))] overflow-hidden">
@@ -121,8 +136,7 @@ export default function LoginPage() {
           <div className="soft-card mt-8 text-left bg-bg/80 backdrop-blur-sm">
             <p className="field-label mb-2">WHAT HAPPENS NEXT</p>
             <p className="font-sans text-[14px] leading-relaxed text-text-muted">
-              The link signs you in, opens your membership payment page, and
-              returns you to a short tour once Stripe confirms the subscription.
+              {nextStepCopy(resolveCallbackURL())}
             </p>
           </div>
           <div className="mt-7 flex flex-col items-center gap-3">

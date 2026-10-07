@@ -509,6 +509,43 @@ class DeepPriceCheck(Base):
     first_bar: Mapped[date | None] = mapped_column(Date, nullable=True)
 
 
+class ChallengePrice(Base):
+    """Adjusted daily closes for every ticker in a Beat the S&P challenge entry.
+
+    Written by the worker's `challenge_prices` job, read by the web app, which
+    owns the entries themselves (`challenge_entry`, `challenge_pick`). Kept out
+    of `price_bars` for the same reason as `price_bars_deep`: entries are held
+    for ten years, so a split or dividend restates history, and this table
+    replaces a ticker's whole series when that happens instead of mixing two
+    bases. SPY is stored here on the same basis, so it is scored the same way.
+    """
+
+    __tablename__ = "challenge_price"
+    __table_args__ = (UniqueConstraint("ticker", "date"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ticker: Mapped[str] = mapped_column(String(16), index=True)
+    date: Mapped[date] = mapped_column(Date, index=True)
+    close: Mapped[float] = mapped_column(Float)
+
+
+class ChallengePriceCheck(Base):
+    """Last fetch per challenge ticker, and which price basis it used.
+
+    `basis` is "total_return" (dividend-adjusted closes) or "price" (split-
+    adjusted closes only). Every ticker in a run uses the basis SPY got, so an
+    entry is never scored with dividends on one side and not the other.
+    """
+
+    __tablename__ = "challenge_price_checks"
+
+    ticker: Mapped[str] = mapped_column(String(16), primary_key=True)
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    bars: Mapped[int] = mapped_column(Integer, default=0)
+    basis: Mapped[str] = mapped_column(String(16), default="price")
+    replaced: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
 class CompositeScore(Base):
     __tablename__ = "composite_scores"
     # One score per ticker per scoring date. Without this a second scoring run

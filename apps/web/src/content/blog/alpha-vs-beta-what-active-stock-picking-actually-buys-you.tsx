@@ -32,6 +32,7 @@ const article: Article = {
     ],
     publishedAt: "2026-04-22",
     category: "Education",
+    subcategory: "metrics-and-backtesting",
     tags: ["alpha", "beta", "active management"],
     readingTime: 8,
     author: "Outpick Research",

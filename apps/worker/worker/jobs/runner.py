@@ -25,6 +25,11 @@ from worker.backtest.workforce_ic import (
     WORKFORCE_IC_TIMEOUT_MINUTES,
     compute_workforce_ic,
 )
+from worker.services.challenge_prices import (
+    CHALLENGE_PRICE_JOB,
+    CHALLENGE_PRICE_TIMEOUT_MINUTES,
+    challenge_prices,
+)
 from worker.services.deep_prices import (
     DEEP_PRICE_JOB,
     DEEP_PRICE_TIMEOUT_MINUTES,
@@ -113,6 +118,11 @@ def reap_stale_weekly_refreshes() -> int:
             db,
             job_name=DEEP_PRICE_JOB,
             stale_after=timedelta(minutes=DEEP_PRICE_TIMEOUT_MINUTES),
+        )
+        count += reap_stale_job_runs(
+            db,
+            job_name=CHALLENGE_PRICE_JOB,
+            stale_after=timedelta(minutes=CHALLENGE_PRICE_TIMEOUT_MINUTES),
         )
         count += reap_stale_job_runs(
             db,
@@ -735,6 +745,33 @@ def job_price_history_deep():
             fmp.close()
 
     return _track(DEEP_PRICE_JOB, _run)
+
+
+def job_challenge_prices():
+    """Weeknights: adjusted closes for every ticker in a Beat the S&P entry.
+
+    Today's bar is kept only once the session has closed (16:30 ET), so a
+    manual run from ops mid-session never stores an intraday price as a close.
+    Skips quietly until the web app has created the entry tables and someone
+    has entered.
+    """
+    from zoneinfo import ZoneInfo
+
+    def _run(db: Session):
+        now = datetime.now(ZoneInfo("America/New_York"))
+        today = now.date()
+        if not is_trading_day(today):
+            return {"skipped": "not_a_trading_day"}
+        closed = (now.hour, now.minute) >= (16, 30)
+        fmp = _fmp()
+        try:
+            return challenge_prices(
+                db, fmp, today=today, cutoff=today + timedelta(days=1) if closed else today
+            )
+        finally:
+            fmp.close()
+
+    return _track(CHALLENGE_PRICE_JOB, _run)
 
 
 def job_workforce_ic():

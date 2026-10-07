@@ -32,6 +32,7 @@ const article: Article = {
     ],
     publishedAt: "2026-03-24",
     category: "Education",
+    subcategory: "choosing-a-service",
     tags: ["roi", "stock picking", "fees"],
     readingTime: 8,
     author: "Outpick Research",

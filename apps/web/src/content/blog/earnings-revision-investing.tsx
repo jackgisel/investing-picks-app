@@ -31,6 +31,7 @@ const article: Article = {
     ],
     publishedAt: "2026-10-01",
     category: "Research",
+    subcategory: "signals-and-cycles",
     tags: [
       "earnings revisions",
       "stock research",

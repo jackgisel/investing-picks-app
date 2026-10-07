@@ -30,6 +30,7 @@ const article: Article = {
     ],
     publishedAt: "2026-07-21",
     category: "Performance",
+    subcategory: "live-portfolio",
     tags: ["live portfolio", "track record", "process"],
     readingTime: 8,
     author: "Outpick Research",

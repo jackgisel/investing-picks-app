@@ -34,6 +34,7 @@ const article: Article = {
     ],
     publishedAt: "2026-09-27",
     category: "Education",
+    subcategory: "research-process",
     tags: ["research", "education", "thesis", "portfolio process"],
     readingTime: 8,
     author: "Outpick Research",

@@ -32,6 +32,7 @@ const article: Article = {
     ],
     publishedAt: "2026-01-28",
     category: "Strategy",
+    subcategory: "beating-the-index",
     tags: ["long-term investing", "strategy", "time"],
     readingTime: 8,
     author: "Outpick Research",

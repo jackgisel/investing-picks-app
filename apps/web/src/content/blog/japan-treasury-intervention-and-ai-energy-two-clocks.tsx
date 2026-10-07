@@ -34,6 +34,7 @@ const article: Article = {
     ],
     publishedAt: "2026-08-23",
     category: "Markets",
+    subcategory: "macro",
     tags: ["macro", "treasuries", "japan", "AI", "energy"],
     readingTime: 15,
     author: "Outpick Research",

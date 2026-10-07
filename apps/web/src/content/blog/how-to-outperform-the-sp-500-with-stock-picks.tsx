@@ -32,6 +32,7 @@ const article: Article = {
     ],
     publishedAt: "2026-01-14",
     category: "Strategy",
+    subcategory: "beating-the-index",
     tags: ["alpha", "strategy", "s&p 500"],
     readingTime: 8,
     author: "Outpick Research",

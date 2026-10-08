@@ -142,7 +142,9 @@ const article: Article = {
         Before adding, the stock had to rise <Strong>66.7%</Strong> to get
         you back to even. After adding, it only has to rise{" "}
         <Strong>36.4%</Strong>. That smaller hurdle is what makes averaging
-        down so tempting.
+        down so tempting. Run the same figures in the{" "}
+        <A href="/tools/average-down-calculator">average down calculator</A>
+        , including the position-weight change if you type a portfolio value.
       </P>
       <P>But look at what actually changed:</P>
       <UL>

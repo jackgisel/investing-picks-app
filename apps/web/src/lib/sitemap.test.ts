@@ -33,6 +33,9 @@ describe("buildSitemapEntries", () => {
     expect(urls).toContain(
       "https://outpick.xyz/tools/concentrated-portfolio-calculator",
     );
+    expect(urls).toContain(
+      "https://outpick.xyz/tools/average-down-calculator",
+    );
     expect(urls).toContain("https://outpick.xyz/faq");
     expect(urls).toContain("https://outpick.xyz/market-note");
     expect(urls).toContain("https://outpick.xyz/what-we-are-not");
@@ -97,6 +100,7 @@ describe("buildSitemapEntries", () => {
       "/tools/downside-risk-worksheet",
       "/tools/intrinsic-value-calculator",
       "/tools/competitive-advantage-worksheet",
+      "/tools/average-down-calculator",
       "/faq",
       "/market-note",
       "/what-we-are-not",

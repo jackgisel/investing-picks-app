@@ -13,9 +13,12 @@ export type Crumb = { label: string; href: string };
 export function Breadcrumbs({
   items,
   className,
+  includeJsonLd = true,
 }: {
   items: Crumb[];
   className?: string;
+  /** Set false when the page already emits BreadcrumbList in a combined graph. */
+  includeJsonLd?: boolean;
 }) {
   const jsonLd = {
     "@context": "https://schema.org",
@@ -30,10 +33,12 @@ export function Breadcrumbs({
 
   return (
     <nav aria-label="Breadcrumb" className={cn("min-w-0", className)}>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      {includeJsonLd ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      ) : null}
       <ol className="flex flex-wrap items-center gap-x-1.5 gap-y-1 font-sans text-[12px] font-bold uppercase tracking-[0.1em] text-text-dim">
         {items.map((item, i) => {
           const last = i === items.length - 1;

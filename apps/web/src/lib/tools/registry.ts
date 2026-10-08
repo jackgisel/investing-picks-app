@@ -4,7 +4,8 @@ export type ToolId =
   | "free-cash-flow-worksheet"
   | "downside-risk-worksheet"
   | "intrinsic-value-calculator"
-  | "competitive-advantage-worksheet";
+  | "competitive-advantage-worksheet"
+  | "average-down-calculator";
 
 export type ToolFaq = { q: string; a: string };
 
@@ -250,6 +251,63 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     blogSlug: "how-to-analyze-competitive-advantage",
     blogLinkLabel: "How to analyze competitive advantage",
     marketNoteSource: "tool-competitive-advantage-worksheet",
+  },
+  {
+    id: "average-down-calculator",
+    path: "/tools/average-down-calculator",
+    eyebrow: "Free tool",
+    h1: "Average down calculator",
+    subtitle:
+      "See the new average cost, how many shares to buy to average down, the move back to breakeven, and the portfolio weight after you add.",
+    metaTitle: "Average Down Calculator: Cost, Weight and How Many Shares",
+    metaDescription:
+      "Free average down calculator for stocks. New average cost, how many shares to buy, breakeven, and the portfolio hit if it drops 30% or 50%. No signup.",
+    howToRead: [
+      "Type the shares you already hold and your average cost, or list prior buys. Then type the current price and a planned add in shares or dollars.",
+      "The result is the new share count, the new average cost, total cash in, the percent move from today's price back to breakeven before and after the add, and unrealized P/L on the current position.",
+      "Optional portfolio value turns on position weight before and after the add, plus the portfolio hit if the stock falls another 30% or 50%. The add is treated as new cash, so the total grows by the dollars you add.",
+      "Reverse mode solves how many shares to buy at the current price to reach a target average. A target at or below the current price is impossible: the new average always sits between your old average and the price you pay.",
+    ],
+    faq: [
+      {
+        q: "What is an average down calculator?",
+        a: "It is a stock average calculator. You type the shares you hold, your average cost (or a list of buys), the current price, and a planned add. The page shows the new share count, the new average cost, total invested, the move back to breakeven, and unrealized P/L. It does not pull a brokerage account or place a trade.",
+      },
+      {
+        q: "How many shares do I need to buy to average down to a target cost?",
+        a: "Enter a target average below your current average and above the current price. The reverse solver returns the share count and dollar amount to buy at today's price. If the target is at or below the current price, no number of shares will get you there, because the blended average cannot fall through the price you are paying.",
+      },
+      {
+        q: "Does a lower average cost change what the stock does next?",
+        a: "No. Your average cost is bookkeeping. The shares you already own make or lose the same money from today's price whether or not you add. New cash earns whatever the stock does from here, the same as a fresh buy. A smaller move back to breakeven is not a forecast.",
+      },
+      {
+        q: "What is the difference between averaging down and dollar-cost averaging?",
+        a: "Dollar-cost averaging means investing a fixed amount on a schedule, whatever the price does. Averaging down is a choice to buy more because a holding already fell. This page measures one add. It does not run a calendar of future buys.",
+      },
+      {
+        q: "Why does this page show position weight?",
+        a: "A lower average is easy to like; a larger weight is the part generic average cost calculators skip. If you type a total portfolio value, you see the position's share of the book before and after the add, and the portfolio-level hit if the stock falls another 30% or 50%. Use that next to a hard cap, not as a recommendation.",
+      },
+      {
+        q: "Is this financial advice?",
+        a: "No. This page does arithmetic on numbers you type. It is not personalized financial advice, a recommendation to buy or sell any security, or a forecast. Your taxes, risk tolerance, and situation are your own. Consider speaking with a licensed professional before you invest. Past performance does not guarantee future results.",
+      },
+      {
+        q: "Can averaging down create a wash sale?",
+        a: "In a U.S. taxable account, buying a substantially identical security within 30 days before or after you sell it at a loss can disallow that loss under wash sale rules. Adding shortly before or after a tax-loss sale can undo the deduction. This tool does not compute tax lots. Read the Investor.gov wash sale glossary and check with a tax professional.",
+      },
+    ],
+    relatedToolIds: [
+      "concentrated-portfolio-calculator",
+      "downside-risk-worksheet",
+      "intrinsic-value-calculator",
+    ],
+    blogSlug: "should-you-average-down-on-a-losing-stock",
+    blogLinkLabel: "Should you average down on a losing stock?",
+    extraEssaySlug: "what-percentage-of-portfolio-should-be-individual-stocks",
+    extraEssayLabel: "What percentage of a portfolio should be individual stocks?",
+    marketNoteSource: "tool-average-down-calculator",
   },
 ];
 

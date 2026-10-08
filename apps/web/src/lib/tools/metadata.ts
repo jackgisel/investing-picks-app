@@ -10,15 +10,18 @@ export function toolShareImageUrl(path: string): string {
   return `${toolCanonicalPath(path)}/opengraph-image`;
 }
 
+function queryParamHasValue(value: string | string[] | undefined): boolean {
+  if (typeof value === "string") return value.trim().length > 0;
+  if (Array.isArray(value)) return value.some((t) => t.trim());
+  return false;
+}
+
 export function buildToolMetadata(
   tool: ToolDefinition,
-  searchParams?: { ticker?: string | string[] },
+  searchParams?: Record<string, string | string[] | undefined>,
 ): Metadata {
-  const tickerParam = searchParams?.ticker;
-  const hasTickerQuery =
-    typeof tickerParam === "string"
-      ? tickerParam.trim().length > 0
-      : Array.isArray(tickerParam) && tickerParam.some((t) => t.trim());
+  const hasQuery =
+    !!searchParams && Object.values(searchParams).some(queryParamHasValue);
 
   const canonical = tool.path;
   const image = toolShareImageUrl(tool.path);
@@ -27,7 +30,7 @@ export function buildToolMetadata(
     title: tool.metaTitle,
     description: tool.metaDescription,
     alternates: { canonical },
-    robots: hasTickerQuery
+    robots: hasQuery
       ? { index: false, follow: true }
       : { index: true, follow: true },
     openGraph: {
@@ -79,5 +82,62 @@ export function buildToolsIndexMetadata(): Metadata {
       description,
       images: [image],
     },
+  };
+}
+
+export function toolBreadcrumbItems(tool: ToolDefinition): {
+  label: string;
+  href: string;
+}[] {
+  const name = tool.metaTitle.includes(":")
+    ? tool.metaTitle.slice(0, tool.metaTitle.indexOf(":")).trim()
+    : tool.h1;
+  return [
+    { label: "Home", href: "/" },
+    { label: "Free tools", href: "/tools" },
+    { label: name, href: tool.path },
+  ];
+}
+
+export function buildToolJsonLd(tool: ToolDefinition) {
+  const url = toolCanonicalPath(tool.path);
+  const name = tool.metaTitle.includes(":")
+    ? tool.metaTitle.slice(0, tool.metaTitle.indexOf(":")).trim()
+    : tool.h1;
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebApplication" as const,
+        name,
+        url,
+        description: tool.metaDescription,
+        applicationCategory: "FinanceApplication",
+        operatingSystem: "Any",
+        isAccessibleForFree: true,
+        offers: {
+          "@type": "Offer" as const,
+          price: "0",
+          priceCurrency: "USD",
+        },
+      },
+      {
+        "@type": "FAQPage" as const,
+        mainEntity: tool.faq.map((item) => ({
+          "@type": "Question" as const,
+          name: item.q,
+          acceptedAnswer: { "@type": "Answer" as const, text: item.a },
+        })),
+      },
+      {
+        "@type": "BreadcrumbList" as const,
+        itemListElement: toolBreadcrumbItems(tool).map((item, i) => ({
+          "@type": "ListItem" as const,
+          position: i + 1,
+          name: item.label,
+          item: item.href === "/" ? SITE_URL : toolCanonicalPath(item.href),
+        })),
+      },
+    ],
   };
 }

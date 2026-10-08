@@ -30,6 +30,7 @@ export const TOOL_FIELD_WHITELIST: Record<ToolId, readonly string[]> = {
     "revenueGrowthTTM",
     "growthBasisPeriod",
   ],
+  "average-down-calculator": [],
   "competitive-advantage-worksheet": [
     "grossProfitMarginTTM",
     "operatingProfitMarginTTM",

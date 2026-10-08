@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { MarketNoteSignup } from "@/components/marketing/market-note-signup";
 import { Disclaimer } from "@/components/landing/disclaimer";
+import { Breadcrumbs, type Crumb } from "@/components/ui/breadcrumbs";
 import { getArticleBySlug } from "@/lib/blog";
 import type { ToolDefinition } from "@/lib/tools/registry";
 import { TOOL_BY_ID } from "@/lib/tools/registry";
@@ -31,10 +32,14 @@ export function ToolShell({
   tool,
   children,
   blogLinkPlacement = "howToRead",
+  breadcrumbs,
+  article,
 }: {
   tool: ToolDefinition;
   children: React.ReactNode;
   blogLinkPlacement?: "howToRead" | "result";
+  breadcrumbs?: Crumb[];
+  article?: React.ReactNode;
 }) {
   const related = tool.relatedToolIds
     .map((id) => TOOL_BY_ID[id])
@@ -45,6 +50,13 @@ export function ToolShell({
     <>
       <div className="container-op border-b border-border py-14 sm:py-16">
         <div className="max-w-[720px]">
+          {breadcrumbs ? (
+            <Breadcrumbs
+              items={breadcrumbs}
+              className="mb-8"
+              includeJsonLd={false}
+            />
+          ) : null}
           <p className="section-label">{tool.eyebrow}</p>
           <h1 className="section-title">{tool.h1}</h1>
           <p className="section-sub mb-0">{tool.subtitle}</p>
@@ -74,6 +86,12 @@ export function ToolShell({
           ) : null}
         </div>
       </section>
+
+      {article ? (
+        <section className="border-b border-border">
+          <div className="container-op py-12 sm:py-16">{article}</div>
+        </section>
+      ) : null}
 
       <section className="border-b border-border">
         <div className="container-op py-12 sm:py-14 max-w-[720px]">

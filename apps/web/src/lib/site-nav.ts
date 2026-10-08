@@ -49,7 +49,11 @@ export const TOOL_GROUPS: { label: string; ids: ToolId[] }[] = [
   },
   {
     label: "Size and risk",
-    ids: ["downside-risk-worksheet", "concentrated-portfolio-calculator"],
+    ids: [
+      "downside-risk-worksheet",
+      "concentrated-portfolio-calculator",
+      "average-down-calculator",
+    ],
   },
 ];
 

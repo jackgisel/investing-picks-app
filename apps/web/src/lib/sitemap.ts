@@ -14,6 +14,7 @@ export const PUBLIC_TOOL_PATHS = [
   "/tools/downside-risk-worksheet",
   "/tools/intrinsic-value-calculator",
   "/tools/competitive-advantage-worksheet",
+  "/tools/average-down-calculator",
 ] as const;
 
 export const PUBLIC_STATIC_PATHS = [
@@ -100,6 +101,10 @@ const STATIC_META: Record<
     priority: 0.7,
   },
   "/tools/competitive-advantage-worksheet": {
+    changeFrequency: "monthly",
+    priority: 0.7,
+  },
+  "/tools/average-down-calculator": {
     changeFrequency: "monthly",
     priority: 0.7,
   },

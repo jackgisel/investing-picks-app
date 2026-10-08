@@ -7,6 +7,7 @@ import { InsightBody, InsightHeader } from "@/components/blog/insight-article";
 import { MarketNoteSignup } from "@/components/marketing/market-note-signup";
 import { PillButton } from "@/components/ui/pill-button";
 import { SITE_NAME, SITE_URL } from "@/lib/constants";
+import { SAMPLE_RESEARCH_HREF } from "@/lib/site-nav";
 import { getPublicSampleBySlug, listPublicSampleInsights } from "@/lib/insights-db";
 import { artAbsoluteUrl } from "@/lib/art";
 import { artForInsight } from "@/lib/art-pool";
@@ -112,7 +113,7 @@ export default async function PublicResearchPage({
       <div className="container-op py-10 sm:py-14">
         <article className="mx-auto max-w-[760px]">
           <Link
-            href="/#sample-research"
+            href={SAMPLE_RESEARCH_HREF}
             className="inline-flex items-center gap-2 rounded-sm font-sans text-[11px] font-bold uppercase tracking-[0.1em] text-text-dim transition-colors hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
           >
             <ArrowLeft size={12} />

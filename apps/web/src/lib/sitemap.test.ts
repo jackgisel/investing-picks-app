@@ -3,8 +3,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import {
+  blogTopicRoutes,
   buildSitemapEntries,
+  companySectorRoutes,
   isExcludedSitemapPath,
+  newestSitemapDate,
   PUBLIC_STATIC_PATHS,
   SITEMAP_EXCLUDED_PATH_PREFIXES,
   toSitemapDate,
@@ -17,12 +20,11 @@ const articles = [
 ];
 
 describe("buildSitemapEntries", () => {
-  const now = new Date("2026-08-31T12:00:00Z");
-
   it("includes every public marketing URL and every blog post", () => {
-    const urls = buildSitemapEntries({ now, articles }).map((e) => e.url);
+    const urls = buildSitemapEntries({ articles }).map((e) => e.url);
 
-    expect(urls).toContain("https://outpick.xyz/");
+    expect(urls).toContain("https://outpick.xyz");
+    expect(urls).not.toContain("https://outpick.xyz/");
     expect(urls).toContain("https://outpick.xyz/blog");
     expect(urls).toContain("https://outpick.xyz/pricing");
     expect(urls).toContain("https://outpick.xyz/track-record");
@@ -46,7 +48,6 @@ describe("buildSitemapEntries", () => {
 
   it("includes nominated public sample notes when provided", () => {
     const urls = buildSitemapEntries({
-      now,
       articles,
       samples: [{ slug: "wdc-buy-note", updatedAt: "2026-07-17T00:00:00.000Z" }],
     }).map((e) => e.url);
@@ -56,7 +57,6 @@ describe("buildSitemapEntries", () => {
 
   it("never lists paid, auth, or API routes", () => {
     const urls = buildSitemapEntries({
-      now,
       articles,
       samples: [{ slug: "x", updatedAt: "2026-01-01" }],
     }).map((e) => e.url);
@@ -73,7 +73,6 @@ describe("buildSitemapEntries", () => {
 
   it("omits lastModified rather than emitting an Invalid Date", () => {
     const [entry] = buildSitemapEntries({
-      now,
       articles: [{ slug: "bad-date", publishedAt: "not-a-date" }],
     }).filter((e) => e.url.endsWith("/bad-date"));
 
@@ -126,12 +125,32 @@ describe("buildSitemapEntries", () => {
       });
     expect(slugs.length).toBeGreaterThan(0);
     const urls = buildSitemapEntries({
-      now,
       articles: slugs.map((slug) => ({ slug, publishedAt: "2026-01-01" })),
     }).map((e) => e.url);
     for (const slug of slugs) {
       expect(urls).toContain(`https://outpick.xyz/blog/${slug}`);
     }
+  });
+
+  it("does not stamp static pages with the request time", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-07T12:00:00Z"));
+    const entries = buildSitemapEntries({ articles });
+    const home = entries.find((e) => e.url === "https://outpick.xyz");
+    const pricing = entries.find((e) => e.url === "https://outpick.xyz/pricing");
+    const blog = entries.find((e) => e.url === "https://outpick.xyz/blog");
+    expect(home?.lastModified).toBeUndefined();
+    expect(pricing?.lastModified).toBeUndefined();
+    expect(blog?.lastModified?.toISOString()).toBe("2026-06-20T12:00:00.000Z");
+    vi.useRealTimers();
+  });
+});
+
+describe("newestSitemapDate", () => {
+  it("picks the latest valid date and ignores garbage", () => {
+    const d = newestSitemapDate(["2026-01-14", "not-a-date", "2026-06-20"]);
+    expect(d?.toISOString()).toBe("2026-06-20T12:00:00.000Z");
+    expect(newestSitemapDate([])).toBeUndefined();
   });
 });
 
@@ -172,10 +191,16 @@ describe("withTimeout", () => {
 });
 
 describe("generated routes", () => {
-  it("lists a blog topic only when something is filed under it", async () => {
-    const { blogTopicRoutes } = await import("./sitemap");
+  it("lists a blog topic only when something is filed under it", () => {
     const routes = blogTopicRoutes(
-      [{ category: "Education", subcategory: "valuation" }],
+      [
+        {
+          category: "Education",
+          subcategory: "valuation",
+          publishedAt: "2026-01-14",
+          updatedAt: "2026-03-01",
+        },
+      ],
       [
         { name: "Education", slug: "education", subcategories: [{ slug: "valuation" }, { slug: "empty" }] },
         { name: "Markets", slug: "markets", subcategories: [{ slug: "macro" }] },
@@ -185,10 +210,26 @@ describe("generated routes", () => {
       "/blog/category/education",
       "/blog/category/education/valuation",
     ]);
+    expect(routes[0].lastModified?.toISOString()).toBe("2026-03-01T12:00:00.000Z");
+    expect(routes[1].lastModified?.toISOString()).toBe("2026-03-01T12:00:00.000Z");
   });
 
-  it("turns extra paths into same-site URLs", async () => {
-    const { buildSitemapEntries } = await import("./sitemap");
+  it("stamps a sector page with the newest filing date of its companies", () => {
+    const routes = companySectorRoutes(
+      [
+        { sector: "Technology", stale: false, filing_date: "2025-10-01" },
+        { sector: "Technology", stale: false, filing_date: "2026-02-15" },
+        { sector: "Healthcare", stale: true, filing_date: "2026-09-01" },
+        { sector: null, stale: false, filing_date: "2026-01-01" },
+      ],
+      (s) => s.toLowerCase(),
+    );
+    expect(routes).toHaveLength(1);
+    expect(routes[0].path).toBe("/companies/sector/technology");
+    expect(routes[0].lastModified?.toISOString()).toBe("2026-02-15T12:00:00.000Z");
+  });
+
+  it("turns extra paths into same-site URLs", () => {
     const entries = buildSitemapEntries({
       siteUrl: "https://outpick.xyz",
       articles: [],

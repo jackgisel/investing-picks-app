@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PillButton } from "@/components/ui/pill-button";
+import { SAMPLE_RESEARCH_HREF } from "@/lib/site-nav";
 import { HScroll } from "@/components/ui/h-scroll";
 import {
   ResearchDiagram,
@@ -65,7 +66,7 @@ function StepVisual({ Diagram }: { Diagram: ComponentType }) {
  * the exit note, which is the part of the loop members actually experience and
  * the part most publications never show.
  */
-export function WhatHow() {
+export function WhatHow({ hasSampleResearch = false }: { hasSampleResearch?: boolean }) {
   return (
     <section
       id="what-how"
@@ -149,12 +150,14 @@ export function WhatHow() {
           <PillButton href="/pricing" arrow>
             See membership
           </PillButton>
-          <Link
-            href="/#sample-research"
-            className="rounded-sm font-sans text-[12px] font-bold uppercase tracking-[0.1em] text-text-muted transition-colors hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2"
-          >
-            Read a sample note →
-          </Link>
+          {hasSampleResearch ? (
+            <Link
+              href={SAMPLE_RESEARCH_HREF}
+              className="rounded-sm font-sans text-[12px] font-bold uppercase tracking-[0.1em] text-text-muted transition-colors hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2"
+            >
+              Read a sample note →
+            </Link>
+          ) : null}
         </div>
       </div>
     </section>

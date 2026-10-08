@@ -124,6 +124,19 @@ export function toSitemapDate(value: string | Date | undefined): Date | undefine
   return Number.isFinite(d.getTime()) ? d : undefined;
 }
 
+/** Newest valid date, or undefined when nothing parses. Never uses "now". */
+export function newestSitemapDate(
+  values: ReadonlyArray<string | Date | undefined>,
+): Date | undefined {
+  let newest: Date | undefined;
+  for (const value of values) {
+    const d = toSitemapDate(value);
+    if (!d) continue;
+    if (!newest || d.getTime() > newest.getTime()) newest = d;
+  }
+  return newest;
+}
+
 export function isExcludedSitemapPath(pathname: string): boolean {
   const path = pathname.startsWith("http")
     ? new URL(pathname).pathname
@@ -155,7 +168,6 @@ export function withTimeout<T>(
 
 export function buildSitemapEntries(input: {
   siteUrl?: string;
-  now?: Date;
   articles: SitemapArticle[];
   samples?: SitemapSample[];
   /**
@@ -165,13 +177,21 @@ export function buildSitemapEntries(input: {
   extra?: Array<Omit<SitemapEntry, "url"> & { path: string }>;
 }): SitemapEntry[] {
   const siteUrl = (input.siteUrl ?? SITE_URL).replace(/\/$/, "");
-  const now = input.now ?? new Date();
+  const blogIndexLastMod = newestSitemapDate(
+    input.articles.map((a) => a.updatedAt ?? a.publishedAt),
+  );
 
-  const staticRoutes: SitemapEntry[] = PUBLIC_STATIC_PATHS.map((path) => ({
-    url: path === "/" ? `${siteUrl}/` : `${siteUrl}${path}`,
-    lastModified: now,
-    ...STATIC_META[path],
-  }));
+  const staticRoutes: SitemapEntry[] = PUBLIC_STATIC_PATHS.map((path) => {
+    // Homepage canonical is `https://outpick.xyz` with no trailing slash.
+    const entry: SitemapEntry = {
+      url: path === "/" ? siteUrl : `${siteUrl}${path}`,
+      ...STATIC_META[path],
+    };
+    if (path === "/blog" && blogIndexLastMod) {
+      entry.lastModified = blogIndexLastMod;
+    }
+    return entry;
+  });
 
   const blogRoutes: SitemapEntry[] = input.articles.flatMap((article) => {
     const lastModified = toSitemapDate(article.updatedAt ?? article.publishedAt);
@@ -232,7 +252,12 @@ export type SitemapExtra = Omit<SitemapEntry, "url"> & { path: string };
  * sub-category is noindex on its own page, so it stays out of here too.
  */
 export function blogTopicRoutes(
-  articles: ReadonlyArray<{ category: string; subcategory: string }>,
+  articles: ReadonlyArray<{
+    category: string;
+    subcategory: string;
+    publishedAt: string;
+    updatedAt?: string;
+  }>,
   categories: ReadonlyArray<{
     name: string;
     slug: string;
@@ -242,16 +267,57 @@ export function blogTopicRoutes(
   return categories.flatMap((c) => {
     const inCategory = articles.filter((a) => a.category === c.name);
     if (inCategory.length === 0) return [];
+    const categoryLastMod = newestSitemapDate(
+      inCategory.map((a) => a.updatedAt ?? a.publishedAt),
+    );
     return [
-      { path: `/blog/category/${c.slug}`, changeFrequency: "weekly" as const, priority: 0.7 },
+      {
+        path: `/blog/category/${c.slug}`,
+        changeFrequency: "weekly" as const,
+        priority: 0.7,
+        ...(categoryLastMod ? { lastModified: categoryLastMod } : {}),
+      },
       ...c.subcategories
         .filter((s) => inCategory.some((a) => a.subcategory === s.slug))
-        .map((s) => ({
-          path: `/blog/category/${c.slug}/${s.slug}`,
-          changeFrequency: "weekly" as const,
-          priority: 0.6,
-        })),
+        .map((s) => {
+          const inSub = inCategory.filter((a) => a.subcategory === s.slug);
+          const lastModified = newestSitemapDate(
+            inSub.map((a) => a.updatedAt ?? a.publishedAt),
+          );
+          return {
+            path: `/blog/category/${c.slug}/${s.slug}`,
+            changeFrequency: "weekly" as const,
+            priority: 0.6,
+            ...(lastModified ? { lastModified } : {}),
+          };
+        }),
     ];
+  });
+}
+
+export function companySectorRoutes(
+  companies: ReadonlyArray<{
+    sector: string | null;
+    stale: boolean;
+    filing_date: string;
+  }>,
+  toSlug: (sector: string) => string,
+): SitemapExtra[] {
+  const datesBySector = new Map<string, string[]>();
+  for (const c of companies) {
+    if (!c.sector || c.stale) continue;
+    const dates = datesBySector.get(c.sector);
+    if (dates) dates.push(c.filing_date);
+    else datesBySector.set(c.sector, [c.filing_date]);
+  }
+  return [...datesBySector.entries()].map(([sector, dates]) => {
+    const lastModified = newestSitemapDate(dates);
+    return {
+      path: `/companies/sector/${toSlug(sector)}`,
+      changeFrequency: "weekly" as const,
+      priority: 0.6,
+      ...(lastModified ? { lastModified } : {}),
+    };
   });
 }
 
@@ -263,9 +329,7 @@ export async function loadCompanyRoutes(): Promise<SitemapExtra[]> {
     const { getCompanyDirectory, sectorSlug } = await import("@/lib/companies");
     const directory = await withTimeout(getCompanyDirectory(), DIRECTORY_QUERY_MS, null);
     if (!directory) return [];
-    const sectors = new Set<string>();
     const companies: SitemapExtra[] = directory.companies.map((c) => {
-      if (c.sector && !c.stale) sectors.add(c.sector);
       const lastModified = toSitemapDate(c.filing_date);
       return {
         path: `/companies/${c.ticker.toLowerCase()}`,
@@ -275,11 +339,7 @@ export async function loadCompanyRoutes(): Promise<SitemapExtra[]> {
       };
     });
     return [
-      ...[...sectors].map((s) => ({
-        path: `/companies/sector/${sectorSlug(s)}`,
-        changeFrequency: "weekly" as const,
-        priority: 0.6,
-      })),
+      ...companySectorRoutes(directory.companies, sectorSlug),
       ...companies,
     ];
   } catch {

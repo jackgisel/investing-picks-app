@@ -3,7 +3,7 @@ import { ArrowRight } from "lucide-react";
 
 import { CompanyLogo } from "@/components/ui/company-logo";
 import { insightCategoryLabel } from "@/lib/insights";
-import { listPublicSampleInsights } from "@/lib/insights-db";
+import { getPublicSampleInsights } from "@/lib/public-samples";
 import type { InsightMeta } from "@/lib/insights";
 
 /**
@@ -19,7 +19,7 @@ import type { InsightMeta } from "@/lib/insights";
  * than the nomination changes.
  */
 export async function SampleResearch() {
-  const samples = await listPublicSampleInsights().catch(() => []);
+  const samples = await getPublicSampleInsights();
   if (samples.length === 0) return null;
 
   // Buy note first: it is the thing a visitor came to evaluate. The exit note

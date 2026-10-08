@@ -10,7 +10,7 @@ import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { UserMenu } from "@/components/layout/user-menu";
 import { SearchPalette } from "@/components/search/search-palette";
 import { useSession, signOut } from "@/lib/auth-client";
-import { NAV_SECTIONS, type NavLink, type NavSection } from "@/lib/site-nav";
+import { navSections, type NavLink, type NavSection } from "@/lib/site-nav";
 import { cn } from "@/lib/utils";
 
 export type NavArticle = { title: string; href: string; detail: string };
@@ -26,6 +26,14 @@ function isActive(pathname: string, section: NavSection): boolean {
     outpick: ["/strategy", "/track-record", "/market-note", "/faq", "/what-we-are-not"],
   };
   return roots[section.id].some((r) => pathname === r || pathname.startsWith(`${r}/`));
+}
+
+function megaPanelId(id: NavSection["id"]): string {
+  return `mega-panel-${id}`;
+}
+
+function mobileSectionId(id: NavSection["id"]): string {
+  return `mobile-nav-${id}`;
 }
 
 function MenuLink({ link, onNavigate }: { link: NavLink; onNavigate: () => void }) {
@@ -123,7 +131,13 @@ function MegaPanel({
   );
 }
 
-export function Navbar({ latest = [] }: { latest?: NavArticle[] }) {
+export function Navbar({
+  latest = [],
+  hasSampleResearch = false,
+}: {
+  latest?: NavArticle[];
+  hasSampleResearch?: boolean;
+}) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [openId, setOpenId] = useState<NavSection["id"] | null>(null);
   const [mobileSection, setMobileSection] = useState<NavSection["id"] | null>(null);
@@ -133,6 +147,7 @@ export function Navbar({ latest = [] }: { latest?: NavArticle[] }) {
   const router = useRouter();
   const pathname = usePathname();
   const { data: session } = useSession();
+  const sections = navSections({ hasSampleResearch });
 
   async function handleSignOut() {
     await signOut();
@@ -200,7 +215,7 @@ export function Navbar({ latest = [] }: { latest?: NavArticle[] }) {
     closeTimer.current = setTimeout(() => setOpenId(null), 160);
   }
 
-  const openSection = NAV_SECTIONS.find((s) => s.id === openId) ?? null;
+  const openSection = sections.find((s) => s.id === openId) ?? null;
 
   return (
     <>
@@ -220,21 +235,32 @@ export function Navbar({ latest = [] }: { latest?: NavArticle[] }) {
             </Link>
 
             <ul className="hidden items-center gap-6 lg:flex">
-              {NAV_SECTIONS.map((s) => {
+              {sections.map((s) => {
                 const open = openId === s.id;
                 return (
-                  <li key={s.id} onPointerEnter={(e) => e.pointerType === "mouse" && hoverOpen(s.id)}>
-                    <button
-                      type="button"
-                      aria-expanded={open}
-                      aria-controls="mega-panel"
-                      onClick={() => setOpenId(open ? null : s.id)}
+                  <li
+                    key={s.id}
+                    className="inline-flex items-center gap-1"
+                    onPointerEnter={(e) => e.pointerType === "mouse" && hoverOpen(s.id)}
+                  >
+                    <Link
+                      href={s.href}
                       className={cn(
                         triggerClass,
                         isActive(pathname, s) && "underline decoration-2 underline-offset-[10px]",
                       )}
                     >
                       {s.label}
+                    </Link>
+                    <button
+                      type="button"
+                      aria-expanded={open}
+                      aria-controls={megaPanelId(s.id)}
+                      aria-haspopup="true"
+                      aria-label={`${s.label} menu`}
+                      onClick={() => setOpenId(open ? null : s.id)}
+                      className="inline-flex items-center rounded-sm text-text transition-opacity hover:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2"
+                    >
                       <ChevronDown
                         size={13}
                         aria-hidden
@@ -314,111 +340,133 @@ export function Navbar({ latest = [] }: { latest?: NavArticle[] }) {
           </div>
         </div>
 
-        {openSection && (
-          <div
-            id="mega-panel"
-            onPointerEnter={(e) => e.pointerType === "mouse" && clearTimers()}
-            className="absolute inset-x-0 top-full hidden border-b border-border bg-bg shadow-[0_24px_48px_-24px_rgb(0_0_0/0.35)] lg:block"
-          >
-            <MegaPanel section={openSection} latest={latest} onNavigate={closeAll} />
-          </div>
-        )}
+        {/* Panels stay in the server HTML so crawlers see every href. Closed
+            menus are hidden, not unmounted. */}
+        {sections.map((s) => {
+          const open = openId === s.id;
+          return (
+            <div
+              key={s.id}
+              id={megaPanelId(s.id)}
+              hidden={!open}
+              onPointerEnter={(e) => e.pointerType === "mouse" && clearTimers()}
+              className={cn(
+                "absolute inset-x-0 top-full border-b border-border bg-bg shadow-[0_24px_48px_-24px_rgb(0_0_0/0.35)]",
+                open ? "hidden lg:block" : "hidden",
+              )}
+            >
+              <MegaPanel section={s} latest={latest} onNavigate={closeAll} />
+            </div>
+          );
+        })}
 
-        {mobileOpen && (
-          <div
-            id="mobile-nav-sheet"
-            className="fixed inset-x-0 bottom-0 top-[var(--nav-h)] z-[110] overflow-y-auto overscroll-contain bg-bg px-6 py-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] lg:hidden"
-          >
-            <ul className="divide-y divide-border">
-              {NAV_SECTIONS.map((s) => {
-                const open = mobileSection === s.id;
-                return (
-                  <li key={s.id}>
+        <div
+          id="mobile-nav-sheet"
+          hidden={!mobileOpen}
+          className={cn(
+            "fixed inset-x-0 bottom-0 top-[var(--nav-h)] z-[110] overflow-y-auto overscroll-contain bg-bg px-6 py-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] lg:hidden",
+            !mobileOpen && "hidden",
+          )}
+        >
+          <ul className="divide-y divide-border">
+            {sections.map((s) => {
+              const open = mobileSection === s.id;
+              const regionId = mobileSectionId(s.id);
+              return (
+                <li key={s.id}>
+                  <div className="flex w-full items-center">
+                    <Link
+                      href={s.href}
+                      onClick={closeAll}
+                      className="flex-1 py-4 font-sans text-[14px] font-bold uppercase tracking-[0.1em] text-text"
+                    >
+                      {s.label}
+                    </Link>
                     <button
                       type="button"
                       aria-expanded={open}
+                      aria-controls={regionId}
+                      aria-haspopup="true"
+                      aria-label={`${s.label} menu`}
                       onClick={() => setMobileSection(open ? null : s.id)}
-                      className="flex w-full items-center justify-between py-4 font-sans text-[14px] font-bold uppercase tracking-[0.1em] text-text"
+                      className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-sm text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text"
                     >
-                      {s.label}
                       <ChevronDown size={18} aria-hidden className={cn("transition-transform", open && "rotate-180")} />
                     </button>
-                    {open && (
-                      <div className="pb-4">
-                        {s.feature && (
-                          <Link
-                            href={s.feature.href}
-                            onClick={closeAll}
-                            className="mb-2 flex items-center justify-between rounded-xl bg-bg-secondary px-4 py-3"
-                          >
-                            <span>
-                              <span className="block font-sans text-[15px] font-bold text-text">{s.feature.label}</span>
-                              <span className="block font-sans text-[12px] text-text-muted">{s.feature.cta}</span>
-                            </span>
-                            <ArrowRight size={16} aria-hidden />
-                          </Link>
-                        )}
-                        {s.groups.flatMap((g) => g.links).map((l) => (
-                          <Link
-                            key={l.href}
-                            href={l.href}
-                            onClick={closeAll}
-                            className="block py-2.5 pl-1 font-sans text-[15px] text-text"
-                          >
-                            {l.label}
-                          </Link>
-                        ))}
-                      </div>
+                  </div>
+                  <div id={regionId} hidden={!open} className={cn(!open && "hidden", "pb-4")}>
+                    {s.feature && (
+                      <Link
+                        href={s.feature.href}
+                        onClick={closeAll}
+                        className="mb-2 flex items-center justify-between rounded-xl bg-bg-secondary px-4 py-3"
+                      >
+                        <span>
+                          <span className="block font-sans text-[15px] font-bold text-text">{s.feature.label}</span>
+                          <span className="block font-sans text-[12px] text-text-muted">{s.feature.cta}</span>
+                        </span>
+                        <ArrowRight size={16} aria-hidden />
+                      </Link>
                     )}
-                  </li>
-                );
-              })}
-              <li>
-                <Link
-                  href="/pricing"
-                  onClick={closeAll}
-                  className="block py-4 font-sans text-[14px] font-bold uppercase tracking-[0.1em] text-text"
-                >
-                  Pricing
-                </Link>
-              </li>
-            </ul>
+                    {s.groups.flatMap((g) => g.links).map((l) => (
+                      <Link
+                        key={l.href}
+                        href={l.href}
+                        onClick={closeAll}
+                        className="block py-2.5 pl-1 font-sans text-[15px] text-text"
+                      >
+                        {l.label}
+                      </Link>
+                    ))}
+                  </div>
+                </li>
+              );
+            })}
+            <li>
+              <Link
+                href="/pricing"
+                onClick={closeAll}
+                className="block py-4 font-sans text-[14px] font-bold uppercase tracking-[0.1em] text-text"
+              >
+                Pricing
+              </Link>
+            </li>
+          </ul>
 
-            <div className="flex items-center justify-between border-t border-border pt-4 pb-1">
-              <span className="font-sans text-[11px] font-bold uppercase tracking-[0.1em] text-text-dim">
-                Theme
-              </span>
-              <ThemeToggle />
-            </div>
-
-            {session ? (
-              <div className="space-y-3 pt-4">
-                <Link href="/dashboard" onClick={closeAll} className="btn-primary w-full text-center text-[11px]">
-                  Dashboard
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMobileOpen(false);
-                    handleSignOut();
-                  }}
-                  className="block w-full py-2 text-center font-sans text-[12px] font-semibold uppercase tracking-[0.1em] text-text-dim"
-                >
-                  Sign out
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-3 pt-4">
-                <Link href="/tools/beat-the-sp-500" onClick={closeAll} className="btn-primary w-full text-center text-[11px]">
-                  Play Beat the S&amp;P
-                </Link>
-                <Link href="/login" onClick={closeAll} className="btn-outline w-full text-center text-[11px]">
-                  Log in
-                </Link>
-              </div>
-            )}
+          <div className="flex items-center justify-between border-t border-border pt-4 pb-1">
+            <span className="font-sans text-[11px] font-bold uppercase tracking-[0.1em] text-text-dim">
+              Theme
+            </span>
+            <ThemeToggle />
           </div>
-        )}
+
+          {session ? (
+            <div className="space-y-3 pt-4">
+              <Link href="/dashboard" onClick={closeAll} className="btn-primary w-full text-center text-[11px]">
+                Dashboard
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileOpen(false);
+                  handleSignOut();
+                }}
+                className="block w-full py-2 text-center font-sans text-[12px] font-semibold uppercase tracking-[0.1em] text-text-dim"
+              >
+                Sign out
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3 pt-4">
+              <Link href="/tools/beat-the-sp-500" onClick={closeAll} className="btn-primary w-full text-center text-[11px]">
+                Play Beat the S&amp;P
+              </Link>
+              <Link href="/login" onClick={closeAll} className="btn-outline w-full text-center text-[11px]">
+                Log in
+              </Link>
+            </div>
+          )}
+        </div>
       </nav>
       <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
     </>

@@ -6,6 +6,8 @@ import { ComparisonTable } from "@/components/marketing/comparison-table";
 import { MarketNoteSignup } from "@/components/marketing/market-note-signup";
 import { PillButton } from "@/components/ui/pill-button";
 import { SITE_NAME } from "@/lib/constants";
+import { hasPublishedSampleResearch } from "@/lib/public-samples";
+import { SAMPLE_RESEARCH_HREF } from "@/lib/site-nav";
 
 export const metadata: Metadata = {
   title: "How we invest",
@@ -51,7 +53,8 @@ const PILLARS: { num: string; short: string; title: string; body: string }[] = [
   },
 ];
 
-export default function StrategyPage() {
+export default async function StrategyPage() {
+  const hasSampleResearch = await hasPublishedSampleResearch();
   return (
     <>
       <div className="container-op border-b border-border py-14 sm:py-16">
@@ -236,12 +239,14 @@ export default function StrategyPage() {
               <PillButton href="/track-record" arrow>
                 See the track record
               </PillButton>
-              <Link
-                href="/#sample-research"
-                className="rounded-sm font-sans text-[12px] font-bold uppercase tracking-[0.1em] text-text-muted transition-colors hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2"
-              >
-                Read a sample note →
-              </Link>
+              {hasSampleResearch ? (
+                <Link
+                  href={SAMPLE_RESEARCH_HREF}
+                  className="rounded-sm font-sans text-[12px] font-bold uppercase tracking-[0.1em] text-text-muted transition-colors hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-text focus-visible:ring-offset-2"
+                >
+                  Read a sample note →
+                </Link>
+              ) : null}
             </div>
           </div>
         </div>

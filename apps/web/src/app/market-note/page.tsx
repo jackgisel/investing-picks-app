@@ -8,6 +8,8 @@ import {
   MarketNoteSample,
 } from "@/content/market-note-sample";
 import { SITE_NAME } from "@/lib/constants";
+import { hasPublishedSampleResearch } from "@/lib/public-samples";
+import { SAMPLE_RESEARCH_HREF } from "@/lib/site-nav";
 
 export const metadata: Metadata = {
   title: "The Market Note",
@@ -39,7 +41,8 @@ const WHAT_YOU_GET = [
  * there is somewhere to send a reader who wants to see the thing before
  * subscribing.
  */
-export default function MarketNotePage() {
+export default async function MarketNotePage() {
+  const hasSampleResearch = await hasPublishedSampleResearch();
   return (
     <>
       <div className="container-op border-b border-border py-14 sm:py-16">
@@ -120,14 +123,20 @@ export default function MarketNotePage() {
               >
                 See what membership includes
               </Link>
-              , or{" "}
-              <Link
-                href="/#sample-research"
-                className="font-semibold text-text underline underline-offset-4 hover:opacity-70"
-              >
-                read a full research note
-              </Link>{" "}
-              first.
+              {hasSampleResearch ? (
+                <>
+                  , or{" "}
+                  <Link
+                    href={SAMPLE_RESEARCH_HREF}
+                    className="font-semibold text-text underline underline-offset-4 hover:opacity-70"
+                  >
+                    read a full research note
+                  </Link>{" "}
+                  first.
+                </>
+              ) : (
+                "."
+              )}
             </p>
           </div>
         </div>

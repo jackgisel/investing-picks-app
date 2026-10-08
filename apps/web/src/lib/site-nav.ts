@@ -26,6 +26,9 @@ export type NavSection = {
   feature?: NavLink & { cta: string };
 };
 
+/** Homepage section that only mounts when a public sample note is nominated. */
+export const SAMPLE_RESEARCH_HREF = "/#sample-research";
+
 export const CHALLENGE_LINK: NavLink = {
   label: "Beat the S&P 500",
   href: "/tools/beat-the-sp-500",
@@ -122,7 +125,11 @@ export const NAV_SECTIONS: NavSection[] = [
         links: [
           { label: "How we invest", href: "/strategy", blurb: "The rules behind every pick." },
           { label: "Track record", href: "/track-record", blurb: "Every trade in the live book, losers included." },
-          { label: "Sample research", href: "/#sample-research", blurb: "Read a real research note before paying." },
+          {
+            label: "Sample research",
+            href: SAMPLE_RESEARCH_HREF,
+            blurb: "Read a real research note before paying.",
+          },
           { label: "Pricing", href: "/pricing" },
         ],
       },
@@ -143,3 +150,20 @@ export const ALL_TOOL_LINKS: NavLink[] = [
   CHALLENGE_LINK,
   ...TOOL_GROUPS.flatMap((g) => g.ids.map(toolLink)),
 ];
+
+/**
+ * Nav used by the header, footer and search. The sample-research anchor is
+ * omitted unless a nominated public note exists — the homepage section with
+ * that id renders nothing when the list is empty, and a dead hash is worse
+ * than a missing item.
+ */
+export function navSections(opts?: { hasSampleResearch?: boolean }): NavSection[] {
+  if (opts?.hasSampleResearch) return NAV_SECTIONS;
+  return NAV_SECTIONS.map((section) => ({
+    ...section,
+    groups: section.groups.map((group) => ({
+      ...group,
+      links: group.links.filter((link) => link.href !== SAMPLE_RESEARCH_HREF),
+    })),
+  }));
+}

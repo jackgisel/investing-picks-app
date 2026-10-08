@@ -99,7 +99,44 @@ export function toolBreadcrumbItems(tool: ToolDefinition): {
   ];
 }
 
-export function buildToolJsonLd(tool: ToolDefinition) {
+export type ToolJsonLd = {
+  "@context": "https://schema.org";
+  "@graph": [
+    {
+      "@type": "WebApplication";
+      name: string;
+      url: string;
+      description: string;
+      applicationCategory: "FinanceApplication";
+      operatingSystem: "Any";
+      isAccessibleForFree: true;
+      offers: {
+        "@type": "Offer";
+        price: "0";
+        priceCurrency: "USD";
+      };
+    },
+    {
+      "@type": "FAQPage";
+      mainEntity: Array<{
+        "@type": "Question";
+        name: string;
+        acceptedAnswer: { "@type": "Answer"; text: string };
+      }>;
+    },
+    {
+      "@type": "BreadcrumbList";
+      itemListElement: Array<{
+        "@type": "ListItem";
+        position: number;
+        name: string;
+        item: string;
+      }>;
+    },
+  ];
+};
+
+export function buildToolJsonLd(tool: ToolDefinition): ToolJsonLd {
   const url = toolCanonicalPath(tool.path);
   const name = tool.metaTitle.includes(":")
     ? tool.metaTitle.slice(0, tool.metaTitle.indexOf(":")).trim()
@@ -108,7 +145,7 @@ export function buildToolJsonLd(tool: ToolDefinition) {
     "@context": "https://schema.org",
     "@graph": [
       {
-        "@type": "WebApplication" as const,
+        "@type": "WebApplication",
         name,
         url,
         description: tool.metaDescription,
@@ -116,23 +153,23 @@ export function buildToolJsonLd(tool: ToolDefinition) {
         operatingSystem: "Any",
         isAccessibleForFree: true,
         offers: {
-          "@type": "Offer" as const,
+          "@type": "Offer",
           price: "0",
           priceCurrency: "USD",
         },
       },
       {
-        "@type": "FAQPage" as const,
+        "@type": "FAQPage",
         mainEntity: tool.faq.map((item) => ({
-          "@type": "Question" as const,
+          "@type": "Question",
           name: item.q,
-          acceptedAnswer: { "@type": "Answer" as const, text: item.a },
+          acceptedAnswer: { "@type": "Answer", text: item.a },
         })),
       },
       {
-        "@type": "BreadcrumbList" as const,
+        "@type": "BreadcrumbList",
         itemListElement: toolBreadcrumbItems(tool).map((item, i) => ({
-          "@type": "ListItem" as const,
+          "@type": "ListItem",
           position: i + 1,
           name: item.label,
           item: item.href === "/" ? SITE_URL : toolCanonicalPath(item.href),

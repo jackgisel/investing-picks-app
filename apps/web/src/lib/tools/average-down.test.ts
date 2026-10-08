@@ -156,16 +156,16 @@ describe("sharesToHitAverage", () => {
         avgCost: 60,
         price: 36,
         targetAvg: 36,
-      }).reason,
-    ).toBe("target_at_or_below_price");
+      }),
+    ).toEqual({ ok: false, reason: "target_at_or_below_price" });
     expect(
       sharesToHitAverage({
         shares: 100,
         avgCost: 60,
         price: 36,
         targetAvg: 30,
-      }).reason,
-    ).toBe("target_at_or_below_price");
+      }),
+    ).toEqual({ ok: false, reason: "target_at_or_below_price" });
   });
 
   it("rejects a target that is not below the current average", () => {
@@ -175,16 +175,16 @@ describe("sharesToHitAverage", () => {
         avgCost: 60,
         price: 36,
         targetAvg: 60,
-      }).reason,
-    ).toBe("target_not_below_average");
+      }),
+    ).toEqual({ ok: false, reason: "target_not_below_average" });
     expect(
       sharesToHitAverage({
         shares: 100,
         avgCost: 60,
         price: 36,
         targetAvg: 70,
-      }).reason,
-    ).toBe("target_not_below_average");
+      }),
+    ).toEqual({ ok: false, reason: "target_not_below_average" });
   });
 
   it("rejects averaging down when the price is not below the average", () => {
@@ -194,16 +194,16 @@ describe("sharesToHitAverage", () => {
         avgCost: 60,
         price: 60,
         targetAvg: 50,
-      }).reason,
-    ).toBe("price_not_below_average");
+      }),
+    ).toEqual({ ok: false, reason: "price_not_below_average" });
     expect(
       sharesToHitAverage({
         shares: 100,
         avgCost: 60,
         price: 70,
         targetAvg: 50,
-      }).reason,
-    ).toBe("price_not_below_average");
+      }),
+    ).toEqual({ ok: false, reason: "price_not_below_average" });
   });
 
   it("rejects zero shares and invalid numbers", () => {
@@ -213,16 +213,16 @@ describe("sharesToHitAverage", () => {
         avgCost: 60,
         price: 36,
         targetAvg: 50,
-      }).reason,
-    ).toBe("no_shares");
+      }),
+    ).toEqual({ ok: false, reason: "no_shares" });
     expect(
       sharesToHitAverage({
         shares: Number.NaN,
         avgCost: 60,
         price: 36,
         targetAvg: 50,
-      }).reason,
-    ).toBe("invalid");
+      }),
+    ).toEqual({ ok: false, reason: "invalid" });
   });
 });
 

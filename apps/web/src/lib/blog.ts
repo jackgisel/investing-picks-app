@@ -88,6 +88,7 @@ import freeCashFlowStockAnalysis from "@/content/blog/free-cash-flow-stock-analy
 import shouldYouAverageDown from "@/content/blog/should-you-average-down-on-a-losing-stock";
 import whatPercentageIndividualStocks from "@/content/blog/what-percentage-of-portfolio-should-be-individual-stocks";
 import howToAssessProfitMargins from "@/content/blog/how-to-assess-profit-margins";
+import stockDownsideRiskAnalysis from "@/content/blog/stock-downside-risk-analysis";
 
 export const articles: Article[] = [
   howToOutperformSp500,
@@ -125,6 +126,7 @@ export const articles: Article[] = [
   shouldYouAverageDown,
   whatPercentageIndividualStocks,
   howToAssessProfitMargins,
+  stockDownsideRiskAnalysis,
 ].sort((a, b) => b.meta.publishedAt.localeCompare(a.meta.publishedAt));
 
 // Fail the build, not the page, when a post is filed somewhere that has no

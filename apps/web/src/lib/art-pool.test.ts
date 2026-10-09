@@ -56,7 +56,7 @@ describe("art pool", () => {
 
   it("exposes spare covers for future blog posts", () => {
     const next = nextSpareCover();
-    expect(next).toEqual({ id: "spare-19", src: "/art/pool/spare-19.png" });
+    expect(next).toEqual({ id: "spare-20", src: "/art/pool/spare-20.png" });
   });
 
   it("keeps unused spare-09+ prints unclaimed", () => {
@@ -101,6 +101,7 @@ describe("art pool", () => {
       "what-percentage-of-portfolio-should-be-individual-stocks",
     );
     expect(SPARE_CLAIMED["spare-18"]).toBe("how-to-assess-profit-margins");
+    expect(SPARE_CLAIMED["spare-19"]).toBe("stock-downside-risk-analysis");
     for (const spare of fresh) {
       if (
         spare.id !== "spare-07" &&
@@ -114,7 +115,8 @@ describe("art pool", () => {
         spare.id !== "spare-15" &&
         spare.id !== "spare-16" &&
         spare.id !== "spare-17" &&
-        spare.id !== "spare-18"
+        spare.id !== "spare-18" &&
+        spare.id !== "spare-19"
       ) {
         expect(SPARE_CLAIMED[spare.id]).toBeUndefined();
       }
@@ -129,21 +131,21 @@ describe("art pool", () => {
     const status = poolStatus(new Date("2026-08-22T12:00:00Z"));
     expect(status.weeksReady).toBe(13);
     expect(status.weeksRemaining).toBeGreaterThanOrEqual(13);
-    expect(status.sparesFree).toBe(50);
+    expect(status.sparesFree).toBe(49);
   });
 
-  it("registers spare-19 through spare-68 as unclaimed 1280-wide prints", () => {
+  it("registers spare-20 through spare-68 as unclaimed 1280-wide prints", () => {
     const batch = SPARE_POOL.filter((s) => {
       const n = Number(s.id.replace("spare-", ""));
-      return n >= 19 && n <= 68;
+      return n >= 20 && n <= 68;
     });
-    expect(batch).toHaveLength(50);
+    expect(batch).toHaveLength(49);
     expect(batch.map((s) => s.id)).toEqual(
-      Array.from({ length: 50 }, (_, i) => `spare-${String(i + 19).padStart(2, "0")}`),
+      Array.from({ length: 49 }, (_, i) => `spare-${String(i + 20).padStart(2, "0")}`),
     );
-    expect(new Set(batch.map((s) => s.ink)).size).toBe(50);
+    expect(new Set(batch.map((s) => s.ink)).size).toBe(49);
     const priorInks = new Set(
-      SPARE_POOL.filter((s) => Number(s.id.replace("spare-", "")) <= 18).map((s) => s.ink),
+      SPARE_POOL.filter((s) => Number(s.id.replace("spare-", "")) <= 19).map((s) => s.ink),
     );
     for (const spare of batch) {
       expect(SPARE_CLAIMED[spare.id]).toBeUndefined();

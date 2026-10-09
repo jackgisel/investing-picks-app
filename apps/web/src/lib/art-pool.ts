@@ -140,6 +140,7 @@ export const SPARE_CLAIMED: Readonly<Record<string, string>> = {
   "spare-16": "should-you-average-down-on-a-losing-stock",
   "spare-17": "what-percentage-of-portfolio-should-be-individual-stocks",
   "spare-18": "how-to-assess-profit-margins",
+  "spare-19": "stock-downside-risk-analysis",
 };
 
 function poolPiece(id: string, label: string): ArtPiece {

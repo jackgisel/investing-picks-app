@@ -3,6 +3,7 @@ import {
   Prose,
   Lede,
   H2,
+  H3,
   P,
   Strong,
   A,
@@ -36,262 +37,263 @@ const article: Article = {
       "investment thesis",
       "risk management",
     ],
-    readingTime: 8,
+    readingTime: 7,
     author: "Outpick Research",
     cover: "/art/covers/building-concentrated-stock-portfolios.png",
   },
   Content: () => (
     <Prose>
       <Lede>
-        Conviction is easy to feel and hard to underwrite. A short list of
-        favorite companies is not a portfolio.{" "}
-        <Strong>Building concentrated stock portfolios</Strong> well means
-        sizing each position for uncertainty, testing the thesis before the
-        weight grows, and managing the risks that appear only when several
-        holdings are read together.
+        A 25-stock portfolio can feel diversified until its real drivers
+        are counted. Several holdings may depend on the same consumer
+        cycle, cloud-spending budget, interest-rate path, or commodity
+        price. Conversely, a portfolio of 10 businesses can be genuinely
+        varied if the economics, end markets, and failure modes differ.
+        That is the central discipline of{" "}
+        <Strong>building concentrated stock portfolios</Strong>: not
+        owning fewer tickers for the sake of it, but owning a manageable
+        number of businesses you can explain, monitor, and value.
       </Lede>
 
       <TLDR>
         <P>
-          Building concentrated stock portfolios requires more than
-          conviction. Choose a number of names you can actually follow,
-          size each holding for a credible adverse case rather than for how
-          strongly you feel, and write the thesis and the exit conditions
-          before you buy. Watch overlap across businesses, not only ticker
-          count. Review on a schedule, and change a weight when the facts
-          change. Concentration is a process that has to be held over time.
+          Building concentrated stock portfolios is a commitment to
+          accountability, not a show of confidence. Own a manageable
+          number of businesses you can explain, size each position from
+          downside rather than excitement, and write the underwriting
+          case before you buy. Watch shared economic drivers, not only
+          sector labels. Separate company risk from price risk, review
+          on a cadence, and give the process time to show whether the
+          reasoning was sound.
         </P>
       </TLDR>
 
       <P>
-        Concentration is the decision to let a small number of businesses
-        dominate results. That can be a sound choice for an investor who
-        does original work and can live with lumpy outcomes. It can also
-        be a way to concentrate ignorance. The difference is not
-        temperament. It is whether each position was sized, tested, and
-        given rules that still make sense after the price has moved.
-      </P>
-
-      <H2>Concentration Is a Construction Problem</H2>
-      <P>
-        A concentrated book is not simply a diversified book with names
-        deleted. Removing tickers without rewriting weights, overlap, and
-        review rules leaves the same ideas in a more fragile wrapper. The
-        useful questions are practical. How many businesses can you follow
-        with a written case? How large can one holding become before a
-        plausible decline does damage you cannot reverse? Which holdings
-        would fail for the same reason?
-      </P>
-      <P>
-        Those questions belong on the page before capital is committed.
-        After a stock has already doubled, or already halved, the answers
-        tend to arrive as justifications. Construction is the unglamorous
-        work of deciding the role of each position while you are still
-        calm enough to be honest about it.
-      </P>
-      <P>
-        It also helps to say what concentration is not. It is not a
-        personality. It is not a requirement to be fully invested. It is
-        not a license to skip the balance sheet because the story is
-        compelling. The investor still has to live with drawdowns,
-        tax lots, and the ordinary fact that even a good business can be
-        a poor purchase at the wrong price.
-      </P>
-
-      <H2>How Many Stocks Is the First Constraint, Not the Whole Job</H2>
-      <P>
-        Name count sets a ceiling on how closely you can follow each
-        company. Too few names and a single error defines the year. Too
-        many and the book starts to behave like the index you were trying
-        to leave, with extra work attached. The practical band for an
-        active stock book is usually in the teens to the mid-twenties,
-        for reasons laid out in{" "}
+        Concentration is often described as a matter of confidence. It is
+        better understood as a commitment to accountability.{" "}
         <A href="/blog/how-many-stocks-should-you-hold-to-beat-the-market">
-          how many stocks you should hold to beat the market
-        </A>
-        .
-      </P>
-      <P>
-        Count is still only a constraint. Twenty names that all depend on
-        the same customer budget, the same commodity, or the same
-        refinancing window are not twenty independent bets. Five names
-        with genuinely different economic drivers can be more diversified
-        than a longer list that rhymes. The construction job is to make
-        the count mean something.
-      </P>
-      <P>
-        There is also a time budget. A concentrated investor who cannot
-        read a 10-K, follow a competitive shift, and update a written
-        case on a schedule is not concentrated. They are busy. If the
-        list is longer than the hours available to maintain it, the
-        honest move is to hold fewer companies or to keep a larger share
-        of the household in a broad fund.
-      </P>
-
-      <H2>Size Positions for Uncertainty, Not for How Sure You Feel</H2>
-      <P>
-        Conviction is a poor sizing tool. It is highest at the moment of
-        purchase, often when the evidence is thinnest, and it tends to
-        rise with the stock. A better input is the adverse case: what a
-        serious operational miss, a lower multiple, or a balance-sheet
-        strain would do to the position and to the whole book.
-      </P>
-      <P>
-        Start with arithmetic. A 10% position that falls 50% costs the
-        portfolio five points. A 25% position that does the same costs
-        twelve and a half. Those are not forecasts. They are the terms
-        on which you are volunteering to be wrong. The{" "}
-        <A href="/tools/concentrated-portfolio-calculator">
-          concentrated portfolio calculator
+          The fewer positions
         </A>{" "}
-        is a way to see equal-weight and top-heavy math before a ticker
-        is attached to it.
-      </P>
-      <P>
-        Size should also reflect the quality of the underwriting. A
-        business with recurring demand, a clean balance sheet, and a
-        modest valuation can carry more weight than one that needs a
-        refinancing, a product cycle, or an optimistic multiple to work.
-        Liquidity matters too. A position that cannot be reduced without
-        moving the price is larger than the percentage on the statement
-        suggests.
-      </P>
-      <P>
-        Winners create a second sizing problem. Letting a holding run is
-        often the source of the return that made concentration worth the
-        trouble. Letting it become the book is a different decision. Set
-        a review threshold in advance, such as a weight at which the
-        original case must be rewritten, rather than waiting until the
-        position feels too large in hindsight. Trimming is a
-        construction choice. It is not a comment on whether the company
-        is still a good business.
+        you own, the less room there is to hide a weak thesis behind a
+        long list of names. Every position must earn its place against
+        the next-best use of capital.
       </P>
 
-      <H2>Test the Thesis Before the Weight Gets Large</H2>
+      <H2>Concentration changes the job</H2>
       <P>
-        A concentrated position is a claim about a business, a price, and
-        a set of conditions that would prove the claim wrong. If that
-        claim is only in your head, the market will write the first
-        revision. Use a written{" "}
+        A broad index fund delegates security selection to a rules-based
+        market portfolio. A concentrated portfolio does the opposite. It
+        asks the investor to make explicit judgments about business
+        quality, valuation, durability, and risk. That can produce a
+        portfolio that better reflects an investor&apos;s best work. It
+        can also magnify analytical errors, valuation mistakes, and
+        behavioral mistakes.
+      </P>
+      <P>
+        The trade-off is not subtle. A business that disappoints can
+        have a meaningful effect on results when it represents 10% of
+        capital. So can a stock that falls sharply even if the
+        underlying business remains sound. Concentration requires the
+        ability to distinguish between a lower share price and a damaged
+        thesis, then act without treating either as a personal verdict.
+      </P>
+      <P>
+        This is why a concentrated portfolio is not simply an aggressive
+        portfolio. A portfolio concentrated in highly indebted,
+        cyclical, richly priced businesses is taking a different kind of
+        risk than one concentrated in profitable companies with
+        recurring revenue, conservative balance sheets, and reasonable
+        valuations. Position count is only one variable. Business
+        quality, correlation, balance-sheet resilience, and entry price
+        matter just as much.
+      </P>
+
+      <H2>Start with an underwriting standard</H2>
+      <P>
+        Before assigning a weight, define what a company must prove to
+        deserve capital. The standard should be demanding enough to
+        exclude most stocks. Public markets offer thousands of choices.
+        A portfolio does not need dozens of marginal ideas.
+      </P>
+      <P>
+        A useful{" "}
         <A href="/blog/investment-thesis-template">
-          investment thesis template
+          underwriting document
         </A>{" "}
-        so the case can be checked later against facts rather than
-        against mood.
+        answers a few basic questions in writing: How does the company
+        make money? Why do customers stay, return, or pay more? What
+        limits a competitor from taking economics away? What must happen
+        for earnings and cash flow to grow? What is already reflected in
+        the share price? Finally, what evidence would show the original
+        thesis was wrong?
       </P>
       <P>
-        The test is not whether the company is admirable. It is whether
-        the current price leaves room to be right about the business and
-        wrong about several details. Earnings power, capital needs,
-        competitive position, and management incentives all belong in
-        that write-up. So does the mechanism: what has to happen in the
-        next few years for the investment to make sense, in language
-        specific enough that a later reader could tell if it happened.
+        The last question is where many investment cases fail. Investors
+        often list generic risks such as recession, competition, or
+        volatility, but those are not thesis-break conditions. A true
+        invalidation condition is specific and observable. It might be
+        sustained customer churn above a certain level, a permanent
+        decline in unit economics, loss of pricing power, a failed
+        product transition, or leverage that removes strategic
+        flexibility.
       </P>
       <P>
-        Starter sizes exist for this reason. A 1% or 2% position can be
-        a way to stay honest while evidence accumulates. Adding is then a
-        second underwriting, not a reward for being emotionally attached.
-        If the only reason to add is that the stock is down, the original
-        case was not doing the work. Price is information. It is not
-        automatically a better entry.
-      </P>
-      <P>
-        Revisit the thesis on a calendar, not on a tick. Quarterly
-        filings, a competitor&apos;s result, a change in capital
-        allocation, or a shift in customer behavior are better review
-        triggers than a headline. Concentration fails most often when
-        the investor updates the story faster than the facts.
-      </P>
-
-      <H2>Manage the Risks That Ticker Count Does Not Show</H2>
-      <P>
-        The hidden risk in a concentrated book is overlap. Two software
-        companies can share the same enterprise-budget cycle. A bank and
-        a homebuilder can share the same credit conditions. A miner and
-        a manufacturer can share the same commodity. When those links
-        tighten, diversification that looked adequate on a holdings list
-        disappears at the same time.
-      </P>
-      <P>
-        Write the shared dependencies down. Customer, input cost,
-        geography, funding market, and valuation regime are a useful
-        start. Then ask what would have to go wrong for several holdings
-        to hurt at once. If the honest answer is &quot;the same
-        recession, the same rate move, or the same loss of confidence in
-        long-duration growth,&quot; the book is more concentrated than
-        the ticker count implies.
-      </P>
-      <P>
-        Cash is part of the same design. A book that is fully invested
-        in a handful of names has no spare capital when prices disconnect
-        from the original cases. Cash is not a market forecast. It is
-        optionality to add, to pay a tax bill, or to do nothing. The
-        right amount depends on the household, not on a model portfolio.
-      </P>
-      <P>
-        Leverage, even informal leverage, changes the math. Margin,
-        concentrated options, or a spending plan that requires the book
-        to be up this year all turn ordinary volatility into a forced
-        sale. Concentration already raises the odds that one name moves
-        the whole result. Borrowing against that result is a second
-        decision, and it is usually a worse one.
+        Writing this down before purchase matters because markets will
+        eventually test the position. When the stock is down 35%, memory
+        becomes unreliable. The original case can quietly shift from
+        &quot;this is a durable compounder bought at a fair price&quot;
+        to &quot;it used to be a good company, so it must recover.&quot;
+        A documented thesis gives the investor something harder than
+        sentiment to review.
       </P>
 
-      <H2>Write the Sell Conditions While You Still Can</H2>
+      <H2>Build position size from downside, not excitement</H2>
       <P>
-        A concentrated investor who has no exit language will invent it
-        after the fact. The price will be down, the thesis will be
-        restated in softer terms, and the holding will remain because
-        selling would confirm an error. Better to decide in advance what
-        would mean the original case is no longer true.{" "}
+        The most interesting company is not automatically the largest
+        position. Position size should reflect the quality of the
+        evidence, the range of outcomes, the valuation paid, and the
+        consequences of being wrong.
+      </P>
+      <P>
+        A company with stable recurring revenue, modest debt, strong
+        returns on capital, and a discounted valuation may merit a
+        larger initial weight than a promising company exposed to a
+        narrow product cycle or a binary regulatory decision. That does
+        not mean the first business is safe. It means its downside may
+        be more understandable.
+      </P>
+      <P>
+        Initial position sizing also leaves room for uncertainty.
+        Starting too large can turn new information into an emotional
+        problem. Starting too small can make research irrelevant. There
+        is no universal percentage, but many long-term investors find
+        that a modest opening weight creates a useful separation between
+        an idea worth studying and a business that has earned greater
+        exposure.
+      </P>
+      <P>
+        Additions should not be automatic after a decline. Averaging
+        down is sensible only when the facts improve or remain intact
+        while the price becomes more attractive. If the business has
+        missed expectations because the original analysis was
+        incomplete, a lower price may be compensation for a
+        lower-quality asset rather than an opportunity.
+      </P>
+      <P>
+        Likewise, a rising position does not need to be trimmed merely
+        because it has become large. If the business is performing
+        better than expected and the valuation remains grounded in
+        plausible economics, selling solely to restore a target weight
+        can cut off the portfolio&apos;s strongest compounder. The
+        relevant question is whether the position&apos;s current weight
+        still matches its prospective return and risk, not whether it
+        makes the spreadsheet look tidy.
+      </P>
+
+      <H3>Correlation is more than industry labels</H3>
+      <P>
+        Sector labels are a useful starting point, not a complete risk
+        map. A software company and an industrial distributor may appear
+        unrelated but both can depend on small-business confidence. A
+        homebuilder, regional bank, and consumer-finance company can all
+        be sensitive to rates and credit conditions. Several businesses
+        serving data centers may each be exposed to the same
+        capital-spending pause.
+      </P>
+      <P>
+        Look for shared economic drivers: customer budgets, commodity
+        inputs, financing availability, labor costs, regulation, and the
+        same underlying demand cycle. A concentrated portfolio needs
+        diversification across these drivers, especially where a common
+        shock could damage several earnings streams at once.
+      </P>
+
+      <H2>Separate company risk from price risk</H2>
+      <P>
+        Every stock has two broad sources of risk. Company risk is the
+        possibility that the business deteriorates. Price risk is the
+        possibility that even a good business was bought at a price that
+        assumes too much.
+      </P>
+      <P>
+        Investors often focus on the first and neglect the second
+        because business analysis is more tangible. But a superior
+        company purchased at an extreme valuation can deliver weak
+        returns for years if growth merely normalizes. In concentrated
+        portfolios, valuation discipline is not a cosmetic preference.
+        It is one of the few protections against permanent capital loss
+        when expectations are already elevated.
+      </P>
+      <P>
+        This argues for comparing businesses within their own economic
+        context. A high-margin software company and a capital-intensive
+        manufacturer should not be judged by identical multiples. Their
+        reinvestment needs, cyclicality, operating leverage, and
+        durability differ. The goal is not to find the statistically
+        cheapest stock. It is to judge whether the market price leaves
+        enough room for a reasonable business outcome.
+      </P>
+      <P>
+        At Outpick, the screening process measures valuation, growth,
+        profitability, momentum, and estimate revisions against a
+        company&apos;s own sector. That does not replace fundamental
+        analysis. It helps frame the right question: is this business
+        improving or deteriorating relative to the companies that
+        actually share its economic structure?
+      </P>
+
+      <H2>Establish a review cadence before volatility arrives</H2>
+      <P>
+        A concentrated portfolio should be monitored, but not managed
+        like a trading account. Daily price checks invite noise to
+        masquerade as information. A disciplined review cadence directs
+        attention to operating evidence: revenue quality, margins,
+        customer retention, cash conversion, leverage, competitive
+        behavior, and changes in management&apos;s capital allocation.
+      </P>
+      <P>
+        Quarterly reports are natural review points, but material events
+        can justify earlier work. The task is not to react to every
+        headline. It is to ask whether new evidence strengthens,
+        weakens, or leaves unchanged the original underwriting case.
+      </P>
+      <P>
+        Keep a decision record for each position. Record the purchase
+        rationale, valuation assumptions, initial weight, key risks, and
+        conditions for trimming or exiting. Then record what actually
+        happened. The losses should stay on the page. A portfolio
+        improves when mistakes become usable evidence rather than
+        forgotten exceptions.
+      </P>
+      <P>
+        Selling deserves the same framework as buying. A position may be
+        reduced because the valuation has outrun realistic fundamentals,
+        because a better opportunity offers a superior expected return,
+        or because the portfolio has developed excessive exposure to one
+        economic driver. It may be sold because the{" "}
         <A href="/blog/when-to-sell-a-stock-thesis-broken">
-          Sell when the thesis is broken
+          thesis is broken
         </A>
-        , not when the quote is uncomfortable.
-      </P>
-      <P>
-        Thesis-break conditions should be observable: a lasting loss of
-        customers, unit economics that no longer support reinvestment, a
-        balance sheet that requires dilution, a competitive position that
-        has clearly eroded, or capital allocation that no longer matches
-        the original underwriting. One weak quarter is not automatically
-        that evidence. A pattern that contradicts the mechanism usually
-        is.
-      </P>
-      <P>
-        Selling a winner because it became too large for the book is a
-        different event. The company may still fit the thesis. The
-        portfolio may not be able to absorb another large decline in that
-        name. Those two facts can be true at once. Record which one
-        drove the trade, or the next review will confuse a construction
-        choice with a change of mind about the business.
+        . Those are different decisions and should not be blurred
+        together.
       </P>
 
-      <H2>Discipline Is the Part That Has to Last</H2>
+      <H2>The discipline is selective patience</H2>
       <P>
-        The work of building concentrated stock portfolios does not end
-        at purchase. It is a cadence: read the filings, update the
-        written case, check overlap, and leave the weights alone unless
-        one of those reviews requires a change. A slow cadence is a
-        feature. Concentration is poorly suited to investors who need
-        the portfolio to feel busy.
+        The hardest part of building concentrated stock portfolios is
+        accepting that activity is not progress. There will be periods
+        when no available idea meets the standard. There will be
+        quarters when a sound company looks foolish because its stock is
+        unpopular. There will also be cases where conviction must yield
+        to evidence.
       </P>
       <P>
-        Keep a record. The original thesis, the size, the risks you
-        named, and the outcome are more useful than a stream of confident
-        commentary. Over a few years that file becomes the only honest
-        measure of whether concentration is earning its keep in your
-        hands, as opposed to in someone else&apos;s lore.
-      </P>
-      <P>
-        None of this is a promise that a short list of stocks will beat
-        a broad index. Concentration raises both the chance of a large
-        gain and the chance of a large hole. The investor&apos;s job is
-        to make the hole survivable and the process repeatable. If you
-        cannot explain why a name is in the book, why it is that size,
-        and what would take it out, it is not a concentrated position.
-        It is an opinion with a market value attached.
+        A good concentrated portfolio is not a collection of favorite
+        tickers. It is a set of current underwriting decisions,
+        continuously tested against facts and alternatives. Own fewer
+        businesses if that helps you know them better. Demand more from
+        each one. Then give the process enough time to reveal whether
+        the reasoning was sound.
       </P>
 
       <InlineCTA href="/pricing" />
@@ -299,24 +301,24 @@ const article: Article = {
       <FAQList
         items={[
           {
-            q: "What does building concentrated stock portfolios well actually require?",
-            a: "It requires more than conviction. Choose a number of names you can follow with a written case, size each holding for a credible adverse case, and watch overlap across businesses rather than ticker count alone. Write the thesis and the exit conditions before you buy, then review on a schedule. Concentration is a construction process that has to be held over time, not a shorter version of a diversified list.",
+            q: "What does building concentrated stock portfolios actually require?",
+            a: "Not owning fewer tickers for the sake of it, but owning a manageable number of businesses you can explain, monitor, and value. A 25-stock portfolio can feel diversified until its real drivers are counted, while a portfolio of 10 businesses can be genuinely varied if the economics, end markets, and failure modes differ. Concentration is a commitment to accountability: every position must earn its place against the next-best use of capital.",
           },
           {
-            q: "How many stocks should a concentrated portfolio hold?",
-            a: "Name count is a constraint, not the whole job. Too few names and a single error defines the year. Too many and the book starts to behave like the index you were trying to leave. For an active stock book, the practical band is usually in the teens to the mid-twenties, provided those businesses do not all fail for the same reason. If the list is longer than the hours available to maintain written cases, hold fewer companies or keep more of the household in a broad fund.",
+            q: "Why is a concentrated portfolio not simply an aggressive portfolio?",
+            a: "Position count is only one variable. A portfolio concentrated in highly indebted, cyclical, richly priced businesses is taking a different kind of risk than one concentrated in profitable companies with recurring revenue, conservative balance sheets, and reasonable valuations. Business quality, correlation, balance-sheet resilience, and entry price matter just as much. Concentration can better reflect an investor's best work, and it can also magnify analytical, valuation, and behavioral mistakes.",
           },
           {
             q: "How should you size positions in a concentrated book?",
-            a: "Size for uncertainty, not for how sure you feel. Ask what a serious operational miss, a lower multiple, or a balance-sheet strain would do to the position and to the whole book. A 10% weight that falls 50% costs five points; a 25% weight that does the same costs twelve and a half. Recurring demand, a clean balance sheet, and a modest valuation can justify more weight than a case that needs refinancing or an optimistic multiple. Set a review threshold for winners before they become the book.",
+            a: "From downside, not excitement. Position size should reflect the quality of the evidence, the range of outcomes, the valuation paid, and the consequences of being wrong. There is no universal percentage. A modest opening weight separates an idea worth studying from a business that has earned greater exposure. Averaging down is sensible only when the facts improve or remain intact while the price becomes more attractive. A rising position does not need to be trimmed merely because it has become large.",
           },
           {
-            q: "How do you test a thesis before a position gets large?",
-            a: "Write the claim down: the business, the price, the mechanism, and the conditions that would prove it wrong. The test is whether the current price leaves room to be right about the business and wrong about several details. A starter size can keep you honest while evidence accumulates. Adding is then a second underwriting. Revisit the case on a calendar and when filings or competitive facts change, not when a headline arrives.",
+            q: "Why are sector labels not enough to manage correlation?",
+            a: "Sector labels are a useful starting point, not a complete risk map. A software company and an industrial distributor may both depend on small-business confidence. A homebuilder, regional bank, and consumer-finance company can all be sensitive to rates and credit conditions. Look for shared economic drivers: customer budgets, commodity inputs, financing availability, labor costs, regulation, and the same underlying demand cycle. Diversify across those drivers, especially where a common shock could damage several earnings streams at once.",
           },
           {
-            q: "When should you sell a concentrated holding?",
-            a: "Sell when facts invalidate the original case, not when the quote is uncomfortable. Observable breaks include a lasting loss of customers, unit economics that no longer support reinvestment, a balance sheet that requires dilution, or capital allocation that no longer matches the underwriting. Selling a winner because it became too large for the book is a construction choice and should be recorded as such, so the next review does not confuse it with a change of mind about the company.",
+            q: "When should you sell or trim a concentrated position?",
+            a: "Selling deserves the same framework as buying. A position may be reduced because the valuation has outrun realistic fundamentals, because a better opportunity offers a superior expected return, or because the portfolio has developed excessive exposure to one economic driver. It may be sold because the thesis is broken. Those are different decisions and should not be blurred together. Write specific, observable invalidation conditions before purchase, then review them on a cadence rather than on every headline.",
           },
           {
             q: "Is this financial advice?",
@@ -327,11 +329,12 @@ const article: Article = {
 
       <KeyTakeaway>
         <P>
-          Building concentrated stock portfolios well is a construction
-          job. Size for a survivable adverse case, write the thesis and
-          the sell conditions before you buy, and watch the risks that
-          ticker count does not show. The process has to last longer
-          than the feeling that made you concentrate in the first place.
+          A good concentrated portfolio is not a collection of favorite
+          tickers. It is a set of current underwriting decisions,
+          continuously tested against facts and alternatives. Own fewer
+          businesses if that helps you know them better. Demand more
+          from each one. Then give the process enough time to reveal
+          whether the reasoning was sound.
         </P>
       </KeyTakeaway>
     </Prose>

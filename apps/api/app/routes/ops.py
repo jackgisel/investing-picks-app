@@ -38,6 +38,8 @@ from app.services.portfolio import (
     ranked_candidates,
     return_series_for,
     run_evaluation,
+    split_factor,
+    split_ratios,
 )
 from app.services.job_runs import reap_stale_job_runs
 from app.services.replay import FillModel, reconstruct_book, replay, score_history_range
@@ -1754,7 +1756,8 @@ def exit_facts(ticker: str, exit_date: str, db: Session = Depends(get_db)):
 
     # Average-cost basis across every lot this exit closed, not the last buy.
     lot = exit_basis(
-        db.query(Trade).filter(Trade.portfolio_id == 1).all()
+        db.query(Trade).filter(Trade.portfolio_id == 1).all(),
+        split_ratios(db, 1),
     ).get(sell.id) or {}
     avg_cost = lot.get("avg_cost")
     opened = lot.get("opened")
@@ -2016,8 +2019,18 @@ def add_facts(ticker: str, add_date: str, db: Session = Depends(get_db)):
     # The first lot's gain when we added: what the double-buy rule saw. The
     # position's return on avg cost blends in the add itself, so publishing it
     # as "since first entry" told readers SEZL was +48% when it had doubled.
+    # Both fills in today's share terms, so a split between them is not a move.
+    splits = split_ratios(db, 1)
     first_lot_at_add_pct = (
-        round((add.price / entry_trade.price - 1) * 100, 2)
+        round(
+            (
+                (add.price / split_factor(add, splits))
+                / (entry_trade.price / split_factor(entry_trade, splits))
+                - 1
+            )
+            * 100,
+            2,
+        )
         if entry_trade and entry_trade.price and add.price
         else None
     )

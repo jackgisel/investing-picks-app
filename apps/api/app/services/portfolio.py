@@ -35,6 +35,7 @@ from app.db.models import (
     PriceBar,
     SignalReason,
     SignalRow,
+    SplitAdjustment,
     Trade,
 )
 
@@ -243,7 +244,58 @@ def _trade_order_key(t: Trade) -> tuple[datetime, int]:
     return (stamped, t.id or 0)
 
 
-def exit_basis(trades: list[Trade]) -> dict[int, dict]:
+#: ticker -> [(split date, ratio)] for the splits applied to one book.
+SplitRatios = dict[str, list[tuple[date, float]]]
+
+
+def split_ratios(db: Session, portfolio_id: int) -> SplitRatios:
+    """Every split applied to this book's positions, by ticker.
+
+    Trade rows keep the shares and price they were filled at. Anything that
+    adds trade share counts to today's position, or compares a fill price
+    with today's mark, has to restate older trades first. These are the
+    ratios to do it with (see `worker.services.splits`).
+    """
+    out: SplitRatios = {}
+    for adj in (
+        db.query(SplitAdjustment)
+        .filter(
+            SplitAdjustment.portfolio_id == portfolio_id,
+            SplitAdjustment.status == "applied",
+        )
+        .all()
+    ):
+        out.setdefault(adj.ticker, []).append((adj.split_date, adj.ratio))
+    return out
+
+
+def split_factor(t: Trade, splits: SplitRatios | None) -> float:
+    """How many of today's shares one share from this trade has become.
+
+    1.0 when no applied split is dated after the trade. A trade's shares times
+    this, and its price divided by this, are in today's share terms.
+    """
+    if not splits or t.timestamp is None:
+        return 1.0
+    stamped = t.timestamp
+    if stamped.tzinfo is not None:
+        stamped = stamped.astimezone(timezone.utc)
+    traded_on = stamped.date()
+    factor = 1.0
+    for split_date, ratio in splits.get(t.ticker, ()):
+        if traded_on < split_date:
+            factor *= ratio
+    return factor
+
+
+def trade_shares(t: Trade, splits: SplitRatios | None) -> float:
+    """The trade's share count in today's share terms."""
+    return (t.shares or 0.0) * split_factor(t, splits)
+
+
+def exit_basis(
+    trades: list[Trade], splits: SplitRatios | None = None
+) -> dict[int, dict]:
     """Average cost and opening date behind every position-reducing sell.
 
     Keyed by the exiting trade's id. Each ticker's trades are walked oldest
@@ -257,6 +309,10 @@ def exit_basis(trades: list[Trade]) -> dict[int, dict]:
     The basis resets whenever the position goes flat, so a name that was closed
     and later re-bought starts a fresh round trip instead of averaging the new
     lot against the old one's cost.
+
+    With `splits`, shares are counted in today's terms and each exit's
+    `avg_cost` is returned in that sale's own price terms, so it compares
+    directly with the sell's fill price on either side of a split.
     """
     grouped: dict[str, list[Trade]] = {}
     for t in trades:
@@ -268,7 +324,7 @@ def exit_basis(trades: list[Trade]) -> dict[int, dict]:
         basis = 0.0
         opened: datetime | None = None
         for t in sorted(rows, key=_trade_order_key):
-            qty = t.shares or 0.0
+            qty = trade_shares(t, splits)
             notional = t.notional or 0.0
             avg = basis / shares if shares > SHARE_EPSILON else None
             correction = t.action in CORRECTION_ACTIONS
@@ -286,7 +342,7 @@ def exit_basis(trades: list[Trade]) -> dict[int, dict]:
                 shares -= qty
                 basis -= (avg or 0.0) * qty
                 out[t.id] = {
-                    "avg_cost": avg,
+                    "avg_cost": avg * split_factor(t, splits) if avg is not None else None,
                     "opened": opened,
                     "closes_position": shares <= SHARE_EPSILON,
                 }
@@ -388,7 +444,7 @@ def picks_return(db: Session, portfolio: Portfolio) -> dict[str, float | int | N
     # reported 0 closed picks for a name that was sold and later re-bought,
     # because it is in the open book again.
     closed_count = sum(
-        1 for e in exit_basis(trades).values() if e["closes_position"]
+        1 for e in exit_basis(trades, split_ratios(db, portfolio.id)).values() if e["closes_position"]
     )
 
     if deployed <= 0:

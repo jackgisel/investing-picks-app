@@ -26,7 +26,7 @@ from datetime import date, timezone
 from sqlalchemy.orm import Session
 
 from app.db.models import PriceBar, Trade
-from app.services.portfolio import SHARE_EPSILON
+from app.services.portfolio import SHARE_EPSILON, split_factor, split_ratios, trade_shares
 
 log = logging.getLogger(__name__)
 
@@ -104,8 +104,16 @@ def trade_ledger(db: Session, portfolio_id: int = 1) -> list[LedgerEvent]:
     dropped entirely, the same treatment `picks_return` gives it.
     `manual_adjust` moves capital without a market outcome: a buy-side
     adjustment commits capital, a sell-side one withdraws it.
+
+    Share counts are in TODAY's share terms. Trade rows keep the shares and
+    price they were filled at, so a trade dated before an applied split
+    (`split_adjustments`) is scaled by that split's ratio here. Without it a
+    4-for-1 makes every older lot read -75% against the post-split mark, and a
+    post-split sale subtracts new-basis shares from old-basis holdings.
     """
     from app.db.models import Position
+
+    splits = split_ratios(db, portfolio_id)
 
     positions = {
         p.ticker: p
@@ -136,7 +144,8 @@ def trade_ledger(db: Session, portfolio_id: int = 1) -> list[LedgerEvent]:
         for i, t in enumerate(rows):
             if held <= SHARE_EPSILON and t.side == "buy":
                 period_open = i
-            held += (t.shares or 0.0) if t.side == "buy" else -(t.shares or 0.0)
+            qty = trade_shares(t, splits)
+            held += qty if t.side == "buy" else -qty
         p = positions.get(ticker)
         entry = p.entry_date if p is not None and held > SHARE_EPSILON else None
 
@@ -144,7 +153,9 @@ def trade_ledger(db: Session, portfolio_id: int = 1) -> list[LedgerEvent]:
             when = _trade_date(t)
             if entry is not None and i >= period_open:
                 when = entry if i == period_open else max(when, entry)
-            shares = t.shares or (t.notional / t.price if t.price else 0.0)
+            shares = trade_shares(t, splits) or (
+                t.notional / t.price * split_factor(t, splits) if t.price else 0.0
+            )
             if t.side == "buy":
                 kind = "buy"
             elif t.action == "manual_adjust":

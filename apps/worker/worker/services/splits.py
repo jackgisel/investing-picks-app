@@ -77,6 +77,12 @@ def parse_split_rows(rows: list[dict] | None) -> list[tuple[str, date, float, fl
     return out
 
 
+def _has_split_fields(rows: list) -> bool:
+    """Whether any row carries the fields `parse_split_rows` reads."""
+    keys = {"date", "numerator", "denominator"}
+    return any(isinstance(r, dict) and keys <= r.keys() for r in rows)
+
+
 def _held_tickers(db: Session) -> set[str]:
     return {
         row[0]
@@ -99,6 +105,13 @@ def record_splits(db: Session, fmp: FMPClient, today: date) -> dict:
         log.warning("Split calendar is not on this FMP plan; checking held tickers one by one")
         rows = None
     parsed = parse_split_rows(rows)
+    if rows and not _has_split_fields(rows):
+        # Rows came back without the fields: the response shape is not what this
+        # reads. Treating that as "no splits" would miss every split silently.
+        raise RuntimeError(
+            f"Split calendar returned {len(rows)} rows without "
+            "date/numerator/denominator; check the FMP response fields"
+        )
     if rows is None:
         source = "per_ticker"
         parsed = []
@@ -110,7 +123,12 @@ def record_splits(db: Session, fmp: FMPClient, today: date) -> dict:
                 raise RuntimeError(f"Could not fetch splits for held ticker {ticker}")
             for row in ticker_rows:
                 row.setdefault("symbol", ticker)
-            parsed.extend(s for s in parse_split_rows(ticker_rows) if start <= s[1] <= today)
+            ticker_parsed = parse_split_rows(ticker_rows)
+            if ticker_rows and not _has_split_fields(ticker_rows):
+                raise RuntimeError(
+                    f"Splits for {ticker} returned rows without date/numerator/denominator"
+                )
+            parsed.extend(s for s in ticker_parsed if start <= s[1] <= today)
 
     added = 0
     for ticker, when, num, den in parsed:

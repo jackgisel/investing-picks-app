@@ -38,6 +38,7 @@ from app.services.portfolio import (
     ranked_candidates,
     return_series_for,
     run_evaluation,
+    SplitReviewPending,
     split_factor,
     split_ratios,
 )
@@ -710,7 +711,10 @@ def get_evaluation(evaluation_id: int, db: Session = Depends(get_db)):
 @router.post("/evaluate", dependencies=[Depends(require_ops_key)])
 def trigger_evaluate(dry_run: bool = True, mode: str = "biweekly", db: Session = Depends(get_db)):
     ensure_default_portfolio(db, get_settings().initial_cash)
-    ev = run_evaluation(db, portfolio_id=1, mode=mode, dry_run=dry_run)
+    try:
+        ev = run_evaluation(db, portfolio_id=1, mode=mode, dry_run=dry_run)
+    except SplitReviewPending as e:
+        raise HTTPException(status_code=409, detail=str(e))
     return {"evaluation_id": ev.id, "mode": ev.mode, "executed": ev.executed}
 
 

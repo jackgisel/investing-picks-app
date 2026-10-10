@@ -368,3 +368,44 @@ def test_check_splits_clean_day_allows_sells(db, portfolio, held):
 
     out = check_splits(db, FakeFMP(calendar=[]), TODAY)
     assert out["hold_sells"] is False
+
+
+def test_a_pick_sold_before_a_later_split_has_no_fake_gain(db, portfolio):
+    # Bought and sold in September, split in October. The split job restates
+    # every ticker's bars, so the old trades must be restated too.
+    _buy(db, portfolio, "OLD", 10, 400.0, date(2026, 9, 1))
+    _sell(db, portfolio, "OLD", 10, 400.0, date(2026, 9, 15))
+    _bars(
+        db,
+        "OLD",
+        {date(2026, 9, 1): 100.0, date(2026, 9, 14): 100.0, date(2026, 9, 15): 100.0},
+    )
+    _split(db, "OLD")
+    rows = picks_growth_index(db, portfolio.id)
+    assert rows and all(r["index"] == pytest.approx(1.0) for r in rows)
+
+
+def test_a_review_blocks_every_executed_evaluation(db, portfolio, held):
+    from app.services.portfolio import SplitReviewPending, run_evaluation
+
+    _buy(db, portfolio, "AAA", 4, 100.0, SPLIT, action="double_buy")
+    _split(db)
+    apply_position_splits(db, TODAY)
+    with pytest.raises(SplitReviewPending):
+        run_evaluation(db, portfolio_id=portfolio.id, mode="biweekly", dry_run=False)
+
+
+def test_an_unexpected_response_shape_fails_closed(db, portfolio, held):
+    from worker.jobs.runner import check_splits
+
+    fmp = FakeFMP(calendar=[{"symbol": "AAA", "splitDate": "2026-10-05", "ratio": "4:1"}])
+    with pytest.raises(RuntimeError):
+        record_splits(db, fmp, TODAY)
+    assert check_splits(db, fmp, TODAY)["hold_sells"] is True
+
+
+def test_only_one_for_one_rows_is_not_an_error(db, portfolio):
+    fmp = FakeFMP(
+        calendar=[{"symbol": "AAA", "date": "2026-10-05", "numerator": 1, "denominator": 1}]
+    )
+    assert record_splits(db, fmp, TODAY)["added"] == 0

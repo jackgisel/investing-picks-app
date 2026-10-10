@@ -36,6 +36,7 @@ from app.db.models import (
     SignalReason,
     SignalRow,
     SplitAdjustment,
+    StockSplit,
     Trade,
 )
 
@@ -248,24 +249,35 @@ def _trade_order_key(t: Trade) -> tuple[datetime, int]:
 SplitRatios = dict[str, list[tuple[date, float]]]
 
 
+class SplitReviewPending(RuntimeError):
+    """A split on a holding is waiting for a manual check; no trading until then."""
+
+
 def split_ratios(db: Session, portfolio_id: int) -> SplitRatios:
-    """Every split applied to this book's positions, by ticker.
+    """Every recorded market split, by ticker, for restating this book's trades.
 
     Trade rows keep the shares and price they were filled at. Anything that
     adds trade share counts to today's position, or compares a fill price
-    with today's mark, has to restate older trades first. These are the
-    ratios to do it with (see `worker.services.splits`).
+    with `price_bars` or today's mark, has to restate older trades first.
+
+    Market splits, not just the ones applied to a position: the split job
+    restates `price_bars` for every ticker that splits, so a pick sold before
+    a later split still needs its trades in the new terms, or its sale reads
+    as a 4x gain against restated bars. A split held for review on this book
+    is left out, because that position still holds the old share count.
     """
-    out: SplitRatios = {}
-    for adj in (
-        db.query(SplitAdjustment)
-        .filter(
+    held_back = {
+        (r.ticker, r.split_date)
+        for r in db.query(SplitAdjustment).filter(
             SplitAdjustment.portfolio_id == portfolio_id,
-            SplitAdjustment.status == "applied",
+            SplitAdjustment.status == "review",
         )
-        .all()
-    ):
-        out.setdefault(adj.ticker, []).append((adj.split_date, adj.ratio))
+    }
+    out: SplitRatios = {}
+    for s in db.query(StockSplit).all():
+        if (s.ticker, s.date) in held_back:
+            continue
+        out.setdefault(s.ticker, []).append((s.date, s.ratio))
     return out
 
 
@@ -964,6 +976,23 @@ def run_evaluation(
     # here, and none of them carried a guard. Dry runs are untouched: they write
     # no trades, so previewing a cycle again is always safe.
     if not dry_run:
+        # A holding with a split under review has its old share count and a
+        # post-split mark, which reads as a loss of most of its value. Every
+        # caller (daily, biweekly, the ops button) stops here, not just one.
+        pending = (
+            db.query(SplitAdjustment)
+            .filter(
+                SplitAdjustment.portfolio_id == portfolio_id,
+                SplitAdjustment.status == "review",
+            )
+            .all()
+        )
+        if pending:
+            raise SplitReviewPending(
+                "Split review pending for "
+                + ", ".join(f"{r.ticker} {r.split_date.isoformat()}" for r in pending)
+                + "; resolve it in split_adjustments before trading"
+            )
         already = executed_evaluation_today(db, portfolio_id, mode)
         if already is not None:
             log.info(

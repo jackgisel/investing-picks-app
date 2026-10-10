@@ -35,6 +35,8 @@ from app.db.models import (
     PriceBar,
     SignalReason,
     SignalRow,
+    SplitAdjustment,
+    StockSplit,
     Trade,
 )
 
@@ -243,7 +245,69 @@ def _trade_order_key(t: Trade) -> tuple[datetime, int]:
     return (stamped, t.id or 0)
 
 
-def exit_basis(trades: list[Trade]) -> dict[int, dict]:
+#: ticker -> [(split date, ratio)] for the splits applied to one book.
+SplitRatios = dict[str, list[tuple[date, float]]]
+
+
+class SplitReviewPending(RuntimeError):
+    """A split on a holding is waiting for a manual check; no trading until then."""
+
+
+def split_ratios(db: Session, portfolio_id: int) -> SplitRatios:
+    """Every recorded market split, by ticker, for restating this book's trades.
+
+    Trade rows keep the shares and price they were filled at. Anything that
+    adds trade share counts to today's position, or compares a fill price
+    with `price_bars` or today's mark, has to restate older trades first.
+
+    Market splits, not just the ones applied to a position: the split job
+    restates `price_bars` for every ticker that splits, so a pick sold before
+    a later split still needs its trades in the new terms, or its sale reads
+    as a 4x gain against restated bars. A split held for review on this book
+    is left out, because that position still holds the old share count.
+    """
+    held_back = {
+        (r.ticker, r.split_date)
+        for r in db.query(SplitAdjustment).filter(
+            SplitAdjustment.portfolio_id == portfolio_id,
+            SplitAdjustment.status == "review",
+        )
+    }
+    out: SplitRatios = {}
+    for s in db.query(StockSplit).all():
+        if (s.ticker, s.date) in held_back:
+            continue
+        out.setdefault(s.ticker, []).append((s.date, s.ratio))
+    return out
+
+
+def split_factor(t: Trade, splits: SplitRatios | None) -> float:
+    """How many of today's shares one share from this trade has become.
+
+    1.0 when no applied split is dated after the trade. A trade's shares times
+    this, and its price divided by this, are in today's share terms.
+    """
+    if not splits or t.timestamp is None:
+        return 1.0
+    stamped = t.timestamp
+    if stamped.tzinfo is not None:
+        stamped = stamped.astimezone(timezone.utc)
+    traded_on = stamped.date()
+    factor = 1.0
+    for split_date, ratio in splits.get(t.ticker, ()):
+        if traded_on < split_date:
+            factor *= ratio
+    return factor
+
+
+def trade_shares(t: Trade, splits: SplitRatios | None) -> float:
+    """The trade's share count in today's share terms."""
+    return (t.shares or 0.0) * split_factor(t, splits)
+
+
+def exit_basis(
+    trades: list[Trade], splits: SplitRatios | None = None
+) -> dict[int, dict]:
     """Average cost and opening date behind every position-reducing sell.
 
     Keyed by the exiting trade's id. Each ticker's trades are walked oldest
@@ -257,6 +321,10 @@ def exit_basis(trades: list[Trade]) -> dict[int, dict]:
     The basis resets whenever the position goes flat, so a name that was closed
     and later re-bought starts a fresh round trip instead of averaging the new
     lot against the old one's cost.
+
+    With `splits`, shares are counted in today's terms and each exit's
+    `avg_cost` is returned in that sale's own price terms, so it compares
+    directly with the sell's fill price on either side of a split.
     """
     grouped: dict[str, list[Trade]] = {}
     for t in trades:
@@ -268,7 +336,7 @@ def exit_basis(trades: list[Trade]) -> dict[int, dict]:
         basis = 0.0
         opened: datetime | None = None
         for t in sorted(rows, key=_trade_order_key):
-            qty = t.shares or 0.0
+            qty = trade_shares(t, splits)
             notional = t.notional or 0.0
             avg = basis / shares if shares > SHARE_EPSILON else None
             correction = t.action in CORRECTION_ACTIONS
@@ -286,7 +354,7 @@ def exit_basis(trades: list[Trade]) -> dict[int, dict]:
                 shares -= qty
                 basis -= (avg or 0.0) * qty
                 out[t.id] = {
-                    "avg_cost": avg,
+                    "avg_cost": avg * split_factor(t, splits) if avg is not None else None,
                     "opened": opened,
                     "closes_position": shares <= SHARE_EPSILON,
                 }
@@ -388,7 +456,7 @@ def picks_return(db: Session, portfolio: Portfolio) -> dict[str, float | int | N
     # reported 0 closed picks for a name that was sold and later re-bought,
     # because it is in the open book again.
     closed_count = sum(
-        1 for e in exit_basis(trades).values() if e["closes_position"]
+        1 for e in exit_basis(trades, split_ratios(db, portfolio.id)).values() if e["closes_position"]
     )
 
     if deployed <= 0:
@@ -908,6 +976,23 @@ def run_evaluation(
     # here, and none of them carried a guard. Dry runs are untouched: they write
     # no trades, so previewing a cycle again is always safe.
     if not dry_run:
+        # A holding with a split under review has its old share count and a
+        # post-split mark, which reads as a loss of most of its value. Every
+        # caller (daily, biweekly, the ops button) stops here, not just one.
+        pending = (
+            db.query(SplitAdjustment)
+            .filter(
+                SplitAdjustment.portfolio_id == portfolio_id,
+                SplitAdjustment.status == "review",
+            )
+            .all()
+        )
+        if pending:
+            raise SplitReviewPending(
+                "Split review pending for "
+                + ", ".join(f"{r.ticker} {r.split_date.isoformat()}" for r in pending)
+                + "; resolve it in split_adjustments before trading"
+            )
         already = executed_evaluation_today(db, portfolio_id, mode)
         if already is not None:
             log.info(

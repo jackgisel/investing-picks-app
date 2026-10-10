@@ -67,6 +67,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Portfolio, PortfolioSnapshot, Position, Trade
 from app.services.benchmarks import BENCHMARKS, CALENDAR_BENCHMARK
+from app.services.portfolio import SplitRatios, split_ratios, trade_shares
 
 from worker.services.ingest import CLOSE_FIELDS, first_present, upsert_price_bar
 
@@ -137,7 +138,7 @@ class BackfillError(RuntimeError):
 
 
 def _position_lots(
-    pos: Position, buys: list[Trade], fallback_open: date
+    pos: Position, buys: list[Trade], fallback_open: date, splits: SplitRatios | None = None
 ) -> list[Lot]:
     """An open position as one lot per buy in its current holding period.
 
@@ -159,7 +160,9 @@ def _position_lots(
             Lot(ticker=ticker, shares=pos.shares or 0.0, cost=float(cost or 0.0), open_date=opened)
         ]
 
-    bought = sum(t.shares or 0.0 for t in buys)
+    # In today's share terms, the same terms as `pos.shares`: a buy from
+    # before a split would otherwise inflate `scale` by the split ratio.
+    bought = sum(trade_shares(t, splits) for t in buys)
     scale = (pos.shares or 0.0) / bought if bought > 0 else 0.0
     lots = []
     for i, t in enumerate(buys):
@@ -167,7 +170,7 @@ def _position_lots(
         lots.append(
             Lot(
                 ticker=ticker,
-                shares=(t.shares or 0.0) * scale,
+                shares=trade_shares(t, splits) * scale,
                 cost=float(t.notional or 0.0) * scale,
                 open_date=opened if i == 0 else max(when, opened),
             )
@@ -175,7 +178,9 @@ def _position_lots(
     return lots
 
 
-def _current_period_buys(rows: list[Trade]) -> list[Trade]:
+def _current_period_buys(
+    rows: list[Trade], splits: SplitRatios | None = None
+) -> list[Trade]:
     """Buys since the ticker was last flat: the open position's own lots."""
     held = 0.0
     period: list[Trade] = []
@@ -186,14 +191,18 @@ def _current_period_buys(rows: list[Trade]) -> list[Trade]:
             if held <= 1e-9:
                 period = []
             period.append(t)
-            held += t.shares or 0.0
+            held += trade_shares(t, splits)
         else:
-            held -= t.shares or 0.0
+            held -= trade_shares(t, splits)
     return period
 
 
 def _closed_lots(
-    db: Session, portfolio_id: int, open_tickers: set[str], warnings: list[str]
+    db: Session,
+    portfolio_id: int,
+    open_tickers: set[str],
+    warnings: list[str],
+    splits: SplitRatios | None = None,
 ) -> list[Lot]:
     """Round trips for tickers no longer in the book, rebuilt from trades.
 
@@ -242,7 +251,7 @@ def _closed_lots(
             )
             continue
 
-        shares = sum(r.shares or 0.0 for r in buys)
+        shares = sum(trade_shares(r, splits) for r in buys)
         cost = sum(r.notional or 0.0 for r in buys)
         proceeds = sum(r.notional or 0.0 for r in real_sells)
         open_date = min(r.timestamp.date() for r in buys if r.timestamp)
@@ -281,6 +290,7 @@ def build_lots(
         .all()
     ):
         trades_by_ticker.setdefault((t.ticker or "").upper(), []).append(t)
+    splits = split_ratios(db, portfolio.id)
     lots = []
     for pos in positions:
         if not pos.entry_date:
@@ -288,9 +298,11 @@ def build_lots(
                 f"{pos.ticker} has no entry_date; assuming it was held from "
                 f"inception ({inception.isoformat()})"
             )
-        buys = _current_period_buys(trades_by_ticker.get((pos.ticker or "").upper(), []))
-        lots.extend(_position_lots(pos, buys, inception))
-    lots.extend(_closed_lots(db, portfolio.id, open_tickers, warnings))
+        buys = _current_period_buys(
+            trades_by_ticker.get((pos.ticker or "").upper(), []), splits
+        )
+        lots.extend(_position_lots(pos, buys, inception, splits))
+    lots.extend(_closed_lots(db, portfolio.id, open_tickers, warnings, splits))
     return lots
 
 

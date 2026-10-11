@@ -56,7 +56,7 @@ describe("art pool", () => {
 
   it("exposes spare covers for future blog posts", () => {
     const next = nextSpareCover();
-    expect(next).toEqual({ id: "spare-21", src: "/art/pool/spare-21.png" });
+    expect(next).toEqual({ id: "spare-22", src: "/art/pool/spare-22.png" });
   });
 
   it("keeps unused spare-09+ prints unclaimed", () => {
@@ -105,6 +105,7 @@ describe("art pool", () => {
     expect(SPARE_CLAIMED["spare-20"]).toBe(
       "building-concentrated-stock-portfolios",
     );
+    expect(SPARE_CLAIMED["spare-21"]).toBe("flat-fee-investment-research");
     for (const spare of fresh) {
       if (
         spare.id !== "spare-07" &&
@@ -135,21 +136,21 @@ describe("art pool", () => {
     const status = poolStatus(new Date("2026-08-22T12:00:00Z"));
     expect(status.weeksReady).toBe(13);
     expect(status.weeksRemaining).toBeGreaterThanOrEqual(13);
-    expect(status.sparesFree).toBe(48);
+    expect(status.sparesFree).toBe(47);
   });
 
-  it("registers spare-21 through spare-68 as unclaimed 1280-wide prints", () => {
+  it("registers spare-22 through spare-68 as unclaimed 1280-wide prints", () => {
     const batch = SPARE_POOL.filter((s) => {
       const n = Number(s.id.replace("spare-", ""));
-      return n >= 21 && n <= 68;
+      return n >= 22 && n <= 68;
     });
-    expect(batch).toHaveLength(48);
+    expect(batch).toHaveLength(47);
     expect(batch.map((s) => s.id)).toEqual(
-      Array.from({ length: 48 }, (_, i) => `spare-${String(i + 21).padStart(2, "0")}`),
+      Array.from({ length: 47 }, (_, i) => `spare-${String(i + 22).padStart(2, "0")}`),
     );
     expect(new Set(batch.map((s) => s.ink)).size).toBe(48);
     const priorInks = new Set(
-      SPARE_POOL.filter((s) => Number(s.id.replace("spare-", "")) <= 20).map((s) => s.ink),
+      SPARE_POOL.filter((s) => Number(s.id.replace("spare-", "")) <= 21).map((s) => s.ink),
     );
     for (const spare of batch) {
       expect(SPARE_CLAIMED[spare.id]).toBeUndefined();

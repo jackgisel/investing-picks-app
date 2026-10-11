@@ -148,7 +148,7 @@ describe("art pool", () => {
     expect(batch.map((s) => s.id)).toEqual(
       Array.from({ length: 47 }, (_, i) => `spare-${String(i + 22).padStart(2, "0")}`),
     );
-    expect(new Set(batch.map((s) => s.ink)).size).toBe(48);
+    expect(new Set(batch.map((s) => s.ink)).size).toBe(47);
     const priorInks = new Set(
       SPARE_POOL.filter((s) => Number(s.id.replace("spare-", "")) <= 21).map((s) => s.ink),
     );

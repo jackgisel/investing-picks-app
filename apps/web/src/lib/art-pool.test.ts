@@ -56,7 +56,7 @@ describe("art pool", () => {
 
   it("exposes spare covers for future blog posts", () => {
     const next = nextSpareCover();
-    expect(next).toEqual({ id: "spare-22", src: "/art/pool/spare-22.png" });
+    expect(next).toEqual({ id: "spare-23", src: "/art/pool/spare-23.png" });
   });
 
   it("keeps unused spare-09+ prints unclaimed", () => {
@@ -106,6 +106,9 @@ describe("art pool", () => {
       "building-concentrated-stock-portfolios",
     );
     expect(SPARE_CLAIMED["spare-21"]).toBe("flat-fee-investment-research");
+    expect(SPARE_CLAIMED["spare-22"]).toBe(
+      "independent-equity-research-subscription",
+    );
     for (const spare of fresh) {
       if (
         spare.id !== "spare-07" &&
@@ -136,21 +139,21 @@ describe("art pool", () => {
     const status = poolStatus(new Date("2026-08-22T12:00:00Z"));
     expect(status.weeksReady).toBe(13);
     expect(status.weeksRemaining).toBeGreaterThanOrEqual(13);
-    expect(status.sparesFree).toBe(47);
+    expect(status.sparesFree).toBe(46);
   });
 
-  it("registers spare-22 through spare-68 as unclaimed 1280-wide prints", () => {
+  it("registers spare-23 through spare-68 as unclaimed 1280-wide prints", () => {
     const batch = SPARE_POOL.filter((s) => {
       const n = Number(s.id.replace("spare-", ""));
-      return n >= 22 && n <= 68;
+      return n >= 23 && n <= 68;
     });
-    expect(batch).toHaveLength(47);
+    expect(batch).toHaveLength(46);
     expect(batch.map((s) => s.id)).toEqual(
-      Array.from({ length: 47 }, (_, i) => `spare-${String(i + 22).padStart(2, "0")}`),
+      Array.from({ length: 46 }, (_, i) => `spare-${String(i + 23).padStart(2, "0")}`),
     );
-    expect(new Set(batch.map((s) => s.ink)).size).toBe(47);
+    expect(new Set(batch.map((s) => s.ink)).size).toBe(46);
     const priorInks = new Set(
-      SPARE_POOL.filter((s) => Number(s.id.replace("spare-", "")) <= 21).map((s) => s.ink),
+      SPARE_POOL.filter((s) => Number(s.id.replace("spare-", "")) <= 22).map((s) => s.ink),
     );
     for (const spare of batch) {
       expect(SPARE_CLAIMED[spare.id]).toBeUndefined();

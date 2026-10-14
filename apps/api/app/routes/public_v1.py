@@ -38,6 +38,7 @@ from app.services.period_returns import period_returns_payload
 from app.services.track_record import monthly_returns, pick_scorecard
 from app.services.portfolio import (
     exit_basis,
+    split_ratios,
     params_from_portfolio,
     picks_return,
     portfolio_equity,
@@ -490,7 +491,8 @@ def get_picks(
         # 118, and this field is what the web app's closedWinRate() classifies
         # win/loss from — so a real winner was being counted as a loss.
         basis = exit_basis(
-            db.query(Trade).filter(Trade.portfolio_id == portfolio.id).all()
+            db.query(Trade).filter(Trade.portfolio_id == portfolio.id).all(),
+            split_ratios(db, portfolio.id),
         )
         sells = (
             db.query(Trade)

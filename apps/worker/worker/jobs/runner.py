@@ -67,6 +67,11 @@ from worker.services.ingest import (
     today_et,
 )
 from worker.services.scoring import diagnose_unscored_holdings, score_universe
+from worker.services.splits import (
+    apply_position_splits,
+    record_splits,
+    restate_price_bars,
+)
 
 log = logging.getLogger(__name__)
 
@@ -75,6 +80,7 @@ log = logging.getLogger(__name__)
 # same channel as a crashed daily_marks, because an unrated holding is the same
 # class of problem: the book is running without the data the strategy needs.
 UNRATED_HOLDINGS_JOB = "unrated_holdings"
+SPLIT_REVIEW_JOB = "split_review"
 
 
 def _fmp(deadline: JobDeadline | None = None) -> FMPClient:
@@ -785,6 +791,46 @@ def job_workforce_ic():
     return _track(WORKFORCE_IC_JOB, _run)
 
 
+def check_splits(db: Session, fmp: FMPClient, today: date) -> dict:
+    """Apply recorded splits to every book before the day's marks land.
+
+    Must run before `refresh_marks`: the live quote is post-split from the
+    ex-date on, and against the old share count it reads as a loss the sell
+    pass would act on. `hold_sells` is True when the check failed or a split
+    is waiting for a human, and the caller then skips the daily sell pass.
+    New review rows are written as an error JobRun so the alert sweep mails
+    them. Never raises: a failed check must not stop the book being marked.
+    """
+    out: dict = {}
+    try:
+        out["recorded"] = record_splits(db, fmp, today)
+    except Exception as e:
+        log.exception("Split check failed; holding the daily sell pass")
+        db.rollback()
+        out["error"] = str(e)
+    try:
+        out.update(apply_position_splits(db, today))
+    except Exception as e:
+        log.exception("Applying splits failed; holding the daily sell pass")
+        db.rollback()
+        out["error"] = str(e)
+        out.setdefault("open_reviews", [])
+    if out.get("review"):
+        db.add(
+            JobRun(
+                job_name=SPLIT_REVIEW_JOB,
+                status="error",
+                detail="Stock splits need a manual check. The daily sell pass is "
+                "off until each review row in split_adjustments is resolved.\n\n"
+                + "\n".join(out["review"]),
+                finished_at=datetime.now(timezone.utc),
+            )
+        )
+        db.commit()
+    out["hold_sells"] = bool(out.get("error") or out.get("open_reviews"))
+    return out
+
+
 def job_daily_marks():
     def _run(db: Session):
         today = date.today()
@@ -797,7 +843,10 @@ def job_daily_marks():
         fmp = _fmp()
         try:
             ensure_default_portfolio(db, get_settings().initial_cash)
+            splits = check_splits(db, fmp, today)
             n = refresh_marks(db, fmp)
+            # After marks, so the post-split bar exists and the step shows.
+            splits["prices"] = restate_price_bars(db, today)
             # Re-score every trading day, after marks so momentum sees today's
             # bar. Scoring is pure DB compute — compute_scores reads
             # Fundamentals/PriceBar/Stock and calls no FMP endpoint — so this
@@ -807,15 +856,26 @@ def job_daily_marks():
             # old with nothing on screen saying so.
             s = score_universe(db)
             unrated = record_unrated_holdings(db)
-            # Optional daily sells if enabled in params
-            run_evaluation(db, mode="daily", dry_run=False)
+            # Optional daily sells if enabled in params. Not on a day a split
+            # could not be checked or is waiting for review: the marks for that
+            # name may be against the wrong share count.
+            if splits["hold_sells"]:
+                log.error("Daily sell pass skipped: split check incomplete or awaiting review")
+            else:
+                run_evaluation(db, mode="daily", dry_run=False)
             # Backstop. Manual buys go through the ops form, which opens the
             # placeholder row itself but deliberately does not draft — and a
             # push that never landed leaves nothing behind to notice. This
             # sweep is what makes the pipeline self-healing rather than
             # dependent on every trigger having fired.
             drafts = sync_insight_drafts()
-            return {"marks": n, "scores": s, "unrated_holdings": unrated, "drafts": drafts}
+            return {
+                "splits": splits,
+                "marks": n,
+                "scores": s,
+                "unrated_holdings": unrated,
+                "drafts": drafts,
+            }
         finally:
             fmp.close()
 
@@ -835,6 +895,8 @@ def job_weekly_refresh():
         deadline.check()
         fmp = _fmp(deadline)
         try:
+            splits = check_splits(db, fmp, date.today())
+            deadline.check()
             u = refresh_universe(db, fmp)
             deadline.check()
             f = refresh_fundamentals(db, fmp)
@@ -842,9 +904,11 @@ def job_weekly_refresh():
             s = score_universe(db)
             deadline.check()
             m = refresh_marks(db, fmp)
+            splits["prices"] = restate_price_bars(db, date.today())
             deadline.check()
             unrated = record_unrated_holdings(db)
             return {
+                "splits": splits,
                 "universe": u,
                 "fundamentals": f,
                 "scores": s,

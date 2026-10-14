@@ -270,6 +270,23 @@ class FMPClient:
             return data["historical"]
         return None
 
+    def splits_calendar(self, start: date, end: date) -> list[dict] | None:
+        """Every split FMP lists with a date in [start, end], or None on failure.
+
+        Rows carry `symbol`, `date`, `numerator`, `denominator`. One call covers
+        the whole market, which is what lets the split job restate `price_bars`
+        for universe names that are not held.
+        """
+        data = self._get(
+            "splits-calendar", {"from": start.isoformat(), "to": end.isoformat()}
+        )
+        return data if isinstance(data, list) else None
+
+    def stock_splits(self, ticker: str) -> list[dict] | None:
+        """One ticker's split history, newest first, or None on failure."""
+        data = self._get("splits", {"symbol": ticker})
+        return data if isinstance(data, list) else None
+
     def income_statement_quarterly(self, ticker: str, limit: int = 8) -> list[dict]:
         """Recent quarters, newest first, for deriving TTM growth.
 

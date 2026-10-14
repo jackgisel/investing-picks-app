@@ -45,6 +45,8 @@ from app.services.portfolio import (
     load_scores_as_of,
     params_from_portfolio,
     persist_evaluation,
+    split_ratios,
+    trade_shares,
 )
 
 log = logging.getLogger(__name__)
@@ -208,12 +210,13 @@ def live_open_tickers(db: Session, as_of: date) -> list[str]:
 
     shares: dict[str, float] = {}
     traded: set[str] = set()
+    splits = split_ratios(db, live.id)
     for trade in db.query(Trade).filter(Trade.portfolio_id == live.id):
         session = _trade_session_date(trade)
         if session is None or session > as_of:
             continue
         traded.add(trade.ticker)
-        qty = trade.shares or 0.0
+        qty = trade_shares(trade, splits)
         if trade.side == "buy":
             shares[trade.ticker] = shares.get(trade.ticker, 0.0) + qty
         else:

@@ -105,6 +105,66 @@ class Trade(Base):
     portfolio: Mapped[Portfolio] = relationship(back_populates="trades")
 
 
+class StockSplit(Base):
+    """A stock split FMP reported, kept once we have seen it.
+
+    `ratio` is new shares per old share (numerator / denominator): 4.0 for a
+    4-for-1, 0.1 for a 1-for-10 reverse split. `prices_adjusted_at` is when
+    the `price_bars` dated before the split were restated to the new basis, or
+    null if they did not need it (they were already adjusted when fetched).
+    """
+
+    __tablename__ = "stock_splits"
+    __table_args__ = (UniqueConstraint("ticker", "date"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    ticker: Mapped[str] = mapped_column(String(16), index=True)
+    date: Mapped[date] = mapped_column(Date, index=True)
+    numerator: Mapped[float] = mapped_column(Float)
+    denominator: Mapped[float] = mapped_column(Float)
+    first_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    prices_adjusted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    @property
+    def ratio(self) -> float:
+        return self.numerator / self.denominator
+
+
+class SplitAdjustment(Base):
+    """One split applied to one position, or held back for a human to check.
+
+    Unique per (portfolio, ticker, split date): applying a 4-for-1 twice would
+    turn the position into 16x the shares. `status` is "applied" or "review".
+    A review row means the job could not tell which shares the split covered
+    (a buy on or after the split date, or a split found too late), so it left
+    the position alone. While any review row is open the daily sell pass does
+    not run. Trade rows are never rewritten; `trade_ledger` reads the applied
+    rows to restate pre-split trades in today's share terms.
+    """
+
+    __tablename__ = "split_adjustments"
+    __table_args__ = (UniqueConstraint("portfolio_id", "ticker", "split_date"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    portfolio_id: Mapped[int] = mapped_column(ForeignKey("portfolios.id"), index=True)
+    ticker: Mapped[str] = mapped_column(String(16), index=True)
+    split_date: Mapped[date] = mapped_column(Date)
+    ratio: Mapped[float] = mapped_column(Float)
+    status: Mapped[str] = mapped_column(String(16), default="applied")
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    shares_before: Mapped[float | None] = mapped_column(Float, nullable=True)
+    shares_after: Mapped[float | None] = mapped_column(Float, nullable=True)
+    avg_cost_before: Mapped[float | None] = mapped_column(Float, nullable=True)
+    avg_cost_after: Mapped[float | None] = mapped_column(Float, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
 class PortfolioSnapshot(Base):
     __tablename__ = "portfolio_snapshots"
     __table_args__ = (UniqueConstraint("portfolio_id", "date"),)

@@ -93,6 +93,7 @@ import buildingConcentratedStockPortfolios from "@/content/blog/building-concent
 import flatFeeInvestmentResearch from "@/content/blog/flat-fee-investment-research";
 import independentEquityResearchSubscription from "@/content/blog/independent-equity-research-subscription";
 import bestLongTermInvestmentNewsletter from "@/content/blog/best-long-term-investment-newsletter";
+import stockInvestmentPostmortemTemplate from "@/content/blog/stock-investment-postmortem-template";
 
 export const articles: Article[] = [
   howToOutperformSp500,
@@ -135,6 +136,7 @@ export const articles: Article[] = [
   flatFeeInvestmentResearch,
   independentEquityResearchSubscription,
   bestLongTermInvestmentNewsletter,
+  stockInvestmentPostmortemTemplate,
 ].sort((a, b) => b.meta.publishedAt.localeCompare(a.meta.publishedAt));
 
 // Fail the build, not the page, when a post is filed somewhere that has no

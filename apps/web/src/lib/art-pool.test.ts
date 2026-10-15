@@ -112,6 +112,9 @@ describe("art pool", () => {
     expect(SPARE_CLAIMED["spare-23"]).toBe(
       "best-long-term-investment-newsletter",
     );
+    expect(SPARE_CLAIMED["spare-25"]).toBe(
+      "stock-investment-postmortem-template",
+    );
     for (const spare of fresh) {
       if (
         spare.id !== "spare-07" &&
@@ -142,10 +145,10 @@ describe("art pool", () => {
     const status = poolStatus(new Date("2026-08-22T12:00:00Z"));
     expect(status.weeksReady).toBe(13);
     expect(status.weeksRemaining).toBeGreaterThanOrEqual(13);
-    expect(status.sparesFree).toBe(45);
+    expect(status.sparesFree).toBe(44);
   });
 
-  it("registers spare-24 through spare-68 as unclaimed 1280-wide prints", () => {
+  it("registers spare-24 through spare-68 as 1280-wide prints, with spare-25 claimed", () => {
     const batch = SPARE_POOL.filter((s) => {
       const n = Number(s.id.replace("spare-", ""));
       return n >= 24 && n <= 68;
@@ -158,8 +161,14 @@ describe("art pool", () => {
     const priorInks = new Set(
       SPARE_POOL.filter((s) => Number(s.id.replace("spare-", "")) <= 23).map((s) => s.ink),
     );
+    expect(SPARE_CLAIMED["spare-24"]).toBeUndefined();
+    expect(SPARE_CLAIMED["spare-25"]).toBe(
+      "stock-investment-postmortem-template",
+    );
     for (const spare of batch) {
-      expect(SPARE_CLAIMED[spare.id]).toBeUndefined();
+      if (spare.id !== "spare-25") {
+        expect(SPARE_CLAIMED[spare.id]).toBeUndefined();
+      }
       expect(priorInks.has(spare.ink)).toBe(false);
       expect(spare.ink).toMatch(/^#[0-9A-F]{6}$/);
       expect(spare.src).toBe(`/art/pool/${spare.id}.png`);

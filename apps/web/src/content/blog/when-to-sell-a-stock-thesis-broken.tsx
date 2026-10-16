@@ -300,6 +300,15 @@ const article: Article = {
         </P>
       </Callout>
 
+      <P>
+        Thesis invalidation is not the only disciplined reason to sell. Valuation, position
+        size, and opportunity cost are covered in{" "}
+        <A href="/blog/when-to-sell-a-stock">
+          when to sell a stock without chasing noise
+        </A>
+        .
+      </P>
+
       <InlineCTA />
 
       <FAQList

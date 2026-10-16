@@ -56,7 +56,7 @@ describe("art pool", () => {
 
   it("exposes spare covers for future blog posts", () => {
     const next = nextSpareCover();
-    expect(next).toEqual({ id: "spare-25", src: "/art/pool/spare-25.png" });
+    expect(next).toEqual({ id: "spare-26", src: "/art/pool/spare-26.png" });
   });
 
   it("keeps unused spare-09+ prints unclaimed", () => {
@@ -115,6 +115,9 @@ describe("art pool", () => {
     expect(SPARE_CLAIMED["spare-24"]).toBe(
       "transparent-model-portfolio-track-record",
     );
+    expect(SPARE_CLAIMED["spare-25"]).toBe(
+      "stock-investment-postmortem-template",
+    );
     for (const spare of fresh) {
       if (
         spare.id !== "spare-07" &&
@@ -145,10 +148,10 @@ describe("art pool", () => {
     const status = poolStatus(new Date("2026-08-22T12:00:00Z"));
     expect(status.weeksReady).toBe(13);
     expect(status.weeksRemaining).toBeGreaterThanOrEqual(13);
-    expect(status.sparesFree).toBe(44);
+    expect(status.sparesFree).toBe(43);
   });
 
-  it("registers spare-25 through spare-68 as unclaimed 1280-wide prints", () => {
+  it("registers spare-25 through spare-68 as 1280-wide prints, with spare-25 claimed", () => {
     const batch = SPARE_POOL.filter((s) => {
       const n = Number(s.id.replace("spare-", ""));
       return n >= 25 && n <= 68;
@@ -161,8 +164,16 @@ describe("art pool", () => {
     const priorInks = new Set(
       SPARE_POOL.filter((s) => Number(s.id.replace("spare-", "")) <= 24).map((s) => s.ink),
     );
+    expect(SPARE_CLAIMED["spare-24"]).toBe(
+      "transparent-model-portfolio-track-record",
+    );
+    expect(SPARE_CLAIMED["spare-25"]).toBe(
+      "stock-investment-postmortem-template",
+    );
     for (const spare of batch) {
-      expect(SPARE_CLAIMED[spare.id]).toBeUndefined();
+      if (spare.id !== "spare-25") {
+        expect(SPARE_CLAIMED[spare.id]).toBeUndefined();
+      }
       expect(priorInks.has(spare.ink)).toBe(false);
       expect(spare.ink).toMatch(/^#[0-9A-F]{6}$/);
       expect(spare.src).toBe(`/art/pool/${spare.id}.png`);

@@ -93,6 +93,7 @@ import buildingConcentratedStockPortfolios from "@/content/blog/building-concent
 import flatFeeInvestmentResearch from "@/content/blog/flat-fee-investment-research";
 import independentEquityResearchSubscription from "@/content/blog/independent-equity-research-subscription";
 import bestLongTermInvestmentNewsletter from "@/content/blog/best-long-term-investment-newsletter";
+import stockInvestmentPostmortemTemplate from "@/content/blog/stock-investment-postmortem-template";
 import transparentModelPortfolioTrackRecord from "@/content/blog/transparent-model-portfolio-track-record";
 
 export const articles: Article[] = [
@@ -136,6 +137,7 @@ export const articles: Article[] = [
   flatFeeInvestmentResearch,
   independentEquityResearchSubscription,
   bestLongTermInvestmentNewsletter,
+  stockInvestmentPostmortemTemplate,
   transparentModelPortfolioTrackRecord,
 ].sort((a, b) => b.meta.publishedAt.localeCompare(a.meta.publishedAt));
 

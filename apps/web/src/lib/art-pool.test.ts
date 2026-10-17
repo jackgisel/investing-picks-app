@@ -56,7 +56,7 @@ describe("art pool", () => {
 
   it("exposes spare covers for future blog posts", () => {
     const next = nextSpareCover();
-    expect(next).toEqual({ id: "spare-27", src: "/art/pool/spare-27.png" });
+    expect(next).toEqual({ id: "spare-28", src: "/art/pool/spare-28.png" });
   });
 
   it("keeps unused spare-09+ prints unclaimed", () => {
@@ -119,6 +119,7 @@ describe("art pool", () => {
       "stock-investment-postmortem-template",
     );
     expect(SPARE_CLAIMED["spare-26"]).toBe("when-to-sell-a-stock");
+    expect(SPARE_CLAIMED["spare-27"]).toBe("are-buybacks-good");
     for (const spare of fresh) {
       if (
         spare.id !== "spare-07" &&
@@ -149,10 +150,10 @@ describe("art pool", () => {
     const status = poolStatus(new Date("2026-08-22T12:00:00Z"));
     expect(status.weeksReady).toBe(13);
     expect(status.weeksRemaining).toBeGreaterThanOrEqual(13);
-    expect(status.sparesFree).toBe(42);
+    expect(status.sparesFree).toBe(41);
   });
 
-  it("registers spare-25 through spare-68 as 1280-wide prints, with spare-25 and spare-26 claimed", () => {
+  it("registers spare-25 through spare-68 as 1280-wide prints, with spare-25 through spare-27 claimed", () => {
     const batch = SPARE_POOL.filter((s) => {
       const n = Number(s.id.replace("spare-", ""));
       return n >= 25 && n <= 68;
@@ -172,8 +173,13 @@ describe("art pool", () => {
       "stock-investment-postmortem-template",
     );
     expect(SPARE_CLAIMED["spare-26"]).toBe("when-to-sell-a-stock");
+    expect(SPARE_CLAIMED["spare-27"]).toBe("are-buybacks-good");
     for (const spare of batch) {
-      if (spare.id !== "spare-25" && spare.id !== "spare-26") {
+      if (
+        spare.id !== "spare-25" &&
+        spare.id !== "spare-26" &&
+        spare.id !== "spare-27"
+      ) {
         expect(SPARE_CLAIMED[spare.id]).toBeUndefined();
       }
       expect(priorInks.has(spare.ink)).toBe(false);

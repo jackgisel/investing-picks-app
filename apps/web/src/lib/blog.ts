@@ -96,6 +96,7 @@ import bestLongTermInvestmentNewsletter from "@/content/blog/best-long-term-inve
 import stockInvestmentPostmortemTemplate from "@/content/blog/stock-investment-postmortem-template";
 import transparentModelPortfolioTrackRecord from "@/content/blog/transparent-model-portfolio-track-record";
 import whenToSellAStockWithoutChasingNoise from "@/content/blog/when-to-sell-a-stock";
+import areBuybacksGood from "@/content/blog/are-buybacks-good";
 
 export const articles: Article[] = [
   howToOutperformSp500,
@@ -141,6 +142,7 @@ export const articles: Article[] = [
   stockInvestmentPostmortemTemplate,
   transparentModelPortfolioTrackRecord,
   whenToSellAStockWithoutChasingNoise,
+  areBuybacksGood,
 ].sort((a, b) => b.meta.publishedAt.localeCompare(a.meta.publishedAt));
 
 // Fail the build, not the page, when a post is filed somewhere that has no
